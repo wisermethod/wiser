@@ -109,19 +109,30 @@ function gaplessTag(bytes) {
 
 // Every selected window has real samples over the entire stated lag domain.
 // Divide eligible start positions into thirds so the three witnesses are distinct.
-export function clock(reference, decoded) {
+export function clock(reference, decoded, retainedStart = 0, retainedEnd = reference.length / 2) {
   const n = reference.length / 2, radius = 4096, windowSize = 4096, margin = 0.000001;
   if (decoded.length !== reference.length || !Number.isInteger(n)) fail('Decoded sample count differs from padded source');
-  const positions = n - 2 * radius - windowSize + 1;
+  const firstStart = Math.max(radius, retainedStart), lastStart = Math.min(n - radius - windowSize, retainedEnd - windowSize);
+  const positions = lastStart - firstStart + 1;
   if (positions < 3) fail('Decoded clock cannot be established: source too short for three distinct inset windows');
   const x = Float64Array.from({ length: n }, (_, i) => sample(reference, i));
   const y = Float64Array.from({ length: n }, (_, i) => sample(decoded, i));
+  // Fixed zero-lag edges close period aliases outside the inset witness grid.
+  const edgeChecks = [0, n - windowSize].map(start => {
+    let xx = 0, yy = 0, dot = 0;
+    for (let j = 0; j < windowSize; j++) { const a = x[start + j], b = y[start + j]; xx += a * a; yy += b * b; dot += a * b; }
+    const referenceRMS = Math.sqrt(xx / windowSize) * 32768, decodedRMS = Math.sqrt(yy / windowSize) * 32768;
+    const referenceSilent = referenceRMS < 16, decodedSilent = decodedRMS < 16;
+    const peak = xx && yy ? dot / Math.sqrt(xx * yy) : null;
+    if (referenceSilent !== decodedSilent || !referenceSilent && peak < 0.90) fail('Decoded clock cannot be established: zero-lag edge mismatch');
+    return { start_sample: start, sample_count: windowSize, reference_rms_pcm16: referenceRMS, decoded_rms_pcm16: decodedRMS, peak, both_silent: referenceSilent && decodedSilent };
+  });
   const windows = [];
   for (let third = 0; third < 3; third++) {
     // An early short witness must see the onset rather than letting a later
     // loud periodic block conceal missing leading samples.
     const width = third === 0 ? 512 : windowSize;
-    const from = radius + Math.floor(third * positions / 3), until = radius + Math.floor((third + 1) * positions / 3);
+    const from = firstStart + Math.floor(third * positions / 3), until = firstStart + Math.floor((third + 1) * positions / 3);
     let start = from, energy = -1;
     for (let at = from; at < until; at += width) {
       let e = 0;
@@ -153,7 +164,7 @@ export function clock(reference, decoded) {
   if (windows.length < 3) fail('Decoded clock cannot be established from silence or insufficient signal in three distinct windows');
   const measured = windows.map(w => w.lag).sort((a, b) => a - b);
   return { algorithm: 'thirds-normalized-xcorr-v2', search_radius_samples: radius, window_samples: windowSize, onset_window_samples: 512,
-    minimum_rms_pcm16: 16, minimum_peak: 0.90, ambiguity_margin: margin, ambiguity_exclusion_samples: 0,
+    retained_span: [retainedStart, retainedEnd], edge_checks: edgeChecks, minimum_rms_pcm16: 16, minimum_peak: 0.90, ambiguity_margin: margin, ambiguity_exclusion_samples: 0,
     tolerance_samples: 0, lag_samples: measured[1], peak: Math.min(...windows.map(w => w.peak)), windows };
 }
 
@@ -225,7 +236,7 @@ export function upload(o) {
         y.writeInt16LE(decoded.readInt16LE((i * outChannels + analysisChannel) * 2), i * 2);
       }
     }
-    const correlation = clock(x, y);
+    const correlation = clock(x, y, pre, pre + end - start);
     const packets = policy.recipe === 'mp3' ? strictJSON(run('ffprobe', ['-v', 'error', ...local('mp3'), '-show_packets', '-show_entries', 'packet=pts,duration:packet_side_data', '-of', 'json', encoded])).packets : [];
     const skips = packets.flatMap(p => p.side_data_list ?? []).filter(s => s.side_data_type === 'Skip Samples');
     if (policy.recipe === 'mp3' && (!skips.length || skips.some(s => !Number.isSafeInteger(s.skip_samples) || s.skip_samples < 0 || !Number.isSafeInteger(s.discard_padding) || s.discard_padding < 0))) fail('MP3 gapless skip/end-padding metadata is missing or invalid');

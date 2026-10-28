@@ -12,7 +12,7 @@ export const COMPOSITE_HELP = `Timed silent video composite (required flags, onc
   Fit keeps exact aspect on an even pixel grid; bars use declared TV-range YUV colour.
   Border width defaults to 0. No shadow, rounded corners, crop, audio or time stretch.
   Both inputs: progressive H.264 yuv420p BT.709 TV, square pixels, same exact CFR
-  rate/time base, zero first displayed PTS, no edit list. See TOOL.md for bounds.
+  rate, zero first displayed PTS, no edit list. See TOOL.md for bounds.
   Lossless segment.mp4 + receipt.json + complete.json, independently sample-checked.`;
 
 function tuple(raw, n, label, max) {
@@ -70,7 +70,7 @@ export function composite(argv) {
   dependencies(true);
   const paths = [base, inset], before = [expectedIdentity(base, o['base-sha256']), expectedIdentity(inset, o['inset-sha256'])];
   const b = inspect(base, true), i = inspect(inset, true), rate = clock(b, base), insetRate = clock(i, inset);
-  if (cmp(rate, insetRate) || cmp(b.tb, i.tb)) fail('base/inset rates or time bases differ');
+  if (cmp(rate, insetRate)) fail('base/inset rates differ');
   if (end > b.count || insetStart + end - start > i.count) fail('active interval outside base or inset too short');
   const g = geometry(rect, border, b.width, b.height, i.width, i.height), size = b.width * b.height * 3 / 2, insetSize = g.width * g.height * 3 / 2;
   if (4 * size * b.count + 2 * insetSize * i.count > 64 * 1024 ** 3) fail('composite planar scratch exceeds 64 GiB');

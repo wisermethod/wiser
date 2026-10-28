@@ -25,10 +25,10 @@ function shifted(x, lag, drift = 0) { return Float64Array.from({ length: x.lengt
 function receipt(d, path, count, rate = 48000) {
   const p = join(d, 'receipt.json'); writeFileSync(p, JSON.stringify({ schema: 'speech-upload', version: 1, padded: { file: 'padded.wav', identity: identity(path), rate, channels: 1, sample_count: count }, mapping: { source_zero_at_upload_sample: 12000 }, source: { before: { sha256: '1'.repeat(64) } }, readback: { sample_count: count, delay: { residual_decoded_displacement_samples: 0 } } })); return p;
 }
-function fixture(d, { lag = 0, frames = 25, bf = 0, audio = true, cancel = false, silent = false, aac = false, pictureOffset = '0', audioOffset = '0', rate = 48000 } = {}) {
+function fixture(d, { lag = 0, frames = 25, bf = 0, audio = true, cancel = false, silent = false, aac = false, stereo = false, pictureOffset = '0', audioOffset = '0', rate = 48000 } = {}) {
   const reference = join(d, 'padded.wav'), vendor = join(d, 'vendor.wav'), raw = join(d, 'pictures.yuv'), input = join(d, 'vendor.mp4');
   const x = noise(rate); wave(reference, x, rate); const y = shifted(x, Math.round(lag * rate / 48000));
-  wave(vendor, cancel ? Float64Array.from({ length: y.length * 2 }, (_, i) => (i % 2 ? -1 : 1) * y[i >> 1]) : silent ? new Float64Array(y.length) : y, rate, cancel ? 2 : 1);
+  wave(vendor, cancel || stereo ? Float64Array.from({ length: y.length * 2 }, (_, i) => (cancel && i % 2 ? -1 : 1) * y[i >> 1]) : silent ? new Float64Array(y.length) : y, rate, cancel || stereo ? 2 : 1);
   const size = 64 * 48 * 3 / 2, bytes = Buffer.alloc(size * frames);
   for (let n = 0; n < frames; n++) { for (let i = 0; i < 64 * 48; i++) bytes[n * size + i] = 16 + ((n * 13 + Math.floor(i / 64) * 7 + i % 64) % 220);
     for (let bit = 0; bit < 8; bit++) bytes.fill(n & (1 << bit) ? 220 : 25, n * size + bit * 8, n * size + bit * 8 + 8);
@@ -101,6 +101,11 @@ for (const [name, opts, pattern] of [['silence', { silent: true }, /silent/], ['
 test('AAC, 44.1k reference, unchanged mux/loudness/finish', () => temp(d => {
   const f = fixture(d, { aac: true, rate: 44100 }), r = success(f, { 'correlation-floor': '0.8', 'drift-tolerance': '1/1000', frames: 33 }); oracle(f, r);
   const laid = run(process.execPath, [entry, 'mux', '--input', r.segment, '--audio', f.reference, '--audio-start', '0.0123', '--output', join(d, 'laid.mp4')]); assert.equal(laid.status, 0, laid.stderr); const mux = JSON.parse(laid.stdout); assert.equal(mux.audioStartSample, 591); assert.equal(mux.firstFrameSample, 0); assert.equal(mux.frames, 33);
+  for (const [command, pattern] of [['loudness', /exactly one audio stream/], ['finish', /no gated block/]]) {
+    const output = join(d, `bare-${command}.mp4`), before = readdirSync(d).sort();
+    const bare = run(process.execPath, [entry, command, '--input', r.segment, '--output', output, '--target', '-24', '--true-peak', '-1']);
+    assert.equal(bare.status, 1); assert.equal(bare.stdout, ''); assert.match(bare.stderr, pattern); assert.ok(!existsSync(output)); assert.deepEqual(readdirSync(d).sort(), before);
+  }
   for (const command of ['loudness', 'finish']) { const out = join(d, `${command}.mp4`), result = run(process.execPath, [entry, command, '--input', mux.output, '--output', out, '--target', '-24', '--true-peak', '-1']); assert.equal(result.status, 0, result.stderr); const v = JSON.parse(result.stdout); assert.ok(Math.abs(v.after.integrated + 24) <= (command === 'finish' ? 1 : 0.5)); assert.ok(v.after.truePeak <= -1); }
 }));
 test('receipts, identities, links, protected paths, collisions, CLI and missing dependencies', () => temp(d => {
@@ -262,4 +267,96 @@ test('whole-file search also permits uncovered silence, with an original duratio
   check(correlate);
   const old = await overlapMutant(d, 'duration-preclip', s => s.replace('hi = Math.min(hi, y.length - MIN);', 'hi = Math.min(hi, y.length - Math.ceil(x.length * 19 / 20));'));
   assert.throws(() => check(old), /overlap/);
+}));
+
+
+for (const referenceRate of [48000, 44100]) test(`AAC 48k stereo, PCM ${referenceRate}, +1105 samples and unequal origins: external pixels and one-sided analysis delay`, () => temp(d => {
+  const f = fixture(d, { aac: true, stereo: true, lag: 1105, pictureOffset: '0.04', audioOffset: '0' });
+  if (referenceRate !== 48000) {
+    const converted = join(d, 'converted.wav'); ff(['-i', f.reference, '-ar', String(referenceRate), '-c:a', 'pcm_s16le', converted]);
+    writeFileSync(f.reference, readFileSync(converted)); receipt(d, f.reference, referenceRate, referenceRate);
+  }
+  const changes = { 'correlation-floor': '0.8', 'drift-tolerance': '1/1000', 'max-offset': '0.2', 'max-hold-end': 8 };
+  const r = success(f, changes), c = r.detail.correlation;
+  const info = JSON.parse(run('ffprobe', ['-v', 'error', '-show_streams', '-show_frames', '-of', 'json', f.input]).stdout);
+  const a = info.streams.find(s => s.codec_type === 'audio'); assert.equal(a.codec_name, 'aac'); assert.equal(a.sample_rate, '48000'); assert.equal(a.channels, 2);
+  const first = type => { const s = info.streams.find(s => s.codec_type === type), frame = info.frames.find(f => f.media_type === type), [n, d] = s.time_base.split('/').map(BigInt); return [BigInt(frame.pts) * n, d]; };
+  const [vn, vd] = first('video'), [an, ad] = first('audio'); assert.notEqual(an * vd, vn * ad);
+  // Audio content starts at zero, picture starts at 1/25 second. AAC's edit
+  // list removes priming. This oracle uses fixture facts, never measured lag.
+  assert.equal(an, 0n); assert.equal(vn * 25n, vd);
+  const lagN = 1105n * vd - vn * 48000n, lagD = vd * 48000n;
+  oracle(f, r, { lagN, lagD });
+  assert.equal(c.lag_samples, 1105);
+  const settings = r.detail.decoder.vendor_audio.settings, af = settings[settings.indexOf('-af') + 1]; assert.equal(af, 'asetpts=N/SR/TB');
+  const refSettings = r.detail.decoder.reference_audio.settings, refAF = refSettings[refSettings.indexOf('-af') + 1];
+  assert.equal(refAF, referenceRate === 48000 ? 'asetpts=N/SR/TB' : 'asetpts=N/SR/TB,aresample=48000:first_pts=0');
+  assert.equal(r.detail.decoder.build, r.detail.encoder.ffmpeg_version); assert.match(r.detail.decoder.build, /^ffmpeg version/);
+  assert.equal(r.detail.decoder.probe_build, r.detail.encoder.ffprobe_version); assert.match(r.detail.decoder.probe_build, /^ffprobe version/);
+  const delayed = mutant(d, 'vendor-delay', s => s.replace('ff(settings);\n  const bytes = readFileSync(out)', `ff(settings);
+  if (name === 'vendor') { const pcm = readFileSync(out); pcm.copyWithin(97 * stream.channels * 8, 0, pcm.length - 97 * stream.channels * 8); pcm.fill(0, 0, 97 * stream.channels * 8); writeFileSync(out, pcm); }
+  const bytes = readFileSync(out)`));
+  const moved = success(f, changes, 'delayed', delayed);
+  assert.equal(moved.detail.decoder.vendor_audio.samples, r.detail.decoder.vendor_audio.samples);
+  assert.equal(moved.detail.correlation.lag_samples, c.lag_samples + 97);
+  assert.throws(() => assert.equal(moved.detail.correlation.lag_samples, c.lag_samples), assert.AssertionError);
+  // A stand-in models a count-preserving resampler delay only when an unnecessary
+  // 48k resampler is present, only on the vendor side. Removing the branch fails.
+  const ffmpeg = actual('ffmpeg'), wrapped = standin(d, 'ffmpeg', `const fs=require('node:fs'),a=process.argv.slice(2),r=require('node:child_process').spawnSync(${JSON.stringify(ffmpeg)},a,{stdio:'inherit'});if(r.status===0&&a.at(-1).endsWith('/vendor.f64le')&&a[a.indexOf('-af')+1].includes('aresample')){const p=a.at(-1),b=fs.readFileSync(p);b.copyWithin(97*16,0,b.length-97*16);b.fill(0,0,97*16);fs.writeFileSync(p,b)}process.exit(r.status??1);`);
+  const check = program => { const v = run(process.execPath, [program, ...args(f, join(d, program === entry ? 'branch-ok' : 'branch-mutant'), changes)], wrapped); assert.equal(v.status, 0, v.stderr); assert.equal(JSON.parse(readFileSync(JSON.parse(v.stdout).receipt)).correlation.lag_samples, c.lag_samples); };
+  check(entry);
+  const always = mutant(d, 'always-resample', s => s.replace("...rateFilter(clock.rate)", "'aresample=48000:first_pts=0'"));
+  assert.throws(() => check(always), assert.AssertionError);
+}));
+test('audio PTS/best-effort disagreement refuses; removing only its guard permits publication', () => temp(d => {
+  const f = fixture(d), ffprobe = actual('ffprobe');
+  const wrapped = standin(d, 'ffprobe', `const a=process.argv.slice(2),r=require('node:child_process').spawnSync(${JSON.stringify(ffprobe)},a,{encoding:'utf8'});if(r.status===0&&a.includes('-select_streams')&&a[a.indexOf('-select_streams')+1]==='a:0'){const v=JSON.parse(r.stdout);v.frames[0].best_effort_timestamp=v.frames[0].pts+1;process.stdout.write(JSON.stringify(v))}else process.stdout.write(r.stdout);process.stderr.write(r.stderr);process.exit(r.status??1);`);
+  const check = program => { const r = run(process.execPath, [program, ...args(f)], wrapped); assert.equal(r.status, 1, r.stderr); assert.equal(r.stdout, ''); assert.match(r.stderr, /audio decoded PTS disagrees/); };
+  check(entry); assert.ok(!existsSync(join(d, 'bundle')));
+  const bypass = mutant(d, 'no-audio-pts-guard', s => s.replace('f.best_effort_timestamp !== undefined && integerPTS(f.best_effort_timestamp) !== integerPTS(f.pts)', 'false'));
+  assert.throws(() => check(bypass), assert.AssertionError);
+  assert.ok(existsSync(join(d, 'bundle', 'complete.json')));
+}));
+test('readback independently refuses a change to only the construction selection call; bypass control fails', () => temp(d => {
+  const f = fixture(d), plant = s => s.replace('selection(clock.rows, p.frames, p.rate, p.origin, lag, p.holds)', 'selection(clock.rows, p.frames, p.rate, add(p.origin, rat(1n, 25n)), lag, p.holds)');
+  const check = r => { assert.equal(r.status, 1, r.stderr); assert.equal(r.stdout, ''); assert.match(r.stderr, /readback.*correspondence|frame map/); };
+  const planted = mutant(d, 'first-map-only', plant); check(invoke(f, { 'max-hold-end': 10 }, planted, 'out')); assert.ok(!existsSync(join(d, 'out')));
+  const bypass = mutant(d, 'shared-map', s => plant(s).replace('mapping[n].source_ordinal !== ordinal || hashes[n] !== sourceHashes[ordinal]', 'hashes[n] !== sourceHashes[mapping[n].source_ordinal]'));
+  const result = invoke(f, { 'max-hold-end': 10 }, bypass, 'unchecked'); assert.equal(result.status, 0, result.stderr);
+  assert.throws(() => check(result), assert.AssertionError);
+  const r = JSON.parse(result.stdout); r.detail = JSON.parse(readFileSync(r.receipt)); assert.throws(() => oracle(f, r), assert.AssertionError);
+}));
+test('file/pipe protocol whitelist itself refuses an otherwise valid non-file reference, entirely offline', () => temp(d => {
+  const f = fixture(d), ffprobe = actual('ffprobe'), diagnostic = join(d, 'protocol-diagnostic.txt');
+  const wrapped = standin(d, 'ffprobe', `const fs=require('node:fs'),a=process.argv.slice(2);if(a.includes('-show_streams')&&a.at(-1)===${JSON.stringify(f.reference)})a[a.length-1]='data:audio/wav;base64,'+fs.readFileSync(${JSON.stringify(f.reference)}).toString('base64');const r=require('node:child_process').spawnSync(${JSON.stringify(ffprobe)},a,{encoding:'utf8'});if(r.stderr||r.error)fs.writeFileSync(${JSON.stringify(diagnostic)},String(r.status)+' '+String(r.error??'')+' '+String(r.stderr).split('\\n')[0]);process.stdout.write(r.stdout);process.stderr.write(r.stderr);process.exit(r.status??1);`);
+  const check = r => { assert.equal(r.status, 1); assert.equal(r.stdout, ''); assert.match(readFileSync(diagnostic, 'utf8'), /Protocol 'data' not on whitelist 'file,pipe'/); };
+  check(run(process.execPath, [entry, ...args(f)], wrapped)); assert.ok(!existsSync(join(d, 'bundle')));
+  const bypass = mutant(d, 'no-protocol-whitelist', s => s.replace("'-protocol_whitelist', 'file,pipe', ", ''));
+  const result = run(process.execPath, [bypass, ...args(f)], wrapped); assert.equal(result.status, 0, result.stderr + readFileSync(diagnostic, 'utf8').slice(0,300));
+  assert.throws(() => check(result), assert.AssertionError); assert.ok(existsSync(join(d, 'bundle', 'complete.json')));
+}));
+test('one-frame rival 0.001 below best is outside the declared ambiguity bound; stricter-bound control fails', () => temp(async d => {
+  const pattern = noise(1600), unique = noise(48000, 1234567), x = Float64Array.from(unique, (v, i) => pattern[i % 1600] + 0.0464 * v), p = clockPolicy({ window: rat(1n) });
+  const check = fn => { const r = fn(x, x, p, rat(0n)); assert.equal(r.whole.lag_samples, 0); assert.ok(Math.abs(r.whole.peak_margin - 0.001) < 0.0001, String(r.whole.peak_margin)); assert.ok(r.whole.overlap_samples >= 45600); assert.ok(48000 - 1600 >= 45600);
+    let dot = 0, xx = 0, yy = 0; for (let j = 0; j < 46400; j++) { dot += x[j] * x[j + 1600]; xx += x[j] ** 2; yy += x[j + 1600] ** 2; }
+    assert.ok(Math.abs(r.whole.runner_up_peak - dot / Math.sqrt(xx * yy)) < 1e-9, 'runner must be the legal one-frame rival'); return r; };
+  check(correlate);
+  const strict = await overlapMutant(d, 'strict-ambiguity', s => s.replace('margin < 0.000001', 'margin < 0.002'));
+  assert.throws(() => check(strict), /near-tie/);
+}));
+test('whole-file lag is required in drift spread even when the window lags agree', () => temp(async d => {
+  // Isolate aggregation from estimation: a stand-in whole-file result differs
+  // by one sample while every real window remains at zero. No other check moves.
+  const plant = s => s.replace("const [n, d] = whole.lag_seconds.split('/').map(BigInt);", "whole.lag_seconds = '1/48000'; const [n, d] = whole.lag_seconds.split('/').map(BigInt);");
+  const guarded = await overlapMutant(d, 'whole-lag-planted', plant), x = noise(), check = fn => assert.throws(() => fn(x, x, clockPolicy(), rat(0n)), /drift/);
+  check(guarded);
+  const bypass = await overlapMutant(d, 'whole-lag-omitted', s => plant(s).replace('acceptDrift([...lags, rat(n, d)], policy.drift)', 'acceptDrift(lags, policy.drift)'));
+  const r = bypass(x, x, clockPolicy(), rat(0n)); assert.equal(r.whole.lag_seconds, '1/48000'); assert.ok(r.windows.every(w => w.lag_seconds === '0/1')); assert.equal(r.drift_seconds, '0/1'); assert.throws(() => check(bypass), /Missing expected exception/);
+}));
+
+test('decoder build receipt checks fail on the old placeholder strings', () => temp(d => {
+  const f = fixture(d), check = r => { assert.equal(r.detail.decoder.build, r.detail.encoder.ffmpeg_version); assert.equal(r.detail.decoder.probe_build, r.detail.encoder.ffprobe_version); assert.match(r.detail.decoder.build, /^ffmpeg version/); assert.match(r.detail.decoder.probe_build, /^ffprobe version/); };
+  check(success(f));
+  const placeholder = mutant(d, 'placeholder-builds', s => s.replace('build: ffmpegVersion, probe_build: ffprobeVersion', "build: 'encoder.ffmpeg_version', probe_build: 'encoder.ffprobe_version'"));
+  const r = success(f, {}, 'placeholder-output', placeholder); assert.throws(() => check(r), assert.AssertionError);
 }));

@@ -55,6 +55,7 @@ function measuredClock(c, count = Infinity) {
   assert.equal(new Set(c.windows.map(w => w.start_sample)).size, 3);
   for (const w of c.windows) {
     assert.equal(w.lag, 0);
+    assert.ok(w.start_sample >= c.retained_span[0] && w.start_sample + w.sample_count <= c.retained_span[1]);
     assert.ok(w.start_sample >= 4096);
     assert.ok(w.start_sample + w.sample_count + 4096 <= count);
     assert.deepEqual(w.search_lags, [-4096, 4096]); assert.equal(w.scored_lags, 8193);
@@ -261,6 +262,7 @@ for (const [name, plant, planted, guard] of [
 ]) test(`planted ${name} refuses, and refusal assertion fails when its guard is removed`, () => work(({ dir, put, command, module }) => {
   const s = source(), input = put('source.wav', s.bytes), output = join(dir, 'bundle');
   if (name !== 'inclusive ceiling') mutate(module, plant, planted);
+  if (name === 'lag') mutate(module, 'referenceSilent !== decodedSilent || !referenceSilent && peak < 0.90', 'false');
   const a = args(input, s.bytes, output, 'mp3', undefined, name === 'inclusive ceiling' ? '1' : '3000000');
   const check = r => { assert.equal(r.status, 1); assert.equal(r.stdout, ''); };
   check(command(a)); clean(dir, output);
@@ -362,6 +364,9 @@ test('periodic clock passes unshifted and refuses a whole-period shift beyond th
   const x = periodic(); measuredClock(clock(x, x), x.length / 2);
   const y = delayed(x, 5000), check = fn => assert.throws(() => fn(x, y), /clock/);
   check(clock);
+  // Isolate the original onset witness from the new, redundant edge check.
+  const guarded = await clockMutant(module, s => s.replace('referenceSilent !== decodedSilent || !referenceSilent && peak < 0.90', 'false'));
+  check(guarded);
   const bypass = await clockMutant(module, s => s.replace('third === 0 ? 512 : windowSize', 'windowSize').replace('if (third === 0 && e / width >= (16 / 32768) ** 2) break;', ''));
   assert.throws(() => check(bypass), /Missing expected exception/);
 }));
@@ -384,10 +389,11 @@ async function clockMutant(module, change) {
   return (await import(pathToFileURL(module).href + '?mutant=' + Math.random())).clock;
 }
 test('missing third signal witness and adjacent near-tie guards have failing removal controls', () => work(async ({ module }) => {
-  const original = readFileSync(module, 'utf8'), x = source(24000, 1, 60000).pcm; x.fill(0, 30000 * 2);
-  assert.throws(() => clock(x, x), /three distinct/);
+  const original = readFileSync(module, 'utf8'), retained = source(24000, 1, 60000).pcm; retained.fill(0, 30000 * 2);
+  const x = Buffer.concat([Buffer.alloc(36000 * 2), retained, Buffer.alloc(48000 * 2)]);
+  assert.throws(() => clock(x, x, 36000, 96000), /three distinct/);
   const two = await clockMutant(module, s => s.replace('windows.length < 3', 'false'));
-  assert.throws(() => assert.throws(() => two(x, x)), { code: 'ERR_ASSERTION' });
+  assert.throws(() => assert.throws(() => two(x, x, 36000, 96000)), { code: 'ERR_ASSERTION' });
   writeFileSync(module, original);
   // One very slow ramp has an unresolved adjacent-sample peak, but no distant
   // peak within the same margin. The old +/-1 exclusion would certify it.
@@ -423,6 +429,7 @@ test('skip/end-discard swap preserves counts but displaced MP3 samples refuse; r
     const packed = b.readUIntBE(at + 21, 3), priming = packed >> 12, padding = packed & 4095;
     if (padding < 32) throw new Error('test needs at least 32 padding samples');
     b.writeUIntBE(((priming + 32) << 12) | (padding - 32), at + 21, 3); writeFileSync(encoded, b);`);
+  mutate(module, 'referenceSilent !== decodedSilent || !referenceSilent && peak < 0.90', 'false');
   const a = args(input, s.bytes, output, 'mp3');
   const check = r => refused(r, /clock lag/);
   check(command(a)); clean(dir, output);
@@ -512,4 +519,50 @@ test('completion marker readback guard has a failing removal control', () => wor
   mutate(module, "const marker = join(stage, 'complete.json'); writeJSON(marker, completion);", "const marker = join(stage, 'complete.json'); writeJSON(marker, {...completion, complete: false});");
   const a = args(input, s.bytes, output); refused(command(a), /Completion marker/); clean(dir, output);
   mutate(module, "!isDeepStrictEqual(strictJSON(readFileSync(marker, 'utf8')), completion)", 'false'); ok(command(a));
+}));
+
+
+test('period shift into the uncovered tail refuses; edge guard removal makes the assertion fail', () => work(async ({ module }) => {
+  const x = periodic(), y = delayed(x, -5000), check = fn => assert.throws(() => fn(x, y), /zero-lag edge/);
+  measuredClock(clock(x, x), 30000); check(clock);
+  const bypass = await clockMutant(module, s => s.replace('referenceSilent !== decodedSilent || !referenceSilent && peak < 0.90', 'false'));
+  measuredClock(bypass(x, y), 30000);
+  assert.throws(() => check(bypass), /Missing expected exception/);
+}));
+test('zero-lag first/last edge rules cover silence mismatch and low correlation, with removal controls', () => work(async ({ module }) => {
+  const bypass = await clockMutant(module, s => s.replace('referenceSilent !== decodedSilent || !referenceSilent && peak < 0.90', 'false'));
+  for (const start of [0, 30000 - 4096]) for (const kind of ['missing', 'added', 'inverted', 'at-threshold']) {
+    const x = periodic(), y = Buffer.from(x);
+    if (kind === 'missing') y.fill(0, start * 2, (start + 4096) * 2);
+    if (kind === 'added') x.fill(0, start * 2, (start + 4096) * 2);
+    if (kind === 'at-threshold') for (let i = start; i < start + 4096; i++) { x.writeInt16LE(16, i * 2); y.writeInt16LE(15, i * 2); }
+    if (kind === 'inverted') for (let i = start; i < start + 4096; i++) y.writeInt16LE(-y.readInt16LE(i * 2), i * 2);
+    const check = fn => assert.throws(() => fn(x, y, 8192, 21808), /zero-lag edge/); check(clock);
+    assert.throws(() => check(bypass), /Missing expected exception/);
+  }
+}));
+test('MP3 period copy toward index zero refuses; edge guard removal permits the wrong clock', () => work(({ dir, put, command, module }) => {
+  const s = source(24000, 1, 30000), bytes = Buffer.from(s.bytes);
+  for (let i = 0; i < 30000; i++) bytes.writeInt16LE(Math.round(7000 * Math.sin(2 * Math.PI * 97 * i / 5000) + 5000 * Math.sin(2 * Math.PI * 167 * i / 5000)), 44 + 2 * i);
+  const input = put('periodic.wav', bytes), mode = ['--lead', '0', '--tail', '0'];
+  ok(command(args(input, bytes, join(dir, 'unshifted'), 'mp3', mode)));
+  mutate(module, 'const decoded = decode(encoded, policy.recipe, decodedPath);', 'const decoded = decode(encoded, policy.recipe, decodedPath); decoded.copyWithin(0, 10000); decoded.fill(0, decoded.length - 10000);');
+  const output = join(dir, 'shifted'), a = args(input, bytes, output, 'mp3', mode), check = r => refused(r, /zero-lag edge/);
+  check(command(a)); clean(dir, output);
+  mutate(module, 'referenceSilent !== decodedSilent || !referenceSilent && peak < 0.90', 'false');
+  const r = command(a); ok(r); assert.throws(() => check(r), assert.AssertionError);
+}));
+for (const recipe of ['wav', 'mp3']) for (const [lead, tail] of [['0', '2'], ['1.5', '0']]) test(`${recipe}: 2s source with lead ${lead}, tail ${tail} uses retained-span witnesses`, () => work(({ dir, put, command, module }) => {
+  const s = source(24000, 1, 48000), input = put('source.wav', s.bytes), mode = ['--lead', lead, '--tail', tail];
+  const check = r => {
+    const v = ok(r), c = read(v.receipt).readback.correlation, pre = Number(lead) * 24000;
+    measuredClock(c); assert.deepEqual(c.retained_span, [pre, pre + 48000]);
+    assert.ok(c.windows.every(w => w.start_sample >= pre && w.start_sample + w.sample_count <= pre + 48000));
+    assert.equal(c.edge_checks.length, 2);
+  };
+  check(command(args(input, s.bytes, join(dir, 'correct'), recipe, mode)));
+  mutate(module, 'clock(x, y, pre, pre + end - start)', 'clock(x, y)');
+  const old = command(args(input, s.bytes, join(dir, 'old'), recipe, mode));
+  assert.equal(old.status, 1); assert.match(old.stderr, /three distinct/);
+  assert.throws(() => check(old), assert.AssertionError);
 }));

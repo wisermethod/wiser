@@ -135,7 +135,7 @@ test('composite fractional grid preserves base time base and fits a portrait ins
 test('composite refuses audio, short inset, mismatched clocks/rates, geometry, unknown colour and hashes', () => temp(d => {
   const base = fixture(d, 'base'), inset = fixture(d, 'inset'), a = changes => compArgs(base, inset, join(d, 'out'), changes);
   for (const changes of [{ start: -1 }, { start: 2.5 }, { start: 2, end: 2 }, { end: 9 }, { 'inset-start': 7 }, { rect: '1,2,30,30' }, { rect: '0,0,66,48' }, { rect: '8,4,4,8' }, { rect: '0,0,2,2', 'border-width': 2 }, { 'border-width': 1 }, { fit: 'cover' }, { 'border-colour': '0,128,128' }, { 'base-sha256': '0'.repeat(64) }]) refuse(d, a(changes), /Error:/);
-  for (const [name, options, pattern] of [['audio', { audio: true }, /refuses audio/], ['short', { count: 2 }, /inset too short/], ['rate', { rate: '25/1', timescale: '30' }, /constant grid|rates|clock/], ['clock', { timescale: '3000' }, /time bases/], ['colour', { tags: false }, /unresolved/]]) {
+  for (const [name, options, pattern] of [['audio', { audio: true }, /refuses audio/], ['short', { count: 2 }, /inset too short/], ['rate', { rate: '25/1', timescale: '30' }, /constant grid|rates|clock/], ['colour', { tags: false }, /unresolved/]]) {
     const other = fixture(d, name, options); refuse(d, a({ inset: other, 'inset-sha256': id(other).sha256 }), pattern);
   }
   const av = fixture(d, 'avbase', { audio: true }); refuse(d, a({ base: av, 'base-sha256': id(av).sha256 }), /refuses audio/);
@@ -264,4 +264,24 @@ test('conform -> exact-frames -> composite with conformed inset -> unchanged mux
   compositeOracle(base, c.segment, composite, { start: 1, end: 31, insetStart: 0 }); exactOracle(composite.segment, success(exactArgs(composite.segment, join(d, 'composite-evidence'), requests)), requests);
   const mux = success(['mux', '--input', composite.segment, '--audio', reference, '--audio-start', '0.0123', '--output', join(d, 'mux.mp4')]); assert.equal(mux.audioStartSample, 591); assert.equal(mux.frames, 33);
   for (const command of ['loudness', 'finish']) { const r = success([command, '--input', mux.output, '--output', join(d, `${command}.mp4`), '--target', '-24', '--true-peak', '-1']); assert.ok(r.after.truePeak <= -1); }
+}));
+
+
+test('composite shares exact 30fps presentation times across 1/15360 and 1/30 time bases; old check fails', () => temp(d => {
+  const base = fixture(d, 'base', { timescale: '15360' }), inset = fixture(d, 'inset', { width: 32, height: 24, timescale: '30', seed: 91 });
+  const check = program => { const r = success(compArgs(base, inset, join(d, program === entry ? 'out' : 'old-out')), program); compositeOracle(base, inset, r); return r; };
+  const r = check(entry); assert.equal(probe(base).streams[0].time_base, '1/15360'); assert.equal(probe(inset).streams[0].time_base, '1/30'); assert.equal(probe(r.segment).streams[0].time_base, '1/15360');
+  const old = mutant(d, 'time-base-string', 'composite.js', s => s.replace('if (cmp(rate, insetRate))', 'if (cmp(rate, insetRate) || cmp(b.tb, i.tb))'));
+  assert.throws(() => check(old), assert.AssertionError);
+}));
+test('composite refuses a one-tick off-grid frame; removing the per-frame grid guard fails the assertion', () => temp(d => {
+  const base = fixture(d, 'base', { timescale: '15360' }), inset = fixture(d, 'inset', { timescale: '3000' }), offGrid = join(d, 'off-grid.mp4');
+  ff(['-i', inset, '-map', '0:v', '-c', 'copy', '-bsf:v', 'setts=pts=PTS+if(eq(N\\,3)\\,1\\,0)', '-video_track_timescale', '3000', '-use_editlist', '0', offGrid]);
+  const info = probe(offGrid), frames = info.frames.filter(f => f.media_type === 'video');
+  assert.equal(info.streams[0].r_frame_rate, '30/1'); assert.equal(frames[3].pts, 301);
+  const a = compArgs(base, offGrid, join(d, 'out')); refuse(d, a, /exact constant grid/);
+  const bypass = mutant(d, 'no-frame-grid', 'evidence-media.js', s => s.replace("cmp(r.seconds, rat(BigInt(r.ordinal) * rate.d, rate.n)) || r.duration === undefined || pts(r.duration) * info.tb.n * rate.n !== rate.d * info.tb.d", 'false'));
+  assert.throws(() => refuse(d, a, /exact constant grid/, bypass), assert.AssertionError);
+  const output = join(d, 'out'); assert.ok(existsSync(join(output, 'complete.json')));
+  compositeOracle(base, offGrid, { output, segment: join(output, 'segment.mp4'), receipt: join(output, 'receipt.json'), completion: join(output, 'complete.json') });
 }));

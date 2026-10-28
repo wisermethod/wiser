@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { hash, mp4Structure } from './finish.js';
 import { correlate } from './conform-clock.js';
+import { rateFilter } from './loudness.js';
 
 export const VERSION = '0.3.0';
 export const CONFORM_HELP = `Conform (all flags required, each once):
@@ -158,6 +159,7 @@ function audioClock(path, format, stream) {
   if (!frames.length) fail('absent or undecodable audio track');
   const first = rat(integerPTS(frames[0].pts) * tb.n, tb.d); let count = 0;
   for (const f of frames) {
+    if (f.best_effort_timestamp !== undefined && integerPTS(f.best_effort_timestamp) !== integerPTS(f.pts)) fail('audio decoded PTS disagrees with best-effort timestamp');
     if (cmp(rat(integerPTS(f.pts) * tb.n, tb.d), add(first, rat(BigInt(count), BigInt(rate)))) !== 0) fail('audio decoded timestamps are discontinuous');
     count += int(f.nb_samples, 'decoded audio frame samples', 1);
   }
@@ -166,7 +168,7 @@ function audioClock(path, format, stream) {
 }
 function decodeAudio(path, format, stream, scratch, name, clock) {
   const out = join(scratch, `${name}.f64le`);
-  const settings = [...local(format), '-i', path, '-map', '0:a:0', '-vn', '-af', 'asetpts=N/SR/TB,aresample=48000:first_pts=0', '-ac', String(stream.channels), '-c:a', 'pcm_f64le', '-threads:a', '1', '-f', 'f64le', out];
+  const settings = [...local(format), '-i', path, '-map', '0:a:0', '-vn', '-af', ['asetpts=N/SR/TB', ...rateFilter(clock.rate)].join(','), '-ac', String(stream.channels), '-c:a', 'pcm_f64le', '-threads:a', '1', '-f', 'f64le', out];
   ff(settings);
   const bytes = readFileSync(out), channels = int(stream.channels, 'channels', 1, 2), count = bytes.length / (channels * 8);
   if (!Number.isInteger(count) || !count || count > 360 * 48000 + 32) fail('unusable decoded audio count');
@@ -199,7 +201,7 @@ function frameHashes(path, format, filter = null) {
   const result = ff(['-noautorotate', ...local(format), '-i', path, '-map', '0:v:0', '-an', ...(filter ? ['-vf', filter] : []), '-fps_mode', 'passthrough', '-pix_fmt', 'yuv420p', '-c:v', 'rawvideo', '-threads:v', '1', '-f', 'framehash', '-hash', 'sha256', '-']);
   return result.split('\n').filter(l => l && !l.startsWith('#')).map(l => { const parts = l.split(',').map(s => s.trim()); if (parts.length !== 6 || !/^[a-f\d]{64}$/.test(parts[5])) fail('invalid decoded frame hash'); return parts[5]; });
 }
-export function verifyOutput(path, policy, mapping, sourceHashes) {
+export function verifyOutput(path, policy, mapping, sourceHashes, sourceRows, lag) {
   const info = probe(path, 'mov', ['-show_streams', '-show_frames']), v = info.streams?.[0];
   if (info.streams?.length !== 1 || v.codec_type !== 'video') fail('readback found an audio leak or extra stream');
   colour(v);
@@ -208,7 +210,15 @@ export function verifyOutput(path, policy, mapping, sourceHashes) {
   if (times.length !== policy.frames || cmp(decoded.first, rat(0n)) !== 0 || mp4Structure(path).editList) fail('readback frame count, origin or edit list failed');
   times.forEach((r, n) => { if (cmp(r.start, rat(BigInt(n) * policy.rate.d, policy.rate.n)) || cmp(r.end, rat(BigInt(n + 1) * policy.rate.d, policy.rate.n))) fail('readback exact grid failed'); });
   const hashes = frameHashes(path, 'mov');
-  if (hashes.length !== mapping.length || hashes.some((h, n) => h !== sourceHashes[mapping[n].source_ordinal])) fail('readback decoded pixel correspondence failed');
+  if (hashes.length !== times.length) fail('readback decoded picture count failed');
+  // Walk source starts at each PROBED output time. This does not reuse the
+  // construction selector, its output grid, or its interval-end cursor.
+  let ordinal = 0;
+  times.forEach((r, n) => {
+    const at = add(add(policy.origin, r.start), lag);
+    while (ordinal + 1 < sourceRows.length && cmp(sourceRows[ordinal + 1].start, at) <= 0) ordinal++;
+    if (mapping[n].source_ordinal !== ordinal || hashes[n] !== sourceHashes[ordinal]) fail('readback decoded pixel correspondence or frame map failed');
+  });
   return { checks: ['silent', 'h264-yuv420p', 'bt709-tv', 'square-pixels', 'no-matrix', 'no-edit-list', 'zero-origin', 'exact-grid', 'every-frame-pixels'],
     stream: v, frames: hashes.length, frame_sha256: hashes };
 }
@@ -251,10 +261,9 @@ export function conform(argv) {
     // Separate decodes witness both the transform and the encoded selections.
     const sourceHashes = frameHashes(input, 'mov', filter);
     if (sourceHashes.length !== pictures.length) fail('source readback frame count changed');
-    const independentMap = selection(intervals(pictures, v).rows, p.frames, p.rate, p.origin, lag, p.holds).map;
-    const readback = verifyOutput(video, p, independentMap, sourceHashes);
-    if (!isDeepStrictEqual(independentMap, selected.map)) fail('frame map differs from measured selection');
+    const readback = verifyOutput(video, p, selected.map, sourceHashes, intervals(pictures, v).rows, lag);
     const after = paths.map(identity); if (!isDeepStrictEqual(before, after)) fail('input changed during conform');
+    const ffmpegVersion = run('ffmpeg', ['-version']), ffprobeVersion = run('ffprobe', ['-version']);
     const outId = identity(video), result = { schema: 'video-conform', version: 1, tool_version: VERSION,
       inputs: Object.fromEntries(['video', 'reference', 'upload_receipt'].map((name, i) => [name, { path: paths[i], expected_sha256: expected[i], before: before[i], after: after[i] }])),
       upload_identity: upload, target: { frames: p.frames, rate: text(p.rate), width: p.width, height: p.height, origin: text(p.origin) },
@@ -266,10 +275,10 @@ export function conform(argv) {
       frames: selected.map.map(m => ({ ...m, source_sha256: sourceHashes[m.source_ordinal], output_sha256: readback.frame_sha256[m.output_ordinal] })),
       holds: { counts: selected.held, budgets: p.holds, comparison: '<=', passed: true, ranges: selected.ranges },
       treatment: { source_colour: o['--source-colour'], source_tags: Object.fromEntries(['color_primaries', 'color_transfer', 'color_space', 'color_range'].map(k => [k, v[k] ?? null])), filter, autorotation: false, audio: 'analysis only; dropped', speed_change: false },
-      decoder: { build: 'encoder.ffmpeg_version', probe_build: 'encoder.ffprobe_version', shared_ffmpeg_arguments: ['-nostdin', '-n', '-v', 'error', '-xerror', '-filter_threads', '1', '-filter_complex_threads', '1'],
+      decoder: { build: ffmpegVersion, probe_build: ffprobeVersion, shared_ffmpeg_arguments: ['-nostdin', '-n', '-v', 'error', '-xerror', '-filter_threads', '1', '-filter_complex_threads', '1'],
         reference_audio: x.analysis, vendor_audio: y.analysis, video: { input_arguments: ['-noautorotate', ...local('mov'), '-i', input], map: '0:v:0', filter,
           output_arguments: ['-an', '-fps_mode', 'passthrough', '-pix_fmt', 'yuv420p', '-c:v', 'rawvideo', '-threads:v', '1'], verification: 'separate source and output framehash decodes; SHA-256 of every planar YUV frame' } },
-      encoder: { ffmpeg_version: run('ffmpeg', ['-version']), ffprobe_version: run('ffprobe', ['-version']), settings: settings.map(a => a === chosen ? 'selected.yuv' : a === video ? 'segment.mp4' : a) },
+      encoder: { ffmpeg_version: ffmpegVersion, ffprobe_version: ffprobeVersion, settings: settings.map(a => a === chosen ? 'selected.yuv' : a === video ? 'segment.mp4' : a) },
       output: { file: 'segment.mp4', identity: outId }, readback };
     const receiptPath = join(stage, 'receipt.json'); jsonWrite(receiptPath, result);
     if (!isDeepStrictEqual(strictJSON(readFileSync(receiptPath, 'utf8')), result) || !isDeepStrictEqual(identity(video), outId) || !isDeepStrictEqual(paths.map(identity), before)) fail('staged receipt or input identity changed before publication');
