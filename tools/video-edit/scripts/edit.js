@@ -18,6 +18,8 @@
 import { finishCommand } from './finish.js';
 import { muxCommand, startSamples } from './mux.js';
 import { conform, CONFORM_HELP } from './conform.js';
+import { exactFrames, EXACT_HELP } from './exact-frames.js';
+import { composite, COMPOSITE_HELP } from './composite.js';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, realpathSync, statSync, unlinkSync } from 'node:fs';
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
@@ -91,7 +93,11 @@ takes --env, and no command opens a network connection. Success prints one JSON
 object to stdout; a usage mistake or a pass FFmpeg cannot complete goes to
 stderr with exit 1.
 
-${CONFORM_HELP}`;
+${CONFORM_HELP}
+
+${EXACT_HELP}
+
+${COMPOSITE_HELP}`;
 
 function fail(message) {
   throw new Error(message);
@@ -108,6 +114,12 @@ export function main(argv = process.argv.slice(2)) {
 
   if (command === 'conform') {
     const result = conform(argv.slice(1));
+    process.stdout.write(`${JSON.stringify(result)}\n`);
+    return result;
+  }
+
+  if (command === 'exact-frames' || command === 'composite') {
+    const result = (command === 'exact-frames' ? exactFrames : composite)(argv.slice(1));
     process.stdout.write(`${JSON.stringify(result)}\n`);
     return result;
   }
