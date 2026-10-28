@@ -88,6 +88,17 @@ const CONNECTORS = fileURLToPath(new URL('../../connectors', import.meta.url));
  * wrong entry fails loudly, and a pattern with no entry fails rather than being skipped.
  */
 const PATTERN_OK = {
+  // Access human labels and addresses exclude credential-shaped runs before confirmation.
+  "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}))(?![A-Za-z0-9_-]{40}$)[^\\u0000-\\u001f\\u007f]+$": "CRM staff",
+  "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}))(?!(?:[^.]+\\.)*[A-Za-z0-9_-]{40}(?:\\.|$))[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$": "crm.example.com",
+  "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}))(?![A-Za-z0-9_-]{40}@)[^\\s@\\u0000]+@[^\\s@\\u0000]+$": "staff@example.com",
+
+  // Time Travel: documented bookmark spelling and a fresh UTC checkpoint.
+  '^[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{32}$': '00000001-00000002-00004e2f-0a83ea2fceebc654de0640c422be4653',
+  '^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,3})?Z$': new Date(Date.now() - 60_000).toISOString(),
+  '^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$': 'proof-worker',
+  '^[a-z0-9](?:[a-z0-9-]{0,40}[a-z0-9])?$': 'wiser-crm',
+  '^(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})$': '1.0.0',
   '^UC[A-Za-z0-9_-]{22}$': 'UCabcdefghijklmnopqrstuv',
   '^[A-Za-z0-9_-]{11}$': 'abcdefghijk',
   '^[A-Za-z0-9_-]{2,64}$': 'PLexample123',
@@ -330,6 +341,8 @@ function unmodelledKeyword(schema) {
     for (const k of UNMODELLED) if (Object.hasOwn(d, k)) return `${k} (nested)`;
     const inner = unmodelledKeyword(d.items);
     if (inner) return `${inner} (items)`;
+    const names = unmodelledKeyword(d.propertyNames);
+    if (names) return `${names} (propertyNames)`;
   }
   return null;
 }
@@ -461,12 +474,12 @@ function makeCtx(service, module, action, input) {
   let reached = false;
   const reach = () => { reached = true; const e = new Error('reached vendor'); e[REACHED] = true; throw e; };
   return {
-    ctx: { service, module, action, input, confirm: true, proxy: reach, http: reach, catalog: reach, audit() {} },
+    ctx: { service, module, action, input, confirm: true, proxy: reach, http: reach, fetchRelease: reach, catalog: reach, audit() {} },
     reached: () => reached,
   };
 }
 
-async function call(fn, input, service, module, action) {
+export async function call(fn, input, service, module, action) {
   const probe = makeCtx(service, module, action, input);
   try {
     const res = await fn(input, probe.ctx);

@@ -1,0 +1,103 @@
+{
+  "format": 2,
+  "app": "wiser-crm",
+  "version": "1.0.0",
+  "created": "2026-10-25T00:00:00.000Z",
+  "source": {
+    "repository": "wisermethod/wiser-crm",
+    "commit": "f82bd8961ed2f15ef9eacd347720124bd75ee391",
+    "upstream_commit": "0000000000000000000000000000000000000000",
+    "f1": {
+      "count": 0,
+      "limit": 10
+    }
+  },
+  "checks": {
+    "lockfile": "PASS",
+    "install_log": "PASS",
+    "bundle_inputs": "PASS"
+  },
+  "worker": {
+    "main_module": "index.js",
+    "compatibility_date": "2026-10-18",
+    "compatibility_flags": [
+      "nodejs_compat"
+    ],
+    "d1_binding": "DB",
+    "assets_binding": "ASSETS",
+    "vars_required": [
+      "ACCESS_TEAM_DOMAIN",
+      "ACCESS_AUD",
+      "AGENT_CLIENT_ID"
+    ],
+    "modules": [
+      {
+        "name": "index.js",
+        "type": "application/javascript+module",
+        "sha256": "e98500efab07be53c5e10d3397f88c67aa0974aa2ee225148b905c47e77a1999",
+        "size": 64
+      },
+      {
+        "name": "legacy.cjs",
+        "type": "application/javascript",
+        "sha256": "6e66e366f0aefb84ad8110afcd9b2245702c643c831edf8316ff048fec739d2e",
+        "size": 20
+      },
+      {
+        "name": "lib.mjs",
+        "type": "application/javascript+module",
+        "sha256": "f4918c8ac9858f83b2c0307536179d6bd283bc7c20ba34b53074721f43611f4a",
+        "size": 24
+      },
+      {
+        "name": "module.wasm",
+        "type": "application/wasm",
+        "sha256": "93a44bbb96c751218e4c00d479e4c14358122a389acca16205b1e4d0dc5f9476",
+        "size": 8
+      },
+      {
+        "name": "note.txt",
+        "type": "text/plain",
+        "sha256": "46b86a9229adae118c7a7cd1843e661f3e1b07231cc0a88dc602efda503d73d6",
+        "size": 13
+      },
+      {
+        "name": "page.html",
+        "type": "text/plain",
+        "sha256": "e3fa0b533b9527b8c668cf0983d1d84804a87df0e253c0f106334f2cc3dbd8a7",
+        "size": 22
+      },
+      {
+        "name": "payload.bin",
+        "type": "application/octet-stream",
+        "sha256": "054edec1d0211f624fed0cbca9d4f9400b0e491c43742af2c5b0abebf0c990d8",
+        "size": 4
+      }
+    ]
+  },
+  "assets": {
+    "config": {
+      "html_handling": "auto-trailing-slash",
+      "not_found_handling": "single-page-application",
+      "run_worker_first": true
+    },
+    "files": [
+      {
+        "path": "/index.html",
+        "sha256": "ea211a9ffa78def04a4860c64a0bb2e78da42aee5327a3a11c9c8978b18007b4",
+        "size": 21,
+        "content_type": "text/html; charset=utf-8"
+      }
+    ]
+  },
+  "migrations": {
+    "table": "d1_migrations",
+    "files": [
+      {
+        "name": "0001_baseline.sql",
+        "sha256": "3e3b84e54e0ab8ba069884e7a3829681dafbc1eb72a788e95f3fe13e3c9f6f86",
+        "size": 47
+      }
+    ]
+  }
+}

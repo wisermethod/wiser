@@ -1,5 +1,91 @@
-import { STATUS, statusSignal, vendorErrorFrom } from './errors.js';
+import { STATUS, StatusSignal, statusSignal, vendorErrorFrom } from './errors.js';
 import { pickResponseHeaders } from './response-headers.js';
+
+const RELEASE_REQUEST_TIMEOUT_MS = 60_000;
+const MAX_RELEASE_BYTES = 33_554_432;
+const RELEASE_REDIRECTS = new Set([301, 302, 303, 307, 308]);
+
+function releaseFetcher(releaseHosts, fetchImpl) {
+  // DENIED is a gateway policy refusal, not invalid_arguments: the connector,
+  // rather than the caller, chooses the release URL and the download budget.
+  const denied = (reason) => statusSignal(STATUS.DENIED, { reason });
+  function checkedURL(url) {
+    let parsed;
+    try { if (typeof url === 'string') parsed = new URL(url); } catch { /* refused below */ }
+    if (!parsed || parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.port) {
+      throw denied('release URL requires HTTPS without userinfo or a non-default port');
+    }
+    if (!releaseHosts.includes(parsed.hostname)) throw denied('release host not in manifest release_hosts');
+    return parsed;
+  }
+  return async function fetchRelease(url, { maxBytes } = {}) {
+    if (!Number.isInteger(maxBytes) || maxBytes < 1 || maxBytes > MAX_RELEASE_BYTES) {
+      throw denied('release maxBytes must be an integer from 1 to 33554432');
+    }
+    let current = checkedURL(url);
+    for (let redirects = 0; ; redirects += 1) {
+      const controller = new AbortController();
+      const endpoint = `${current.origin}${current.pathname}`;
+      const failure = (reason, http_status = null) => statusSignal(STATUS.VENDOR_ERROR, {
+        endpoint, method: 'GET', http_status, reason,
+      });
+      let timer;
+      let reader;
+      const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          controller.abort();
+          reject(failure('release request timed out'));
+        }, RELEASE_REQUEST_TIMEOUT_MS);
+      });
+      try {
+        const result = await Promise.race([timeout, (async () => {
+          const res = await fetchImpl(current.href, {
+            method: 'GET', headers: { accept: 'application/octet-stream' },
+            credentials: 'omit', redirect: 'manual', signal: controller.signal,
+          });
+          if (RELEASE_REDIRECTS.has(res.status)) {
+            if (redirects >= 3) throw denied('release redirect limit exceeded');
+            const location = res.headers.get('location');
+            let next;
+            try { if (location) next = new URL(location, current).href; } catch { /* refused by checkedURL */ }
+            return { next: checkedURL(next) };
+          }
+          if (res.status < 200 || res.status >= 300) throw failure('release HTTP error', res.status);
+          const length = res.headers.get('content-length');
+          if (length !== null && /^[0-9]+$/.test(length) && BigInt(length) > BigInt(maxBytes)) {
+            throw denied('release content-length exceeds maxBytes');
+          }
+          const chunks = [];
+          let total = 0;
+          if (res.body) {
+            reader = res.body.getReader();
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              total += value.byteLength;
+              if (total > maxBytes) throw denied('release body exceeds maxBytes');
+              chunks.push(value);
+            }
+          }
+          const bytes = new Uint8Array(total);
+          let offset = 0;
+          for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+          return { status: res.status, bytes, content_type: res.headers.get('content-type') };
+        })()]);
+        if (!result.next) return result;
+        current = result.next;
+      } catch (err) {
+        if (err instanceof StatusSignal) throw err;
+        throw failure('release transport error');
+      } finally {
+        clearTimeout(timer);
+        controller.abort();
+        // Do not let a cancellation hook hold a refused or timed-out call open.
+        if (reader) { void reader.cancel().catch(() => {}); }
+      }
+    }
+  };
+}
 
 /**
  * Build the ctx a module action receives. The module never sees a credential,
@@ -15,6 +101,8 @@ import { pickResponseHeaders } from './response-headers.js';
  * @param {object} opts.auth
  * @param {object} [opts.authProvider]
  * @param {object} [opts.catalogProvider]
+ * @param {string[]} [opts.releaseHosts]
+ * @param {typeof fetch} [opts.fetchImpl]
  * @param {object} [opts.unwrap]
  * @param {string[]} [opts.responseHeaders] The action's manifest declaration.
  * @param {object} [opts.responseHeaderGuard] Private call-scoped address tracker.
@@ -34,6 +122,8 @@ export function buildContext({
   responseHeaders,
   responseHeaderGuard,
   onAudit,
+  releaseHosts,
+  fetchImpl = globalThis.fetch,
 }) {
   const toolkit = auth?.toolkit;
   const providerAccountId = record?.provider_account_id ?? null;
@@ -166,5 +256,6 @@ export function buildContext({
     http,
     catalog,
     audit,
+    ...(releaseHosts ? { fetchRelease: releaseFetcher([...releaseHosts], fetchImpl) } : {}),
   };
 }

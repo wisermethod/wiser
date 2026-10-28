@@ -561,6 +561,7 @@ export async function createTestGateway(options = {}) {
     policy,
     audit,
     authProvider: fake.auth,
+    fetchImpl: options.fetchImpl,
     catalogProvider: fake.catalog,
     localFileProvider: options.localFileProvider || null,
     authConfigured: options.authConfigured !== false,

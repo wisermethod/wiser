@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
+import { isIP } from 'node:net';
 import { pathToFileURL } from 'node:url';
 import { containsUnsafeCodePoint } from './disclosure.js';
 import { OUTPUT_EXTENSIONS } from './file-output.js';
@@ -217,6 +218,18 @@ export async function loadConnector(dir) {
     }
     for (const [actName, action] of Object.entries(mod.actions)) {
       validateAction(action, manifestPath, `${field}.actions.${actName}`);
+    }
+    if (mod.release_hosts !== undefined) {
+      const hosts = mod.release_hosts;
+      const validHost = (host) => typeof host === 'string'
+        && host.length <= 253 && host.includes('.') && !isIP(host)
+        && host.split('.').every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label))
+        // Reject numeric/legacy IP spellings that URL canonicalises to an IP.
+        && (() => { try { return !isIP(new URL(`https://${host}`).hostname); } catch { return false; } })();
+      if (!Array.isArray(hosts) || hosts.length < 1 || hosts.length > 8
+        || new Set(hosts).size !== hosts.length || !hosts.every(validHost)) {
+        throw validationError(manifestPath, `${field}.release_hosts`, 'must list 1 to 8 distinct lowercase DNS hostnames, without ports, wildcards or IP literals');
+      }
     }
     if (mod.unwrap_token !== undefined && typeof mod.unwrap_token !== 'boolean') {
       throw validationError(manifestPath, `${field}.unwrap_token`, 'must be a boolean');

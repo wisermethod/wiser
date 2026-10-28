@@ -1,0 +1,14 @@
+{
+  "format": 1,
+  "base": "https://releases.example.test/",
+  "apps": {
+    "wiser-crm": {
+      "keys": [
+        {
+          "id": "21fe31dfa154a261",
+          "ed25519": "11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo="
+        }
+      ]
+    }
+  }
+}
