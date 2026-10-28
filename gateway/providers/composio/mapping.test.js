@@ -99,3 +99,15 @@ test('search iterates the seven Zoho toolkits and can restrict crm or another mo
   assert.deepEqual(await searchMappedActions({ service: 'zoho', module: 'unknown' }, request), []);
   assert.deepEqual(seen, []);
 });
+
+test('ElevenLabs discovers three modules on the built-in toolkit without catalog execution rows', () => {
+  for (const module of ['speech', 'voices', 'models']) {
+    assert.equal(toolkitFor('elevenlabs', module), 'ELEVENLABS');
+    assert.deepEqual(toolkitsFor('elevenlabs', module), ['ELEVENLABS']);
+  }
+  assert.deepEqual(toolkitsFor('elevenlabs'), ['ELEVENLABS']);
+  assert.deepEqual(toolkitsFor('elevenlabs', 'voice'), []);
+  for (const id of ['speech.synthesize', 'voices.list', 'voices.add', 'voices.delete', 'models.list']) {
+    assert.equal(toSlug(`elevenlabs.${id}`), null);
+  }
+});

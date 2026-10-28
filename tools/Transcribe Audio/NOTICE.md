@@ -36,7 +36,15 @@ This tool installs the packages below on the machine that calls it, into a Pytho
 
 **`setuptools` 58.0.4 records its license as `UNKNOWN` in its own metadata, and `tiktoken` 0.14.0 carries a license field too long to reproduce as a name.** Both are stated as found rather than tidied, and a reader who needs either should read that package's own metadata in the installed environment.
 
-## FFmpeg and the model weights, neither of which is installed by this list
+## Pinned alignment engine and model
+
+The snapshot above and `requirements.txt` describe transcription. The separate `align` operation pins **torch 2.8.0** (BSD-3-Clause) and **torchaudio 2.8.0** (BSD), in `requirements-align.txt`; it installs no Whisper package and uses no Whisper weights. Both releases' installed `METADATA` Programming Language classifiers list Python 3.9–3.13; alignment accepts those CPython minors. The timing proof ran on CPython 3.9.6 on macOS arm64. Python is a system prerequisite, not installed by the tool.
+
+Alignment uses **WAV2VEC2_ASR_BASE_960H**, wav2vec 2.0 base pre-trained and fine-tuned on LibriSpeech 960 hours, by the authors of *wav2vec 2.0*. Torchaudio 2.8.0's bundle declaration in `torchaudio/pipelines/_wav2vec2/impl.py` states that the authors published the model under the **MIT License** and torchaudio redistributes it under that same license. Its attribution and terms are separate from the libraries' BSD licenses. The declaration links the [original model/source](https://github.com/pytorch/fairseq/blob/ce6c9eeae163ac04b79539c78e74f292f29eaa18/examples/wav2vec#pre-trained-models) and [MIT license](https://github.com/pytorch/fairseq/blob/ce6c9eeae163ac04b79539c78e74f292f29eaa18/LICENSE). MIT permits commercial use, subject to its copyright and permission notice requirements and warranty disclaimer. This repository redistributes no weights.
+
+The bundle's native downloader supplies `wav2vec2_fairseq_base_ls960_asr_ls960.pth` from **download.pytorch.org**, **377,664,473 bytes** (about 378 MB). Under the existing plugin install consent it lands in `alignment-models/` beneath the person-scoped model-cache base or the explicit absolute `--model-cache`; no audio leaves the machine. An authorized repair retains an incomplete artifact with an `.incomplete-<id>` suffix before downloading its replacement. Help and check never fetch weights. **MMS_FA is not selected or downloaded**: its CC-BY-NC 4.0 weight terms differ from this model's MIT terms.
+
+## FFmpeg and the transcription model weights, neither installed by the package list
 
 - **FFmpeg** decodes the audio. It is a third-party program, not in this table, not installed by this tool, and licensed by its own authors under `LGPL-2.1-or-later` or `GPL-2.0-or-later` depending on the build. The tool stops and names it when it is absent.
 - **The speech model weights** are downloaded on first use of a given model, into the person-scoped `models/` folder named in `tools/AGENTS.md`, or into an explicit `--model-cache` if the caller passed one, not into this tool. They are supplied by the model's own publisher under its own terms. The base model is roughly 145MB; the five selectable models run from roughly 75MB for `tiny` to about 3.1GB for `large`.

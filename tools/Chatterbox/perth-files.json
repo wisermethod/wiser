@@ -1,0 +1,15 @@
+{
+  "distribution": "resemble-perth",
+  "version": "1.0.1",
+  "source": "Installed 1.0.1 wheel RECORD, decoded SHA-256 and byte sizes cross-checked against the payloads on 2026-10-27",
+  "files": {
+    "perth/perth_net/pretrained/implicit/perth_net_250000.pth.tar": {
+      "bytes": 37429684,
+      "sha256": "a15bce457ebc53ce5e6c9c3f11df78cf7ee2bf9cdab0a798902135b4c4027670"
+    },
+    "perth/perth_net/pretrained/implicit/hparams.yaml": {
+      "bytes": 257,
+      "sha256": "c66e8f8ce5b09d100e719843a064d37a97c5aec13510824343bf4e096b3184db"
+    }
+  }
+}

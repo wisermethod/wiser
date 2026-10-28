@@ -1,0 +1,167 @@
+{
+  "id": "elevenlabs",
+  "service": "elevenlabs",
+  "modules": {
+    "speech": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "ELEVENLABS",
+        "scheme": "API_KEY",
+        "privilege": "write"
+      },
+      "actions": {
+        "synthesize": {
+          "description": "Synthesize one whole scene (1 to 5000 code points), with an explicitly selected model, to fixed mp3_44100_128 and original alignment. No chunking, dialogue, optional settings or fallback. Local stdio file output only; billing must be established before paid use.",
+          "risk": "medium",
+          "confirmation": "always",
+          "standing_approval": {
+            "kind": "pay",
+            "summary": "synthesize ElevenLabs narration charged to your own ElevenLabs plan",
+            "caution": "Each call under this approval spends credits from your ElevenLabs plan, or money if pay-as-you-go or overage is on, without asking each time. The gateway does not know your account's maximum charge."
+          },
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 5000
+              },
+              "voice_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{1,128}$"
+              },
+              "model_id": {
+                "type": "string",
+                "enum": [
+                  "eleven_v4",
+                  "eleven_v4_turbo",
+                  "eleven_v3",
+                  "eleven_multilingual_v2"
+                ]
+              }
+            },
+            "required": [
+              "text",
+              "voice_id",
+              "model_id"
+            ],
+            "additionalProperties": false
+          },
+          "output_file": {
+            "media_types": [
+              "audio/mpeg"
+            ],
+            "max_bytes": 16777216
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
+    },
+    "voices": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "ELEVENLABS",
+        "scheme": "API_KEY",
+        "privilege": "write"
+      },
+      "actions": {
+        "list": {
+          "description": "List accessible voice ids, names and categories, including voices other than clones.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        "add": {
+          "description": "Upload one readable regular MP3 from an absolute local path, 1 to 3000000 bytes inclusive. Refuse symbolic links at any ancestor, multiple hard links, changed files, .env/.env.* and memory components, and the person-scoped Wiser credential directory. Name and path limits count code points; whitespace and Unicode are preserved. Local gateway only; the hosted service must withhold this action.",
+          "risk": "medium",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096
+              }
+            },
+            "required": [
+              "name",
+              "path"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "delete": {
+          "description": "Delete the named voice id after listing and identifying the clone being lost; success requires status ok. This cannot restore a voice or revoke an account credential.",
+          "risk": "destructive",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "voice_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{1,128}$"
+              }
+            },
+            "required": [
+              "voice_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
+    },
+    "models": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "ELEVENLABS",
+        "scheme": "API_KEY",
+        "privilege": "write"
+      },
+      "actions": {
+        "list": {
+          "description": "List model ids, names, TTS capability, and well-typed optional text limits and rate multipliers.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
+    }
+  }
+}

@@ -131,12 +131,15 @@ USAGE = """Transcribe Audio - turns one audio file into a text transcript on thi
 Usage:
   python3 scripts/transcribe.py help
   python3 scripts/transcribe.py check
+  python3 scripts/transcribe.py align --audio [path] --words [json] --output [json]
+      [--layout [json]] [--language en] [--model-cache [dir]] [--install]
   python3 scripts/transcribe.py transcribe --audio [path] --output [dir]
       [--model-cache [dir]] [--model [name]]
 
 Commands:
   check            Report the interpreter, FFmpeg, and whether the speech packages are installed
   transcribe       Write a transcript of one audio file
+  align            Align known English words; run align --help for its input contract
   help             Print this message
 
 Options:
@@ -154,6 +157,9 @@ Options:
                         models/ folder named in tools/AGENTS.md. An explicit path
                         still wins. The connector key file is refused.
   --model [name]        Speech model: {models}. Default {default}
+  --words [json]        align only: absolute JSON file containing an ordered word array
+  --layout [json]       align only: absolute version-1 passage layout JSON file
+  --language [code]     align only: en (English); other languages are refused
   --help, -h            Print this message
 
 Success prints one JSON object to stdout. Errors go to stderr with exit 1.""".format(
@@ -183,6 +189,10 @@ FLAG_OPTIONS = ("--install",)
 
 
 # Arguments. Parsed first so help costs nothing: no install, no configuration.
+if __name__ == "__main__" and sys.argv[1:2] == ["align"]:
+    from align import main
+    sys.exit(main(sys.argv[2:]))
+
 argv = sys.argv[1:]
 command = argv[0] if argv else "help"
 

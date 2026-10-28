@@ -56,6 +56,9 @@
  * - **`youtube videos.upload`, `youtube videos.set_thumbnail` and `youtube captions.insert`
  *   `path` are filesystem-state rows of the same permanent class**, added 2026-10-21 with
  *   their actions. Each needs a readable regular file with its closed media extension.
+ * - **`elevenlabs voices.add` needs a readable regular MP3.** Its schema-valid sample
+ *   uses a per-run physical file, as the YouTube fixtures do. Filesystem preconditions
+ *   remain outside this comparison; schema checks and all constraint mutations still run.
  *
  * And one that changed shape when the validator moved into the gateway, stated because a
  * reader could otherwise take direction B for more than it is. **For a constraint the gateway
@@ -89,6 +92,7 @@ const PATTERN_OK = {
   '^[A-Za-z0-9_-]{11}$': 'abcdefghijk',
   '^[A-Za-z0-9_-]{2,64}$': 'PLexample123',
   '^[A-Za-z0-9_-]{8,128}$': 'item123456',
+  '^[A-Za-z0-9_-]{1,128}$': 'voice_fake-1',
   '^/': '/a',
   '^[0-9]{1,3}$': '27',
   '^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$': 'en-US',
@@ -194,6 +198,7 @@ const VIOLATION_CANDIDATES = [' ', '/', '!', '', 'a/b', '\u0000', 'ZZ ZZ', '../.
 let FIXTURE_YOUTUBE_VIDEO = '';
 let FIXTURE_YOUTUBE_THUMBNAIL = '';
 let FIXTURE_YOUTUBE_CAPTION = '';
+let FIXTURE_ELEVENLABS_AUDIO = '';
 let FIXTURE_FILE = '';
 let FIXTURE_DIST = '';
 let FIXTURE_MIGRATION = '';
@@ -219,6 +224,12 @@ const FIXTURES = {
   'cloudflare:pages.d1_apply_migration': () => ({ file: FIXTURE_MIGRATION }),
   'cloudflare:pages.deploy_with_functions': () => ({ dir: FIXTURE_STATIC, functions_build: FIXTURE_FUNCTIONS_BUILD }),
   'cloudflare:pages.deploy_static': () => ({ dir: FIXTURE_STATIC }),
+};
+
+// State needed to sample a new action, not an accepted divergence. Legacy FIXTURES
+// above are applied after direction A so their existing baseline stays measurable.
+const SAMPLE_STATE = {
+  'elevenlabs:voices.add': () => ({ path: FIXTURE_ELEVENLABS_AUDIO }),
 };
 
 function sampleString(s) {
@@ -447,17 +458,25 @@ function withGatewayValidation(schema, run) {
 const REACHED = Symbol('reached-vendor');
 
 function makeCtx(service, module, action, input) {
-  const reach = () => { const e = new Error('reached vendor'); e[REACHED] = true; throw e; };
-  return { service, module, action, input, confirm: true, proxy: reach, http: reach, catalog: reach, audit() {} };
+  let reached = false;
+  const reach = () => { reached = true; const e = new Error('reached vendor'); e[REACHED] = true; throw e; };
+  return {
+    ctx: { service, module, action, input, confirm: true, proxy: reach, http: reach, catalog: reach, audit() {} },
+    reached: () => reached,
+  };
 }
 
 async function call(fn, input, service, module, action) {
+  const probe = makeCtx(service, module, action, input);
   try {
-    const res = await fn(input, makeCtx(service, module, action, input));
+    const res = await fn(input, probe.ctx);
+    // Modules may sanitize a caught transport error. The observed call, rather than
+    // the returned status, establishes that validation already let this input through.
+    if (probe.reached()) return { kind: 'reached' };
     if (res && typeof res === 'object' && res.status === 'invalid_arguments') return { kind: 'refused', field: res.field };
     return { kind: 'returned' };
   } catch (err) {
-    return err[REACHED] ? { kind: 'reached' } : { kind: 'threw', detail: String(err?.message ?? err).slice(0, 80) };
+    return probe.reached() || err?.[REACHED] ? { kind: 'reached' } : { kind: 'threw', detail: String(err?.message ?? err).slice(0, 80) };
   }
 }
 
@@ -489,6 +508,8 @@ export async function collectDivergences() {
   writeFileSync(FIXTURE_YOUTUBE_THUMBNAIL, 'invented thumbnail fixture');
   FIXTURE_YOUTUBE_CAPTION = join(realScratch, 'youtube-caption.srt');
   writeFileSync(FIXTURE_YOUTUBE_CAPTION, '1\n00:00:00,000 --> 00:00:01,000\nInvented caption\n');
+  FIXTURE_ELEVENLABS_AUDIO = join(realScratch, 'elevenlabs-audio.mp3');
+  writeFileSync(FIXTURE_ELEVENLABS_AUDIO, 'invented audio fixture');
   FIXTURE_MIGRATION = join(realScratch, 'migration.sql');
   writeFileSync(FIXTURE_MIGRATION, 'SELECT 1;\n');
   FIXTURE_STATIC = join(realScratch, 'static-site');
@@ -536,12 +557,12 @@ async function collect() {
         const fn = withGatewayValidation(schema, raw);
 
         let base;
-        try { base = validInstance(schema); }
+        try { base = { ...validInstance(schema), ...SAMPLE_STATE[`${name}:${mod}.${act}`]?.() }; }
         catch (err) { errors.push(`${where}: sampler: ${err.message}`); continue; }
         const bad = schemaViolation(schema, base);
         if (bad) { errors.push(`${where}: sample fails its own schema: ${bad}`); continue; }
 
-        // A. measured before any fixture: the module refuses what its schema permits.
+        // A. measured before legacy fixture overrides: the module refuses what its schema permits.
         const plain = await call(fn, base, manifest.service, mod, act);
         if (plain.kind === 'refused') found.add(`A ${where} ${plain.field}`);
 

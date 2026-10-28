@@ -39,3 +39,44 @@ test('every connector action agrees with its own published schema, in both direc
   assert.deepEqual(fixed, [],
     'these divergences are fixed. Delete their rows from agreement-baseline.json in the same commit; the baseline only ever shrinks.');
 });
+
+// Filesystem state is not expressible in JSON Schema. Keep an independent real
+// MP3 fixture here for the new connector without filtering the family findings,
+// growing its baseline, replacing the module, or weakening its assertions.
+test('ElevenLabs schema-valid fixtures exercise all five actions at the gateway boundary', async (t) => {
+  const fs = await import('node:fs');
+  const { join } = await import('node:path');
+  const { createTestGateway, makeHome, putActive, confirmCall } = await import('./fake-provider.js');
+  t.mock.method(globalThis, 'fetch', async () => { throw new Error('offline transport'); });
+  const home = fs.realpathSync(makeHome());
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const f = await createTestGateway({ home, outputsDir: join(home, 'outputs') });
+  for (const module of ['speech', 'voices', 'models']) await putActive(f.store, f.fake, { service: 'elevenlabs', module });
+  const path = join(home, 'agreement-sample.mp3');
+  fs.writeFileSync(path, Buffer.from('invented MP3 bytes'));
+  let calls = 0;
+  f.fake.auth.proxy = async (req) => {
+    calls += 1;
+    let data;
+    if (req.endpoint.endsWith('/with-timestamps')) data = { audio_base64: 'SUQz', alignment: { characters: ['a'], character_start_times_seconds: [0], character_end_times_seconds: [1] } };
+    else if (req.endpoint === '/v1/voices/add') data = { voice_id: 'invented_clone', requires_verification: false };
+    else if (req.method === 'DELETE') data = { status: 'ok' };
+    else data = req.endpoint === '/v1/models' ? [] : { voices: [] };
+    return { status: 200, data };
+  };
+  const fixtures = [
+    ['speech.synthesize', { text: 'a', voice_id: 'fake_voice', model_id: 'eleven_v4' }],
+    ['voices.list', {}], ['voices.add', { name: 'Clone', path }],
+    ['voices.delete', { voice_id: 'fake_voice' }], ['models.list', {}],
+  ];
+  for (const [id, input] of fixtures) {
+    const action = `elevenlabs.${id}`;
+    const before = calls;
+    const got = await confirmCall(f.gw, { action, input });
+    assert.equal(calls, before + 1, `${id} reaches the fake transport`);
+    assert.notEqual(got.status, 'invalid_arguments');
+    const refused = await f.gw.execute({ action, input: { ...input, undeclared: 'x' } });
+    assert.equal(refused.status, 'invalid_arguments');
+    assert.equal(calls, before + 1);
+  }
+});

@@ -346,7 +346,7 @@ test('roster keeps offered what the seam gate cannot see or reads as doubtful', 
   ]);
 });
 
-test('the tree excludes twenty-one primitives on their own clean none declarations', () => {
+test('the tree excludes twenty-four primitives on their own clean none declarations', () => {
   const gate = seamGate(tempHome());
   const omitted = [];
   const expected = [];
@@ -378,9 +378,12 @@ test('the tree excludes twenty-one primitives on their own clean none declaratio
     'tools/data/TOOL.md',
     'tools/copy-check/TOOL.md',
     'tools/knowledge-memory/TOOL.md',
+    'tools/Chatterbox/TOOL.md',
     'tools/Contact Sheet/TOOL.md',
     'tools/icon-set/TOOL.md',
     'tools/Screen Capture/TOOL.md',
+    'tools/Speech Preparation/TOOL.md',
+    'tools/Transcribe Audio/TOOL.md',
     'tools/video-render/TOOL.md',
     'tools/video-edit/TOOL.md',
     'tools/pages-functions/TOOL.md',
