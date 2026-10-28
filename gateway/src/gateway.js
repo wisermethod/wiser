@@ -1310,6 +1310,7 @@ export class ConnectionGateway {
         media_types: [...act.output_file.media_types], max_bytes: act.output_file.max_bytes,
       } : null;
       const downloadDeclaration = act?.download_media ? { hosts: [...act.download_media.hosts] } : null;
+      const proxyBodyMaxBytes = act?.proxy_body_max_bytes;
       if (label !== undefined && auth?.provider === 'local-file') {
         return statusObject(STATUS.INVALID_ARGUMENTS, { tool: 'execute', field: 'label' });
       }
@@ -1611,6 +1612,7 @@ export class ConnectionGateway {
           responseHeaders: act.response_headers,
           responseHeaderGuard,
           downloadMedia: downloadDeclaration,
+          proxyBodyMaxBytes,
           outputFile: outputDeclaration,
           outputsDir: this.outputsDir,
           executionSignal: execution.signal,

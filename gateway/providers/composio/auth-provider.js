@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { createCustomToolkitBody, findCustomToolkit, registeredSlug } from './custom-toolkits.js';
 import { pickResponseHeaders } from '../../src/response-headers.js';
+import { STATUS, statusSignal } from '../../src/errors.js';
 
 export { createCustomToolkitBody } from './custom-toolkits.js';
 
@@ -46,18 +47,28 @@ function readApiKey(envPath) {
  * @param {object} [body]
  */
 async function request(apiKey, method, path, body) {
+  let serializedBody;
+  try { serializedBody = body !== undefined ? JSON.stringify(body) : undefined; } catch {
+    return { ok: false, status: 0, data: null, malformed: true, endpoint: path, method };
+  }
+  return requestSerialized(apiKey, method, path, serializedBody);
+}
+
+// Proxy sends an already serialized string. The checked bytes must be exactly
+// the bytes handed to fetch; all other provider requests keep their object API.
+async function requestSerialized(apiKey, method, path, serializedBody) {
   const url = `${BASE}${path}`;
   const headers = {
     'x-api-key': apiKey,
     accept: 'application/json',
   };
-  if (body !== undefined) headers['content-type'] = 'application/json';
+  if (serializedBody !== undefined) headers['content-type'] = 'application/json';
   let res;
   try {
     res = await fetch(url, {
       method,
       headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: serializedBody,
     });
   } catch {
     // A rejected fetch is the network, not the provider and not the grant.
@@ -88,6 +99,16 @@ export function proxyRequestBody({ providerAccountId, endpoint, method, body, pa
   if (binary_body !== undefined) payload.binary_body = binary_body;
   if (Array.isArray(parameters) && parameters.length > 0) payload.parameters = parameters;
   return payload;
+}
+
+// Measurement and sending share preparation AND serialization, never a
+// connector's estimate. An unserializable representation reveals no raw error.
+function serializeProxyRequest(request) {
+  try {
+    return JSON.stringify(proxyRequestBody(request));
+  } catch {
+    throw statusSignal(STATUS.NEEDS_PROVIDER_CAPABILITY);
+  }
 }
 
 /**
@@ -457,13 +478,31 @@ export function createAuthProvider({ envPath } = {}) {
       if (!mapped) return vendorError(path, 'GET', res.status);
       return mapped;
     },
-    async proxy({ providerAccountId, endpoint, method, body, parameters, binary_body, response_headers }) {
+    measureProxyBody(request) {
+      return Buffer.byteLength(serializeProxyRequest(request), 'utf8');
+    },
+    async proxy({ providerAccountId, endpoint, method, body, parameters, binary_body, response_headers }, { proxyBodyMaxBytes } = {}) {
       if (!apiKey) return vendorError('/tools/execute/proxy', 'POST', 0);
       // Confirmed 2026-09-08: POST /tools/execute/proxy with
       // connected_account_id, endpoint, method. Inner status 400 is wrapped;
       // the vendor body stays here.
-      const proxyBody = proxyRequestBody({ providerAccountId, endpoint, method, body, parameters, binary_body });
-      const res = await request(apiKey, 'POST', '/tools/execute/proxy', proxyBody);
+      let serializedBody;
+      try {
+        serializedBody = serializeProxyRequest({ providerAccountId, endpoint, method, body, parameters, binary_body });
+      } catch (err) {
+        // Existing unbudgeted actions keep their serialization-failure response.
+        if (proxyBodyMaxBytes === undefined) return vendorError(endpoint || '/tools/execute/proxy', method || 'POST', 0);
+        throw err;
+      }
+      if (proxyBodyMaxBytes !== undefined) {
+        if (!Number.isSafeInteger(proxyBodyMaxBytes) || proxyBodyMaxBytes <= 0) {
+          throw statusSignal(STATUS.NEEDS_PROVIDER_CAPABILITY);
+        }
+        if (Buffer.byteLength(serializedBody, 'utf8') > proxyBodyMaxBytes) {
+          throw statusSignal(STATUS.VENDOR_ERROR, { reason: 'proxy_body_too_large' });
+        }
+      }
+      const res = await requestSerialized(apiKey, 'POST', '/tools/execute/proxy', serializedBody);
       if (!res.ok) return vendorError(endpoint || '/tools/execute/proxy', method || 'POST', res.status);
       if (res.malformed || res.data == null || typeof res.data !== 'object') {
         return vendorError(endpoint || '/tools/execute/proxy', method || 'POST', 502);

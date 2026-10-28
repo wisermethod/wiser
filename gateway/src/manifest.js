@@ -145,6 +145,10 @@ function validateAction(action, file, field) {
       throw validationError(file, `${at}.max_bytes`, 'must be a positive safe integer');
     }
   }
+  if (Object.hasOwn(action, 'proxy_body_max_bytes') &&
+      (!Number.isSafeInteger(action.proxy_body_max_bytes) || action.proxy_body_max_bytes <= 0)) {
+    throw validationError(file, `${field}.proxy_body_max_bytes`, 'must be a positive safe integer');
+  }
   if (Object.hasOwn(action, 'download_media')) {
     const download = action.download_media;
     const at = `${field}.download_media`;

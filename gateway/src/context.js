@@ -21,6 +21,7 @@ import { createMediaDownload, isCanonicalMediaHost } from './media-download.js';
  * @param {object} [opts.unwrap]
  * @param {string[]} [opts.responseHeaders] The action's manifest declaration.
  * @param {object} [opts.responseHeaderGuard] Private call-scoped address tracker.
+ * @param {number} [opts.proxyBodyMaxBytes] The action's private proxy body budget.
  * @param {object} [opts.downloadMedia] The action's download_media declaration.
  * @param {object} [opts.outputFile] The action's output_file declaration.
  * @param {string} [opts.outputsDir] Explicit local destination, never from input.
@@ -41,7 +42,7 @@ export function buildContext({
   responseHeaders,
   responseHeaderGuard,
   onAudit,
-  downloadMedia, outputFile, outputsDir, executionSignal,
+  downloadMedia, outputFile, outputsDir, executionSignal, proxyBodyMaxBytes,
 }) {
   const toolkit = auth?.toolkit;
   const providerAccountId = record?.provider_account_id ?? null;
@@ -53,11 +54,10 @@ export function buildContext({
     }
   }
 
-  async function proxy(req = {}) {
-    if (!authProvider || typeof authProvider.proxy !== 'function') {
-      throw statusSignal(STATUS.NEEDS_PROVIDER_CAPABILITY);
-    }
-    let res = await authProvider.proxy({
+  // Project only module request fields; neither identity nor the private budget
+  // can be replaced by a field supplied by the module.
+  function proxyRequest(req) {
+    return {
       providerAccountId,
       toolkit,
       endpoint: req.endpoint,
@@ -66,7 +66,47 @@ export function buildContext({
       binary_body: req.binary_body,
       parameters: req.parameters,
       ...(declared === undefined ? {} : { response_headers: [...declared] }),
-    });
+    };
+  }
+
+  async function measureRequest(request) {
+    try {
+      const count = await authProvider.measureProxyBody(request);
+      if (Number.isSafeInteger(count) && count >= 0) return count;
+    } catch { /* Provider error text and request contents never escape. */ }
+    throw statusSignal(STATUS.NEEDS_PROVIDER_CAPABILITY);
+  }
+
+  async function measureProxyBody(req = {}) {
+    try {
+      return await measureRequest(proxyRequest(req));
+    } catch {
+      throw statusSignal(STATUS.NEEDS_PROVIDER_CAPABILITY);
+    }
+  }
+
+  async function proxy(req = {}) {
+    if (!authProvider || typeof authProvider.proxy !== 'function') {
+      throw statusSignal(STATUS.NEEDS_PROVIDER_CAPABILITY);
+    }
+    let request;
+    try { request = proxyRequest(req); } catch (err) {
+      if (proxyBodyMaxBytes !== undefined) throw statusSignal(STATUS.NEEDS_PROVIDER_CAPABILITY);
+      throw err;
+    }
+    let res;
+    if (proxyBodyMaxBytes === undefined) {
+      res = await authProvider.proxy(request);
+    } else {
+      if (!Number.isSafeInteger(proxyBodyMaxBytes) || proxyBodyMaxBytes <= 0) {
+        throw statusSignal(STATUS.NEEDS_PROVIDER_CAPABILITY);
+      }
+      const count = await measureRequest(request);
+      if (count > proxyBodyMaxBytes) {
+        throw statusSignal(STATUS.VENDOR_ERROR, { reason: 'proxy_body_too_large' });
+      }
+      res = await authProvider.proxy(request, { proxyBodyMaxBytes });
+    }
     if (res && res.supported === false) {
       throw statusSignal(STATUS.NEEDS_PROVIDER_CAPABILITY);
     }
@@ -181,6 +221,7 @@ export function buildContext({
     input,
     confirm: Boolean(confirm),
     proxy,
+    measureProxyBody,
     http,
     catalog,
     audit,
