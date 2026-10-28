@@ -83,7 +83,7 @@
       },
       "actions": {
         "list": {
-          "description": "Read one voice page with optional type, limit (1 to 100) and token (1 to 2048 code points). Omit unsupplied filters. Project ids, names, mode, state, nullable language, preview presence and recognized failure code; reject malformed or contradictory pagination and fields.",
+          "description": "Read one voice page with optional type, limit (1 to 100) and token (1 to 2048 code points). Omit unsupplied filters. Project id, name, mode, status, nullable language, preview presence and recognized failure code; reject malformed or contradictory pagination and fields.",
           "risk": "low",
           "confirmation": "none",
           "execution": {
@@ -223,7 +223,7 @@
       },
       "actions": {
         "list": {
-          "description": "Read one avatar-group page with optional ownership, limit (1 to 50) and token (1 to 2048 code points). Omission requests both ownerships. Project id, name, look count, optional nullable state/consent/default voice and preview presence. Reject malformed fields and contradictory pagination. Page to completion and resolve duplicate names by id.",
+          "description": "Read one avatar-group page with optional ownership, limit (1 to 50) and token (1 to 2048 code points). Omission requests both ownerships. Project id, name, look count, optional nullable status/consent status/default voice and preview presence. Reject malformed fields and contradictory pagination. Page to completion and resolve duplicate names by id.",
           "risk": "low",
           "confirmation": "none",
           "execution": {
@@ -256,7 +256,7 @@
           }
         },
         "list_looks": {
-          "description": "Read one look page with optional group id, ownership, avatar type, limit (1 to 50) and token (1 to 2048 code points). Project id, name, nullable group id, type, state, default voice, supported engines and preview presence. Validate supplied group/type relationships, fields and pagination; never infer group from look id, which may be identical. Select by group and look names and resolve duplicate names by id. Video creation sends only Avatar IV.",
+          "description": "Read one look page with optional group id, ownership, avatar type, limit (1 to 50) and token (1 to 2048 code points). Project id, name, nullable group id, type, status, default voice, supported engines and preview presence. Validate supplied group/type relationships, fields and pagination; never infer group from look id, which may be identical. Select by group and look names and resolve duplicate names by id. Video creation sends only Avatar IV.",
           "risk": "low",
           "confirmation": "none",
           "execution": {
