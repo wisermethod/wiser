@@ -4,6 +4,14 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.27.5, October 27, 2026
+
+- Wiser can now connect to ElevenLabs on your own ElevenLabs plan, through the local gateway in a command-line tool such as Claude Code or Codex. It lists your voices and models, makes an instant voice clone from one recording on your computer, and turns a scene of up to 5,000 characters into an MP3 saved on your computer, with each character's timing. You type your key only on the connect page. (aa781f1)
+- Each ElevenLabs narration call asks for your approval, or you can approve a production's narration once, for up to 7 days, from the gateway's own warning. Approving once never replaces the cost estimate you approve first, and making or deleting a voice clone still asks every time. (aa781f1)
+- A free narration option, Chatterbox, speaks in your own voice on an Apple silicon Mac. Nothing downloads until you choose it: Wiser first checks your Mac can run it, then downloads about 4.7 GB and times a short trial in your voice, and turns the option down if your Mac is too slow. Its quality is lower than ElevenLabs', and every recording it makes carries Resemble's inaudible watermark. (aa781f1)
+- `Transcribe Audio` can now time each word of an English recording whose words you already know, so narration can line up with what is on screen. (aa781f1)
+- `Speech Preparation` turns a script's pause and emphasis marks into the form each narration service reads, and ties every word's timing back to the script's own words. (aa781f1)
+
 ## v2026.10.27.4, October 27, 2026
 
 - A form's picture questions can now offer an answer in words beside the pictures, such as Neither, so you can say none of them fits rather than leave the question blank. (86dbb47)
