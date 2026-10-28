@@ -49,7 +49,9 @@ function bounds(input, lengths = {}, numbers = {}) {
   for (const [key, max] of Object.entries(lengths)) if (input[key] !== undefined && length(input[key]) > max) return invalid(key);
   for (const [key, [min, max]] of Object.entries(numbers)) if (input[key] !== undefined && (!Number.isFinite(input[key]) || input[key] < min || input[key] > max)) return invalid(key);
 }
-const query = (input, keys) => ({ parameters: keys.filter((key) => input[key] !== undefined).map((key) => ({ name: key, value: input[key], type: 'query' })) });
+// Query values go as strings: through the provider's proxy, HeyGen answered HTTP 400 to every list call
+// carrying a numeric limit and accepted the same limit as a string (read live, 2026-10-28).
+const query = (input, keys) => ({ parameters: keys.filter((key) => input[key] !== undefined).map((key) => ({ name: key, value: String(input[key]), type: 'query' })) });
 const preview = (v) => v == null || typeof v === 'string';
 // Failure messages are never forwarded. Unknown vendor codes are omitted.
 const FAILURE_CODES = new Set(['AUDIO_TOO_SHORT','AUDIO_TOO_LONG','AUDIO_INVALID','NO_SPEECH_DETECTED','INSUFFICIENT_AUDIO_QUALITY','VOICE_CLONE_FAILED','TRAINING_FAILED','INTERNAL_ERROR']);

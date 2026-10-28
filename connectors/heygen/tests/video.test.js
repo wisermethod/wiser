@@ -142,7 +142,7 @@ test('selected look and multiple group pages: no first-item inference, malformed
   assert.equal((await run(f, 'videos.create', videoInput({ avatar_id: 'chosen-look' }))).video_id, 'video_fake-1');
   assert.equal(f.calls.at(-1).body.avatar_id, 'chosen-look');
   const groupCalls = f.calls.filter((r) => new URL(r.endpoint).pathname === '/v3/avatars'); assert.equal(groupCalls.length, 2);
-  assert.deepEqual(groupCalls[1].parameters, [{ name: 'limit', value: 50, type: 'query' }, { name: 'token', value: 'page-two', type: 'query' }]);
+  assert.deepEqual(groupCalls[1].parameters, [{ name: 'limit', value: '50', type: 'query' }, { name: 'token', value: 'page-two', type: 'query' }]);
   for (const look of [avatarLook({ id: 'wrong-look' }), avatarLook({ status: 'processing' }), avatarLook({ status: null }), avatarLook({ supported_api_engines: ['avatar_v'] })]) {
     f.reply = (req) => req.endpoint.includes('/looks/') ? { status: 200, data: { data: look } } : original(req);
     const before = postCount(f); assert.ok((await run(f, 'videos.create', videoInput())).status); assert.equal(postCount(f), before);

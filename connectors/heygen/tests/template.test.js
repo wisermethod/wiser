@@ -204,7 +204,7 @@ test('voice pages preserve states/nulls and recognized failure codes with strict
   const f=await setup(t);
   f.reply=()=>({status:200,data:page([voice({status:'PENDING',language:null}),voice({id:'failed',status:'FAILED',language:undefined,failure_code:'TRAINING_FAILED',failure_message:ADDRESS})],{has_more:true,next_token:'opaque-page-2'})});
   const got=await run(f,'voices.list',{type:'private',limit:100,token:'previous'});assert.equal(got.voices[0].language,null);assert.equal(got.voices[0].status,'PENDING');assert.equal(got.voices[1].status,'FAILED');assert.equal(got.voices[1].failure_code,'TRAINING_FAILED');noPrivate(got);
-  assert.deepEqual(f.calls.at(-1).parameters,[{name:'type',value:'private',type:'query'},{name:'limit',value:100,type:'query'},{name:'token',value:'previous',type:'query'}]);
+  assert.deepEqual(f.calls.at(-1).parameters,[{name:'type',value:'private',type:'query'},{name:'limit',value:'100',type:'query'},{name:'token',value:'previous',type:'query'}]);
   for(const envelope of [{data:[]},page([],{has_more:true,next_token:'next'}),page([voice()],{has_more:true}),page([voice()],{has_more:true,next_token:123}),page([voice()],{has_more:true,next_token:'same'}),page([voice()],{next_token:'contradictory'}),page([voice({status:'UNKNOWN'})]),page([voice({language:3})])]){f.reply=()=>({status:200,data:envelope});assert.equal((await run(f,'voices.list',{token:'same'})).status,'vendor_error');}
   f.reply=()=>({status:200,data:page()});assert.deepEqual(await run(f,'voices.list'),{voices:[],has_more:false,next_token:null});assert.deepEqual(f.calls.at(-1).parameters,[]);
 });
