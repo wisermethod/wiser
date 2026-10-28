@@ -10,7 +10,8 @@ export const PRIVATE = 'invented-private-path-123456789';
 export const SIGNATURE = 'invented-signature-value-987654321';
 export const speechAddress = (voiceId) => `https://resource2.heygen.ai/${PRIVATE}/${voiceId}/speech.wav`;
 export const ADDRESS = speechAddress('voice_fake-1');
-export const voice = (extra = {}) => ({ id: 'voice_fake-1', name: 'Invented clone', mode: 'instant', status: 'ACTIVE', language: 'en', preview_audio_url: ADDRESS, ...extra });
+// HeyGen's voice objects carry `voice_id`, as read live on 2026-10-28; an `id` override here sets that vendor key.
+export const voice = ({ id, ...extra } = {}) => ({ voice_id: id ?? 'voice_fake-1', name: 'Invented clone', mode: 'instant', status: 'ACTIVE', language: 'en', preview_audio_url: ADDRESS, created_at: 1793030044, ...extra });
 export const characterTimings = (text) => Array.from(text, (text, i) => ({ text, start_time: i / 10, end_time: (i + 1) / 10 }));
 export const scene = (text = 'Hi', model = 'heygen-voice-1-turbo-free') => ({ text, voice_id: 'voice_fake-1', model });
 export const page = (data = [], extra = {}) => ({ data, has_more: false, ...extra });

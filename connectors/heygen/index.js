@@ -53,10 +53,12 @@ const query = (input, keys) => ({ parameters: keys.filter((key) => input[key] !=
 const preview = (v) => v == null || typeof v === 'string';
 // Failure messages are never forwarded. Unknown vendor codes are omitted.
 const FAILURE_CODES = new Set(['AUDIO_TOO_SHORT','AUDIO_TOO_LONG','AUDIO_INVALID','NO_SPEECH_DETECTED','INSUFFICIENT_AUDIO_QUALITY','VOICE_CLONE_FAILED','TRAINING_FAILED','INTERNAL_ERROR']);
+// HeyGen names a voice's id `voice_id` in both the list and a single voice, as read live on 2026-10-28;
+// this connector returns it as `id`, the key its callers read.
 function voice(v) {
-  if (!object(v) || !id(v.id) || !text(v.name) || !['instant','professional'].includes(v.mode) ||
+  if (!object(v) || !id(v.voice_id) || !text(v.name) || !['instant','professional'].includes(v.mode) ||
       !['PENDING','ACTIVE','FAILED'].includes(v.status) || !(v.language == null || text(v.language)) || !preview(v.preview_audio_url)) return null;
-  return { id: v.id, name: v.name, mode: v.mode, status: v.status, language: v.language ?? null,
+  return { id: v.voice_id, name: v.name, mode: v.mode, status: v.status, language: v.language ?? null,
     preview_audio_present: Boolean(v.preview_audio_url), ...(FAILURE_CODES.has(v.failure_code) ? { failure_code: v.failure_code } : {}) };
 }
 function group(v) {
