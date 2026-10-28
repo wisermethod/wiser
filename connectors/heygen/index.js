@@ -1,10 +1,13 @@
 // Network access is exclusively through action-bound gateway capabilities.
 import { inspectWav, readUpload } from './audio.js';
+import { randomUUID } from 'node:crypto';
+import { inspectMp4 } from './video.js';
 
 const API = 'https://api.heygen.com';
 const VOICES = '/v3/models/audio/voices';
 const BUDGET = 4100000;
 const WAV_MAX = 67108864;
+const MP4_MAX = 268435456;
 const object = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const id = (v) => typeof v === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(v);
 const text = (v) => typeof v === 'string';
@@ -114,6 +117,46 @@ function timings(v, scene) {
   return out.map((c) => c.text).join('') === scene ? out : null;
 }
 
+const VIDEO_STATES = new Set(['pending', 'waiting', 'processing', 'completed', 'failed']);
+const VIDEO_FAILURES = new Set(['AUDIO_INVALID', 'AVATAR_NOT_READY', 'INSUFFICIENT_CREDITS', 'VIDEO_GENERATION_FAILED', 'INTERNAL_ERROR']);
+function video(v, videoId) {
+  if (!object(v) || !id(v.id) || v.id !== videoId || !safeState(v.status) ||
+      !(v.duration == null || (Number.isFinite(v.duration) && v.duration >= 0))) return null;
+  return { video_id: v.id, video_status: VIDEO_STATES.has(v.status) ? v.status : 'unknown', duration: v.duration ?? null,
+    ...(VIDEO_FAILURES.has(v.failure_code) ? { failure_code: v.failure_code } : {}) };
+}
+async function selectedLook(ctx, avatarId) {
+  const path = `/v3/avatars/looks/${encodeURIComponent(avatarId)}`;
+  const read = await request(ctx, path); if (read.stop) return read;
+  const selected = look(read.data);
+  if (!selected || selected.id !== avatarId) return { stop: unexpected(API + path, 'GET') };
+  if (selected.status !== 'completed' || !selected.supported_api_engines.includes('avatar_iv'))
+    return { stop: invalid('avatar_id', 'requires a completed look supporting Avatar IV') };
+  // A group id is a relationship returned by HeyGen, never inferred from the look id.
+  // Missing optional group states do not invent consent; explicit non-ready states stop.
+  if (selected.group_id !== null) {
+    const seen = new Set(); let token;
+    for (;;) {
+      const input = { limit: 50, ...(token ? { token } : {}) };
+      const res = await request(ctx, '/v3/avatars', 'GET', query(input, ['limit', 'token']));
+      if (res.stop) return res;
+      const got = page(res.envelope, group, input, 'groups');
+      if (!got) return { stop: unexpected(API + '/v3/avatars', 'GET') };
+      const owner = got.groups.find((v) => v.id === selected.group_id);
+      if (owner) {
+        if ((owner.status != null && !['completed', 'ready', 'active'].includes(owner.status.toLowerCase())) ||
+            (owner.consent_status != null && !['approved', 'accepted', 'consented', 'verified', 'completed'].includes(owner.consent_status.toLowerCase())))
+          return { stop: invalid('avatar_id', 'avatar group is not ready or consented') };
+        break;
+      }
+      if (!got.has_more) return { stop: invalid('avatar_id', 'look group membership unavailable') };
+      if (seen.has(got.next_token)) return { stop: unexpected(API + '/v3/avatars', 'GET') };
+      seen.add(got.next_token); token = got.next_token;
+    }
+  }
+  return { selected };
+}
+
 export const modules = {
   speech: {
     async synthesize(input, ctx) {
@@ -169,13 +212,13 @@ export const modules = {
     async add(input, ctx) {
       const bad = bounds(input, { name: 64, path: 4096, language: 32 }); if (bad) return bad;
       const audio = readUpload(input.path); if (audio.status) return audio;
-      const body = { mode: 'instant', name: input.name, audio: [{ data: audio.bytes.toString('base64'), content_type: audio.media_type }],
+      const body = { mode: 'instant', name: input.name, audio: [{ type: 'base64', media_type: audio.media_type, data: audio.bytes.toString('base64') }],
         similarity: input.similarity ?? 'max', remove_background_noise: input.remove_background_noise ?? false,
         ...(input.language === undefined ? {} : { language: input.language }) };
       const res = await request(ctx, VOICES, 'POST', { body,
         parameters: [{ name: 'Idempotency-Key', value: input.idempotency_key, type: 'header' }] });
       if (res.stop) return res.stop;
-      return res.http_status === 202 && id(res.data?.voice_id) ? { voice_id: res.data.voice_id, accepted: true } : unexpected(API + VOICES, 'POST');
+      return id(res.data?.voice_id) ? { voice_id: res.data.voice_id, accepted: true } : unexpected(API + VOICES, 'POST');
     },
     async delete(input, ctx) {
       const member = await privateVoice(ctx, input.voice_id); if (member.stop) return member.stop;
@@ -201,6 +244,71 @@ export const modules = {
       if (!got || got.looks.some((v) => (input.group_id !== undefined && v.group_id !== input.group_id) ||
           (input.avatar_type !== undefined && v.avatar_type !== input.avatar_type))) return unexpected(API + path, 'GET');
       return got;
+    },
+  },
+  assets: {
+    async upload_audio(input, ctx) {
+      const bad = bounds(input, { path: 4096 }); if (bad) return bad;
+      const audio = readUpload(input.path); if (audio.status) return audio;
+      let boundary;
+      do { boundary = `wiser${randomUUID().replaceAll('-', '')}`; }
+      while (audio.bytes.includes(Buffer.from(boundary)));
+      const filename = audio.media_type === 'audio/wav' ? 'narration.wav' : 'narration.mp3';
+      const head = Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: ${audio.media_type}\r\n\r\n`);
+      const tail = Buffer.from(`\r\n--${boundary}--\r\n`);
+      const res = await request(ctx, '/v3/assets', 'POST', {
+        binary_body: { base64: Buffer.concat([head, audio.bytes, tail]).toString('base64'), content_type: `multipart/form-data; boundary=${boundary}` },
+        parameters: [{ name: 'Idempotency-Key', value: input.idempotency_key, type: 'header' }],
+      });
+      if (res.stop) return res.stop;
+      const v = res.data;
+      return object(v) && id(v.asset_id) && v.mime_type === audio.media_type && Number.isSafeInteger(v.size_bytes) && v.size_bytes === audio.bytes.length
+        ? { asset_id: v.asset_id, mime_type: v.mime_type, size_bytes: v.size_bytes } : unexpected(API + '/v3/assets', 'POST');
+    },
+  },
+  videos: {
+    async create(input, ctx) {
+      const bad = bounds(input, { script: 5000, title: 200 }); if (bad) return bad;
+      const script = input.script !== undefined, voiceId = input.voice_id !== undefined, asset = input.audio_asset_id !== undefined;
+      if (!((script && voiceId && !asset) || (asset && !script && !voiceId)))
+        return invalid('audio_asset_id', 'supply script and voice_id, or audio_asset_id alone');
+      const checked = await selectedLook(ctx, input.avatar_id); if (checked.stop) return checked.stop;
+      const read = await request(ctx, '/v3/users/me'); if (read.stop) return read.stop;
+      const w = wallet(read.data);
+      // Duration is not bounded by this action. A positive wallet is an advisory
+      // preflight only; the caller estimates the charge, and HeyGen enforces balance.
+      if (!w || w.billing_type !== 'wallet' || w.wallet?.currency !== 'usd' || w.wallet.remaining_balance <= 0)
+        return { status: 'vendor_error', reason: 'wallet_unavailable_or_insufficient' };
+      const body = { type: 'avatar', avatar_id: checked.selected.id, engine: { type: 'avatar_iv' },
+        resolution: input.resolution, aspect_ratio: input.aspect_ratio, output_format: 'mp4',
+        ...(input.title === undefined ? {} : { title: input.title }),
+        ...(input.background_color === undefined ? {} : { background: { value: input.background_color } }),
+        ...(asset ? { audio_asset_id: input.audio_asset_id } : { script: input.script, voice_id: input.voice_id }) };
+      const res = await request(ctx, '/v3/videos', 'POST', { body,
+        parameters: [{ name: 'Idempotency-Key', value: input.idempotency_key, type: 'header' }] });
+      if (res.stop) return res.stop;
+      const v = res.data;
+      return object(v) && id(v.video_id) && safeState(v.status) && v.output_format === 'mp4'
+        ? { video_id: v.video_id, video_status: VIDEO_STATES.has(v.status) ? v.status : 'unknown', output_format: 'mp4' }
+        : unexpected(API + '/v3/videos', 'POST');
+    },
+    async get(input, ctx) {
+      const path = `/v3/videos/${encodeURIComponent(input.video_id)}`;
+      const res = await request(ctx, path); if (res.stop) return res.stop;
+      return video(res.data, input.video_id) ?? unexpected(API + path, 'GET');
+    },
+    async download(input, ctx) {
+      const path = `/v3/videos/${encodeURIComponent(input.video_id)}`;
+      const res = await request(ctx, path); if (res.stop) return res.stop;
+      const got = video(res.data, input.video_id);
+      if (!got) return unexpected(API + path, 'GET');
+      if (got.video_status !== 'completed') return got;
+      if (!(got.duration > 0) || !text(res.data.video_url)) return unexpected(API + path, 'GET');
+      let bytes;
+      try { bytes = await ctx.downloadMedia({ url: res.data.video_url, media_type: 'video/mp4' }); }
+      catch (error) { return failure(error, API + path, 'GET'); }
+      if (!Buffer.isBuffer(bytes) || bytes.length > MP4_MAX || !inspectMp4(bytes)) return unexpected(API + path, 'GET');
+      return { ...got, output_file: { media_type: 'video/mp4', data: bytes } };
     },
   },
   account: {

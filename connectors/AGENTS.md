@@ -117,7 +117,7 @@ guide's `## Revoking` section carries the same working through, from `connectors
 |-----------|-------------|
 | `youtube/CONNECTOR.md` | Reads the signed-in YouTube channel, uploads and updates videos, sets thumbnails, inserts captions, and manages playlists, with channel and ownership checks and confirmation on every write |
 | `elevenlabs/CONNECTOR.md` | Synthesizes timestamped MP3 speech to a local file, lists voices and models, and creates and deletes instant voice clones, confirming every write unless a standing approval covers narration |
-| `heygen/CONNECTOR.md` | Synthesizes timestamped WAV speech to a local file, lists and manages instant voice clones, discovers avatar groups and looks, and reads API wallet and key permissions, confirming clone creation and deletion |
+| `heygen/CONNECTOR.md` | Synthesizes timestamped WAV speech, manages instant voice clones, discovers avatars and looks, uploads narration, renders Avatar IV video to MP4 and reads API wallet and key permissions, confirming uploads, clone changes and video creation unless a standing approval covers the render |
 | `xai/CONNECTOR.md` | Synthesizes MP3 speech to a local file with word or character timings, and lists xAI's built-in voices and the team's voice clones |
 | `replicate/CONNECTOR.md` | Lists curated model collections, starts confirmed predictions, and returns prediction status and output URLs |
 | `google-apis/CONNECTOR.md` | Run PageSpeed Insights on one public URL, translate text through Google Cloud Translation, synthesize speech through Cloud Text-to-Speech, transcribe audio through Cloud Speech-to-Text, and annotate text through Cloud Natural Language |

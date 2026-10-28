@@ -9,21 +9,21 @@ import { modules } from '../index.js';
 import { inspectWav, isMp3 } from '../audio.js';
 import { createTestGateway, putActive, confirmCall } from '../../../gateway/test/fake-provider.js';
 import { statusSignal, STATUS } from '../../../gateway/src/errors.js';
-import { setup, run, scene, voice, wav, mp3, hash, wire, page, characterTimings, speechAnswer, noPrivate, MODULES, ADDRESS, PRIVATE, SIGNATURE } from './fixtures.js';
+import { setup, run, scene, voice, wav, mp3, hash, wire, page, characterTimings, speechAnswer, noPrivate, MODULES, videoInput, ADDRESS, PRIVATE, SIGNATURE } from './fixtures.js';
 
 const DIR = fileURLToPath(new URL('..', import.meta.url));
 const MANIFEST = JSON.parse(fs.readFileSync(join(DIR, 'manifest.json')));
 const clone = (f, extra = {}) => ({ name: 'Invented clone', path: f.file, idempotency_key: 'invented-key-123', ...extra });
 const bases = (f) => ({ 'speech.synthesize': scene(), 'voices.list': {}, 'voices.get': { voice_id: 'voice_fake-1' }, 'voices.add': clone(f),
-  'voices.delete': { voice_id: 'voice_fake-1' }, 'avatars.list': {}, 'avatars.list_looks': {}, 'account.wallet': {}, 'account.permissions': {} });
+  'voices.delete': { voice_id: 'voice_fake-1' }, 'avatars.list': {}, 'avatars.list_looks': {}, 'assets.upload_audio': { path: f.file, idempotency_key: 'invented-key-123' }, 'videos.create': videoInput(), 'videos.get': { video_id: 'video_fake-1' }, 'videos.download': { video_id: 'video_fake-1' }, 'account.wallet': {}, 'account.permissions': {} });
 const noFiles = (f) => assert.deepEqual(fs.existsSync(join(f.home, 'outputs')) ? fs.readdirSync(join(f.home, 'outputs')) : [], []);
 
 // Keep the template's schema-enforcement block: the actual gateway refuses
 // undeclared keys, mistyped fields, missing required fields and non-object inputs.
-test('manifest/export parity, exact nine actions and template schema-enforcement block', async (t) => {
+test('manifest/export parity, exact thirteen actions and template schema-enforcement block', async (t) => {
   const f = await setup(t);
   assert.deepEqual(Object.keys(modules), MODULES);
-  assert.equal(Object.keys(bases(f)).length, 9);
+  assert.equal(Object.keys(bases(f)).length, 13);
   for (const [mod, definition] of Object.entries(MANIFEST.modules)) {
     assert.deepEqual(Object.keys(definition.actions).sort(), Object.keys(modules[mod]).sort());
     assert.deepEqual(definition.auth, { provider: 'catalog', toolkit: 'HEYGEN', scheme: 'API_KEY', privilege: 'write' });
@@ -31,7 +31,8 @@ test('manifest/export parity, exact nine actions and template schema-enforcement
     for (const [name, row] of Object.entries(definition.actions)) {
       const id = `${mod}.${name}`, base = bases(f)[id];
       assert.equal(row.proxy_body_max_bytes, 4100000); assert.deepEqual(row.execution, { prefer: 'proxy' });
-      assert.equal(row.standing_approval, undefined);
+      if (id === 'videos.create') assert.equal(row.standing_approval.kind, 'pay');
+      else assert.equal(row.standing_approval, undefined);
       const before = f.calls.length;
       const got = await run(f, id, base);
       assert.ok(f.calls.length > before, `${id} reaches fake provider`);
@@ -161,7 +162,7 @@ test('clone JSON independently decodes exact MP3/WAV bytes, options, Unicode and
     const name='Quotes " \\ and\r\nUnicode 𐐀';
     assert.deepEqual(await run(f,'voices.add',clone(f,{name,path,similarity:'high',remove_background_noise:false,language:'en-US'})),{voice_id:'clone_fake-1',accepted:true});
     const req=f.calls.at(-1);assert.equal(req.method,'POST');assert.equal(req.binary_body,undefined);assert.equal(req.body.mode,'instant');assert.equal(req.body.name,name);assert.equal(req.body.audio.length,1);
-    assert.equal(req.body.audio[0].content_type,type);assert.deepEqual(Buffer.from(req.body.audio[0].data,'base64'),bytes);
+    assert.equal(req.body.audio[0].media_type,type);assert.equal(req.body.audio[0].type,'base64');assert.equal(req.body.audio[0].content_type,undefined);assert.deepEqual(Buffer.from(req.body.audio[0].data,'base64'),bytes);
     assert.equal(req.body.similarity,'high');assert.equal(req.body.remove_background_noise,false);assert.equal(req.body.language,'en-US');
     assert.deepEqual(req.parameters,[{name:'Idempotency-Key',value:'invented-key-123',type:'header'}]);assert.equal(req.serialized.includes(path),false);
   }
@@ -192,10 +193,10 @@ test('unreadability, replacement and same-size concurrent changes are refused',a
   const read=fs.readSync;let changed=false;mock=t.mock.method(fs,'readSync',function(...args){const n=read(...args);if(!changed){changed=true;fs.writeFileSync(f.file,Buffer.alloc(417));}return n;});assert.equal((await add()).status,'invalid_arguments');mock.mock.restore();
 });
 
-test('wrong extension/container cannot pass cloning; only a 202 acknowledgement means accepted',async(t)=>{
+test('wrong extension/container cannot pass cloning; a 2xx answer with valid id means accepted',async(t)=>{
   const f=await setup(t);
   for(const [filename,bytes] of [['wrong.mp3',wav()],['wrong.wav',mp3()],['wrong.txt',mp3()],['truncated.wav',wav().subarray(0,80)]]){const path=join(f.home,filename);fs.writeFileSync(path,bytes);assert.equal((await run(f,'voices.add',clone(f,{path}))).status,'invalid_arguments');}
-  for(const res of [{status:200,data:{data:{voice_id:'clone_fake-1'}}},{status:202,data:{data:{}}},{status:202,data:{data:{voice_id:''}}},{status:202,data:{data:{voice_id:'clone_fake-1',error:'raw-envelope-canary'}}}]){f.reply=()=>res;const got=await run(f,'voices.add',clone(f));assert.equal(got.status,'vendor_error');assert.equal(got.accepted,undefined);noPrivate(got);}
+  for(const res of [{status:199,data:{data:{voice_id:'clone_fake-1'}}},{status:300,data:{data:{voice_id:'clone_fake-1'}}},{status:202,data:{data:{}}},{status:202,data:{data:{voice_id:''}}},{status:202,data:{data:{voice_id:'clone_fake-1',error:'raw-envelope-canary'}}}]){f.reply=()=>res;const got=await run(f,'voices.add',clone(f));assert.equal(got.status,'vendor_error');assert.equal(got.accepted,undefined);noPrivate(got);}
 });
 
 test('voice pages preserve states/nulls and recognized failure codes with strict cursors',async(t)=>{
@@ -242,7 +243,7 @@ test('exact 4100000/4100001 serialized budget includes account, Unicode escaping
   for(const target of [4100000,4100001]){
     const input=clone(f,{name:'𐐀 " \\ \n'});
     const request={providerAccountId:'',endpoint:'https://api.heygen.com/v3/models/audio/voices',method:'POST',
-      body:{mode:'instant',name:input.name,audio:[{data:mp3().toString('base64'),content_type:'audio/mpeg'}],similarity:'max',remove_background_noise:false},
+      body:{mode:'instant',name:input.name,audio:[{type:'base64',media_type:'audio/mpeg',data:mp3().toString('base64')}],similarity:'max',remove_background_noise:false},
       parameters:[{name:'Idempotency-Key',value:input.idempotency_key,type:'header'}]};
     const account='a'.repeat(target-Buffer.byteLength(wire(request)));
     const row=f.store.getConnection({service:'heygen',module:'voices'});
@@ -301,7 +302,7 @@ test('sole custom-toolkit account adoption, ambiguity, labelled connect and shar
   const labelled=f.store.getConnection({service:'heygen',module:'voices',label:'workspace'});assert.ok(labelled);f.fake.auth.setStatus(labelled.provider_account_id,'ACTIVE');
   await f.gw.connectStatus({service:'heygen',module:'voices',label:'workspace'});
   for(const module of MODULES)assert.equal(f.store.getConnection({service:'heygen',module,label:'workspace'}).provider_account_id,labelled.provider_account_id);
-  const stop=await f.gw.disconnect({service:'heygen',module:'voices',label:'workspace'});assert.equal(stop.status,'needs_confirmation');assert.equal(stop.modules_ending.length,4);
+  const stop=await f.gw.disconnect({service:'heygen',module:'voices',label:'workspace'});assert.equal(stop.status,'needs_confirmation');assert.equal(stop.modules_ending.length,6);
   const ended=await f.gw.disconnect({service:'heygen',module:'voices',label:'workspace',confirm:true,provider_account_id:labelled.provider_account_id});assert.equal(ended.status,'disconnected');
   for(const module of MODULES)assert.equal(f.store.getConnection({service:'heygen',module,label:'workspace'}),null);
 });

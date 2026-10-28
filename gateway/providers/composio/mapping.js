@@ -140,7 +140,7 @@ const TOOLKITS = {
     slides: 'GOOGLESLIDES',
   },
   clarity: 'MICROSOFT_CLARITY',
-  heygen: { speech: 'HEYGEN', voices: 'HEYGEN', avatars: 'HEYGEN', account: 'HEYGEN' },
+  heygen: { speech: 'HEYGEN', voices: 'HEYGEN', avatars: 'HEYGEN', assets: 'HEYGEN', videos: 'HEYGEN', account: 'HEYGEN' },
   elevenlabs: { speech: 'ELEVENLABS', voices: 'ELEVENLABS', models: 'ELEVENLABS' },
   replicate: 'REPLICATE',
   'google-vision': 'GOOGLE_CLOUD_VISION',

@@ -137,7 +137,7 @@
           }
         },
         "add": {
-          "description": "Create an instant clone from exactly one absolute physical MP3 or WAV, 1 to 3000000 bytes inclusive, with a matching complete container. Refuse symlinks at any ancestor, hard links, nonregular or changed files, .env/.env.* and memory components and the person-scoped Wiser credential directory before opening protected content. Name, path and language bounds count code points. Send one inline base64 audio item, supplied or max similarity, supplied or false noise removal, and the required idempotency header; exactly a 202 acknowledgement with voice id means accepted, not ready. Local gateway only: a hosted service must withhold this file-reading action.",
+          "description": "Create an instant clone from exactly one absolute physical MP3 or WAV, 1 to 3000000 bytes inclusive, with a matching complete container. Refuse symlinks at any ancestor, hard links, nonregular or changed files, .env/.env.* and memory components and the person-scoped Wiser credential directory before opening protected content. Name, path and language bounds count code points. Send one inline audio item with type base64, matching media_type and data, supplied or max similarity, supplied or false noise removal, and the required idempotency header; a 2xx answer with voice id means accepted, not ready. Local gateway only: a hosted service must withhold this file-reading action.",
           "risk": "medium",
           "confirmation": "always",
           "execution": {
@@ -255,7 +255,7 @@
           }
         },
         "list_looks": {
-          "description": "Read one look page with optional group id, ownership, avatar type, limit (1 to 50) and token (1 to 2048 code points). Project id, name, nullable group id, type, state, default voice, supported engines and preview presence. Validate supplied group/type relationships, fields and pagination; never infer group from look id, which may be identical. Select by group and look names and resolve duplicate names by id. Only Avatar IV is planned for part 2 video.",
+          "description": "Read one look page with optional group id, ownership, avatar type, limit (1 to 50) and token (1 to 2048 code points). Project id, name, nullable group id, type, state, default voice, supported engines and preview presence. Validate supplied group/type relationships, fields and pagination; never infer group from look id, which may be identical. Select by group and look names and resolve duplicate names by id. Video creation sends only Avatar IV.",
           "risk": "low",
           "confirmation": "none",
           "execution": {
@@ -297,6 +297,220 @@
             },
             "required": [],
             "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
+    },
+    "assets": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "HEYGEN",
+        "scheme": "API_KEY",
+        "privilege": "write"
+      },
+      "actions": {
+        "upload_audio": {
+          "description": "Upload one absolute physical MP3 or WAV, 1 to 3000000 bytes inclusive. Refuse links at any ancestor, hard links, nonregular, unreadable or changed files, .env/.env.* and memory components and the person-scoped Wiser credential directory before opening protected content. Require matching complete audio container. Send exactly one multipart file named narration.mp3 or narration.wav with matching MIME and idempotency header; measure the whole proxy envelope. Validate asset id, MIME and exact integer size; discard URL. Local gateway only: hosted service must withhold this file-reading action.",
+          "risk": "medium",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "proxy_body_max_bytes": 4100000,
+          "input": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096
+              },
+              "idempotency_key": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9-]{8,64}$"
+              }
+            },
+            "required": [
+              "path",
+              "idempotency_key"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
+    },
+    "videos": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "HEYGEN",
+        "scheme": "API_KEY",
+        "privilege": "write"
+      },
+      "actions": {
+        "create": {
+          "description": "Render one completed look supporting Avatar IV. Supply exactly script (1 to 5000 code points) and explicit voice_id, or audio_asset_id alone. Title is at most 200 code points. Check returned look id and group membership across valid nonrepeating pages when group_id is available. Explicit non-ready group status or non-consented state refuses; absent/null group state is not invented. Require positive USD API wallet balance; duration and full charge cannot be established from an asset id or script length, so caller discloses an estimate and HeyGen enforces wallet sufficiency. Send fixed Avatar IV and MP4, selected look id, resolution, ratio and optional background/title. No fallback, retry or automatic upload. Project accepted video id, safe state (unknown for an unrecognized state) and output format.",
+          "risk": "medium",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "proxy_body_max_bytes": 4100000,
+          "input": {
+            "type": "object",
+            "properties": {
+              "avatar_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{1,128}$"
+              },
+              "script": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 5000
+              },
+              "voice_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{1,128}$"
+              },
+              "audio_asset_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{1,128}$"
+              },
+              "resolution": {
+                "type": "string",
+                "enum": [
+                  "720p",
+                  "1080p"
+                ]
+              },
+              "aspect_ratio": {
+                "type": "string",
+                "enum": [
+                  "16:9",
+                  "9:16",
+                  "4:5",
+                  "5:4",
+                  "1:1",
+                  "auto"
+                ]
+              },
+              "background_color": {
+                "type": "string",
+                "pattern": "^#[0-9A-Fa-f]{6}$"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "idempotency_key": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9-]{8,64}$"
+              }
+            },
+            "required": [
+              "avatar_id",
+              "resolution",
+              "aspect_ratio",
+              "idempotency_key"
+            ],
+            "oneOf": [
+              {
+                "required": [
+                  "script",
+                  "voice_id"
+                ],
+                "not": {
+                  "required": [
+                    "audio_asset_id"
+                  ]
+                }
+              },
+              {
+                "required": [
+                  "audio_asset_id"
+                ],
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "script"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "voice_id"
+                      ]
+                    }
+                  ]
+                }
+              }
+            ],
+            "additionalProperties": false
+          },
+          "standing_approval": {
+            "kind": "pay",
+            "summary": "create HeyGen avatar video charged to your HeyGen API wallet",
+            "caution": "Each covered call spends wallet dollars with no stop per call. Avatar IV rates read 2026-10-28: $0.0805 a second for a custom video or studio avatar; $0.0385 for a photo avatar. The wallet's own balance is the only ceiling HeyGen applies."
+          }
+        },
+        "get": {
+          "description": "Read the same video id once without polling or resubmission. Project video_id, video_status, nullable finite nonnegative duration and recognized failure code. pending, waiting, processing, completed and failed remain distinct; unrecognized safe state becomes unknown and stops automatic polling. Drop every URL, raw failure message and extra field; mismatched id or malformed metadata refuses.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "proxy_body_max_bytes": 4100000,
+          "input": {
+            "type": "object",
+            "properties": {
+              "video_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{1,128}$"
+              }
+            },
+            "required": [
+              "video_id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "download": {
+          "description": "Reread the same video id once. Noncompleted and unknown states return safe status without bytes. Completed requires positive duration and a media address; privately download once from the two declared exact hosts, at most 268435456 bytes. Validate complete MP4 box structure with compatible ftyp, movie and track headers and nonempty media data, independent of HTTP content type; no codec decoding. Gateway writes unchanged bytes. Failure leaves no output and never rerenders. A later explicit download can reread the same resource; renewal of expired media addresses is not promised.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "proxy_body_max_bytes": 4100000,
+          "input": {
+            "type": "object",
+            "properties": {
+              "video_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{1,128}$"
+              }
+            },
+            "required": [
+              "video_id"
+            ],
+            "additionalProperties": false
+          },
+          "output_file": {
+            "media_types": [
+              "video/mp4"
+            ],
+            "max_bytes": 268435456
+          },
+          "download_media": {
+            "hosts": [
+              "files2.heygen.ai",
+              "resource2.heygen.ai"
+            ]
           }
         }
       },

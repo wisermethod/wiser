@@ -5,7 +5,7 @@ import { createTestGateway, makeHome, putActive, confirmCall } from '../../../ga
 import { transport } from '../../../gateway/test/media-transport.js';
 import { statusSignal, STATUS } from '../../../gateway/src/errors.js';
 
-export const MODULES = ['speech','voices','avatars','account'];
+export const MODULES = ['speech','voices','avatars','assets','videos','account'];
 export const PRIVATE = 'invented-private-path-123456789';
 export const SIGNATURE = 'invented-signature-value-987654321';
 export const ADDRESS = `https://resource2.heygen.ai/${PRIVATE}/speech.wav?sig=${SIGNATURE}`;
@@ -14,6 +14,27 @@ export const characterTimings = (text) => Array.from(text, (text, i) => ({ text,
 export const scene = (text = 'Hi', model = 'heygen-voice-1-turbo-free') => ({ text, voice_id: 'voice_fake-1', model });
 export const page = (data = [], extra = {}) => ({ data, has_more: false, ...extra });
 export const speechAnswer = (text) => ({ data: { audio_url: ADDRESS, duration: 1.25, original_characters: characterTimings(text), preview: ADDRESS, extra: ADDRESS } });
+export const VIDEO_ADDRESS = `https://files2.heygen.ai/${PRIVATE}/video.mp4?sig=${SIGNATURE}`;
+export const avatarGroup = (extra = {}) => ({ id: 'group_fake-1', name: 'Duplicate character', looks_count: 3, preview_image_url: ADDRESS, ...extra });
+export const avatarLook = (extra = {}) => ({ id: 'look_fake-1', group_id: 'group_fake-1', name: 'Duplicate look', avatar_type: 'digital_twin', status: 'completed', default_voice_id: 'voice_fake-1', supported_api_engines: ['avatar_v', 'avatar_iv'], preview_image_url: ADDRESS, preview_video_url: VIDEO_ADDRESS, ...extra });
+export const videoInput = (extra = {}) => ({ avatar_id: 'look_fake-1', script: 'Invented scene.', voice_id: 'voice_fake-1', resolution: '720p', aspect_ratio: '16:9', idempotency_key: 'invented-video-key', ...extra });
+export const videoAnswer = (extra = {}) => ({ id: 'video_fake-1', status: 'completed', duration: 3.97, video_url: VIDEO_ADDRESS, thumbnail_url: VIDEO_ADDRESS, gif_url: ADDRESS, video_page_url: ADDRESS, failure_message: SIGNATURE, extra: ADDRESS, ...extra });
+const box = (type, ...data) => {
+  const payload = Buffer.concat(data), header = Buffer.alloc(8);
+  header.writeUInt32BE(8 + payload.length); header.write(type, 4); return Buffer.concat([header, payload]);
+};
+// Generated ISO BMFF movie/track/media headers and sample table. The connector
+// validates containers, not encoded H.264/AAC samples or playback.
+export function mp4(size = 1024) {
+  const ftyp = box('ftyp', Buffer.from('isom\0\0\0\0isomiso2mp41'));
+  const movie = box('moov', box('mvhd', Buffer.alloc(100)), box('trak', box('tkhd', Buffer.alloc(84)),
+    box('mdia', box('mdhd', Buffer.alloc(24)), box('hdlr', Buffer.alloc(24)), box('minf', box('stbl', box('stsz', Buffer.alloc(12)))))));
+  const prefix = Buffer.concat([ftyp, movie]);
+  const result = Buffer.alloc(size); prefix.copy(result);
+  result.writeUInt32BE(size - prefix.length, prefix.length); result.write('mdat', prefix.length + 4);
+  result[result.length - 1] = 1;
+  return result;
+}
 export function wav(size = 88244) {
   const b = Buffer.alloc(size);
   b.write('RIFF'); b.writeUInt32LE(size - 8, 4); b.write('WAVEfmt ', 8); b.writeUInt32LE(16, 16);
@@ -40,7 +61,7 @@ export async function setup(t, config = {}) {
   const home = fs.realpathSync(makeHome());
   t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   t.mock.method(globalThis, 'fetch', async () => { throw new Error('offline transport'); });
-  const f = await createTestGateway({ home, outputsDir: config.hosted ? undefined : join(home, 'outputs') });
+  const f = await createTestGateway({ home, ...(config.now ? { now: config.now } : {}), outputsDir: config.hosted ? undefined : join(home, 'outputs') });
   f.file = join(home, 'sample.mp3'); fs.writeFileSync(f.file, mp3());
   f.calls = []; f.measurements = []; f.reply = null;
   const independentMeasure = (req) => Buffer.byteLength(wire(req), 'utf8');
@@ -49,7 +70,9 @@ export async function setup(t, config = {}) {
     const serialized = wire(req);
     if (Buffer.byteLength(serialized) > options.proxyBodyMaxBytes) throw statusSignal(STATUS.VENDOR_ERROR, { reason: 'proxy_body_too_large' });
     f.calls.push({ ...req, serialized, budget: options.proxyBodyMaxBytes });
-    if (f.reply) return f.reply(req);
+    return f.reply ? f.reply(req) : f.defaultReply(req);
+  };
+  f.defaultReply = (req) => {
     const path = new URL(req.endpoint).pathname;
     if (path === '/v3/models/audio/tts') return { status: 200, data: speechAnswer(req.body.text) };
     if (path === '/v3/models/audio/voices' && req.method === 'POST') return { status: 202, data: { data: { voice_id: 'clone_fake-1' } } };
@@ -57,10 +80,20 @@ export async function setup(t, config = {}) {
     if (path.startsWith('/v3/models/audio/voices/')) return { status: 200, data: { data: req.method === 'DELETE' ? { status: 'ok' } : voice({ id: path.split('/').at(-1) }) } };
     if (path === '/v3/users/me') return { status: 200, data: { data: { billing_type: 'wallet', wallet: { currency: 'usd', remaining_balance: 3 }, extra: ADDRESS } } };
     if (path === '/v3/api_keys/self') return { status: 200, data: { data: { scope_mode: 'custom', scopes: ['voices:write','videos:write','assets:write','avatars:read','account:read'], api_key: SIGNATURE } } };
-    if (path === '/v3/avatars' || path === '/v3/avatars/looks') return { status: 200, data: page() };
+    if (path === '/v3/avatars') return { status: 200, data: page([avatarGroup()]) };
+    if (path === '/v3/avatars/looks') return { status: 200, data: page([avatarLook()]) };
+    if (path.startsWith('/v3/avatars/looks/')) return { status: 200, data: { data: avatarLook({ id: path.split('/').at(-1) }) } };
+    if (path === '/v3/assets') {
+      const body = Buffer.from(req.binary_body.base64, 'base64');
+      const split = body.indexOf('\r\n\r\n') + 4;
+      const tail = body.lastIndexOf('\r\n--');
+      return { status: 200, data: { data: { asset_id: 'asset_fake-1', mime_type: body.subarray(0, split).includes('audio/wav') ? 'audio/wav' : 'audio/mpeg', size_bytes: tail - split, url: ADDRESS } } };
+    }
+    if (path === '/v3/videos') return { status: 200, data: { data: { video_id: 'video_fake-1', status: 'waiting', output_format: 'mp4', extra: ADDRESS } } };
+    if (path.startsWith('/v3/videos/')) return { status: 200, data: { data: videoAnswer({ id: path.split('/').at(-1), ...(config.video ? {} : { status: 'pending', duration: null }) }) } };
     assertUnreachable(path);
   };
-  f.media = transport(t, { host: 'resource2.heygen.ai', chunks: [wav()], ...config.media });
+  f.media = transport(t, { host: config.video ? 'files2.heygen.ai' : 'resource2.heygen.ai', chunks: [config.video ? mp4() : wav()], ...config.media });
   if (!config.unbound) for (const module of MODULES) await putActive(f.store, f.fake, { service: 'heygen', module });
   return f;
 }
@@ -68,7 +101,7 @@ function assertUnreachable(path) { throw new Error(`unexpected invented endpoint
 export const run = (f, id, input = {}) => confirmCall(f.gw, { action: `heygen.${id}`, input });
 export function noPrivate(value) {
   const s = JSON.stringify(value);
-  for (const needle of [ADDRESS, PRIVATE, SIGNATURE, 'audio_url', 'preview_audio_url', 'preview_image_url', 'preview_video_url', 'output_file', 'raw-envelope-canary']) {
+  for (const needle of [ADDRESS, VIDEO_ADDRESS, PRIVATE, SIGNATURE, 'audio_url', 'video_url', 'thumbnail_url', 'gif_url', 'video_page_url', 'preview_audio_url', 'preview_image_url', 'preview_video_url', 'output_file', 'raw-envelope-canary']) {
     if (s.includes(needle)) throw new Error(`private field escaped: ${needle === ADDRESS ? 'address' : needle}`);
   }
 }

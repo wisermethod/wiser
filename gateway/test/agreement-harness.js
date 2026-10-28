@@ -56,7 +56,7 @@
  * - **`youtube videos.upload`, `youtube videos.set_thumbnail` and `youtube captions.insert`
  *   `path` are filesystem-state rows of the same permanent class**, added 2026-10-21 with
  *   their actions. Each needs a readable regular file with its closed media extension.
- * - **`heygen voices.add` uses a complete generated MPEG frame at a physical temporary path.**
+ * - **`heygen voices.add` and `heygen assets.upload_audio` use a complete generated MPEG frame at a physical temporary path.**
  *   SAMPLE_STATE supplies it before direction A, without accepting a schema divergence.
  * - **`elevenlabs voices.add` needs a readable regular MP3.** Its schema-valid sample
  *   uses a per-run physical file, as the YouTube fixtures do. Filesystem preconditions
@@ -93,6 +93,7 @@ const CONNECTORS = fileURLToPath(new URL('../../connectors', import.meta.url));
  */
 const PATTERN_OK = {
   '^[A-Za-z0-9-]{8,64}$': 'invented-key-123',
+  '^#[0-9A-Fa-f]{6}$': '#01aBcF',
   '^UC[A-Za-z0-9_-]{22}$': 'UCabcdefghijklmnopqrstuv',
   '^[A-Za-z0-9_-]{11}$': 'abcdefghijk',
   '^[A-Za-z0-9_-]{2,64}$': 'PLexample123',
@@ -236,6 +237,7 @@ const FIXTURES = {
 // above are applied after direction A so their existing baseline stays measurable.
 const SAMPLE_STATE = {
   'heygen:voices.add': () => ({ path: FIXTURE_HEYGEN_AUDIO }),
+  'heygen:assets.upload_audio': () => ({ path: FIXTURE_HEYGEN_AUDIO }),
   'elevenlabs:voices.add': () => ({ path: FIXTURE_ELEVENLABS_AUDIO }),
 };
 
