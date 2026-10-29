@@ -176,3 +176,76 @@ export function withFrames(paths, fn) {
   try { for (const p of paths) fds.push(openSync(p, 'r')); return fn(...fds); }
   finally { for (const fd of fds) closeSync(fd); }
 }
+
+// Read only box headers and the fixed clock/edit fields, never the media payload.
+// Keep this separate from finish's structural reader and the existing clock.
+export function alphaEditList(path) {
+  const file = openSync(path, 'r'), size = statSync(path).size;
+  const invalid = () => fail('malformed or truncated MP4 edit-list structure');
+  function read(offset, length, end) {
+    if (!Number.isSafeInteger(offset) || offset < 0 || offset + length > end) invalid();
+    const bytes = Buffer.alloc(length);
+    if (readSync(file, bytes, 0, length, offset) !== length) invalid();
+    return bytes;
+  }
+  function boxes(start, end, allowed) {
+    const result = [];
+    for (let offset = start; offset < end;) {
+      const header = read(offset, 8, end), type = header.toString('latin1', 4, 8);
+      let length = BigInt(header.readUInt32BE(0)), head = 8;
+      if (length === 1n) { length = read(offset + 8, 8, end).readBigUInt64BE(0); head = 16; }
+      else if (length === 0n) length = BigInt(end - offset);
+      if (length < BigInt(head) || length > BigInt(end - offset)) invalid();
+      if (['moov', 'trak', 'mdia', 'edts', 'mvhd', 'mdhd', 'elst'].includes(type) && !allowed.includes(type)) invalid();
+      const next = offset + Number(length);
+      result.push({ type, start: offset + head, end: next });
+      offset = next;
+    }
+    return result;
+  }
+  function one(list, type) {
+    const found = list.filter(box => box.type === type);
+    if (found.length !== 1) invalid();
+    return found[0];
+  }
+  function mediaClock(box, movie) {
+    const full = read(box.start, 4, box.end), version = full[0];
+    if (version > 1 || full.readUIntBE(1, 3) !== 0 || box.end - box.start !== (movie ? 100 : 24) + 12 * version) invalid();
+    const bytes = read(box.start, version ? 32 : 20, box.end);
+    const timescale = BigInt(bytes.readUInt32BE(version ? 20 : 12));
+    const duration = version ? bytes.readBigUInt64BE(24) : BigInt(bytes.readUInt32BE(16));
+    if (!timescale) invalid();
+    return { timescale, duration };
+  }
+  try {
+    if (!Number.isSafeInteger(size) || size < 8) invalid();
+    const movie = one(boxes(0, size, ['moov']), 'moov');
+    const movieBoxes = boxes(movie.start, movie.end, ['mvhd', 'trak']);
+    const mvhd = mediaClock(one(movieBoxes, 'mvhd'), true), track = one(movieBoxes, 'trak');
+    const trackBoxes = boxes(track.start, track.end, ['mdia', 'edts']), media = one(trackBoxes, 'mdia');
+    const mdhd = mediaClock(one(boxes(media.start, media.end, ['mdhd']), 'mdhd'), false);
+    const edits = trackBoxes.filter(box => box.type === 'edts');
+    if (!edits.length) return null;
+    const edts = one(edits, 'edts'), elst = one(boxes(edts.start, edts.end, ['elst']), 'elst');
+    const full = read(elst.start, 8, elst.end), version = full[0], count = full.readUInt32BE(4);
+    if (version > 1 || full.readUIntBE(1, 3) !== 0 || BigInt(elst.end - elst.start) !== 8n + BigInt(count) * (version ? 20n : 12n)) invalid();
+    if (count !== 1) fail('composite-alpha requires exactly one identity edit');
+    const entry = read(elst.start + 8, version ? 20 : 12, elst.end);
+    return { version, entry_count: count, movie_timescale: mvhd.timescale, media_timescale: mdhd.timescale, media_duration: mdhd.duration,
+      segment_duration: version ? entry.readBigUInt64BE(0) : BigInt(entry.readUInt32BE(0)),
+      media_time: version ? entry.readBigInt64BE(8) : BigInt(entry.readInt32BE(4)),
+      rate_integer: entry.readInt16BE(version ? 16 : 8), rate_fraction: entry.readInt16BE(version ? 18 : 10) };
+  } finally { closeSync(file); }
+}
+
+export function alphaClock(info, path) {
+  if (!mp4Structure(path).editList) return { ...clock(info, path), edit_list: 'none' };
+  const edit = alphaEditList(path), rate = rational(info.stream.r_frame_rate);
+  if (cmp(rate, rat(1n)) < 0 || cmp(rate, rat(240n)) > 0 || rate.n > 1000000n || rate.d > 1000000n || info.tb.n !== 1n) fail('unsupported rate or clock');
+  if (cmp(info.first, rat(0n)) || !edit || !(edit.media_time === 0n && edit.rate_integer === 1 && edit.rate_fraction === 0
+    && edit.segment_duration * edit.media_timescale === edit.media_duration * edit.movie_timescale)) fail('composite-alpha requires zero picture origin and no edit list but one identity edit');
+  for (const r of info.rows) {
+    if (cmp(r.seconds, rat(BigInt(r.ordinal) * rate.d, rate.n)) || r.duration === undefined || pts(r.duration) * info.tb.n * rate.n !== rate.d * info.tb.d) fail('every decoded frame must occupy the exact constant grid');
+  }
+  return { ...rate, edit_list: 'identity' };
+}

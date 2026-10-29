@@ -5,7 +5,7 @@ import { dirname, extname, isAbsolute, join, sep } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { composeAlpha } from './alpha-blend.js';
 import { verifyFrame } from './alpha-verify.js';
-import { VERSION, alphaDependencies, builds, clock, cmp, digest, expectedIdentity, fail, identity, inspect, integer, isDeepStrictEqual, local, options, publish, run, sameSources, screen, text } from './evidence-media.js';
+import { VERSION, alphaClock, alphaDependencies, builds, clock, cmp, digest, expectedIdentity, fail, identity, inspect, integer, isDeepStrictEqual, local, options, publish, run, sameSources, screen, text } from './evidence-media.js';
 
 export const COMPOSITE_ALPHA_HELP = `Full-frame silent RGBA composite (all flags required, once):
   node scripts/edit.js composite-alpha --base <local.mp4> --base-sha256 <HEX>
@@ -15,7 +15,8 @@ export const COMPOSITE_ALPHA_HELP = `Full-frame silent RGBA composite (all flags
   Straight 8-bit RGBA PNGs, same size/count as base, frame_NNNNNN.png plus frames.sha256.
   PNG chunks: IHDR, IDAT, IEND, pHYs only; CRC checked. No transfer conversion.
   Base: silent progressive H.264 yuv420p BT.709 TV, square pixels, exact CFR,
-  zero first displayed PTS, no edit list. No fit, crop, offset, retiming or audio.
+  zero first displayed PTS, no edit list but one identity edit is allowed.
+  No fit, crop, offset, retiming or audio.
   Bounds: even width/height <=8192, <=2073600 pixels; 1..27000 frames;
   PNG <=64 MiB; manifest <=27000 lines of 83 bytes. Streams 14 bytes/pixel/frame,
   <=784 GB across construction/read-back; scratch beyond segment <64 MiB.
@@ -179,7 +180,7 @@ export async function compositeAlpha(argv) {
     const base = sourceFile(o.base), directory = layerDirectory(o.layer), output = screen(o.output, true);
     if (extname(base).toLowerCase() !== '.mp4') fail('--base must be a local .mp4');
     alphaDependencies();
-    const baseBefore = expectedIdentity(base, o['base-sha256']), b = inspect(base, true), rate = clock(b, base);
+    const baseBefore = expectedIdentity(base, o['base-sha256']), b = inspect(base, true), rate = alphaClock(b, base);
     const pixels = b.width * b.height, size = pixels * 3 / 2;
     if (pixels > MAX_PIXELS || b.count > MAX_FRAMES || first + b.count - 1 > 999999 || 14 * pixels * b.count > 784000000000) fail('picture, frame count, index or streamed-byte bound exceeded');
     const names = Array.from({ length: b.count }, (_, n) => `frame_${String(first + n).padStart(6, '0')}.png`), entries = ['frames.sha256', ...names];
@@ -254,7 +255,7 @@ export async function compositeAlpha(argv) {
       inputs: { base: { path: base, expected_sha256: o['base-sha256'], before: baseBefore, after: after[0] },
         layer: { directory, first_index: first, manifest: { expected_sha256: o['layer-manifest-sha256'], before: manifestBefore, after: after[1] },
           frames: names.map((file, ordinal) => ({ ordinal, file, ...pngBefore[ordinal], decoded_rgba_sha256: hashes[ordinal] })) } },
-      clocks: { base: { stream: b.stream, frames: b.count, first_pts: b.rows[0].pts }, rate: text(rate), time_base: b.stream.time_base },
+      clocks: { base: { stream: b.stream, frames: b.count, first_pts: b.rows[0].pts, edit_list: rate.edit_list }, rate: text(rate), time_base: b.stream.time_base },
       mapping: { first_index: first, rule: 'output ordinal n = layer frame_{first_index+n} over base frame n', frames: b.count },
       encoder: { ...versions, settings: settings.map(a => a === fifo ? 'composite.fifo' : a === video ? 'segment.mp4' : a) },
       decoder: { input_arguments: { base: ['-noautorotate', ...local], layer: ['-noautorotate', ...PNG_INPUT], output: ['-noautorotate', ...local] },

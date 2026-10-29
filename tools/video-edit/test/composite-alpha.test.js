@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { alphaOracle, protectedSamples, rational, roundHalfUp } from './alpha-oracle.js';
+import { alphaClock, alphaEditList, clock, inspect, text } from '../scripts/evidence-media.js';
 
 const tool = resolve(dirname(fileURLToPath(import.meta.url)), '..'), entry = join(tool, 'scripts/edit.js');
 const prefix = '.wiser-video-composite-alpha-';
@@ -240,7 +241,7 @@ function receiptCheck(base,directory,result,first=1) {
   assert.equal(r.inputs.layer.directory,directory); assert.equal(r.inputs.layer.first_index,first);
   const mi=id(join(directory,'frames.sha256')); assert.deepEqual(r.inputs.layer.manifest,{expected_sha256:mi.sha256,before:mi,after:mi});
   assert.deepEqual(r.inputs.layer.frames,Array.from({length:b.frames.length},(_,ordinal)=>{const file=`frame_${String(first+ordinal).padStart(6,'0')}.png`;return {ordinal,file,...id(join(directory,file)),decoded_rgba_sha256:hash(rawRGBA(join(directory,file)))};}));
-  assert.deepEqual(r.clocks,{base:{stream:b.streams[0],frames:b.frames.length,first_pts:String(b.frames[0].pts)},rate:b.streams[0].r_frame_rate,time_base:b.streams[0].time_base});
+  assert.deepEqual(r.clocks,{base:{stream:b.streams[0],frames:b.frames.length,first_pts:String(b.frames[0].pts),edit_list:'none'},rate:b.streams[0].r_frame_rate,time_base:b.streams[0].time_base});
   assert.deepEqual(r.mapping,{first_index:first,rule:'output ordinal n = layer frame_{first_index+n} over base frame n',frames:b.frames.length});
   for(const bin of ['ffmpeg','ffprobe'])assert.equal(r.encoder[bin],run(bin,['-version']).stdout);
   assert.deepEqual(r.decoder.pixel_formats,{base:'yuv420p',layer:'rgba',output:'yuv420p'});
@@ -507,4 +508,156 @@ test('AL9: new segment through unchanged mux -> loudness -> finish, copied packe
   for(let i=1;i<af.length;i++)assert.equal(af[i].pts,af[i-1].pts+af[i-1].nb_samples,'loudness continuous sample clock');
   const finish=success(['finish','--input',loud.output,'--output',join(d,'finish.mp4'),'--target','-24','--true-peak','-1']);
   assert.ok(finish.after.truePeak<=-1);assert.equal(finish.frames,33);
+}));
+
+// Independent fixture reader: expose the actual muxer's entry and its patch
+// offsets, without using the production reader to decide what was written.
+function editBoxes(bytes, start = 0, end = bytes.length) {
+  const out = [];
+  for (let at = start; at < end;) {
+    let length = bytes.readUInt32BE(at), head = 8;
+    if (length === 1) { length = Number(bytes.readBigUInt64BE(at + 8)); head = 16; }
+    else if (length === 0) length = end - at;
+    assert.ok(length >= head && at + length <= end);
+    out.push({ type: bytes.toString('ascii', at + 4, at + 8), body: at + head, end: at + length }); at += length;
+  }
+  return out;
+}
+function muxedIdentity(d) {
+  const { base, directory } = setup(d, { timescale: '15360' }), edited = join(d, 'identity.mp4');
+  ff(['-i', base, '-map', '0:v:0', '-c:v', 'copy', '-video_track_timescale', '15360', '-use_editlist', '1', edited]);
+  const bytes = readFileSync(edited);
+  const child = (parent, type) => {
+    const found = editBoxes(bytes, parent.body, parent.end).filter(b => b.type === type);
+    assert.equal(found.length, 1, `one ${type}`); return found[0];
+  };
+  const moov = child({ body: 0, end: bytes.length }, 'moov'), mvhd = child(moov, 'mvhd');
+  const trak = child(moov, 'trak'), mdhd = child(child(trak, 'mdia'), 'mdhd'), elst = child(child(trak, 'edts'), 'elst');
+  assert.equal(bytes[mvhd.body], 0); assert.equal(bytes[mdhd.body], 0); assert.equal(bytes[elst.body], 0);
+  assert.equal(bytes.readUInt32BE(elst.body + 4), 1);
+  const entry = elst.body + 8, movieScale = bytes.readUInt32BE(mvhd.body + 12), mediaScale = bytes.readUInt32BE(mdhd.body + 12);
+  const mediaDuration = bytes.readUInt32BE(mdhd.body + 16), segmentDuration = bytes.readUInt32BE(entry);
+  assert.equal(bytes.readInt32BE(entry + 4), 0); assert.equal(bytes.readInt16BE(entry + 8), 1); assert.equal(bytes.readInt16BE(entry + 10), 0);
+  assert.equal(BigInt(segmentDuration) * BigInt(mediaScale), BigInt(mediaDuration) * BigInt(movieScale), 'muxed edit duration is exactly media duration');
+  assert.deepEqual(alphaEditList(edited), { version: 0, entry_count: 1, movie_timescale: BigInt(movieScale), media_timescale: BigInt(mediaScale), media_duration: BigInt(mediaDuration), segment_duration: BigInt(segmentDuration), media_time: 0n, rate_integer: 1, rate_fraction: 0 });
+  return { base, directory, edited, bytes, entry };
+}
+
+test('AL5/AL9: muxed identity edit is accepted, produces identical segment bytes, records its edit state; legacy clock still refuses', () => temp(d => {
+  const { base, directory, edited } = muxedIdentity(d), info = inspect(edited, true);
+  assert.deepEqual(rawYUV(edited), rawYUV(base), 'identity remux keeps decoded frames');
+  assert.equal(text(alphaClock(info, edited)), '30/1');
+  assert.equal(alphaClock(info, edited).edit_list, 'identity');
+  assert.throws(() => clock(info, edited), /no edit list/);
+  assert.equal(alphaEditList(base), null);
+  const plain = success(args(base, directory, join(d, 'plain-out'))), identity = success(args(edited, directory, join(d, 'identity-out')));
+  assert.deepEqual(readFileSync(identity.segment), readFileSync(plain.segment), 'same segment.mp4 bytes with and without identity edit');
+  assert.equal(json(plain.receipt).clocks.base.edit_list, 'none'); assert.equal(json(identity.receipt).clocks.base.edit_list, 'identity');
+  complete(plain); complete(identity); profile(edited, identity); oracleCheck(edited, directory, identity);
+  assert.doesNotThrow(() => clock(inspect(identity.segment, true), identity.segment));
+  for (const change of [
+    i => { i.stream.r_frame_rate = '241/1'; },
+    i => { i.tb.n = 2n; },
+    i => { i.first.n = 1n; },
+    i => { i.rows[1].seconds.n += 1n; },
+    i => { delete i.rows[1].duration; },
+    i => { i.rows[1].duration = String(Number(i.rows[1].duration) - 1); }
+  ]) { const bad = structuredClone(info); change(bad); assert.throws(() => alphaClock(bad, edited), /rate or clock|picture origin|exact constant grid/); }
+}));
+
+test('AL8: media time 512, rate 2 and segment duration one unit short each refuse; accept-any-edit mutant fails all three refusal assertions', () => temp(d => {
+  const { directory, bytes, entry } = muxedIdentity(d);
+  const p = mutant(d, 'accept-any-edit', 'evidence-media.js', replace(
+    'edit.media_time === 0n && edit.rate_integer === 1 && edit.rate_fraction === 0\n    && edit.segment_duration * edit.media_timescale === edit.media_duration * edit.movie_timescale', 'true'));
+  for (const [name, change] of [
+    ['media-time-512', b => b.writeInt32BE(512, entry + 4)],
+    ['rate-2', b => b.writeInt16BE(2, entry + 8)],
+    ['duration-short', b => b.writeUInt32BE(b.readUInt32BE(entry) - 1, entry)]
+  ]) {
+    const patched = Buffer.from(bytes); change(patched);
+    const base = join(d, `${name}.mp4`); writeFileSync(base, patched);
+    const a = args(base, directory, join(d, `${name}-out`));
+    refuse(d, a, /one identity edit/);
+    controlName = `accept-any-edit ${name}`;
+    caught(() => refuse(d, a, /one identity edit/, p));
+    if (existsSync(join(d, `${name}-out`))) rmSync(join(d, `${name}-out`), { recursive: true });
+  }
+}));
+
+function mp4Box(type, payload, extended) {
+  const head = Buffer.alloc(extended ? 16 : 8);
+  head.writeUInt32BE(extended ? 1 : payload.length + 8); head.write(type, 4, 'ascii');
+  if (extended) head.writeBigUInt64BE(BigInt(payload.length + 16), 8);
+  return Buffer.concat([head, payload]);
+}
+function clockMovie(movieVersion, mediaVersion, editVersion, extended) {
+  const movie = Buffer.alloc(movieVersion ? 112 : 100), media = Buffer.alloc(mediaVersion ? 36 : 24), edit = Buffer.alloc(editVersion ? 28 : 20);
+  for (const [body, version, scale, duration] of [[movie, movieVersion, 1000, 100], [media, mediaVersion, 15360, 1536]]) {
+    body[0] = version; body.writeUInt32BE(scale, version ? 20 : 12);
+    if (version) body.writeBigUInt64BE(BigInt(duration), 24); else body.writeUInt32BE(duration, 16);
+  }
+  edit[0] = editVersion; edit.writeUInt32BE(1, 4);
+  if (editVersion) edit.writeBigUInt64BE(100n, 8); else edit.writeUInt32BE(100, 8);
+  edit.writeInt16BE(1, editVersion ? 24 : 16);
+  const box = (type, body) => mp4Box(type, body, extended);
+  return box('moov', Buffer.concat([box('mvhd', movie), box('trak', Buffer.concat([box('edts', box('elst', edit)), box('mdia', box('mdhd', media))]))]));
+}
+test('AL8: edit reader handles mvhd/mdhd/elst versions 0/1, 32/64-bit boxes and exact 64-bit durations; malformed/truncated boxes refuse', () => temp(d => {
+  const path = join(d, 'structure.mp4');
+  for (const movie of [0, 1]) for (const media of [0, 1]) for (const edit of [0, 1]) for (const extended of [false, true]) {
+    const bytes = clockMovie(movie, media, edit, extended); writeFileSync(path, bytes);
+    assert.deepEqual(alphaEditList(path), { version: edit, entry_count: 1, movie_timescale: 1000n, media_timescale: 15360n, media_duration: 1536n, segment_duration: 100n, media_time: 0n, rate_integer: 1, rate_fraction: 0 });
+    for (const length of [0, 4, 7, 12, bytes.length - 1]) {
+      writeFileSync(path, bytes.subarray(0, length)); assert.throws(() => alphaEditList(path), /malformed or truncated/);
+    }
+  }
+  const large = clockMovie(1, 1, 1, true), at = type => large.indexOf(Buffer.from(type)) + 12;
+  const huge = 2n ** 54n + 1n;
+  large.writeUInt32BE(1000, at('mdhd') + 20); large.writeBigUInt64BE(huge, at('mdhd') + 24); large.writeBigUInt64BE(huge, at('elst') + 8);
+  writeFileSync(path, large);
+  assert.equal(alphaEditList(path).media_duration, huge); assert.equal(alphaEditList(path).segment_duration, huge);
+  const info = inspect(fixture(d, 'clock', { timescale: '15360' }), true);
+  assert.equal(text(alphaClock(info, path)), '30/1');
+  large.writeBigUInt64BE(huge - 1n, at('elst') + 8); writeFileSync(path, large);
+  assert.throws(() => alphaClock(info, path), /one identity edit/, 'one tick above the safe Number range is still not an identity');
+  const valid = clockMovie(0, 0, 0, false), offset = type => valid.indexOf(Buffer.from(type)) + 4;
+  const malformed = [
+    b => b.writeUInt32BE(7, 0),
+    b => b.writeUInt32BE(b.length + 1, 0),
+    b => b.writeUInt32BE(999, offset('elst') - 8),
+    b => { b[offset('elst')] = 2; },
+    b => b.writeUInt32BE(2, offset('elst') + 4),
+    b => { b[offset('mvhd')] = 2; },
+    b => { b[offset('mdhd')] = 2; },
+    b => b.writeUInt32BE(0, offset('mdhd') + 12),
+    b => b.writeUInt32BE(0, offset('mvhd') + 12),
+    b => b.write('free', offset('mdhd') - 4, 'ascii'),
+    b => b.writeUInt32BE(0x01000000, offset('elst'))
+  ];
+  for (const change of malformed) { const bytes = Buffer.from(valid); change(bytes); writeFileSync(path, bytes); assert.throws(() => alphaEditList(path), /malformed or truncated/); }
+  const badExtended = clockMovie(1, 1, 1, true); badExtended.writeBigUInt64BE(0n, 8); writeFileSync(path, badExtended);
+  assert.throws(() => alphaEditList(path), /malformed or truncated/);
+  const two = Buffer.concat([valid.subarray(0, offset('elst') + 20), valid.subarray(offset('elst') + 8, offset('elst') + 20), valid.subarray(offset('elst') + 20)]);
+  for (const type of ['moov', 'trak', 'edts', 'elst']) {
+    const header = two.indexOf(Buffer.from(type)) - 4; two.writeUInt32BE(two.readUInt32BE(header) + 12, header);
+  }
+  two.writeUInt32BE(2, offset('elst') + 4); writeFileSync(path, two);
+  assert.throws(() => alphaClock(info, path), /exactly one identity edit/, 'a well-sized two-entry edit is refused');
+  const empty = Buffer.concat([valid.subarray(0, offset('elst') + 8), valid.subarray(offset('elst') + 20)]);
+  for (const type of ['moov', 'trak', 'edts', 'elst']) {
+    const header = empty.indexOf(Buffer.from(type)) - 4; empty.writeUInt32BE(empty.readUInt32BE(header) - 12, header);
+  }
+  empty.writeUInt32BE(0, offset('elst') + 4); writeFileSync(path, empty);
+  assert.throws(() => alphaClock(info, path), /exactly one identity edit/, 'an empty edit list is refused');
+  for (const [offsetBytes, value] of [[12, -1], [18, 1]]) {
+    const bytes = Buffer.from(valid);
+    if (offsetBytes === 12) bytes.writeInt32BE(value, offset('elst') + offsetBytes); else bytes.writeInt16BE(value, offset('elst') + offsetBytes);
+    writeFileSync(path, bytes); assert.throws(() => alphaClock(info, path), /one identity edit/);
+  }
+  for (const version of [0, 1]) {
+    const bytes = clockMovie(version, 0, 0, false), body = bytes.indexOf(Buffer.from('mvhd')) + 4;
+    if (version) bytes.writeBigUInt64BE(0xffffffffffffffffn, body + 24); else bytes.writeUInt32BE(0xffffffff, body + 16);
+    writeFileSync(path, bytes);
+    assert.equal(alphaClock(info, path).edit_list, 'identity', 'mvhd duration is not an identity criterion');
+  }
 }));
