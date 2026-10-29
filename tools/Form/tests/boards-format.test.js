@@ -82,3 +82,9 @@ test('schema admits long optional board copy that fits the form byte ceiling',()
  const f=boardForm();f.questions[0].options.length=1;f.questions[0].options[0].board.content.markCaption='x'.repeat(1200);f.questions[0].options[0].board.content.never=Array.from({length:25},()=> 'A boundary.');
  assert.equal(checkForm(f).ok,true);assert.equal(z.fromJSONSchema(formJsonSchema()).safeParse(f).success,true);
 });
+test('min is refused above the number of boards',()=>{
+ const a=tapSets[Object.keys(tapSets)[0]](),r=select('looks',a,{check:true}),f=lookForm(a,r);
+ f.questions[0].options=f.questions[0].options.slice(0,1);f.questions[0].pick=3;f.questions[0].min=3;
+ const result=checkForm(f);assert.equal(result.ok,false);
+ assert.ok(result.problems.some(p=>p.path==='questions[0].min'&&/number of boards/.test(p.message)),JSON.stringify(result.problems));
+});

@@ -391,3 +391,16 @@ test('paged touch tap advances; Next can skip an unanswered radio',{skip},async(
   assert.equal(await h.frame.evaluate(()=>document.activeElement.id),'q-1');
  }finally{await h.context.close();}
 });
+test('paged: a type sample on a hidden page neither throws on opening nor on Next',{skip},async()=>{
+ const form={title:'Two pages',paged:true,questions:[
+  {id:'note',type:'text',label:'First, a note'},
+  {id:'faces',type:'image-radio',label:'Which lettering?',options:[{value:'a',label:'Serif',picture:'type:serif+sans-serif'},{value:'b',label:'Sans',picture:'type:sans-serif+serif'}]}]};
+ const h=await open(form,390);
+ try{await ready(h);
+  await h.frame.evaluate(()=>document.fonts.dispatchEvent(new Event('loadingdone')));
+  await h.f.locator('#next').click();await h.f.locator('fieldset[data-id=faces]:visible').waitFor();
+  const size=await h.f.locator('fieldset[data-id=faces] svg text[data-size]').first().getAttribute('font-size');
+  assert.ok(Number(size)>0,'the shown page fits its sample');
+  assert.deepEqual(h.errors,[]);
+ }finally{await h.context.close();}
+});

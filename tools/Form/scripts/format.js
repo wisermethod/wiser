@@ -204,6 +204,7 @@ function validate(value, template = false) {
       if(![0,1,2,3].includes(q.pick)) add(`${p}.pick`,"Expected 0, 1, 2 or 3.");
       if(own(q,"view") && !["board","look"].includes(q.view)) add(`${p}.view`,"Expected board or look.");
       if(own(q,"min") && (!Number.isInteger(q.min)||q.min<1||q.min>q.pick)) add(`${p}.min`,"Expected a whole number from 1 to pick.");
+      else if(own(q,"min") && Array.isArray(q.options) && q.min>q.options.length) add(`${p}.min`,"Expected no more than the number of boards.");
       if(!own(value,"brand")) add("brand","Boards require the shared brand.");
       if(array(q.options,`${p}.options`,1,12)) {
         const values=new Set();let recommended=0;

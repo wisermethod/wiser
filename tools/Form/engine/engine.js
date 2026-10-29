@@ -104,9 +104,13 @@ function picture(desc, sample) {
   return box;
 }
 
+// Measuring SVG that is not drawn, such as a paged form's hidden question, can throw in some browsers,
+// so only drawn samples are fitted; a page fits its own when it is shown.
+const drawn = node => node.getClientRects().length > 0;
 // A sample wider than its card is set smaller until it fits, again whenever a face arrives.
 function fitSamples() {
   for (const text of document.querySelectorAll("svg text[data-size]")) {
+    if (!drawn(text)) continue;
     const size = Number(text.dataset.size);
     let fitted = size;
     text.setAttribute("font-size", fitted);
@@ -118,7 +122,7 @@ function fitSamples() {
   // Fit paired faces at one scale, so the second stays half the first, with room between them.
   for (const box of document.querySelectorAll("svg.pic")) {
     const texts = [...box.querySelectorAll("text[data-size]")];
-    if (texts.length !== 2) continue;
+    if (texts.length !== 2 || !texts.every(drawn)) continue;
     let scale = Math.min(...texts.map(t => Number(t.getAttribute("font-size")) / Number(t.dataset.size)));
     texts.forEach((t,i) => {
       const bounds = t.getBBox(), size = Number(t.getAttribute("font-size"));

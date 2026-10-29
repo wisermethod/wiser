@@ -129,6 +129,8 @@ function shape(tag,attrs={}) {
 }
 function fitLooks() {
   for(const n of document.querySelectorAll('svg.look-art')) {
+    // A look on a hidden page is fitted when its page is shown; measuring it undrawn can throw.
+    if(!n.getClientRects().length)continue;
     const name=n.querySelector('.look-name'),lines=[...name.children],height=Number(name.dataset.lineHeight);
     name.style.fontSize='90px';
     const widest=Math.max(...lines.map(t=>t.getComputedTextLength()),1);
