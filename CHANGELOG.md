@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.29.3, October 29, 2026
+
+- The voice coach's last line now names your own folder rather than a project, since setup runs the coach before you make the project. The horoscope step now calls what it writes your first piece, so it no longer sounds like a request for another writing sample. (6d6bde1)
+
 ## v2026.10.29.2, October 29, 2026
 
 - The voice coach now opens by asking whether you have writing of your own to use. Share links, drop in files or paste it into the chat: the coach reads it, keeps a copy in your folder's sources, and leaves out the quick taps your writing already answers. With none, it runs as before. (1df4430, 8e433e8, 9370c79)
