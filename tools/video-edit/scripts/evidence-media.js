@@ -8,7 +8,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { hash, mp4Structure } from './finish.js';
 import { add, cmp, neg, rat, rational, strictJSON, text } from './conform.js';
 export { add, cmp, neg, rat, rational, strictJSON, text, isDeepStrictEqual };
-export const VERSION = '0.3.0';
+export const VERSION = '0.4.0';
 export const fail = s => { throw new Error(`Error: video evidence: ${s}; correct the inputs or use a fresh destination. See node scripts/edit.js help.`); };
 export const digest = b => createHash('sha256').update(b).digest('hex');
 export const identity = p => ({ bytes: statSync(p).size, sha256: hash(p) });
@@ -69,6 +69,17 @@ export function dependencies(composite = false) {
   if (!new RegExp(`^\\s*V\\S*\\s+${encoder}\\s`, 'm').test(encoders)) fail(`missing ${encoder} encoder; check: ffmpeg -encoders`);
   const filters = run('ffmpeg', ['-v', 'error', '-filters']);
   for (const name of composite ? ['scale', 'setsar', 'setparams'] : ['scale', 'format', 'select', 'crop']) {
+    if (!new RegExp(`^\\s*\\S+\\s+${name}\\s`, 'm').test(filters)) fail(`missing ${name} filter; check: ffmpeg -filters`);
+  }
+}
+export function alphaDependencies() {
+  for (const bin of ['ffmpeg', 'ffprobe']) if (spawnSync(bin, ['-version'], { stdio: 'ignore' }).status !== 0) fail(`missing ${bin}; check: ${bin} -version`);
+  const encoders = run('ffmpeg', ['-v', 'error', '-encoders']);
+  if (!/^\s*V\S*\s+libx264\s/m.test(encoders)) fail('missing libx264 encoder; check: ffmpeg -encoders');
+  const decoders = run('ffmpeg', ['-v', 'error', '-decoders']);
+  if (!/^\s*V\S*\s+png\s/m.test(decoders)) fail('missing png decoder; check: ffmpeg -decoders');
+  const filters = run('ffmpeg', ['-v', 'error', '-filters']);
+  for (const name of ['setsar', 'setparams']) {
     if (!new RegExp(`^\\s*\\S+\\s+${name}\\s`, 'm').test(filters)) fail(`missing ${name} filter; check: ffmpeg -filters`);
   }
 }

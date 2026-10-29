@@ -3,7 +3,7 @@ name: video-edit
 type: tool
 category: media
 description: Edits existing video with FFmpeg, including audio-correlated silent conform, exact decoded frame evidence, timed silent video composition, trim, resize, speed, text, audio removal, concatenation, sampled frames, GIF, narration mux, loudness and the final joined encode
-version: 0.3.0
+version: 0.4.0
 ---
 
 # video-edit
@@ -244,6 +244,7 @@ Audio with no gated block, nothing above EBU R128's −70 LUFS floor, has no lou
 | `node scripts/edit.js conform <required flags above>` | Conform one audio-witnessed video to an exact silent grid | New segment/receipt/completion bundle |
 | `node scripts/edit.js exact-frames <required flags above>` | Extract exact decoded ordinal images and crops | New PNG/manifest/completion bundle |
 | `node scripts/edit.js composite <required flags above>` | Apply one timed silent inset | New segment/receipt/completion bundle |
+| `node scripts/edit.js composite-alpha --base <local.mp4> --base-sha256 <HEX> --layer <frames-directory> --layer-manifest-sha256 <HEX> --layer-first-index <n> --layer-alpha straight --layer-colour bt709 --output <new-directory>` | Apply one full-frame RGBA sequence; even dimensions at most 8192 each and 2073600 pixels, 1–27000 frames, PNG at most 64 MiB, manifest at most 27000 lines of 83 bytes; streams 14 bytes/pixel/frame (at most 784 GB), scratch beyond segment under 64 MiB | New segment/receipt/completion bundle |
 | `node scripts/edit.js mux --input <video.mp4> --audio <file> [--audio-start <seconds>] --output <path.mp4>` | Lay one audio file onto one silent video | One MP4 |
 | `node scripts/edit.js loudness --input <path> --output <path.mp4> --target <LUFS> --true-peak <dBTP>` | Set one video's loudness, its picture copied | One MP4 |
 | `node scripts/edit.js finish --input <path> [--input <path> ...] --output <path.mp4> --target <LUFS> --true-peak <dBTP>` | Join videos and encode them once to YouTube's recommended settings | One MP4 |

@@ -1,6 +1,6 @@
 {
   "name": "video-edit",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Edits existing video with FFmpeg, including audio-correlated silent conform, exact decoded frame evidence, timed silent video composition, trim, resize, speed, text, audio removal, concatenation, sampled frames, GIF, narration mux, loudness and the final joined encode",
   "private": true,
   "type": "module",

@@ -49,7 +49,7 @@ function complete(result, name) {
   const c = json(result.completion); assert.equal(c.complete, true);
   for (const [file, expected] of Object.entries(c.files)) assert.deepEqual(id(join(result.output, file)), expected);
   assert.deepEqual(readdirSync(result.output).sort(), Object.keys(c.files).concat('complete.json').sort());
-  assert.equal(json(join(result.output, name)).tool_version, '0.3.0');
+  assert.equal(json(join(result.output, name)).tool_version, '0.4.0');
 }
 const rgbFilter = 'scale=iw:ih:flags=bilinear+accurate_rnd:in_color_matrix=bt709:out_color_matrix=bt709:in_range=tv:out_range=pc,format=rgb24';
 const rawRGB = p => ff(['-noautorotate', '-i', p, '-map', '0:v:0', '-an', '-vf', rgbFilter, '-fps_mode', 'passthrough', '-pix_fmt', 'rgb24', '-f', 'rawvideo', '-'], true);
