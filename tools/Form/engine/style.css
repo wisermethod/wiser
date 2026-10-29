@@ -68,13 +68,18 @@ button:disabled{opacity:.6;cursor:progress}
 #root:empty::before{content:"";display:block;width:55%;height:18px;border-radius:6px;background:var(--line);opacity:.3}
 #root:empty::after{content:"";display:block;height:112px;margin-top:16px;border:2px solid var(--line);border-radius:12px;opacity:.3}
 
-/* Boards stay inside one card. The shared board stylesheet is scoped to its art. */
-#root.board-card{max-width:734px;height:var(--board-card-height);padding:0;position:relative;overflow:hidden}
-#board-grid-view{height:100%;overflow-y:auto;padding:16px}
-.board-viewer{height:100%;display:flex;flex-direction:column}
-.board-viewer-bar{flex:none;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--bg)}
-.board-viewer-scroll{flex:1;min-height:0;overflow:auto}
-.board-viewer-scroll:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}
+/* Boards stay inside one card that grows to fit them, so the chat is the only scroll. The shared board stylesheet is scoped to its art. */
+#root.board-card{max-width:734px;padding:0;position:relative}
+#board-grid-view{padding:16px}
+.board-viewer{grid-column:1/-1;min-width:0;border:2px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
+.board-viewer-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--bg)}
+.board-viewer-end{border-bottom:0;border-top:1px solid var(--line)}
+.board-focus>.board-option{display:none}
+.board-mode-switches{display:flex;gap:4px}
+.board-mode-switch{background:var(--card);color:var(--fg);box-shadow:inset 0 0 0 1px var(--line)}
+.board-mode-switch[aria-pressed=true]{background:var(--fg);color:var(--card)}
+@media(hover:hover){.board-mode-switch:hover:not(:disabled):not(:active){background:var(--card);box-shadow:inset 0 0 0 2px var(--fg)}.board-mode-switch[aria-pressed=true]:hover:not(:disabled):not(:active){background:var(--fg)}}
+.board-art>[hidden]{display:none!important}
 .boards-tiles{display:grid;grid-template-columns:minmax(0,1fr);gap:20px 16px}
 @media(min-width:560px){.boards-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .looks-tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}

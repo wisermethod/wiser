@@ -117,9 +117,11 @@ function board(model,b,mode,compact,logo) {
 function draw(model,b,{compact=false,logo}={}) {
   const n=el('div','board-art');
   for(const mode of compact?[b.primaryMode]:[b.primaryMode,b.primaryMode==='light'?'dark':'light']) {
+    const start=n.children.length;
     if(!compact)n.append(el('h2','board-mode',globalThis.WiserForm.WORDS[mode]));
     n.append(board(model,b,mode,compact,logo));
     if(!compact){const foot=el('footer','whole-foot');if(b.footer.closing)foot.append(el('p','last-line',b.footer.closing),el('p','example-answers',b.footer.examples.join('; ')));foot.append(el('p','licences',b.footer.licences.map(f=>`${f.family} (${f.role}) · ${globalThis.WiserForm.WORDS.licence}: ${f.licence}`).join('; ')));n.append(foot);}
+    for(const part of [...n.children].slice(start))part.dataset.mode=mode;
   }
   return n;
 }

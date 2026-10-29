@@ -15,12 +15,12 @@ export async function browserKit() {
   const local=parts.fonts[family].files.find(x=>{const r=Array.isArray(x.weight)?x.weight:[x.weight,x.weight];return r[0]<=weight&&r[1]>=weight;})??parts.fonts[family].files[0];
   fonts.set(f.url,new URL('../../../skills/Build Brand/parts/'+local.path,import.meta.url));
  }
- return {browser,html,pageBytes:Buffer.byteLength(html),async open(form,width=734,theme='light',{failFonts=false,touch=false}={}){
+ return {browser,html,pageBytes:Buffer.byteLength(html),async open(form,width=734,theme='light',{failFonts=false,touch=false,containerDimensions}={}){
   const context=await browser.newContext({viewport:{width,height:900},screen:{width,height:900},colorScheme:theme,hasTouch:touch}),requests=[],errors=[];
   await context.route('**/*',async route=>{const url=route.request().url();requests.push(url);if(fonts.has(url)&&!failFonts)await route.fulfill({body:readFileSync(fonts.get(url)),contentType:'font/woff2',headers:{'access-control-allow-origin':'*'}});else await route.abort();});
   const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
   await page.setContent(`<!DOCTYPE html><body style="margin:0"><script>${host.outputFiles[0].text}</script>`);
-  await page.evaluate(([html,form,theme])=>window.startHost(html,{form},{},{theme}),[html,form,theme]);
+  await page.evaluate(([html,form,theme,containerDimensions])=>window.startHost(html,{form},{},{theme,containerDimensions}),[html,form,theme,containerDimensions]);
   const frame=page.frames()[1],f=page.frameLocator('iframe');await f.locator('#form').waitFor();await frame.evaluate(()=>document.fonts.ready);
   return {context,page,frame,f,requests,errors};
  }};
