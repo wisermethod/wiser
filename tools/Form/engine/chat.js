@@ -12,7 +12,7 @@ let host = 'unknown';
 const sends = () => Boolean(window.openai) || /chatgpt|openai/i.test(host);
 function syncHost() {
   host = app.getHostVersion()?.name || host;
-  view.setHost({host,sends:sends()});
+  view.setHost({host,sends:sends(),maxHeight:app.getHostContext()?.containerDimensions?.maxHeight});
   view.setTheme(app.getHostContext()?.theme);
 }
 async function deliver({payload,summary}) {

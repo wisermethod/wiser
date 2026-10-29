@@ -12,7 +12,7 @@ const WORDS = Object.freeze({
   answersHeading: "Here are my answers:", none: "(none)", sliderValue: "Value:",
   next: "Next", back: "Back", progress: " · {n} of {m}",
   sampleDefault: "Aa", sampleSecond: "Abc 123",
-  seeBoard:"See it full size", backToBoards:"Back to the boards", pickBoard:"Pick this one",
+  seeBoard:"See it full size", backToBoards:"Close this board", pickBoard:"Pick this one", boardModes:"Light or dark",
   pickThree:"Pick up to three.", pickCount:"Pick up to {n}.", recommended:"Recommended",
   look:"Look {n}", pickAtLeastOne:"Pick at least one.", pickAtLeastTwo:"Pick at least two.", pickAtLeastThree:"Pick at least three.",
   whatNext:"What next", moreRound:"One more round", blendPicks:"Blend the ones I picked",
@@ -143,6 +143,16 @@ function choice(o, type, id, index) {
     el("span", {}, el("span", { text: o.label }), o.note ? el("small", { text: o.note }) : null));
 }
 
+// Whether the card passes the height the host says it can hold, where it says one.
+const overCap=()=>state.maxHeight>0&&Math.ceil(document.getElementById("root").getBoundingClientRect().bottom+window.scrollY)>state.maxHeight;
+// One mode at a time, primary first, for a whole board the host's cap cannot hold in both.
+function modeSwitch(art) {
+  const show=mode=>{for(const part of art.children)part.hidden=part.dataset.mode!==mode;buttons.forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.mode===mode)));};
+  const buttons=["light","dark"].map(mode=>{const b=el("button",{type:"button",class:"board-mode-switch","data-mode":mode,"aria-pressed":"false",text:WORDS[mode]});b.addEventListener("click",()=>show(mode));return b;});
+  show(art.firstElementChild?.dataset.mode||"light");
+  return el("div",{class:"board-mode-switches",role:"group","aria-label":WORDS.boardModes},...buttons);
+}
+
 function boardQuestion(fieldset,q,id) {
   const look=q.view==="look",single=!look&&q.pick===1&&q.options.length===1;
   const model=boardLib.resolveBoards(state.form.brand,q.options);
@@ -165,17 +175,21 @@ function boardQuestion(fieldset,q,id) {
     sync();
   }
   let returnFocus,viewerInput,activeInput;
+  // A board opens in place under its row, so the card grows with it and the chat is the only scroll.
   const viewer=el("section",{class:"board-viewer",hidden:true});
   const back=el("button",{type:"button",text:WORDS.backToBoards});
+  const backBottom=el("button",{type:"button",text:WORDS.backToBoards});
   const viewerBar=el("div",{class:"board-viewer-bar"},back);
-  const scroll=el("div",{class:"board-viewer-scroll",tabindex:0});
-  const close=()=>{
-    viewer.hidden=true;document.getElementById("board-grid-view").hidden=false;
-    scroll.replaceChildren();grid.append(limit);limit.hidden=true;
-    returnFocus?.focus({preventScroll:true});
+  const scroll=el("div",{class:"board-viewer-scroll"});
+  const close=(restore=true)=>{
+    if(viewer.hidden)return;
+    grid.classList.remove("board-focus");
+    viewer.hidden=true;viewer.remove();returnFocus?.setAttribute("aria-expanded","false");
+    scroll.replaceChildren();grid.after(limit);limit.hidden=true;activeInput=undefined;
+    if(restore){returnFocus?.focus({preventScroll:true});returnFocus?.closest(".board-option")?.scrollIntoView({block:"nearest"});}
   };
-  back.addEventListener("click",close);
-  viewer.append(viewerBar,scroll);
+  back.addEventListener("click",()=>close());backBottom.addEventListener("click",()=>close());
+  viewer.append(viewerBar,scroll,el("div",{class:"board-viewer-bar board-viewer-end"},backBottom));
   for(const [i,o]of q.options.entries()){
     const b=model.boards[i],label=o.label??WORDS.look.replace("{n}",i+1);
     if(!look&&(q.pick===0||single)){
@@ -194,19 +208,28 @@ function boardQuestion(fieldset,q,id) {
     const preview=look?globalThis.WiserBoardView.look(model,b,{logo:state.form.brand.logo}):el("div",{class:"board-crop","aria-hidden":true},globalThis.WiserBoardView.draw(model,b,{compact:true,logo:state.form.brand.logo}));
     const tile=el("label",{class:`tile boards-tile${look?' looks-tile':''}`,for:input.id},input,preview,caption);
     if(look){grid.append(tile);continue;}
-    const full=el("button",{class:"see-board",type:"button",text:WORDS.seeBoard});
+    const full=el("button",{class:"see-board",type:"button",text:WORDS.seeBoard,"aria-expanded":"false"});
     full.addEventListener("click",()=>{
-      returnFocus=full;activeInput=input;
-      viewerInput=el("input",{type:"checkbox","aria-label":WORDS.pickBoard});viewerInput.checked=input.checked;
+      if(!viewer.hidden&&returnFocus===full){close();return;}
+      close(false);returnFocus=full;activeInput=input;
+      // The mirror carries no name or value, so the answers never read it.
+      viewerInput=el("input",{type:"checkbox",value:"","aria-label":WORDS.pickBoard});viewerInput.checked=input.checked;
       viewerInput.disabled=input.disabled||fieldset.disabled;
       viewerInput.addEventListener("change",()=>{pick(input,viewerInput.checked);viewerInput.checked=input.checked;});
       viewerBar.replaceChildren(back,el("label",{class:"choice"},viewerInput,el("span",{text:WORDS.pickBoard})),limit);
-      limit.hidden=true;scroll.replaceChildren(el("h2",{class:"locked-name",text:o.label}),globalThis.WiserBoardView.draw(model,b,{logo:state.form.brand.logo}));scroll.scrollTop=0;
-      document.getElementById("board-grid-view").hidden=true;viewer.hidden=false;back.focus({preventScroll:true});
+      limit.hidden=true;scroll.replaceChildren(el("h2",{class:"locked-name",text:o.label}),globalThis.WiserBoardView.draw(model,b,{logo:state.form.brand.logo}));
+      // After the last tile on the clicked tile's row, whatever the column count.
+      const option=full.closest(".board-option"),row=[...grid.children];let end=option;
+      for(const n of row.slice(row.indexOf(option)+1)){if(n.offsetTop!==option.offsetTop)break;end=n;}
+      end.after(viewer);viewer.hidden=false;full.setAttribute("aria-expanded","true");
+      // Where the host caps the card's height and the open board in place would pass it, the other boards step aside and one mode shows at a time.
+      const focused=overCap();
+      if(focused){grid.classList.add("board-focus");viewerBar.insertBefore(modeSwitch(scroll.querySelector(".board-art")),viewerBar.children[1]);}
+      back.focus({preventScroll:true});viewerBar.scrollIntoView({block:focused?"start":"nearest"});
     });
     grid.append(el("div",{class:"board-option"},tile,full));
   }
-  if(look||q.pick!==0&&!single){fieldset.append(grid,limit);if(!look)document.getElementById("root").append(viewer);}
+  if(look||q.pick!==0&&!single)fieldset.append(grid,limit);
   if(q.min)fieldset.append(el("p",{class:"board-minimum help",role:"status",text:WORDS[['','pickAtLeastOne','pickAtLeastTwo','pickAtLeastThree'][q.min]]}));
   fieldset.dataset.picks=[...picks.values()].filter(n=>n.checked).length;
 }
@@ -300,8 +323,8 @@ function metadata({host,source,delivery} = {}) {
     if (delivery !== undefined) node.dataset.delivery = delivery;
   }
 }
-function setHost({host,sends}) {
-  state.sends = sends; state.host = host;
+function setHost({host,sends,maxHeight}) {
+  state.sends = sends; state.host = host; state.maxHeight = maxHeight > 0 ? maxHeight : undefined;
   metadata({host});
   const button = document.getElementById("submit");
   if (button && !state.submitted) button.textContent = sends ? WORDS.buttonSends : WORDS.buttonDrafts;
@@ -328,7 +351,6 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
   const hasBoards=form.questions.some(q=>q.type==="boards"), onlyDisplay=boardLib.displayOnly(form);
   root.classList.toggle("board-card",hasBoards);
   if(hasBoards){
-    root.style.setProperty("--board-card-height",`${Math.min(720,Math.floor((window.screen?.availHeight||window.innerHeight)*.75))}px`);
     if(!document.getElementById("boards-style")){const style=el("style",{id:"boards-style",text:boardLib.BOARD_CSS});document.head.append(style);}
   }
   const gridView=el("div",{id:"board-grid-view"});
@@ -443,6 +465,7 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
   if (form.paged) move(0,{focus:false});
   fitSamples();
   if(hasBoards)globalThis.WiserBoardView.fitLooks();
+  if(hasBoards&&overCap())for(const art of root.querySelectorAll("fieldset>.board-art"))art.before(modeSwitch(art));
   metadata({host:state.host,source,delivery:"idle"});
 }
 globalThis.WiserForm = Object.freeze({WORDS,render,readAnswers,setStatus,setHost,setTheme,showEmpty,metadata});
