@@ -33,8 +33,8 @@ test('JSON byte limit counts UTF-8 and controls anywhere',()=>{
  f.questions[0].options[0]['bad\u0001']='x';assert.ok(checkForm(f).problems.some(p=>/Control/.test(p.message)));
  for(const c of ['\0','\n','\u007f','\u009f'])assert.equal(checkForm({...base(),intro:c}).ok,false);
 });
-test('portable module has no imports and sample has six questions',()=>{
- assert.doesNotMatch(readFileSync(new URL('../scripts/format.js',import.meta.url),'utf8'),/^import\b/m);
+test('portable modules use only relative shipped imports and sample has six questions',()=>{
+ for(const file of ['../scripts/format.js','../scripts/boards.js','../engine/boards-lib.js']) { const source=readFileSync(new URL(file,import.meta.url),'utf8');assert.doesNotMatch(source,/from ['"](?:node:|[a-z@])|\b(?:process|Buffer)\b|\brequire\s*\(/); }
  assert.equal(SAMPLE_FORM.questions.length,6);assert.equal(FORM_LIMITS.answerMax,1000);assert.deepEqual(FONT_HOSTS,['https://fonts.gstatic.com','https://cdn.jsdelivr.net']);
 });
 const values={name:'Ada 😀',font:'Member Face'};

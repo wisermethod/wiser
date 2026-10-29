@@ -7,6 +7,8 @@ import {join} from 'node:path';
 import {launch} from '../../lib/browser-runtime/browser-runtime.js';
 import {SAMPLE_FORM,FONT_HOSTS} from '../scripts/format.js';
 import {mixedPictures} from './cases.js';
+import {boardForm} from './board-fixtures.js';
+import {onlyFonts} from './boards-harness.js';
 import {form,payload,serve,wait,stop,http,cli,dest,equal,delay,sentinel,listeners,cleanupAndScan} from './local-harness.js';
 
 let browser,runtime;
@@ -258,4 +260,25 @@ test('local paged form: one question, Back retains pick and final send includes 
   assert.equal(await h.page.locator('#copy').innerText(),`Here are my answers:\n- Which mood?: Warm\n- Note: ${sentinel}`);
   await locked(h.page);assert.deepEqual(h.errors,[]);
  }finally{await h.context.close();await stop(s);}
+});
+
+// Board local cases share this suite's listener lifetime and privacy checks.
+test('local display-only board sends nothing and shows no expiry message',async()=>{
+ const form=boardForm();form.questions[0].pick=0;form.questions[0].options.length=1;delete form.actions;
+ const s=await serve(form,['--ttl','2']),context=await browser.newContext({viewport:{width:390,height:900}}),requests=[];
+ await context.route('**/*',route=>{const url=route.request().url();requests.push(url);return url===s.url?route.continue():route.abort();});
+ try{const page=await context.newPage();await page.goto(s.url);await page.locator('#form').waitFor();await page.locator('#form').evaluate(n=>n.requestSubmit());await page.waitForTimeout(2100);assert.equal(await page.locator('button,input').count(),0);assert.equal(await page.locator('#status').innerText(),'');assert.ok(requests.every(url=>url===s.url||onlyFonts([url])));}finally{await context.close();await stop(s);}
+});
+
+test('local window uses the same boards engine and accepts picks plus action; listener rejects forged needs',async()=>{
+ const form=boardForm(),s=await serve(form),context=await browser.newContext({viewport:{width:734,height:900}}),requests=[];
+ await context.route('**/*',route=>{const url=route.request().url();requests.push(url);return url.startsWith(s.url)?route.continue():route.abort();});
+ try{
+  const page=await context.newPage();await page.goto(s.url);await page.locator('#form').waitFor();
+  const body={form:form.title,answers:{boards:[]},action:'lock',shown:[{id:'boards',question:form.questions[0].label,shown:'(none)'}]};
+  assert.equal((await http(s,'answers',{method:'POST',body})).status,400);
+  await page.locator('.boards-tile').first().click();await page.locator('button[data-action=lock]').click();await page.locator('#status.ok').waitFor();
+  const result=await wait(s);assert.deepEqual(result.answers,{boards:['board-1']});assert.equal(result.action,'lock');
+  assert.ok(requests.every(url=>url.startsWith(s.url)||onlyFonts([url])));
+ }finally{await context.close();await stop(s);}
 });

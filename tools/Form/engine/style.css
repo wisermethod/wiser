@@ -67,3 +67,42 @@ button:disabled{opacity:.6;cursor:progress}
 @media(hover:hover){.tile:hover,.choice:hover{border-color:var(--fg)}button:hover:not(:disabled):not(:active){background:var(--accent-hover)}}
 #root:empty::before{content:"";display:block;width:55%;height:18px;border-radius:6px;background:var(--line);opacity:.3}
 #root:empty::after{content:"";display:block;height:112px;margin-top:16px;border:2px solid var(--line);border-radius:12px;opacity:.3}
+
+/* Boards stay inside one card. The shared board stylesheet is scoped to its art. */
+#root.board-card{max-width:734px;height:var(--board-card-height);padding:0;position:relative;overflow:hidden}
+#board-grid-view{height:100%;overflow-y:auto;padding:16px}
+.board-viewer{height:100%;display:flex;flex-direction:column}
+.board-viewer-bar{flex:none;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--bg)}
+.board-viewer-scroll{flex:1;min-height:0;overflow:auto}
+.board-viewer-scroll:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}
+.boards-tiles{display:grid;grid-template-columns:minmax(0,1fr);gap:20px 16px}
+@media(min-width:560px){.boards-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.board-option{min-width:0}
+.boards-tile{display:block;width:100%}
+.board-crop{height:280px;overflow:hidden;pointer-events:none}
+.boards-tile .tile-label{padding:12px}
+.board-recommendation{padding-top:6px}
+.board-recommendation b{display:inline-block;background:var(--fg);color:var(--card);border-radius:4px;padding:2px 6px}
+.see-board{display:block;min-height:44px;margin-top:4px;padding:8px 4px;background:transparent;color:var(--accent);text-align:left;text-decoration:underline;text-underline-offset:3px}
+@media(hover:hover){.see-board:hover:not(:disabled):not(:active){background:transparent;color:var(--fg)}}
+.board-limit{color:var(--bad);margin:8px 0}
+.board-actions{display:flex;flex-wrap:wrap;gap:8px}
+.board-actions button{flex:1 1 180px;text-align:left}
+.board-actions small{display:block;font-weight:400;font-size:14px;margin-top:4px;line-height:1.4}
+.board-actions button:disabled{opacity:1;background:var(--card);color:var(--muted);box-shadow:inset 0 0 0 1px var(--line);cursor:default}
+.locked-name,.board-mode{padding:12px 16px;margin:0;font-size:18px;color:var(--fg)}
+.board-art .brand-board{border:0;border-radius:0;cursor:default}
+.board-art p,.board-art h1,.board-art h2,.board-art h3{margin:0}
+.board-art svg{display:block;width:100%;height:100%;max-width:100%}
+.board-art .monogram>svg{position:absolute;inset:0}
+.board-art .own-mark>svg{object-fit:contain}
+.board-art .page-pattern{overflow:hidden}
+.board-art .page-pattern>svg,.board-art .texture>svg{min-width:100%;min-height:100%}
+.board-art .label{font-size:13px}
+.board-art .brand-board.board-preview{margin:0}
+.board-art .business-card{color:var(--cardFrontText)}
+.board-art .business-card.back{color:var(--cardBackText)}
+.board-art .board-button{pointer-events:none}
+
+.board-crop{container-type:inline-size}
+@container(max-width:400px){.board-crop .board-art .board-preview .brand-headline{font-size:calc(var(--display-size) * .36)!important}.board-crop .board-art .board-preview .tile-top{grid-template-columns:minmax(0,1fr) 105px;gap:12px}.board-crop .board-art .board-preview{padding:22px 18px 18px}}

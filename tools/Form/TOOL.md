@@ -3,7 +3,7 @@ name: Form
 type: tool
 category: automation
 description: Check and fill Wiser forms and draw their questions in a page that returns answers to the chat
-version: 0.2.1
+version: 0.3.0
 ---
 
 # Form
@@ -60,7 +60,7 @@ Only `ask` accepts `--install`; no command accepts `--env`. Unknown flags are re
 
 ## Format
 
-`scripts/format.js` has no imports and works unchanged in Node, a browser or a Cloudflare Worker. It exports `FORM_LIMITS`, `FONT_HOSTS`, `SAMPLE_FORM`, `checkForm(value)`, `checkTemplate(value)`, `fillTemplate(template, values)` and `formJsonSchema()`.
+`scripts/format.js` imports only portable files inside this tool and works unchanged in Node, a browser or a Cloudflare Worker. It exports `FORM_LIMITS`, `FONT_HOSTS`, `SAMPLE_FORM`, `checkForm(value)`, `checkTemplate(value)`, `fillTemplate(template, values)` and `formJsonSchema()`.
 
 Checks return `{ ok, problems }`, with every problem found, each `{ path, message }`. `ok` is true exactly when the list is empty. `checkForm` and `checkTemplate` never throw, even for non-JSON input. Lengths count Unicode code points. No string or key may contain control characters (U+0000 to U+001F or U+007F to U+009F) or the line and paragraph separators U+2028 and U+2029, which break a line as a newline does. A form is at most 65,536 UTF-8 bytes as `JSON.stringify` writes it. Unknown keys, wrong types and missing required keys are problems at their own paths. Checks do not coerce, trim, fill defaults or discard keys.
 
@@ -73,6 +73,8 @@ A form takes exactly these keys:
 | `intro` | Optional string, at most 300 |
 | `paged` | Optional boolean, default false; refused on a one-question form, even when false |
 | `fonts` | Optional array, 1 to 6 font objects |
+| `brand` | Shared board identity and words; required with boards, otherwise refused |
+| `actions` | Optional two or three action buttons replacing Send |
 | `questions` | Required array, 1 to 12 question objects |
 
 `submitLabel` is refused. Button wording belongs to the engine.
@@ -86,6 +88,7 @@ Every question has required `id`, `type`, `label` and optional `short`, `help`. 
 | `radio`, `checkbox` | Required `options`, 2 to 12 entries |
 | `image-radio`, `image-checkbox` | Required `options`, 2 to 8 entries, at least two with a picture |
 | `slider` | Required finite numbers `min`, `max`, with `min < max`; optional `step`, `value`, `minLabel`, `maxLabel` |
+| `boards` | Required `pick` (0, 1 or 3), and `options`, 1 to 12 boards; requires form-level `brand` |
 | `text` | Optional `placeholder`, at most 120 characters; answer capped at 1000 characters |
 
 Slider `step` is positive, default 1, and divides `(max - min)` into a whole number of steps from 1 to 100. A supplied `value` is between the ends and on a step. Without it, the engine uses the step nearest the middle, rounding a tie upward. `minLabel` and `maxLabel` are each at most 24 characters. Step arithmetic allows eight machine epsilons of relative floating point rounding, and every step must land on a value of its own: far from zero a small step can vanish in rounding, and such a range is refused.
@@ -114,6 +117,50 @@ Every type family must be declared in `fonts` or be `serif`, `sans-serif`, `mono
 
 `formJsonSchema()` uses the draft 2020-12 vocabulary with closed objects. Its descriptions publish the grammar and limits, including conditional fields, uniqueness, font membership, slider arithmetic and byte size, which this restricted schema vocabulary cannot fully express. It is a permissive input schema: every accepted form fits it, while `checkForm` remains authoritative. String patterns express code point limits; broad `maxLength` values also accommodate schema consumers that count UTF-16 units.
 
+## Boards and actions
+
+Use one `boards` question per form. Both the chat card and local window draw it from Contact Sheet's board model. Forms carry references and words, never board pictures or font bytes. The hosted service needs only this tool's `engine/` and `scripts/`.
+
+`brand` has exactly required `name` (1 to 80 code points), `initials` (1 to 12), `sentence` (1 to 300), `body` (1 to 500), and `words` (0 to 5 `{word, not}` objects, each field 1 to 60). Optional `logo` is kept SVG text, at most 8192 UTF-8 bytes, checked by Contact Sheet's standalone static SVG validator, including local references and refusal of active or external content. The format's no-controls rule applies: send SVG on one line. A kept logo replaces the container on every board. Shared fields are sent once.
+
+Each option has required `value` (the usual value grammar), `label` (the board's name, 1 to 120), `board`, optional `note` (up to 300, the member's this/not-that words) and `recommendation` (1 to 200, one line, at most two boards). Other option types retain their existing label and note limits.
+
+`board` takes references exactly as `select.mjs` names them: required `pairing: {id, headingFrom?, bodyFrom?}`, `palette: {id, overrides?}`, `graphicSet: {id, pattern?, texture?}`, `primaryMode: "light" | "dark"`, and a `container` id without a kept logo. Every id and donor id must exist in the bundled library. Optional `handwriting` is an offered public note family or null (default null); `buttonRadius` defaults to 4. Supplied font-file objects and mark-file paths cannot travel in a form. Palette overrides, pattern angle/strength and texture strength retain Assembly's closed fields and limits.
+
+Optional board copy uses Assembly's `heroPhrase`, `note: {text, direction}`, `sample`, `items`, and `closingExamples` shapes. Optional `content` takes only `smallPrint`, `photoRules`, `never`, `markCaption` and nullable `closing`; shared brand fields are refused there. Absent copy uses the member's shared words; heroPhrase defaults to the sentence. Contact Sheet checks matching, both colour modes, SVG and public font-weight coverage on the assembled result. Only file-byte checks stay in disk assembly. Checks never silently change a colour or part.
+
+`pick: 3` allows zero through three picks. One tap on the tile or its caption checkbox picks; another unpicks. A fourth pick says “Pick up to three.” `pick: 1` requires one for normal Send; a second pick is refused until the first is unticked. A sole board in a one-pick round shows whole without a question and starts selected, so Lock it applies to that board. Board answers are arrays of option values in option order.
+
+Tiles show the top of each board at their own width: two across from 560px, one below. Name, tick, note and recommendation sit below the picture. “See it full size” is outside the picking label. It opens both full modes inside the same card, keeping its height, capped at 720px and three quarters of the available screen. The board scrolls beneath “Back to the boards” and the mirrored “Pick this one” checkbox. Back preserves picks and restores focus. No display-mode request is made. Full boards use the model's 734px and 390px layouts; chrome follows the host theme while each board keeps its own colours.
+
+Board fonts load with `FontFace` from the model's public map, restricted to `FONT_HOSTS`. A failed face leaves a generic of the same kind. Drawings are local SVG DOM with unique fragment ids; they fetch nothing. Controls have 44px targets, visible focus, and chrome text at least 4.5:1.
+
+`actions` has two or three closed `{value, label, note?, needs}` objects: distinct usual option values, labels 1 to 60, notes up to 120, and required `needs`:
+
+| Needs | Enabled with |
+|-------|--------------|
+| `one` | Exactly one pick |
+| `some` | At least one pick |
+| `any` | Any count, including zero |
+| `none` | No picks |
+
+Actions are for a boards question. The selected value travels as top-level `payload.action` alongside `answers`, and in the message under “What next”. Unmet actions are disabled with their note. The journey's `One more round` line changes between “Blend the ones I picked” and “None of these: try another angle”; `Lock it` shows “Pick just one to lock it” without exactly one. `Stop for now` uses `needs: "any"`. Other labels and notes come from the calling skill. Actions use the same context-then-message delivery and retry as Send; the local listener verifies the action and its needs again.
+
+A form whose only question is boards with `pick: 0` is display-only. It draws options whole with their names and both modes, no question, checkbox, actions or Send, and refuses programmatic submission too. The calling skill goes on without waiting for an answer. Locally use `serve` and open the page; skip `wait` and `ask`, which wait for answers. This local display has no expiry message or outgoing request. Clean up the listener/window after the calling skill's following step.
+
+### Regenerating the board library
+
+From this tool's directory, maintainers run:
+
+```sh
+node scripts/bundle-boards.mjs
+node scripts/bundle-boards.mjs --check
+```
+
+The generator installs nothing and contacts nothing. It is an explicit maintainer exception to the output-outside-tool rule: it writes only its fixed `engine/boards-lib.js` output. `--check` refuses drift without writing; `help` and `--help` need no packages or font pack. Unknown flags are refused.
+
+Inputs are Build Brand's pure `assemble-core.mjs` and drawing parts from `parts.json`, and Contact Sheet's model, validation, SVG validator, public font map and geometry CSS. `assemble.mjs` retains file reading, hash/signature checks and path screening; its outputs are unchanged. The generated validation adapter omits only file-byte checks, with public-map files standing for assets. Every other board check comes from the original validation source. Regenerate when any input changes. The freshness test compares complete generated bytes against current sources. Runtime consumers import no sibling tool or skill.
+
 ## Templates
 
 A skill keeps a template in its own files. Its questions, ids, types, numbers and option values stay fixed; only the member's parts are tokens. A template is a form with one additional required key, `slots`, an object containing 1 to 20 entries. Every slot name matches `^[a-z][a-z0-9-]{0,29}$` and maps to exactly `{ about, max }`. `about` is a required string of 1 to 120 characters describing the part; `max` is a required whole number from 1 to 300.
@@ -131,7 +178,7 @@ Tokens in any other value or any key are refused. Every token names a declared s
 
 ## Engine and host integration
 
-`engine/engine.js` is a classic script defining `globalThis.WiserForm`. A host checks the form first and calls `WiserForm.render(form, { onSubmit, host, source, sends })`. `onSubmit({ payload, summary })` returns `{ sent, delivery }`. `setHost`, `setTheme`, `metadata`, `readAnswers`, `setStatus` and `showEmpty` serve host integration; `WORDS` is the single home of visible engine wording. The renderer uses safe DOM construction. Its only network activity is loading each declared font with `FontFace`. Samples draw at once, in a generic face until the font arrives, and keep that face if it never does or the browser refuses it. A sample wider than its card is set smaller until it fits, again whenever a face arrives. Before a form arrives, the page shows the shape of one, in no words. `engine/style.css` is the one stylesheet, with host light/dark theme overrides and operating-system theme otherwise. Native controls provide keyboard operation and visible focus rings.
+`engine/engine.js` is a classic script defining `globalThis.WiserForm`. A host checks the form first and calls `WiserForm.render(form, { onSubmit, host, source, sends })`. `onSubmit({ payload, summary })` returns `{ sent, delivery }`. `setHost`, `setTheme`, `metadata`, `readAnswers`, `setStatus` and `showEmpty` serve host integration; `WORDS` is the single home of visible engine wording. The renderer uses safe DOM construction. Its only external network activity is loading each declared sample font or board-map font with `FontFace`. Samples draw at once, in a generic face until the font arrives, and keep that face if it never does or the browser refuses it. A sample wider than its card is set smaller until it fits, again whenever a face arrives. Before a form arrives, the page shows the shape of one, in no words. `engine/style.css` is the one stylesheet, with host light/dark theme overrides and operating-system theme otherwise. Native controls provide keyboard operation and visible focus rings.
 
 With `paged: true`, the same engine shows one question at a time in both the chat card and the local window (`engine/local.js`, including `scripts/ask.js`). Its single heading is the form's title plus `WORDS.progress`, such as " · 4 of 9", announced politely. The intro shows only on the first question. A pointer tap, click, Enter or Space on a radio or image-radio option selects it, keeps the pick visible for 250 ms, then moves on; arrow keys only change the pick. Every question before the last has `WORDS.next` ("Next"), which allows an unanswered skip; every question after the first has `WORDS.back` ("Back"), preserving answers. Moving focuses the question's first control. Hidden questions retain their controls but take no layout space, so the existing host size reporting follows the current question. The last question keeps the existing host-specific submit button; a radio pick there never sends by itself. Submission reads every question, uses the same transport once, and shows all answers together in the summary. Retry and local locking keep their existing behavior. Without paged mode, rendering and submission are unchanged.
 
@@ -144,6 +191,7 @@ Submitting first calls `updateModelContext` with the answers twice over: as `str
 | Question type | Answer data |
 |---------------|-------------|
 | `radio`, `image-radio` | Picked option value, or `null` |
+| `boards` | Array of picked values in option order; display-only forms send nothing |
 | `checkbox`, `image-checkbox` | Array of picked option values, in option order |
 | `slider` | Number |
 | `text` | Trimmed string, capped at 1000 code points |
@@ -152,7 +200,7 @@ Answers are read by question position. The message starts `Here are my answers:`
 
 ChatGPT sends the message itself. Claude and Cowork put it in the member's message box. Presence of `window.openai`, or a host name matching `chatgpt` or `openai` ignoring case, selects `Send my answers` and `Sent to the chat.` Otherwise the button reads `Add my answers to the chat`, with `Your answers are in the message box. Press Send when you're ready.` after success. A later press reads `Send again`.
 
-`composePage({ script, form, title, closes })` returns one self-contained HTML page, with English language, viewport meta, inline CSS, `#root`, optional JSON in `#wiser-form` and the inline script. Optional `closes` is a finite number of milliseconds since 1970, embedded in `#wiser-form-closes`. Its title is the supplied title, else the form title, else `Wiser form`. It escapes less-than characters in JSON and closing script sequences in JavaScript. It refuses unsafe DOM sinks, external script/link tags, `src=` or `href=` attributes, and stylesheet imports or URLs in its own markup, style and script; the title and the form are the member's words, escaped, and are not read as code. It reads its stylesheet relative to itself. The JSON element is an embedding facility; the in-chat transport receives the form through the host handoff.
+`composePage({ script, form, title, closes })` prepends the portable board library, adapter and DOM view, then returns one self-contained HTML page, with English language, viewport meta, inline CSS, `#root`, optional JSON in `#wiser-form` and the inline script. Optional `closes` is a finite number of milliseconds since 1970, embedded in `#wiser-form-closes`. Its title is the supplied title, else the form title, else `Wiser form`. It escapes less-than characters in JSON and closing script sequences in JavaScript. It refuses unsafe DOM sinks, external script/link tags, `src=` or `href=` attributes, and stylesheet imports or URLs in its own markup, style and script; the title and the form are the member's words, escaped, and are not read as code. It reads its stylesheet relative to itself. The JSON element is an embedding facility; the in-chat transport receives the form through the host handoff.
 
 ## The window on a member's computer
 
@@ -193,7 +241,7 @@ Waiting as measured on 2026-10-26: Claude Code runs `wait` in the background wit
 
 `engine/local.js` runs after the shared engine as a classic script, with `host: "this computer"`, `source: "local"` and `sends: true`. It posts the structured payload plus ordered `shown` entries to `answers` relative to its own address. HTTP 200 shows “Sent. You can close this window.”; 409 shows “These answers were already sent.” Both disable every control. Any other failure shows the engine's `notSent` words, retains answers to copy and leaves retry live. At `closes`, an unsent page shows “This form has closed. Go back to the chat to answer there.” and disables every control without sending a request. A transport may return optional `status` and `disabled` fields alongside `{ sent, delivery }` to finish submission this way; chat keeps its existing behavior.
 
-Only `GET /<code>/`, `POST /<code>/answers`, `GET /<code>/result?wait=<seconds>` and `POST /<code>/stop` exist. Other routes return empty 404 responses. `Host` must be exactly `127.0.0.1:<port>`; a POST's `Origin`, when present, must be `http://127.0.0.1:<port>`; violations are 403. Answers require `application/json` (415 otherwise), at most 256 KB, more than the largest answers a checked form allows (413 otherwise), and are accepted once (409 thereafter). Invalid answers are 400: title and optional form id must match; question ids must be exact; radios accept their option values or null, checkboxes distinct option values, sliders a number in range and on a step, with the allowance the format gives, and text at most 1000 code points. `shown` must have one string-valued entry per question, in order. Pages carry `Cache-Control: no-store` and a Content Security Policy permitting only inline scripts and styles, data images, the two `FONT_HOSTS` font origins and same-origin connections, with no form actions or base URL.
+Only `GET /<code>/`, `POST /<code>/answers`, `GET /<code>/result?wait=<seconds>` and `POST /<code>/stop` exist. Other routes return empty 404 responses. `Host` must be exactly `127.0.0.1:<port>`; a POST's `Origin`, when present, must be `http://127.0.0.1:<port>`; violations are 403. Answers require `application/json` (415 otherwise), at most 256 KB, more than the largest answers a checked form allows (413 otherwise), and are accepted once (409 thereafter). Invalid answers are 400: title and optional form id must match; question ids must be exact; radios accept their option values or null, checkboxes distinct option values, sliders a number in range and on a step, with the allowance the format gives, and text at most 1000 code points. Board answers respect the pick cap, and the chosen action must exist and satisfy its needs. Every display-only submission is refused. `shown` must have one string-valued entry per question, in order. Pages carry `Cache-Control: no-store` and a Content Security Policy permitting only inline scripts and styles, data images, the two `FONT_HOSTS` font origins and same-origin connections, with no form actions or base URL.
 
 ## Verification
 
@@ -208,6 +256,16 @@ Format, command and page tests use Node built-ins; `schema.test.js` uses develop
 The `ask` tests also cover a scripted answer, timeout, refusals, host reuse, SIGINT, SIGTERM, SIGHUP, the first-install report, Browser Control failures and an exception while making the profile. They check that owned listeners and hosts stop and temporary profiles are removed before output, or kept with a cleanup failure when shutdown cannot be confirmed. The suite covers boundary and refusal paths, template substitution, package-free commands, source precedence, delivery order and fallback, mouse and keyboard controls at 360, 390 and 720 pixels, longest labels, target sizes, computed light/dark contrast, host theme changes, no-form/refusal states, and local font routing. Browser requests are intercepted and recorded; only the declared fixture font may be requested. Tests write only temporary files and remove them.
 
 Paged fixtures and format tests cover the optional boolean, wrong types, one-question refusal, template filling and the published schema. The existing AppBridge host harness exercises one visible question, progress and first-page intro, radio pointer/Enter/Space advance with an observable selection, arrows without advance, Next skipping, Back preserving answers, focus, size reporting, one final delivery in context-then-message order and the full summary. Local tests exercise the same paged engine through the listener. Paged layout checks cover light and dark themes at 390 and 760 pixels, text contrast of at least 4.5:1 and controls at least 44 pixels tall.
+
+Board tests cover every new format field, library membership, public-map validation, generated-file freshness and both recorded twelve-board tap sets under 65,536 bytes. Browser cases exercise pointer/touch and keyboard picks, cap refusal, action enablement, mirrored whole-view selection, equal card heights, Back, structured action delivery in both transports, display-only non-submission, font success/failure and intercepted requests. The host records display-mode requests to prove none are made.
+
+To regenerate offline visual evidence with installed development packages, browser and local font pack:
+
+```sh
+PLAYWRIGHT_BROWSERS_PATH="$HOME/Library/Caches/ms-playwright" node scripts/render-board-checks.mjs --output /absolute/new/render-directory
+```
+
+This maintainer command requires a new absolute directory outside private paths. `--help` needs no configuration; unknown flags are refused. It writes forms, assembled Contact Sheet references/pages, card/reference PNGs at 390 and 734 in both themes, and `record.json` with measured sizes and intercepted font addresses. Font requests are fulfilled with local pack bytes at the public-map addresses; no external service is contacted. Inspect every tile (scroll captures include all rows), whole view, four-board blend and display-only lock against Contact Sheet. Reference fonts embed the local pack; public provider bytes may differ and are not reverified offline.
 
 ## Troubleshooting
 

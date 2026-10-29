@@ -14,7 +14,7 @@ const okay=args=>{const r=run(args);assert.equal(r.status,0,r.stderr);assert.equ
 const refuse=(args,pattern)=>{const r=run(args);assert.equal(r.status,1);assert.equal(r.stdout,'');assert.match(r.stderr,pattern);};
 function temp(fn){const d=mkdtempSync(join(tmpdir(),'wiser-form-'));try{return fn(d);}finally{rmSync(d,{recursive:true,force:true});}}
 test('help without packages and imports have no side effects',()=>temp(d=>{
- cpSync(new URL('../scripts/',import.meta.url),join(d,'scripts'),{recursive:true});writeFileSync(join(d,'package.json'),'{"type":"module"}');
+ cpSync(new URL('../scripts/',import.meta.url),join(d,'scripts'),{recursive:true});cpSync(new URL('../engine/',import.meta.url),join(d,'engine'),{recursive:true});writeFileSync(join(d,'package.json'),'{"type":"module"}');
  for(const arg of ['help','--help']){const r=spawnSync(process.execPath,[join(d,'scripts/form.js'),arg],{encoding:'utf8'});assert.equal(r.status,0);for(const flag of ['--help','--form','--template','--values'])assert.ok(r.stdout.includes(flag));assert.equal(r.stderr,'');}
  for(const command of ['sample','schema']){const r=spawnSync(process.execPath,[join(d,'scripts/form.js'),command],{encoding:'utf8'});assert.equal(r.status,0);assert.ok(JSON.parse(r.stdout));}
  const f=join(d,'form.json'),t=join(d,'template.json'),v=join(d,'values.json');writeFileSync(f,JSON.stringify(SAMPLE_FORM));writeFileSync(t,JSON.stringify(template()));writeFileSync(v,JSON.stringify({name:'Ada',font:'Member Face'}));

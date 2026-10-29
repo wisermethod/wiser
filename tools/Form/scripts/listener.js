@@ -5,6 +5,7 @@ import {readFileSync,realpathSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {checkForm,FONT_HOSTS} from './format.js';
+import {actionAllowed,displayOnly} from './boards.js';
 import {composePage} from './page.js';
 
 // The largest answers a checked form allows, twelve 1000-character texts sent twice in four-byte characters with their labels, fit well inside this.
@@ -16,16 +17,23 @@ const onStep = n => Number.isFinite(n) && Math.abs(n-Math.round(n)) <= Number.EP
 const keys = (value,wanted) => record(value) && Object.keys(value).length === wanted.length && wanted.every(key => Object.hasOwn(value,key));
 
 function validAnswers(payload,form) {
-  if (!keys(payload,['form','answers','shown',...(form.id === undefined ? [] : ['id'])]) || payload.form !== form.title || payload.id !== form.id) return false;
+  if (displayOnly(form)) return false;
+  if (!keys(payload,['form','answers','shown',...(form.actions ? ['action'] : []),...(form.id === undefined ? [] : ['id'])]) || payload.form !== form.title || payload.id !== form.id) return false;
   const ids = form.questions.map(q => q.id);
   if (!keys(payload.answers,ids) || !Array.isArray(payload.shown) || payload.shown.length !== ids.length) return false;
   if (!payload.shown.every((entry,i) => keys(entry,['id','question','shown']) && entry.id === ids[i] && typeof entry.question === 'string' && typeof entry.shown === 'string')) return false;
+  if(form.actions){
+    const action=form.actions.find(a=>a.value===payload.action);
+    const count=form.questions.filter(q=>q.type==='boards').reduce((n,q)=>n+(Array.isArray(payload.answers[q.id])?payload.answers[q.id].length:0),0);
+    if(!action||!actionAllowed(action.needs,count))return false;
+  }
   return form.questions.every(q => {
     const value = payload.answers[q.id];
     if (q.type === 'text') return typeof value === 'string' && [...value].length <= 1000;
     if (q.type === 'slider') return typeof value === 'number' && Number.isFinite(value) && value >= q.min && value <= q.max && onStep((value-q.min)/(q.step ?? 1));
     const allowed = v => typeof v === 'string' && q.options.some(option => option.value === v);
     if (q.type === 'radio' || q.type === 'image-radio') return value === null || allowed(value);
+    if(q.type==='boards' && (!Array.isArray(value)||value.length>q.pick||(!form.actions&&q.pick===1&&value.length!==1)))return false;
     return Array.isArray(value) && new Set(value).size === value.length && value.every(allowed);
   });
 }

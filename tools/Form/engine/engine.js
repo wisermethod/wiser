@@ -11,8 +11,14 @@ const WORDS = Object.freeze({
   refusedTitle: "This form couldn't be shown", refusedBody: "Something in it was set up wrong. Ask in the chat to try again.",
   answersHeading: "Here are my answers:", none: "(none)", sliderValue: "Value:",
   next: "Next", back: "Back", progress: " · {n} of {m}",
-  sampleDefault: "Aa", sampleSecond: "Abc 123"
+  sampleDefault: "Aa", sampleSecond: "Abc 123",
+  seeBoard:"See it full size", backToBoards:"Back to the boards", pickBoard:"Pick this one",
+  pickThree:"Pick up to three.", pickCount:"Pick up to {n}.", recommended:"Recommended",
+  whatNext:"What next", moreRound:"One more round", blendPicks:"Blend the ones I picked",
+  anotherAngle:"None of these: try another angle", lock:"Lock it", lockNote:"Pick just one to lock it",
+  boardNot:"not {word}", light:"Light", dark:"Dark", licence:"Licence"
 });
+const boardLib=globalThis.WiserBoards;
 const state = { form: null, host: "unknown", sends: false, submitted: false };
 function textColour(fg,bg) {
   const luminance = hex => {
@@ -132,13 +138,81 @@ function choice(o, type, id, index) {
     el("span", {}, el("span", { text: o.label }), o.note ? el("small", { text: o.note }) : null));
 }
 
+function boardQuestion(fieldset,q,id) {
+  const single=q.pick===1&&q.options.length===1;
+  const model=boardLib.resolveBoards(state.form.brand,q.options);
+  globalThis.WiserBoardView.loadFonts(model,boardLib.FONT_HOSTS);
+  const limit=el("p",{class:"board-limit",role:"status",hidden:true});
+  const grid=el("div",{class:"boards-tiles"});
+  const picks=new Map();
+  function sync(){
+    const count=[...picks.values()].filter(n=>n.checked).length;
+    fieldset.dataset.picks=count;
+    fieldset.dispatchEvent(new Event("boardpicks",{bubbles:true}));
+    return count;
+  }
+  function pick(input,wanted){
+    if(input.disabled||fieldset.disabled)return;
+    input.checked=false;
+    if(wanted && [...picks.values()].filter(n=>n.checked).length>=q.pick){
+      limit.textContent=q.pick===3?WORDS.pickThree:WORDS.pickCount.replace("{n}",q.pick);limit.hidden=false;
+    }else{input.checked=wanted;limit.hidden=true;}
+    sync();
+  }
+  let returnFocus,viewerInput,activeInput;
+  const viewer=el("section",{class:"board-viewer",hidden:true});
+  const back=el("button",{type:"button",text:WORDS.backToBoards});
+  const viewerBar=el("div",{class:"board-viewer-bar"},back);
+  const scroll=el("div",{class:"board-viewer-scroll",tabindex:0});
+  const close=()=>{
+    viewer.hidden=true;document.getElementById("board-grid-view").hidden=false;
+    scroll.replaceChildren();grid.append(limit);limit.hidden=true;
+    returnFocus?.focus({preventScroll:true});
+  };
+  back.addEventListener("click",close);
+  viewer.append(viewerBar,scroll);
+  for(const [i,o]of q.options.entries()){
+    const b=model.boards[i];
+    if(q.pick===0||single){
+      if(single){const input=el("input",{type:"checkbox",name:id,value:o.value,hidden:true});input.checked=true;fieldset.append(input);picks.set(o.value,input);}
+      fieldset.append(el("h2",{class:"locked-name",text:o.label}),globalThis.WiserBoardView.draw(model,b,{logo:state.form.brand.logo}));
+      continue;
+    }
+    const input=el("input",{type:"checkbox",class:"tile-input",id:`${id}-${i}`,name:id,value:o.value,"aria-describedby":o.note?`${id}-${i}-note`:undefined});
+    if(q.pick===1&&q.options.length===1)input.checked=true;
+    picks.set(o.value,input);
+    input.addEventListener("change",()=>{pick(input,input.checked);if(activeInput===input)viewerInput.checked=input.checked;});
+    input.addEventListener("keydown",event=>{if(event.key==='Enter'){event.preventDefault();if(!event.repeat){pick(input,!input.checked);if(activeInput===input)viewerInput.checked=input.checked;}}});
+    const caption=el("span",{class:"tile-label"},el("span",{text:o.label}),el("span",{class:"mark check","aria-hidden":true}),o.note?el("small",{id:`${id}-${i}-note`,text:o.note}):null,
+      o.recommendation?el("small",{class:"board-recommendation"},el("b",{text:WORDS.recommended}),document.createTextNode(" · "+o.recommendation)):null);
+    const preview=el("div",{class:"board-crop","aria-hidden":true},globalThis.WiserBoardView.draw(model,b,{compact:true,logo:state.form.brand.logo}));
+    const tile=el("label",{class:"tile boards-tile",for:input.id},input,preview,caption);
+    const full=el("button",{class:"see-board",type:"button",text:WORDS.seeBoard});
+    full.addEventListener("click",()=>{
+      returnFocus=full;activeInput=input;
+      viewerInput=el("input",{type:"checkbox","aria-label":WORDS.pickBoard});viewerInput.checked=input.checked;
+      viewerInput.disabled=input.disabled||fieldset.disabled;
+      viewerInput.addEventListener("change",()=>{pick(input,viewerInput.checked);viewerInput.checked=input.checked;});
+      viewerBar.replaceChildren(back,el("label",{class:"choice"},viewerInput,el("span",{text:WORDS.pickBoard})),limit);
+      limit.hidden=true;scroll.replaceChildren(el("h2",{class:"locked-name",text:o.label}),globalThis.WiserBoardView.draw(model,b,{logo:state.form.brand.logo}));scroll.scrollTop=0;
+      document.getElementById("board-grid-view").hidden=true;viewer.hidden=false;back.focus({preventScroll:true});
+    });
+    grid.append(el("div",{class:"board-option"},tile,full));
+  }
+  if(q.pick!==0&&!single){fieldset.append(grid,limit);document.getElementById("root").append(viewer);}
+  fieldset.dataset.picks=[...picks.values()].filter(n=>n.checked).length;
+}
+
 function questionBlock(q, index) {
   const id = `q-${index}`;
   const fieldset = el("fieldset", { class: `q q-${q.type}`, "data-id": q.id, "data-type": q.type });
   fieldset.append(el("legend", { id: `${id}-legend`, text: q.label }));
   if (q.help) fieldset.append(el("p", { class: "help", text: q.help }));
   const opts = Array.isArray(q.options) ? q.options : [];
-  if (q.type === "radio" || q.type === "checkbox") {
+  if(q.type === "boards") {
+    if(q.pick===0||(q.pick===1&&q.options.length===1))fieldset.querySelector("legend").hidden=true;
+    boardQuestion(fieldset,q,id);
+  } else if (q.type === "radio" || q.type === "checkbox") {
     const list = el("div", { class: "choices" });
     opts.forEach((o, i) => list.append(choice(o, q.type, id, i)));
     fieldset.append(list);
@@ -234,7 +308,7 @@ function showEmpty(refused = false) {
     el("p",{class:"intro",text: refused ? WORDS.refusedBody : WORDS.noFormBody}));
 }
 function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {}) {
-  state.form = form; state.host = host; state.sends = sends; state.submitted = false;
+  state.form = form; state.host = host; state.sends = sends; state.submitted = false;state.sending=false;
   for (const font of form.fonts || []) {
     try {
       const face = new FontFace(font.family, `url(${JSON.stringify(new URL(font.src).href)})`);
@@ -243,14 +317,34 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
     } catch { /* A face this browser refuses leaves its sample in the generic face. */ }
   }
   const root = document.getElementById("root"); root.textContent = "";
+  const hasBoards=form.questions.some(q=>q.type==="boards"), onlyDisplay=boardLib.displayOnly(form);
+  root.classList.toggle("board-card",hasBoards);
+  if(hasBoards){
+    root.style.setProperty("--board-card-height",`${Math.min(720,Math.floor((window.screen?.availHeight||window.innerHeight)*.75))}px`);
+    if(!document.getElementById("boards-style")){const style=el("style",{id:"boards-style",text:boardLib.BOARD_CSS});document.head.append(style);}
+  }
+  const gridView=el("div",{id:"board-grid-view"});
+  const destination=hasBoards?gridView:root;
   // A paged form's title is its progress line, set quieter than the question it counts.
   const heading = el("h1",{text:form.title,...(form.paged ? {class:"progress","aria-live":"polite","aria-atomic":"true"} : {})});
-  root.append(heading);
+  destination.append(heading);
   const intro = form.intro ? el("p",{class:"intro",text:form.intro}) : null;
-  if (intro) root.append(intro);
+  if (intro) destination.append(intro);
   const f = el("form",{id:"form"});
   const questions = form.questions.map(questionBlock);
   questions.forEach(q => f.append(q));
+  const actionButtons=(form.actions||[]).map(a=>el("button",{type:"submit","data-action":a.value},el("span",{text:a.label}),el("small",{text:a.note||""})));
+  const actionRow=el("div",{class:"board-actions","aria-label":WORDS.whatNext},...actionButtons);
+  function pickedCount(){return readAnswers().filter(a=>a.type==="boards").reduce((n,a)=>n+a.value.length,0);}
+  function syncActions(){
+    const count=pickedCount();
+    actionButtons.forEach((button,i)=>{
+      const a=form.actions[i];button.disabled=!boardLib.actionAllowed(a.needs,count);
+      const note=a.label===WORDS.moreRound?(count?WORDS.blendPicks:WORDS.anotherAngle):a.label===WORDS.lock&&count!==1?WORDS.lockNote:a.note||"";
+      button.querySelector("small").textContent=note;button.querySelector("small").hidden=!note;
+    });
+    if(!form.actions)button.disabled=form.questions.some(q=>q.type==="boards"&&q.pick===1&&count!==1);
+  }
   const button = el("button",{id:"submit",type:"submit",text: state.sends ? WORDS.buttonSends : WORDS.buttonDrafts});
   let page = 0, advanceTimer;
   const back = el("button",{id:"back",type:"button",text:WORDS.back});
@@ -263,7 +357,8 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
     if (intro) intro.hidden = page !== 0;
     back.hidden = page === 0;
     next.hidden = page === questions.length - 1;
-    button.hidden = !next.hidden;
+    button.hidden = !next.hidden||Boolean(form.actions)||onlyDisplay;
+    actionRow.hidden=!next.hidden;
     fitSamples();
     // Focus follows the member from one question to the next; on opening, nothing looks picked.
     if (focus) questions[page].querySelector("input,textarea,select,button")?.focus({preventScroll:true});
@@ -301,30 +396,38 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
         input.addEventListener("click",() => { if (!arrow) advance(input,index); });
       }
     });
-  } else f.append(button);
+  } else if(!form.actions&&!onlyDisplay)f.append(button);
+  if(form.actions)f.append(actionRow);
   f.addEventListener("submit",async event => {
-    event.preventDefault(); if (button.disabled) return;
+    event.preventDefault();
+    if(onlyDisplay||state.sending)return;
+    const action=form.actions?.find(a=>a.value===event.submitter?.dataset.action);
+    if(form.actions?(!action||!boardLib.actionAllowed(action.needs,pickedCount())):button.disabled)return;
+    state.sending=true;actionButtons.forEach(b=>b.disabled=true);
     // Implicit submission from an earlier question must never send a partial form.
-    if (form.paged && page !== questions.length - 1) return;
+    if (form.paged && page !== questions.length - 1) {state.sending=false;return;}
     clearTimeout(advanceTimer);
     button.disabled = true;
     if (form.paged) { back.disabled = true; next.disabled = true; }
     const answers = readAnswers();
     // One line per question: a line break typed into an answer becomes a space here, and stays in the data.
     const oneLine = text => String(text).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, " ");
-    const summary = [WORDS.answersHeading,...answers.map(a => `- ${oneLine(a.question)}: ${oneLine(a.shown)}`)].join("\n");
-    const payload = { form: form.title, ...(form.id === undefined ? {} : {id:form.id}), answers:Object.fromEntries(answers.map(a => [a.id,a.value])) };
+    const summary = [WORDS.answersHeading,...answers.map(a => `- ${oneLine(a.question)}: ${oneLine(a.shown)}`),...(action?[`- ${WORDS.whatNext}: ${action.label}`]:[])].join("\n");
+    const payload = { form: form.title, ...(form.id === undefined ? {} : {id:form.id}), answers:Object.fromEntries(answers.map(a => [a.id,a.value])),...(action?{action:action.value}:{}) };
     let sent = false, delivery = "failed", status, disabled = false;
     // A transport can supply its final status and lock the controls; chat keeps its retry behavior.
     try { const result = await onSubmit({payload,summary}); ({sent,delivery,status,disabled = false} = result); } catch { /* Keep a copy for retry. */ }
     setStatus([status ?? (!sent ? WORDS.notSent : state.sends ? WORDS.sent : WORDS.drafted)], sent ? "ok" : "bad");
     metadata({delivery});
     document.getElementById("copy").textContent = sent && !form.paged ? "" : summary;
-    state.submitted = true; button.textContent = WORDS.buttonAgain; button.disabled = false;
+    state.submitted = true; state.sending=false;syncActions();button.textContent = WORDS.buttonAgain; button.disabled = false;
     if (form.paged) { back.disabled = false; next.disabled = false; }
     if (disabled) for (const control of f.querySelectorAll("input,textarea,select,button,fieldset")) control.disabled = true;
   });
-  root.append(f,el("p",{id:"status",class:"status",role:"status","aria-live":"polite"}),el("pre",{id:"copy",class:"copy"}));
+  destination.append(f,el("p",{id:"status",class:"status",role:"status","aria-live":"polite"}),el("pre",{id:"copy",class:"copy"}));
+  if(hasBoards)root.prepend(gridView);
+  f.addEventListener("boardpicks",syncActions);
+  if(hasBoards)syncActions();
   if (form.paged) move(0,{focus:false});
   fitSamples();
   metadata({host:state.host,source,delivery:"idle"});

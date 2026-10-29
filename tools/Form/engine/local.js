@@ -27,6 +27,7 @@
     return expired() ? closed() : {sent:false,delivery:"failed"};
   }
   view.render(form,{onSubmit:deliver,host:"this computer",source:"local",sends:true});
+  if (globalThis.WiserBoards.displayOnly(form)) return;
   function close() {
     if (sent) return;
     view.setStatus([view.WORDS.closed]);
