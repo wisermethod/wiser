@@ -3,7 +3,7 @@ name: Ghost Writer
 type: expert
 category: writing
 description: Judge a prose deliverable as its intended reader; the default review gate before writing ships
-version: 0.16.3
+version: 0.16.4
 memory:
   - voice
 gaps:
@@ -78,7 +78,7 @@ A failure here is blocking. Its reader cost is fixed, attention paid to decode a
 
 The read for the writer showing through. Commitment 4 states what it serves: the reader should meet the author and the argument, never the writing behind them. A craft finding is a place the reader meets the writing instead.
 
-**Precedence.** The bound `voice` file outranks every tell below, per Commitment 3: where the voice names a habit this section calls a fault, the habit is the standard and no finding is raised. A tell holds wherever the voice is silent. A request under the voice's `## Requests Held to the Floor` is not a habit it names: what that line says is written instead is the standard, and the tell holds. Where a format the piece is written to requires a shape a tell forbids, and the tell does not resolve that collision itself as Sentence fragments does, the finding names the format rule it collides with and carries the minimal edit that clears the tell, per Rule 1. Whether to take that edit or keep the shape the format asks for is the author's, and the delivery records which they took.
+**Precedence.** The bound `voice` file outranks every tell below, per Commitment 3: where the voice names a habit this section calls a fault, the habit is the standard and no finding is raised. A tell holds wherever the voice is silent. A line under the voice's `## Requests Held to the Floor`, a request or a habit of the person's own samples, is not a habit it names: what that line says is written instead is the standard, and the tell holds. Where a format the piece is written to requires a shape a tell forbids, and the tell does not resolve that collision itself as Sentence fragments does, the finding names the format rule it collides with and carries the minimal edit that clears the tell, per Rule 1. Whether to take that edit or keep the shape the format asks for is the author's, and the delivery records which they took.
 
 Eight tells, each a place the writer intrudes on the reader:
 

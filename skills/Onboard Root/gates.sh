@@ -1731,9 +1731,11 @@ gate_G10() {
     done < <(strip_preamble "$f" | grep -onE '\((Firsthand|Secondhand|Public statement|Research inference)[^)]*\)' 2>/dev/null)
   done < <(bound_files)
   # A personal voice file the coach wrote cites answer numbers bare, "(P1, R1)",
-  # outside any register. Every answer number a parenthesis in voice.md names
-  # must be a row of the newest voice answers file, the run that wrote it, so
-  # a citation carried over from a run on an earlier question bank is caught.
+  # outside any register, and the samples the person gave by their E rows,
+  # "(E1, E2)". Every such number a parenthesis in voice.md names must be a row
+  # of the newest voice answers file, the run that wrote it, so a citation
+  # carried over from a run on an earlier question bank, or a sample nobody
+  # recorded, is caught.
   # Newest is the latest date, then the highest V<n> on that date (C14 names).
   : > "$TMPD/g10-voice-ids.txt"
   newest=""; best=""
@@ -1745,14 +1747,14 @@ gate_G10() {
     if [ -z "$best" ] || [[ "$k" > "$best" ]]; then best="$k"; newest="$af"; fi
   done
   if [ -n "$newest" ]; then
-    awk '{ l=$0; sub(/^[ \t]*\|/, "", l); n=split(l, c, "|"); if (n<2) next; v=c[1]; gsub(/^[ \t]+|[ \t]+$/, "", v); if (v ~ /^[WYPRHSAXF][0-9]+[a-z]?$/) print v }' "$newest" | sort -u > "$TMPD/g10-voice-ids.txt"
+    awk '{ l=$0; sub(/^[ \t]*\|/, "", l); n=split(l, c, "|"); if (n<2) next; v=c[1]; gsub(/^[ \t]+|[ \t]+$/, "", v); if (v ~ /^[WYPRHSAXFE][0-9]+[a-z]?$/) print v }' "$newest" | sort -u > "$TMPD/g10-voice-ids.txt"
   fi
   if [ "$ROOT_TYPE" = "personal" ] && [ -s "$TMPD/g10-voice-ids.txt" ] && [ -f "$MEM/voice.md" ]; then
     while IFS= read -r hit; do
       [ -n "$hit" ] || continue
       ln=${hit%%:*}
       grp=$(printf '%s' "$hit" | sed 's/^[0-9]*://')
-      ids=$(printf '%s' "$grp" | grep -oE '(^|[^A-Za-z0-9])[WYPRHSAXF][0-9]+[a-z]?([^A-Za-z0-9]|$)' | grep -oE '[WYPRHSAXF][0-9]+[a-z]?')
+      ids=$(printf '%s' "$grp" | grep -oE '(^|[^A-Za-z0-9])[WYPRHSAXFE][0-9]+[a-z]?([^A-Za-z0-9]|$)' | grep -oE '[WYPRHSAXFE][0-9]+[a-z]?')
       [ -n "$ids" ] || continue
       missing=""
       for id in $ids; do

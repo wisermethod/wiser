@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types
-version: 0.45.0
+version: 0.45.1
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
 ---
@@ -84,7 +84,7 @@ Then confirm this session loads the new root; a root on disk that no session loa
 
 ### Step 2: Voice
 
-Voice comes right after the files exist. `memory/voice.md` is written by `skills/Build Voice/` and by nothing else. Run it now, whether or not the person has any writing of their own: on a personal root it runs as a coach: a few short questions about the person, two screens of quick taps, how they come across, and a first piece they can correct, with no samples needed, and it writes `memory/voice.md`, the run's answers file in `memory/answers/` and the `## Personality` heading of `memory/about.md`, per `skills/Build Voice/SKILL.md` The coach. The coach opens itself, so say nothing before it starts.
+Voice comes right after the files exist. `memory/voice.md` is written by `skills/Build Voice/` and by nothing else. Run it now, whether or not the person has any writing of their own: on a personal root it runs as a coach: first any writing samples the person wants to use, none needed, then a few short questions about them and two screens of quick taps, leaving out what the samples show, how they come across, and a first piece they can correct, and it writes `memory/voice.md`, the run's answers file in `memory/answers/` and the `## Personality` heading of `memory/about.md`, per `skills/Build Voice/SKILL.md` The coach. The coach opens itself, so say nothing before it starts.
 
 What did Build Voice return? Complete: the person kept its first piece, and the key closes complete. Stopped, at any point before that: Build Voice wrote `[Not available: the voice coach has not finished; say "build my voice" to run it]` over each prompt line of `voice.md`, and the key closes provisional in Step 5 with the person as owner. The person declined the coach before it started: write that same label over each prompt line yourself, and close the key the same way. A provisional voice does not block a deliverable that loads only `about` or `design`.
 

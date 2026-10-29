@@ -1,12 +1,41 @@
 # The interview
 
-What the coach says and asks, in the order `SKILL.md` The coach runs it. A tapped question is asked with the app's question tool where it has one: each option a button, and where an option below has words after a colon, the words before it are the button and the words after it are the line under it. Where the app has none, one question per message, its options lettered, answered with a letter. A typed question is a plain message, one at a time. The codes (W, P, R, F, A) are the question numbers the answers file records and `voice.md` cites. Bank version for every row: `Build Voice bank 5`.
+What the coach says and asks, in the order `SKILL.md` The coach runs it. A tapped question is asked with the app's question tool where it has one: each option a button, and where an option below has words after a colon, the words before it are the button and the words after it are the line under it. Where the app has none, one question per message, its options lettered, answered with a letter. A typed question is a plain message, one at a time. The codes (S, W, P, R, F, A) are the question numbers the answers file records and `voice.md` cites, and each sample the person gives is numbered E1 onward. Bank version for every row: `Build Voice bank 6`.
 
-Each question says what it **feeds**. A line in quotation marks after a pick is the exact line that pick writes into `voice.md` `## How They Write`, copied word for word.
+Each question says what it **feeds**. A line in quotation marks after a pick is the exact line that pick writes into `voice.md` `## How They Write`, copied word for word. A pair or tap the person's samples settled is not asked, and a screen left with no question is not shown, nor the line said before it.
+
+## S1. Your writing (tapped)
+
+The coach's first question, before anything else is said.
+
+> Do you have examples of content you've written that you want to use to help craft your Wiser voice?
+
+- Yes
+- No
+
+No, or a skip: say this line and the opening together, in one message.
+
+> Okay, let's walk you through setting up your writing style (we call that voice in Wiser).
+
+Yes:
+
+> Great! You can give me those samples now. Either give me some URLs, drop the sample files directly here in chat, or paste the writing in chat.
+
+Each piece that arrives is a sample, numbered E1 onward, read and filed as `SKILL.md` The coach step 2 says. Feeds: the portrait, the pieces, `## How They Write`, and every pair or tap the samples settle.
+
+Where a piece cannot be read, said once in the run, naming each piece that could not be read:
+
+> I couldn't read [which one, and why, in a few words]. Paste the writing here instead, or say "skip" and we'll go on without it.
+
+Where nothing could be read and they skip, or what they send next cannot be read either, go on as S1's No, with its line and the opening. Once at least one sample is read, say this line in place of the opening:
+
+> Thanks, I've read [them, or it for one]. [One line on what stood out in their writing.] Now a few questions your writing can't answer, then I'll show you how you come across and write your first piece. "Not sure" is always a fine answer.
 
 ## Opening
 
-> We are going to begin by building a writing style we call your "voice" together. It takes about eight minutes: a few questions about you, some quick taps, then I'll show you how you come across and write your first piece. There's nothing to prepare, and "not sure" is always a fine answer.
+Said with S1's No line.
+
+> It takes about eight minutes: a few questions about you, some quick taps, then I'll show you how you come across and write your first piece. There's nothing to prepare, and "not sure" is always a fine answer.
 
 ## W1 (typed)
 
