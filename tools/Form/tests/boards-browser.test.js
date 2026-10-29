@@ -82,6 +82,34 @@ test('a host height cap: an open board that would pass it sets the others aside 
   assert.deepEqual([...new Set(await roomy.frame.evaluate(()=>[...document.querySelectorAll('.board-viewer .board-art>*')].filter(n=>n.getClientRects().length).map(n=>n.dataset.mode)))].length,2);
  }finally{await roomy.context.close();}
 });
+test('a whole board under a host height cap shows one mode at a time; without one, both and no controls',async()=>{
+ for(const shape of ['display','single']){
+  const form=boardForm();form.questions[0].options.length=1;
+  if(shape==='display'){form.questions[0].pick=0;delete form.actions;}else form.questions[0].pick=1;
+  const h=await kit.open(form,734,'light',{touch:true,containerDimensions:{maxHeight:5000,width:734}});
+  try{
+   assert.equal(await h.f.locator('.board-mode-switches').count(),1,shape);
+   assert.ok(await rootHeight(h)<=5000,`${shape} fits under the cap`);
+   const shown=()=>h.frame.evaluate(()=>[...new Set([...document.querySelectorAll('fieldset>.board-art>*')].filter(n=>n.getClientRects().length).map(n=>n.dataset.mode))]);
+   const [primary]=await shown();assert.equal((await shown()).length,1);
+   const other=primary==='light'?'dark':'light';
+   await h.f.locator(`.board-mode-switch[data-mode=${other}]`).tap();assert.deepEqual(await shown(),[other]);
+   assert.equal((await h.page.evaluate(()=>window.__log.filter(e=>['context','message'].includes(e.kind)))).length,0,'the switch sends nothing');
+   if(shape==='single')assert.deepEqual(await picks(h),['board-1']);
+   assert.deepEqual(h.errors,[]);
+  }finally{await h.context.close();}
+ }
+});
+test('the open board\'s mirrored pick is never read as an answer, even beside an option valued on',async()=>{
+ const form=boardForm();form.questions[0].options[2].value='on';
+ const h=await kit.open(form,734,'light',{touch:true});
+ try{
+  await h.f.locator('.boards-tile').nth(0).tap();await h.f.locator('.see-board').nth(0).tap();
+  assert.equal(await h.f.locator('.board-viewer input').isChecked(),true);
+  assert.deepEqual(await picks(h),['board-1']);
+  assert.equal(await h.f.locator('button[data-action=lock]').isDisabled(),false,'one real pick: Lock it is open');
+ }finally{await h.context.close();}
+});
 test('one-pick round refuses a second pick; sole tuned board starts picked',async()=>{
  const form=boardForm();form.questions[0].pick=1;form.questions[0].options.length=3;
  const h=await kit.open(form);try{await h.f.locator('.boards-tile').nth(0).click();await h.f.locator('.boards-tile').nth(1).click();assert.deepEqual(await picks(h),['board-1']);assert.equal(await h.f.locator('.board-limit').innerText(),'Pick up to 1.');}finally{await h.context.close();}

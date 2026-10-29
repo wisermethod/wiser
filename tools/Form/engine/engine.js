@@ -143,6 +143,16 @@ function choice(o, type, id, index) {
     el("span", {}, el("span", { text: o.label }), o.note ? el("small", { text: o.note }) : null));
 }
 
+// Whether the card passes the height the host says it can hold, where it says one.
+const overCap=()=>state.maxHeight>0&&Math.ceil(document.getElementById("root").getBoundingClientRect().bottom+window.scrollY)>state.maxHeight;
+// One mode at a time, primary first, for a whole board the host's cap cannot hold in both.
+function modeSwitch(art) {
+  const show=mode=>{for(const part of art.children)part.hidden=part.dataset.mode!==mode;buttons.forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.mode===mode)));};
+  const buttons=["light","dark"].map(mode=>{const b=el("button",{type:"button",class:"board-mode-switch","data-mode":mode,"aria-pressed":"false",text:WORDS[mode]});b.addEventListener("click",()=>show(mode));return b;});
+  show(art.firstElementChild?.dataset.mode||"light");
+  return el("div",{class:"board-mode-switches",role:"group","aria-label":WORDS.boardModes},...buttons);
+}
+
 function boardQuestion(fieldset,q,id) {
   const look=q.view==="look",single=!look&&q.pick===1&&q.options.length===1;
   const model=boardLib.resolveBoards(state.form.brand,q.options);
@@ -171,15 +181,6 @@ function boardQuestion(fieldset,q,id) {
   const backBottom=el("button",{type:"button",text:WORDS.backToBoards});
   const viewerBar=el("div",{class:"board-viewer-bar"},back);
   const scroll=el("div",{class:"board-viewer-scroll"});
-  // Where the host caps the card's height and the open board in place would pass it, the other boards step aside and one mode shows at a time.
-  const modeButtons=["light","dark"].map(mode=>{const b=el("button",{type:"button",class:"board-mode-switch","data-mode":mode,"aria-pressed":"false",text:WORDS[mode]});b.addEventListener("click",()=>showMode(mode));return b;});
-  const modeSwitch=el("div",{class:"board-mode-switches",role:"group","aria-label":WORDS.boardModes},...modeButtons);
-  function showMode(mode){
-    const art=scroll.querySelector(".board-art");if(!art)return;
-    for(const part of art.children)part.hidden=!!mode&&part.dataset.mode!==mode;
-    modeButtons.forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.mode===mode)));
-  }
-  const fits=()=>!state.maxHeight||Math.ceil(document.getElementById("root").getBoundingClientRect().bottom+window.scrollY)<=state.maxHeight;
   const close=(restore=true)=>{
     if(viewer.hidden)return;
     grid.classList.remove("board-focus");
@@ -211,7 +212,8 @@ function boardQuestion(fieldset,q,id) {
     full.addEventListener("click",()=>{
       if(!viewer.hidden&&returnFocus===full){close();return;}
       close(false);returnFocus=full;activeInput=input;
-      viewerInput=el("input",{type:"checkbox","aria-label":WORDS.pickBoard});viewerInput.checked=input.checked;
+      // The mirror carries no name or value, so the answers never read it.
+      viewerInput=el("input",{type:"checkbox",value:"","aria-label":WORDS.pickBoard});viewerInput.checked=input.checked;
       viewerInput.disabled=input.disabled||fieldset.disabled;
       viewerInput.addEventListener("change",()=>{pick(input,viewerInput.checked);viewerInput.checked=input.checked;});
       viewerBar.replaceChildren(back,el("label",{class:"choice"},viewerInput,el("span",{text:WORDS.pickBoard})),limit);
@@ -219,9 +221,10 @@ function boardQuestion(fieldset,q,id) {
       // After the last tile on the clicked tile's row, whatever the column count.
       const option=full.closest(".board-option"),row=[...grid.children];let end=option;
       for(const n of row.slice(row.indexOf(option)+1)){if(n.offsetTop!==option.offsetTop)break;end=n;}
-      end.after(viewer);viewer.hidden=false;full.setAttribute("aria-expanded","true");showMode();
-      const focused=!fits();
-      if(focused){grid.classList.add("board-focus");viewerBar.insertBefore(modeSwitch,viewerBar.children[1]);showMode(b.primaryMode);}
+      end.after(viewer);viewer.hidden=false;full.setAttribute("aria-expanded","true");
+      // Where the host caps the card's height and the open board in place would pass it, the other boards step aside and one mode shows at a time.
+      const focused=overCap();
+      if(focused){grid.classList.add("board-focus");viewerBar.insertBefore(modeSwitch(scroll.querySelector(".board-art")),viewerBar.children[1]);}
       back.focus({preventScroll:true});viewerBar.scrollIntoView({block:focused?"start":"nearest"});
     });
     grid.append(el("div",{class:"board-option"},tile,full));
@@ -462,6 +465,7 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
   if (form.paged) move(0,{focus:false});
   fitSamples();
   if(hasBoards)globalThis.WiserBoardView.fitLooks();
+  if(hasBoards&&overCap())for(const art of root.querySelectorAll("fieldset>.board-art"))art.before(modeSwitch(art));
   metadata({host:state.host,source,delivery:"idle"});
 }
 globalThis.WiserForm = Object.freeze({WORDS,render,readAnswers,setStatus,setHost,setTheme,showEmpty,metadata});
