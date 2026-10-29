@@ -70,7 +70,7 @@ Completed download requires positive duration and immediately uses the gateway's
 
 ## Credentials and billing
 
-**This key bills HeyGen's API wallet, separate from any HeyGen web subscription.** It uses the member's own workspace and quota, without shared OAuth credits. Wiser supplies no balance, upgrades no plan and changes no top-up setting.
+**This key bills HeyGen's API wallet, separate from any HeyGen web subscription.** HeyGen's terms grant commercial use of what you make to its Creator, Pro and Business plans and do not say which rule covers output the API wallet pays for; check your use with HeyGen. It uses the member's own workspace and quota, without shared OAuth credits. Wiser supplies no balance, upgrades no plan and changes no top-up setting.
 
 | Module | Intended grant privilege | Actions |
 |--------|--------------------------|---------|
