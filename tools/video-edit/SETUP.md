@@ -1,6 +1,6 @@
 # video-edit Setup
 
-Once per machine. Skip it if `ffmpeg -version` already succeeds and a short `edit` help run works; before the first `mux`, `loudness`, `finish`, `conform`, `exact-frames` or `composite`, run the ffprobe check in section 2, and before the first `finish`, section 4.
+Once per machine. Skip it if `ffmpeg -version` already succeeds and a short `edit` help run works; before the first `mux`, `loudness`, `finish`, `conform`, `exact-frames`, `composite` or `composite-alpha`, run the ffprobe check in section 2, and before the first `finish`, section 4. Before the first `composite-alpha`, also run its own checks in section 2.
 
 Run every command below from this tool's directory when a Node command is shown. On Windows, use Git Bash for shell checks.
 
@@ -20,11 +20,21 @@ ffmpeg -version
 
 Any recent build is enough for trim, resize, speed, concat, frames, and GIF. This tool imports no npm package, so there is no install step at all.
 
-`mux`, `loudness`, `finish`, `conform`, `exact-frames` and `composite` also need ffprobe, which ships with FFmpeg:
+`mux`, `loudness`, `finish`, `conform`, `exact-frames`, `composite` and `composite-alpha` also need ffprobe, which ships with FFmpeg:
 
 ```bash
 ffprobe -version
 ```
+
+Only `composite-alpha` runs its own additional checks for the libx264 encoder, png decoder, and setsar and setparams filters:
+
+```bash
+ffmpeg -v error -encoders
+ffmpeg -v error -decoders
+ffmpeg -v error -filters
+```
+
+The lists must contain `libx264`, `png`, and both `setsar` and `setparams`, respectively. These requirements apply only to `composite-alpha`; other commands keep their own dependency checks. It installs no packages.
 
 When FFmpeg is missing, the agent follows the Script Contract's System dependencies clause: it reads FFmpeg's current documentation, runs whatever install the host can run itself, and hands you only the smallest step it cannot. Install steps are deliberately not written in this repository; they rot as platforms change.
 
@@ -59,6 +69,8 @@ node scripts/edit.js help
 ```
 
 Usage text with nothing configured. On a correctly set up copy, help exits 0 and `ffmpeg -version` succeeds.
+
+For `composite-alpha`, confirm that help lists its eight required flags and bounds, `ffprobe -version` succeeds, and the section 2 lists contain its libx264 encoder, png decoder and two filters. Help itself probes none of them; the command's own dependency check runs only when processing media. Missing one affects this command alone under these checks.
 
 ## Troubleshooting
 
