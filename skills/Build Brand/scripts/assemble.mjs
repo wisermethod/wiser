@@ -10,6 +10,7 @@ const SKILL = realpathSync(resolve(HERE, '..'));
 export const LIBRARY = resolve(SKILL, 'parts/parts.json');
 const ROLES = ['ground', 'panel', 'text', 'headline', 'smallPrint', 'deep', 'pop', 'onPop', 'mark', 'cardFront', 'cardFrontText', 'cardFrontSmallPrint', 'cardBack', 'cardBackText', 'cardBackMark', 'sub', 'note', 'panelSmallPrint', 'hairline'];
 const MODES = ['light', 'dark'];
+export const AXES = { classicContemporary: ['classic','contemporary'], quietBold: ['quiet','bold'], warmCool: ['warm','cool'], playfulSerious: ['playful','serious'], handGeometric: ['hand','geometric'], softStrong: ['soft','strong'] };
 const HELP = `Assemble one Contact Sheet board spec from explicit library choices.
 Usage: node assemble.mjs --selection <absolute.json> --output <absolute.json>
        node assemble.mjs help
@@ -69,7 +70,15 @@ function lookup(library, kind, id, at) {
   text(id, at);
   const found = library[kind]?.filter((p) => p.id === id);
   if (found?.length !== 1) fail(at, `unknown or duplicate ${kind} id "${id}"`);
+  if (['pairings','palettes','graphics'].includes(kind)) for (const [axis, poles] of Object.entries(AXES)) {
+    if (![...poles, 'either'].includes(found[0].tags?.[axis])) fail(`${at}.tags.${axis}`, 'part needs a valid ranking position');
+  }
   return found[0];
+}
+// Ranking provenance travels in the command's report, outside the deliberately
+// closed Contact Sheet spec (which accepts only its three match-check tags).
+export function partPositions(library, board) {
+  return Object.fromEntries([['pairing','pairings',board.pairing.headingFrom && typeof board.pairing.headingFrom === 'string' ? board.pairing.headingFrom : board.pairing.id],['palette','palettes',board.palette.id],['graphicSet','graphics',board.graphicSet.id]].map(([role,kind,id]) => [role, Object.fromEntries(Object.keys(AXES).map(axis => [axis,lookup(library,kind,id,role).tags[axis]]))]));
 }
 function font(face, partsDir, at, library) {
   const metadata = library.fonts[face.family];
@@ -297,7 +306,7 @@ export function run(argv) {
   const bytes=JSON.stringify(spec,null,2)+'\n';
   try { writeFileSync(output,bytes,{flag:'wx'}); }
   catch { fail('--output','cannot create the file; choose a new path in a writable work directory'); }
-  return {output,boards:spec.boards.length,bytes:Buffer.byteLength(bytes)};
+  return {output,boards:spec.boards.length,bytes:Buffer.byteLength(bytes),positions:selection.boards.map(b => ({number:b.number,parts:partPositions(library,b)}))};
 }
 export function main(argv=process.argv.slice(2)) {
   try { const result=run(argv); process.stdout.write((typeof result==='string'?result:JSON.stringify(result))+'\n'); }

@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "axes": {
+    "classicContemporary": ["classic", "contemporary"],
+    "quietBold": ["quiet", "bold"],
+    "warmCool": ["warm", "cool"],
+    "playfulSerious": ["playful", "serious"],
+    "handGeometric": ["hand", "geometric"],
+    "softStrong": ["soft", "strong"]
+  },
+  "wholeLooks": {
+    "count": 8,
+    "leaders": 4,
+    "rule": "Score the three parts on six dials. Ties retain library order, with dark-first promoted on equal scores for dark-led taps. The top four are the highest remaining scores with unused palettes, pairings and graphic sets. The other four each change exactly one aggregate position from look 1, including steps to or from either. Prefer an unrepresented dial, then an unrepresented destination on that dial, then score and library order. Palettes never repeat. Four contrasts need not use four distinct dials: spread over as many available dials and destinations as the library permits. Aggregate positions are the unweighted majority of the three parts; either and missing positions contribute zero. Whole looks appear once. Round 1 adds one tick per picked look's non-either position, so shared positions add more."
+  },
+  "questions": [
+    {"id":"mode","question":"Do you prefer light mode or dark mode?","options":[
+      {"id":"light","label":"Light","nudges":{}},
+      {"id":"dark","label":"Dark","nudges":{"contemporary":0.5,"darkLed":1}},
+      {"id":"mode-either","label":"Either","nudges":{}}
+    ]},
+    {"id":"feel","question":"Which feels closest to how your brand should feel?","options":[
+      {"id":"mechanical","label":"Mechanical","description":"Precise and engineered","nudges":{"geometric":1,"cool":1,"serious":1}},
+      {"id":"natural","label":"Natural","nudges":{"hand":1,"warm":1,"soft":1}},
+      {"id":"suit-and-tie","label":"Suit and tie","nudges":{"classic":1,"serious":1,"quiet":1}},
+      {"id":"playful-creative","label":"Playful and creative","nudges":{"playful":1,"bold":1,"warm":1}},
+      {"id":"feel-unsure","label":"Not sure","nudges":{}}
+    ]},
+    {"id":"history","question":"How much history should your brand feel like it has?","options":[
+      {"id":"rooted","label":"Rooted, like it's been trusted for generations","nudges":{"classic":1}},
+      {"id":"established-current","label":"Established, but current","nudges":{"classic":1,"contemporary":0.5}},
+      {"id":"of-the-moment","label":"Of the moment, like it arrived this year","nudges":{"contemporary":1}},
+      {"id":"history-unsure","label":"Not sure","nudges":{}}
+    ]},
+    {"id":"strength","question":"Should your brand feel soft and graceful, or strong and solid?","options":[
+      {"id":"soft-graceful","label":"Soft and graceful","nudges":{"soft":1,"quiet":1}},
+      {"id":"balanced","label":"Balanced","nudges":{}},
+      {"id":"strong-solid","label":"Strong and solid","nudges":{"strong":1,"bold":1}},
+      {"id":"strength-unsure","label":"Not sure","nudges":{}}
+    ]},
+    {"id":"technology","question":"Choose the one brand that most reflects the direction you're going for. (1 of 4)","options":[
+      {"id":"apple","label":"Apple","nudges":{"quiet":1,"contemporary":1,"geometric":1,"cool":1}},
+      {"id":"bose","label":"Bose","nudges":{"contemporary":1,"serious":1,"strong":1,"darkLed":1}},
+      {"id":"kitchenaid","label":"KitchenAid","nudges":{"warm":1,"classic":1,"playful":1,"brightColour":1}},
+      {"id":"craftsman","label":"Craftsman","nudges":{"strong":1,"bold":1,"serious":1,"classic":1}},
+      {"id":"technology-none","label":"None of these","nudges":{}}
+    ]},
+    {"id":"style","question":"Choose the one brand that most reflects the direction you're going for. (2 of 4)","options":[
+      {"id":"patagonia","label":"Patagonia","nudges":{"warm":1,"hand":1,"natural":1}},
+      {"id":"lululemon","label":"Lululemon","nudges":{"contemporary":1,"quiet":1,"soft":1}},
+      {"id":"j-crew","label":"J Crew","nudges":{"classic":1,"warm":1,"quiet":1}},
+      {"id":"brooks-brothers","label":"Brooks Brothers","nudges":{"classic":1,"serious":1,"strong":1}},
+      {"id":"style-none","label":"None of these","nudges":{}}
+    ]},
+    {"id":"posture","question":"Choose the one brand that most reflects the direction you're going for. (3 of 4)","options":[
+      {"id":"tesla","label":"Tesla","nudges":{"contemporary":1,"bold":1,"cool":1,"darkLed":0.5}},
+      {"id":"porsche","label":"Porsche","nudges":{"classic":1,"bold":1,"geometric":1}},
+      {"id":"ford","label":"Ford","nudges":{"classic":1,"serious":1}},
+      {"id":"subaru","label":"Subaru","nudges":{"warm":1,"playful":1,"natural":1}},
+      {"id":"posture-none","label":"None of these","nudges":{}}
+    ]},
+    {"id":"mood","question":"Choose the one brand that most reflects the direction you're going for. (4 of 4)","options":[
+      {"id":"restoration-hardware","label":"Restoration Hardware","nudges":{"classic":1,"quiet":1,"darkLed":1}},
+      {"id":"anthropologie","label":"Anthropologie","nudges":{"warm":1,"hand":1,"playful":1,"soft":1}},
+      {"id":"ikea","label":"Ikea","nudges":{"contemporary":1,"playful":1,"geometric":1,"brightColour":1}},
+      {"id":"ethan-allen","label":"Ethan Allen","nudges":{"classic":1,"warm":1,"quiet":1}},
+      {"id":"mood-none","label":"None of these","nudges":{}}
+    ]},
+    {"id":"place","question":"Where would your clients feel most at home with you?","options":[
+      {"id":"spa","label":"A calm spa","nudges":{"soft":1,"quiet":1,"warm":1}},
+      {"id":"hotel-lobby","label":"A nice hotel lobby","nudges":{"quiet":1,"classic":1,"polished":1}},
+      {"id":"coffee-shop","label":"A coffee shop","nudges":{"warm":1,"playful":1,"casual":1}},
+      {"id":"design-studio","label":"A buzzing design studio","nudges":{"contemporary":1,"bold":1,"playful":1}},
+      {"id":"workshop","label":"A workshop with tools on the wall","nudges":{"strong":1,"hand":1,"serious":1}},
+      {"id":"place-none","label":"None of these","nudges":{}}
+    ]}
+  ],
+  "ignoredNudges": ["natural", "polished", "casual"]
+}

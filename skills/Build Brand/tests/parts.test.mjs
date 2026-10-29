@@ -18,8 +18,10 @@ const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const rgb = hex => hex.slice(1).match(/../g).map(n => parseInt(n, 16));
 
 test('locked paper-orange recipe and drawn graphic set retain their exact content', () => {
-  assert.equal(hash(JSON.stringify(palette('paper-orange'))), '28cc8b687dc826f7514c6081857aa2dff2a104b82e28f51bcbc8a74a003a215b');
-  assert.equal(hash(JSON.stringify(graphic('drawn'))), '3f4b50e46afe24f602a523468a4310d17c315ba33153761793a6d399811f0c13');
+  // Ranking metadata was added; the approved colours and geometry stay exact.
+  const visual = part => { const { tags, softStrongReason, ...unchanged } = part; return unchanged; };
+  assert.equal(hash(JSON.stringify(visual(palette('paper-orange')))), '28cc8b687dc826f7514c6081857aa2dff2a104b82e28f51bcbc8a74a003a215b');
+  assert.equal(hash(JSON.stringify(visual(graphic('drawn')))), '3f4b50e46afe24f602a523468a4310d17c315ba33153761793a6d399811f0c13');
 });
 
 test('white-blue and white-green are visibly tinted white sheets with hue-tinted small print', () => {
@@ -213,4 +215,16 @@ test('parts index documents every current id, the new face, and no stale recipe 
   for(const key of ['palettes','pairings','graphics','containers'])for(const p of library[key])assert.ok(doc.includes(`| ${p.id} |`),p.id);
   assert.ok(doc.includes('| Literata |'));assert.ok(!/\| (?:book|white-emerald|DM Serif Display) \|/.test(doc));
   assert.ok(!/#[a-f\d]{6}\b/i.test(doc));
+});
+
+test('all 49 ranked parts carry six closed positions and a soft-to-strong reason',()=>{
+  const axes={classicContemporary:['classic','contemporary'],quietBold:['quiet','bold'],warmCool:['warm','cool'],playfulSerious:['playful','serious'],handGeometric:['hand','geometric'],softStrong:['soft','strong']};
+  let count=0;
+  for(const kind of ['pairings','palettes','graphics'])for(const p of library[kind]) {
+    count++;
+    for(const [axis,poles]of Object.entries(axes))assert.ok([...poles,'either'].includes(p.tags[axis]),`${kind}/${p.id}/${axis}`);
+    assert.ok(p.softStrongReason.trim());
+  }
+  assert.equal(count,49);assert.equal(pairing('chunky').tags.softStrong,'soft');
+  for(const p of library.palettes)assert.equal(p.tags.warmCool,p.temperature);
 });

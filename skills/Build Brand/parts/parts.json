@@ -1588,7 +1588,8 @@
         "quietBold": "quiet",
         "warmCool": "warm",
         "playfulSerious": "playful",
-        "handGeometric": "hand"
+        "handGeometric": "hand",
+        "softStrong": "soft"
       },
       "type": {
         "heading": {
@@ -1783,7 +1784,8 @@
         "headingDetails": "Trial display size, line height, tracking, width bound, weights and size-specific axes retained; middle size uses the trial's explicit word size or 30px default; small tracking retains the trial's name-lockup setting.",
         "body": "Trial regular reading weight where supplied; 72px specimen, 17px reading sizes and line heights follow the board fixture. The specimen uses bold 700 to show supporting emphasis explicitly; reading uses 400. Normal width and reduced bounce serve reading.",
         "notes": "Trial relative scales retained for existing handwriting families; a 40/26/17px note scale and neutral tracking complete all three settings. Caveat uses that scale without enlargement."
-      }
+      },
+      "softStrongReason": "Gentle serif curves bring a familiar structure into the present. Read from the heading forms; weight alone does not decide softness."
     },
     {
       "id": "newspaper",
@@ -1796,7 +1798,8 @@
         "quietBold": "quiet",
         "warmCool": "either",
         "playfulSerious": "serious",
-        "handGeometric": "either"
+        "handGeometric": "either",
+        "softStrong": "soft"
       },
       "type": {
         "heading": {
@@ -1982,7 +1985,8 @@
         "headingDetails": "Trial display size, line height, tracking, width bound, weights and size-specific axes retained; middle size uses the trial's explicit word size or 30px default; small tracking retains the trial's name-lockup setting.",
         "body": "Trial regular reading weight where supplied; 72px specimen, 17px reading sizes and line heights follow the board fixture. The specimen uses bold 700 to show supporting emphasis explicitly; reading uses 400. Normal width and reduced bounce serve reading.",
         "notes": "Curated note order after review; each family retains its bundled three-size settings."
-      }
+      },
+      "softStrongReason": "A restrained reading serif sits above clear, unassuming supporting type. Read from the heading forms; weight alone does not decide softness."
     },
     {
       "id": "warm-grotesque",
@@ -1995,7 +1999,8 @@
         "quietBold": "either",
         "warmCool": "warm",
         "playfulSerious": "playful",
-        "handGeometric": "hand"
+        "handGeometric": "hand",
+        "softStrong": "soft"
       },
       "type": {
         "heading": {
@@ -2175,7 +2180,8 @@
         "headingDetails": "Trial display size, line height, tracking, width bound, weights and size-specific axes retained; middle size uses the trial's explicit word size or 30px default; small tracking retains the trial's name-lockup setting.",
         "body": "Trial regular reading weight where supplied; 72px specimen, 17px reading sizes and line heights follow the board fixture. The specimen uses bold 700 to show supporting emphasis explicitly; reading uses 400. Normal width and reduced bounce serve reading.",
         "notes": "Trial relative scales retained for existing handwriting families; a 40/26/17px note scale and neutral tracking complete all three settings. Caveat uses that scale without enlargement."
-      }
+      },
+      "softStrongReason": "A single rounded sans balances substance with a trace of the hand. Read from the heading forms; weight alone does not decide softness."
     },
     {
       "id": "friendly-serif",
@@ -2188,7 +2194,8 @@
         "quietBold": "bold",
         "warmCool": "warm",
         "playfulSerious": "either",
-        "handGeometric": "hand"
+        "handGeometric": "hand",
+        "softStrong": "strong"
       },
       "type": {
         "heading": {
@@ -2360,7 +2367,8 @@
         "headingDetails": "Trial display size, line height, tracking, width bound, weights and size-specific axes retained; middle size uses the trial's explicit word size or 30px default; small tracking retains the trial's name-lockup setting.",
         "body": "Trial regular reading weight where supplied; 72px specimen, 17px reading sizes and line heights follow the board fixture. The specimen uses bold 700 to show supporting emphasis explicitly; reading uses 400. Normal width and reduced bounce serve reading.",
         "notes": "Curated note order after review; each family retains its bundled three-size settings."
-      }
+      },
+      "softStrongReason": "Broad old-style letters feel solid, generous and approachable. Read from the heading forms; weight alone does not decide softness."
     },
     {
       "id": "sharp-serif",
@@ -2373,7 +2381,8 @@
         "quietBold": "quiet",
         "warmCool": "cool",
         "playfulSerious": "serious",
-        "handGeometric": "either"
+        "handGeometric": "either",
+        "softStrong": "soft"
       },
       "type": {
         "heading": {
@@ -2545,7 +2554,8 @@
         "headingDetails": "Trial display size, line height, tracking, width bound, weights and size-specific axes retained; middle size uses the trial's explicit word size or 30px default; small tracking retains the trial's name-lockup setting.",
         "body": "Trial regular reading weight where supplied; 72px specimen, 17px reading sizes and line heights follow the board fixture. The specimen uses bold 700 to show supporting emphasis explicitly; reading uses 400. Normal width and reduced bounce serve reading.",
         "notes": "Curated note order after review; each family retains its bundled three-size settings."
-      }
+      },
+      "softStrongReason": "Slender, incisive titles meet compact and practical reading text. Read from the heading forms; weight alone does not decide softness."
     },
     {
       "id": "chunky",
@@ -2558,7 +2568,8 @@
         "quietBold": "bold",
         "warmCool": "warm",
         "playfulSerious": "playful",
-        "handGeometric": "geometric"
+        "handGeometric": "geometric",
+        "softStrong": "soft"
       },
       "type": {
         "heading": {
@@ -2734,7 +2745,8 @@
         "headingDetails": "Trial display size, line height, tracking, width bound, weights and size-specific axes retained; middle size uses the trial's explicit word size or 30px default; small tracking retains the trial's name-lockup setting.",
         "body": "Trial regular reading weight where supplied; 72px specimen, 17px reading sizes and line heights follow the board fixture. The specimen uses bold 700 to show supporting emphasis explicitly; reading uses 400. Normal width and reduced bounce serve reading.",
         "notes": "Trial relative scales retained for existing handwriting families; a 40/26/17px note scale and neutral tracking complete all three settings. Caveat uses that scale without enlargement."
-      }
+      },
+      "softStrongReason": "Dense rounded geometry makes the whole page feel confident and buoyant. Read from the heading forms; weight alone does not decide softness."
     },
     {
       "id": "marker",
@@ -2747,7 +2759,8 @@
         "quietBold": "bold",
         "warmCool": "warm",
         "playfulSerious": "playful",
-        "handGeometric": "hand"
+        "handGeometric": "hand",
+        "softStrong": "soft"
       },
       "type": {
         "heading": {
@@ -2940,7 +2953,8 @@
         "headingDetails": "Trial display size, line height, tracking, width bound, weights and size-specific axes retained; middle size uses the trial's explicit word size or 30px default; small tracking retains the trial's name-lockup setting.",
         "body": "Trial regular reading weight where supplied; 72px specimen, 17px reading sizes and line heights follow the board fixture. The specimen uses bold 700 to show supporting emphasis explicitly; reading uses 400. Normal width and reduced bounce serve reading.",
         "notes": "Curated note order after review; each family retains its bundled three-size settings."
-      }
+      },
+      "softStrongReason": "Bouncing pen strokes carry a loose and openly playful voice. Read from the heading forms; weight alone does not decide softness."
     },
     {
       "id": "poster",
@@ -2953,7 +2967,8 @@
         "quietBold": "bold",
         "warmCool": "either",
         "playfulSerious": "either",
-        "handGeometric": "geometric"
+        "handGeometric": "geometric",
+        "softStrong": "strong"
       },
       "type": {
         "heading": {
@@ -3135,7 +3150,8 @@
         "headingDetails": "Trial display size, line height, tracking, width bound, weights and size-specific axes retained; middle size uses the trial's explicit word size or 30px default; small tracking retains the trial's name-lockup setting.",
         "body": "Trial regular reading weight where supplied; 72px specimen, 17px reading sizes and line heights follow the board fixture. The specimen uses bold 700 to show supporting emphasis explicitly; reading uses 400. Normal width and reduced bounce serve reading.",
         "notes": "Trial relative scales retained for existing handwriting families; a 40/26/17px note scale and neutral tracking complete all three settings. Caveat uses that scale without enlargement."
-      }
+      },
+      "softStrongReason": "An expanded heavy headline gives way to measured book proportions. Read from the heading forms; weight alone does not decide softness."
     },
     {
       "id": "condensed",
@@ -3148,7 +3164,8 @@
         "quietBold": "bold",
         "warmCool": "cool",
         "playfulSerious": "serious",
-        "handGeometric": "geometric"
+        "handGeometric": "geometric",
+        "softStrong": "strong"
       },
       "type": {
         "heading": {
@@ -3333,7 +3350,8 @@
         "headingDetails": "Trial display size, line height, tracking, width bound, weights and size-specific axes retained; middle size uses the trial's explicit word size or 30px default; small tracking retains the trial's name-lockup setting.",
         "body": "Trial regular reading weight where supplied; 72px specimen, 17px reading sizes and line heights follow the board fixture. The specimen uses bold 700 to show supporting emphasis explicitly; reading uses 400. Normal width and reduced bounce serve reading.",
         "notes": "Trial relative scales retained for existing handwriting families; a 40/26/17px note scale and neutral tracking complete all three settings. Caveat uses that scale without enlargement."
-      }
+      },
+      "softStrongReason": "Compressed upright titles bring a firm industrial pace to plain supporting text. Read from the heading forms; weight alone does not decide softness."
     },
     {
       "id": "humanist",
@@ -3346,7 +3364,8 @@
         "quietBold": "quiet",
         "warmCool": "warm",
         "playfulSerious": "either",
-        "handGeometric": "hand"
+        "handGeometric": "hand",
+        "softStrong": "soft"
       },
       "type": {
         "heading": {
@@ -3525,7 +3544,8 @@
         "headingDetails": "Trial display size, line height, tracking, width bound, weights and size-specific axes retained; middle size uses the trial's explicit word size or 30px default; small tracking retains the trial's name-lockup setting.",
         "body": "Trial regular reading weight where supplied; 72px specimen, 17px reading sizes and line heights follow the board fixture. The specimen uses bold 700 to show supporting emphasis explicitly; reading uses 400. Normal width and reduced bounce serve reading.",
         "notes": "Curated note order after review; each family retains its bundled three-size settings."
-      }
+      },
+      "softStrongReason": "Related written proportions give serif titles and sans paragraphs a shared warmth. Read from the heading forms; weight alone does not decide softness."
     },
     {
       "id": "high-contrast",
@@ -3538,7 +3558,8 @@
         "quietBold": "either",
         "warmCool": "cool",
         "playfulSerious": "serious",
-        "handGeometric": "geometric"
+        "handGeometric": "geometric",
+        "softStrong": "soft"
       },
       "type": {
         "heading": {
@@ -3710,7 +3731,8 @@
         "headingDetails": "Trial display size, line height, tracking, width bound, weights and size-specific axes retained; middle size uses the trial's explicit word size or 30px default; small tracking retains the trial's name-lockup setting.",
         "body": "Trial regular reading weight where supplied; 72px specimen, 17px reading sizes and line heights follow the board fixture. The specimen uses bold 700 to show supporting emphasis explicitly; reading uses 400. Normal width and reduced bounce serve reading.",
         "notes": "Curated note order after review; each family retains its bundled three-size settings."
-      }
+      },
+      "softStrongReason": "Sculptural thick and thin strokes stand above clean, balanced reading text. Read from the heading forms; weight alone does not decide softness."
     },
     {
       "id": "expressive",
@@ -3723,7 +3745,8 @@
         "quietBold": "bold",
         "warmCool": "either",
         "playfulSerious": "playful",
-        "handGeometric": "geometric"
+        "handGeometric": "geometric",
+        "softStrong": "strong"
       },
       "type": {
         "heading": {
@@ -3905,7 +3928,8 @@
         "headingDetails": "Trial display size, line height, tracking, width bound, weights and size-specific axes retained; middle size uses the trial's explicit word size or 30px default; small tracking retains the trial's name-lockup setting.",
         "body": "Trial regular reading weight where supplied; 72px specimen, 17px reading sizes and line heights follow the board fixture. The specimen uses bold 700 to show supporting emphasis explicitly; reading uses 400. Normal width and reduced bounce serve reading.",
         "notes": "Curated note order after review; each family retains its bundled three-size settings."
-      }
+      },
+      "softStrongReason": "Wide, forceful titles create energy while an even sans steadies the page. Read from the heading forms; weight alone does not decide softness."
     },
     {
       "id": "lively",
@@ -3918,7 +3942,8 @@
         "quietBold": "bold",
         "warmCool": "warm",
         "playfulSerious": "playful",
-        "handGeometric": "either"
+        "handGeometric": "either",
+        "softStrong": "either"
       },
       "type": {
         "heading": {
@@ -4107,7 +4132,8 @@
         "headingDetails": "Chosen at the trial's large display scale, with optical size and weight adjusted to the family's forms.",
         "body": "Trial regular reading weight where supplied; 72px specimen, 17px reading sizes and line heights follow the board fixture. The specimen uses bold 700 to show supporting emphasis explicitly; reading uses 400. Normal width and reduced bounce serve reading.",
         "notes": "Trial relative scales retained for existing handwriting families; a 40/26/17px note scale and neutral tracking complete all three settings. Caveat uses that scale without enlargement."
-      }
+      },
+      "softStrongReason": "Small irregularities give a substantial contemporary sans a lively point of view. Read from the heading forms; weight alone does not decide softness."
     },
     {
       "id": "quiet-sans",
@@ -4120,7 +4146,8 @@
         "quietBold": "quiet",
         "warmCool": "either",
         "playfulSerious": "serious",
-        "handGeometric": "either"
+        "handGeometric": "either",
+        "softStrong": "soft"
       },
       "type": {
         "heading": {
@@ -4306,7 +4333,8 @@
         "headingDetails": "Curated quiet sans: Work Sans light 350 display, regular middle and modest small emphasis.",
         "body": "Source Serif 4 uses reading optical sizes 16 and 14, regular 400 reading weight and a 650 specimen.",
         "notes": "Covered By Your Grace is the default; bundled note size settings retained."
-      }
+      },
+      "softStrongReason": "Light, open sans titles leave sustained reading to a warm text serif. Read from the heading forms; weight alone does not decide softness."
     },
     {
       "id": "display-serif",
@@ -4319,7 +4347,8 @@
         "quietBold": "either",
         "warmCool": "warm",
         "playfulSerious": "serious",
-        "handGeometric": "hand"
+        "handGeometric": "hand",
+        "softStrong": "soft"
       },
       "type": {
         "heading": {
@@ -4511,7 +4540,8 @@
         "headingDetails": "Literata at reading optical sizes 12 and 14, with sturdy moderate weights, replaces the sharper display serif.",
         "body": "Trial regular reading weight where supplied; 72px specimen, 17px reading sizes and line heights follow the board fixture. The specimen uses bold 700 to show supporting emphasis explicitly; reading uses 400. Normal width and reduced bounce serve reading.",
         "notes": "Trial relative scales retained for existing handwriting families; a 40/26/17px note scale and neutral tracking complete all three settings. Caveat uses that scale without enlargement."
-      }
+      },
+      "softStrongReason": "Warm text-serif proportions and a rounded sans make a generous reading page. Read from the heading forms; weight alone does not decide softness."
     },
     {
       "id": "slab",
@@ -4524,7 +4554,8 @@
         "quietBold": "bold",
         "warmCool": "either",
         "playfulSerious": "serious",
-        "handGeometric": "geometric"
+        "handGeometric": "geometric",
+        "softStrong": "strong"
       },
       "type": {
         "heading": {
@@ -4699,7 +4730,8 @@
         "headingDetails": "Chosen at the trial's large display scale, with optical size and weight adjusted to the family's forms.",
         "body": "Trial regular reading weight where supplied; 72px specimen, 17px reading sizes and line heights follow the board fixture. The specimen uses bold 700 to show supporting emphasis explicitly; reading uses 400. Normal width and reduced bounce serve reading.",
         "notes": "Trial relative scales retained for existing handwriting families; a 40/26/17px note scale and neutral tracking complete all three settings. Caveat uses that scale without enlargement."
-      }
+      },
+      "softStrongReason": "Block-like titles pair with precise reading text for a sturdy, practical voice. Read from the heading forms; weight alone does not decide softness."
     }
   ],
   "palettes": [
@@ -4917,7 +4949,16 @@
           "toValue": "#C0B5A9",
           "reason": "Minimum ink adjustment for text on its surface and over the bundled pattern."
         }
-      ]
+      ],
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "warm",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "soft"
+      },
+      "softStrongReason": "Soft paper and brown fields soften the crisp orange gesture."
     },
     {
       "id": "draft-paper",
@@ -5043,7 +5084,16 @@
           "toValue": "#D6CFC6",
           "reason": "Stay readable over the drafting set's denser dark grid, raised so the grid shows at a glance (the Creative Director's Review, round 2)."
         }
-      ]
+      ],
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "warm",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "soft"
+      },
+      "softStrongReason": "A pale mineral sheet keeps yellow a small working signal."
     },
     {
       "id": "plaster-red",
@@ -5142,7 +5192,16 @@
           "toValue": "#C02738",
           "reason": "Minimum surface adjustment to retain readable card text over its texture."
         }
-      ]
+      ],
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "warm",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "soft"
+      },
+      "softStrongReason": "Pink plaster gives rounded lettering grounded warmth."
     },
     {
       "id": "tan-blue",
@@ -5250,7 +5309,16 @@
           "toValue": "#9CAEFF",
           "reason": "Minimum lightness adjustment for button text at WCAG 4.5 and APCA Lc 60."
         }
-      ]
+      ],
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "warm",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "strong"
+      },
+      "softStrongReason": "Dark brown text and a firm blue stroke give the tan page structure."
     },
     {
       "id": "white-blue",
@@ -5435,7 +5503,16 @@
           "toValue": "#3B4775",
           "reason": "Give the white sheet an honest blue tint and its supporting words blue ink."
         }
-      ]
+      ],
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "cool",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "strong"
+      },
+      "softStrongReason": "Ultramarine takes the largest colour field on blue-tinted white."
     },
     {
       "id": "gold-pink",
@@ -5537,7 +5614,16 @@
           "toValue": "#FF5585",
           "reason": "Minimum surface adjustment to retain readable card text over its texture."
         }
-      ]
+      ],
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "warm",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "strong"
+      },
+      "softStrongReason": "Golden yellow, deep plum and saturated pink share broad colour fields."
     },
     {
       "id": "red-sky",
@@ -5669,7 +5755,16 @@
           "toValue": "#FF9A83",
           "reason": "Minimum lightness adjustment for button text at WCAG 4.5 and APCA Lc 60."
         }
-      ]
+      ],
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "warm",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "strong"
+      },
+      "softStrongReason": "A tomato field and navy lettering make a firm colour statement."
     },
     {
       "id": "print-pink",
@@ -5816,7 +5911,16 @@
           "toValue": "#D7C075",
           "reason": "Use the muted yellow mark on the card back as well as the page."
         }
-      ]
+      ],
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "cool",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "either"
+      },
+      "softStrongReason": "Pink ink and a pale yellow sheet balance the blue lettering."
     },
     {
       "id": "white-green",
@@ -6018,7 +6122,16 @@
           "toValue": "#355D46",
           "reason": "Give the white sheet an honest green tint and its supporting words green ink."
         }
-      ]
+      ],
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "cool",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "strong"
+      },
+      "softStrongReason": "Upright dark lettering meets a large fresh green field."
     },
     {
       "id": "olive-paper",
@@ -6261,7 +6374,16 @@
           "toValue": "#ECEDE2",
           "reason": "Keep supporting words readable under the stronger visible dark patterns, or the new mid-olive light field."
         }
-      ]
+      ],
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "warm",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "soft"
+      },
+      "softStrongReason": "Cream words and a small golden signal soften the mid-olive field."
     },
     {
       "id": "plum-peach",
@@ -6441,7 +6563,16 @@
           "toValue": "#2D1B2A",
           "reason": "Draw in the plum ink: the peach sank into the plum-tinted sheet at about 1.4 to 1 (the Creative Director's Review, round 2)."
         }
-      ]
+      ],
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "warm",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "soft"
+      },
+      "softStrongReason": "The muted plum room carries a soft peach signal."
     },
     {
       "id": "navy-gold",
@@ -6524,7 +6655,16 @@
           "key": "smallPrint"
         }
       ],
-      "adjustments": []
+      "adjustments": [],
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "cool",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "strong"
+      },
+      "softStrongReason": "Deep navy and warm yellow give heavy lettering a clear night setting."
     },
     {
       "id": "stone-cobalt",
@@ -6601,7 +6741,16 @@
           "key": "pop"
         }
       ],
-      "adjustments": []
+      "adjustments": [],
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "cool",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "soft"
+      },
+      "softStrongReason": "Cool stone and blue ink keep the page quiet and precise."
     },
     {
       "id": "sage-brass",
@@ -6678,7 +6827,16 @@
           "key": "pop"
         }
       ],
-      "adjustments": []
+      "adjustments": [],
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "warm",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "soft"
+      },
+      "softStrongReason": "Pale sage and a brass stroke make a calm natural sheet."
     },
     {
       "id": "white-oxblood",
@@ -7116,7 +7274,16 @@
           "toValue": "#59212E",
           "reason": "Carry oxblood into a deep warm-red alternate mode with muted rose details."
         }
-      ]
+      ],
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "warm",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "strong"
+      },
+      "softStrongReason": "One deep oxblood red takes a large confident field."
     },
     {
       "id": "white-vermilion",
@@ -7212,7 +7379,16 @@
           "toValue": "#EDD3C7",
           "reason": "Retain readable supporting words over the visible dark pattern."
         }
-      ]
+      ],
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "warm",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "strong"
+      },
+      "softStrongReason": "The deep red-orange field makes a direct statement."
     },
     {
       "id": "lime-teal",
@@ -7308,7 +7484,16 @@
           "toValue": "#DDEACA",
           "reason": "Minimum ink adjustment for text on its surface and over the bundled pattern."
         }
-      ]
+      ],
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "cool",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "strong"
+      },
+      "softStrongReason": "Clear lime and blue-black words feel sharp and open."
     },
     {
       "id": "citrus-blue",
@@ -7395,7 +7580,16 @@
           "toValue": "#15356B",
           "reason": "Draw in the reading blue so marks stand clearly on the orange field."
         }
-      ]
+      ],
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "warm",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "strong"
+      },
+      "softStrongReason": "Orange and yellow fields meet firm blue lettering."
     },
     {
       "id": "cobalt-yellow",
@@ -7472,7 +7666,16 @@
           "key": "pop"
         }
       ],
-      "adjustments": []
+      "adjustments": [],
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "cool",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "strong"
+      },
+      "softStrongReason": "Cobalt carries pale lettering with a clear yellow accent."
     },
     {
       "id": "forest-coral",
@@ -7549,7 +7752,16 @@
           "key": "pop"
         }
       ],
-      "adjustments": []
+      "adjustments": [],
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "warm",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "soft"
+      },
+      "softStrongReason": "Cream words and a soft coral stroke temper the forest field."
     },
     {
       "id": "ink-amber",
@@ -7626,7 +7838,16 @@
           "key": "pop"
         }
       ],
-      "adjustments": []
+      "adjustments": [],
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "warm",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "either"
+      },
+      "softStrongReason": "Brown-black ink puts pale words first while muted amber tempers it."
     },
     {
       "id": "navy-coral",
@@ -7722,7 +7943,16 @@
           "toValue": "#F7F4F0",
           "reason": "Keep supporting words readable under the stronger visible dark patterns, or the new mid-olive light field."
         }
-      ]
+      ],
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "cool",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "soft"
+      },
+      "softStrongReason": "Smoky navy and soft coral soften the dark field."
     },
     {
       "id": "rose-ink",
@@ -8142,7 +8372,16 @@
           "toValue": "#602B47",
           "reason": "New recipe: explicit initial role value, checked in both modes."
         }
-      ]
+      ],
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "warm",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "soft"
+      },
+      "softStrongReason": "Pale rose inset spaces soften the full rose and burgundy field."
     },
     {
       "id": "yellow-ink",
@@ -8562,7 +8801,16 @@
           "toValue": "#534626",
           "reason": "New recipe: explicit initial role value, checked in both modes."
         }
-      ]
+      ],
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "warm",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "strong"
+      },
+      "softStrongReason": "Broad yellow and brown-black letters give practical force."
     },
     {
       "id": "green-black",
@@ -8982,7 +9230,16 @@
           "toValue": "#213A2E",
           "reason": "New recipe: explicit initial role value, checked in both modes."
         }
-      ]
+      ],
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "cool",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "soft"
+      },
+      "softStrongReason": "Soft chalk words and a muted sage signal soften green-black."
     }
   ],
   "containers": [
@@ -9105,7 +9362,16 @@
           "light": 0.13,
           "dark": 0.22
         }
-      }
+      },
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "either",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "soft"
+      },
+      "softStrongReason": "Loose pen strokes soften the turned graph paper."
     },
     {
       "id": "drafting",
@@ -9165,7 +9431,16 @@
           "light": 0.13,
           "dark": 0.2
         }
-      }
+      },
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "either",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "either"
+      },
+      "softStrongReason": "Fine measured rules and centre marks balance precision and lightness."
     },
     {
       "id": "marker",
@@ -9226,7 +9501,16 @@
           "light": 0.13,
           "dark": 0.26
         }
-      }
+      },
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "either",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "strong"
+      },
+      "softStrongReason": "Broad loops, blunt ticks and thick strokes give the hand force."
     },
     {
       "id": "riso",
@@ -9281,7 +9565,16 @@
           "light": 0.13,
           "dark": 0.25
         }
-      }
+      },
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "either",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "either"
+      },
+      "softStrongReason": "Shifted dots and double impressions give rhythm without a fixed weight."
     },
     {
       "id": "geometric",
@@ -9336,7 +9629,16 @@
           "light": 0.13,
           "dark": 0.2
         }
-      }
+      },
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "either",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "strong"
+      },
+      "softStrongReason": "Solid bars, circles and half-circles make a firm modular rhythm."
     },
     {
       "id": "editorial",
@@ -9396,7 +9698,16 @@
           "light": 0.13,
           "dark": 0.24
         }
-      }
+      },
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "either",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "soft"
+      },
+      "softStrongReason": "Fine rules and paragraph signs organise a restrained reading page."
     },
     {
       "id": "stitch",
@@ -9451,7 +9762,16 @@
           "light": 0.13,
           "dark": 0.25
         }
-      }
+      },
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "either",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "soft"
+      },
+      "softStrongReason": "Dashed seams and generous cross-stitches join the page with care."
     },
     {
       "id": "stamp",
@@ -9511,7 +9831,16 @@
           "light": 0.13,
           "dark": 0.26
         }
-      }
+      },
+      "tags": {
+        "classicContemporary": "either",
+        "quietBold": "either",
+        "warmCool": "either",
+        "playfulSerious": "either",
+        "handGeometric": "either",
+        "softStrong": "strong"
+      },
+      "softStrongReason": "Rough-edged seals and inked rings leave a firm impression."
     }
   ]
 }
