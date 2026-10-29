@@ -9,34 +9,49 @@ import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 
 const TOOL = realpathSync(fileURLToPath(new URL('..', import.meta.url)));
-const HELP = `Speech Preparation 0.1.0
+const HELP = `Speech Preparation 0.2.0
 Usage (from this tool directory):
   node scripts/speech.js help
-  node scripts/speech.js text --script /absolute/script.txt --route elevenlabs|chatterbox --output /absolute/prepared.json [--route-text /absolute/route.txt] [--words /absolute/words.json]
+  node scripts/speech.js text --script /absolute/script.txt --route elevenlabs|chatterbox|heygen --output /absolute/prepared.json [--route-text /absolute/route.txt] [--words /absolute/words.json]
   node scripts/speech.js character-timings --prepared /absolute/prepared.json --alignment /absolute/alignment.json --output /absolute/timings.json
   node scripts/speech.js pcm --input /absolute/source.wav|source.mp3 --output /absolute/prepared.wav [--descriptor /absolute/pcm.json]
+  node scripts/speech.js upload --input /absolute/source.wav --sha256 HEX --max-bytes INTEGER --recipe mp3|wav --output /absolute/new-bundle --lead SECONDS --tail SECONDS
+  node scripts/speech.js upload --input /absolute/source.wav --sha256 HEX --max-bytes INTEGER --recipe mp3|wav --output /absolute/new-bundle --start SECONDS --end SECONDS --pre-guard SECONDS --post-guard SECONDS
 Options are command-specific; each takes one value and occurs at most once.
   --script       Exact UTF-8 script; only [pause] and paired <emphasis> marks.
-  --route        elevenlabs (eleven_v4) or chatterbox (English alignment).
-  --output       New JSON file for text/timings, new WAV for pcm.
+  --route        elevenlabs (eleven_v4), chatterbox (English alignment), heygen (instant voice).
+  --output       New JSON file for text/timings, new WAV for pcm, new directory for upload.
   --route-text   Optional new file containing exactly the submitted UTF-8 text.
   --words        Optional new JSON array of original script tokens.
   --prepared     Exact text operation result, including word correspondence.
-  --alignment    Original ElevenLabs alignment object, not normalized alignment.
+  --alignment    Original ElevenLabs alignment or HeyGen original_characters object;
+                 never normalized alignment.
   --input        Existing local PCM WAV or MP3, with no other media streams.
   --descriptor   Optional new JSON file containing pcm's returned descriptor.
+  --sha256       upload: expected SHA-256 of the complete 16-bit PCM WAV source.
+  --max-bytes    upload: inclusive positive complete-file byte ceiling.
+  --recipe       upload: mp3 (libmp3lame CBR 64k, mono) or wav (PCM16, original channels).
+  --lead, --tail upload: required inserted silence for the whole source.
+  --start, --end upload: required half-open source span, with --pre-guard and --post-guard silence.
+  --pre-guard, --post-guard  upload: required inserted silence, never neighbouring samples.
+                 Seconds are nonnegative decimals or integer fractions; nearest sample,
+                 ties upward, using exact rational arithmetic. No padding defaults.
   --help, -h     Usage without dependencies or configuration; valid on every command.
 All paths must be absolute. Output parents must already exist. Nothing installs;
 no credentials, configuration, network, stdin, resampling or level adjustment.
-Only pcm needs FFmpeg and ffprobe. Unknown delay returns usable:false and no WAV.
-Existing destinations are refused. A failed/interrupted write can leave its new
-files incomplete: retain them for inspection and choose fresh paths to retry.
+Only pcm and upload need FFmpeg and ffprobe; only upload --recipe mp3 needs libmp3lame.
+pcm unknown delay returns usable:false and no WAV. upload checks decoded clock and
+complete bytes before publishing upload.mp3|wav, padded.wav, receipt.json and complete.json.
+Its staging sibling is removed on ordinary failure; a kill can leave incomplete staging.
+Existing destinations are refused. A text/timings/pcm failed or interrupted write
+can leave new files incomplete: retain them and choose fresh paths to retry.
 `;
 const FLAGS = {
   help: [],
   text: ['--script', '--route', '--output', '--route-text', '--words'],
   'character-timings': ['--prepared', '--alignment', '--output'],
-  pcm: ['--input', '--output', '--descriptor']
+  pcm: ['--input', '--output', '--descriptor'],
+  upload: ['--input', '--output', '--sha256', '--max-bytes', '--recipe', '--lead', '--tail', '--start', '--end', '--pre-guard', '--post-guard']
 };
 function refuse(message) { throw new Error(message); }
 const hash = value => createHash('sha256').update(value).digest('hex');
@@ -59,7 +74,8 @@ function parse(argv) {
   }
   if (help) return { command: 'help', opts };
   for (const flag of { text: ['--script', '--route', '--output'],
-    'character-timings': ['--prepared', '--alignment', '--output'], pcm: ['--input', '--output'] }[command]) {
+    'character-timings': ['--prepared', '--alignment', '--output'], pcm: ['--input', '--output'],
+    upload: ['--input', '--output', '--sha256', '--max-bytes', '--recipe'] }[command]) {
     if (!opts[flag]) refuse(`${flag} is required; run node scripts/speech.js help.`);
   }
   return { command, opts };
@@ -96,7 +112,7 @@ function inside(path, directory) {
 function protectedName(path) {
   return path.split(/[\\/]/).some(p => /^(?:memory|\.env(?:\..*)?|auth-provider\.env)$/i.test(p));
 }
-function screen(raw, output = false, label = output ? '--output' : '--input') {
+export function screen(raw, output = false, label = output ? '--output' : '--input') {
   try {
     if (protectedName(raw)) refuse('Protected path; choose a work file outside credential and memory paths.');
     const path = canonical(raw);
@@ -220,7 +236,7 @@ function preflightEnglish(tokens) {
   }
 }
 export function prepareText(script, route) {
-  if (!['elevenlabs', 'chatterbox'].includes(route)) refuse('Unsupported route; choose elevenlabs or chatterbox.');
+  if (!['elevenlabs', 'chatterbox', 'heygen'].includes(route)) refuse('Unsupported route; choose elevenlabs, chatterbox or heygen.');
   const parsed = parseScript(script);
   const tokens = parsed.tokens.map(t => t.text);
   if (route === 'chatterbox') preflightEnglish(tokens);
@@ -245,14 +261,28 @@ export function prepareText(script, route) {
 }
 
 export function characterTimings(prepared, alignment) {
-  if (!prepared || prepared.route !== 'elevenlabs') refuse('Character timings require elevenlabs preparation; supply its exact text result.');
+  if (!prepared || !['elevenlabs', 'heygen'].includes(prepared.route)) refuse('Character timings require elevenlabs or heygen preparation; supply its exact text result.');
   const expected = prepareText(prepared.script?.text, prepared.route);
   if (!isDeepStrictEqual(expected, prepared)) refuse('Prepared text or correspondence differs from its script; regenerate with text.');
-  if (!alignment || typeof alignment !== 'object' || Array.isArray(alignment) ||
+  let chars, starts, ends;
+  if (prepared.route === 'heygen') {
+    if (!alignment || typeof alignment !== 'object' || Array.isArray(alignment) ||
+        !isDeepStrictEqual(Object.keys(alignment), ['original_characters']) ||
+        !Array.isArray(alignment.original_characters) || alignment.original_characters.some(c =>
+          !c || typeof c !== 'object' || Array.isArray(c) ||
+          !isDeepStrictEqual(Object.keys(c).sort(), ['end_time', 'start_time', 'text']))) {
+      refuse('Alignment must be an original_characters object with text, start_time and end_time on each character.');
+    }
+    chars = alignment.original_characters.map(c => c.text);
+    starts = alignment.original_characters.map(c => c.start_time);
+    ends = alignment.original_characters.map(c => c.end_time);
+  } else {
+    if (!alignment || typeof alignment !== 'object' || Array.isArray(alignment) ||
       !isDeepStrictEqual(Object.keys(alignment).sort(), ['characters', 'character_start_times_seconds', 'character_end_times_seconds'].sort())) {
-    refuse('Alignment must be the original object with its three character arrays.');
+      refuse('Alignment must be the original object with its three character arrays.');
+    }
+    ({ characters: chars, character_start_times_seconds: starts, character_end_times_seconds: ends } = alignment);
   }
-  const { characters: chars, character_start_times_seconds: starts, character_end_times_seconds: ends } = alignment;
   const sent = points(prepared.submitted.text);
   if (![chars, starts, ends].every(Array.isArray) || !chars.length || chars.length !== starts.length || chars.length !== ends.length ||
       chars.length !== sent.length || chars.some((c, i) => c !== sent[i])) {
@@ -268,7 +298,7 @@ export function characterTimings(prepared, alignment) {
 }
 
 // Hash the source in bounded chunks; retain only the five-byte signature tail.
-function measure(path) {
+export function measure(path) {
   const digest = createHash('sha256'), buffer = Buffer.alloc(1024 * 1024);
   const fd = openSync(path, 'r');
   let bytes = 0, tail = Buffer.alloc(0), lame = false;
@@ -284,12 +314,12 @@ function measure(path) {
   } finally { closeSync(fd); }
   return { identity: { bytes, sha256: digest.digest('hex') }, lame };
 }
-function run(program, args, quiet = false) {
+export function run(program, args, quiet = false) {
   const r = spawnSync(program, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 8 * 1024 * 1024 });
   if (r.error || r.status !== 0 || r.stderr || quiet && r.stdout) refuse(`${program} did not complete silently; inspect the new output if present and retry to a fresh path after checking the source and machine dependency.`);
   return r.stdout;
 }
-function dependencies() {
+export function dependencies() {
   for (const program of ['ffmpeg', 'ffprobe']) {
     const r = spawnSync(program, ['-version'], { stdio: 'ignore' });
     if (r.error || r.status !== 0) refuse(`Missing ${program}; check: ${program} -version. See TOOL.md Dependencies.`);
@@ -352,7 +382,7 @@ export function pcm(input, output) {
     source: { path: input, before: before.identity, after } };
 }
 
-export function main(argv = process.argv.slice(2)) {
+export async function main(argv = process.argv.slice(2)) {
   const { command, opts: o } = parse([...argv]);
   if (command === 'help') { process.stdout.write(HELP); return; }
   let result;
@@ -368,6 +398,9 @@ export function main(argv = process.argv.slice(2)) {
     const timings = characterTimings(readJSON(prepared), readJSON(alignment));
     writeNew(output, json(timings));
     result = { ok: true, output, words: timings.length, timings };
+  } else if (command === 'upload') {
+    const { upload } = await import('./upload.js');
+    result = upload(o);
   } else {
     const input = screen(o['--input']);
     const paths = destinations([o['--output'], ...(o['--descriptor'] ? [o['--descriptor']] : [])]);
@@ -377,10 +410,9 @@ export function main(argv = process.argv.slice(2)) {
   process.stdout.write(JSON.stringify(result) + '\n');
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  try { main(); }
-  catch (error) {
+  main().catch(error => {
     // Filesystem/decoder diagnostics never echo input bytes or raw program logs.
     const message = error.code ? `Filesystem failure (${error.code}); check the named paths, permissions and available space; use fresh destinations.` : error.message;
     process.stderr.write(`Speech Preparation: ${message}\n`); process.exitCode = 1;
-  }
+  });
 }

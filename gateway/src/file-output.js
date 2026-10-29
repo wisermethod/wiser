@@ -7,7 +7,7 @@ import { basename, join } from 'node:path';
 import { STATUS, isStatusObject, statusObject } from './errors.js';
 
 /** The closed table shared by manifest validation, naming and cleanup. */
-export const OUTPUT_EXTENSIONS = Object.freeze({ 'audio/mpeg': 'mp3' });
+export const OUTPUT_EXTENSIONS = Object.freeze({ 'audio/mpeg': 'mp3', 'audio/wav': 'wav', 'video/mp4': 'mp4' });
 
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}';
 const CORRELATION_ID = new RegExp(`^${UUID}$`);

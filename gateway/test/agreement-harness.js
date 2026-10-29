@@ -56,6 +56,8 @@
  * - **`youtube videos.upload`, `youtube videos.set_thumbnail` and `youtube captions.insert`
  *   `path` are filesystem-state rows of the same permanent class**, added 2026-10-21 with
  *   their actions. Each needs a readable regular file with its closed media extension.
+ * - **`heygen voices.add` and `heygen assets.upload_audio` use a complete generated MPEG frame at a physical temporary path.**
+ *   SAMPLE_STATE supplies it before direction A, without accepting a schema divergence.
  * - **`elevenlabs voices.add` needs a readable regular MP3.** Its schema-valid sample
  *   uses a per-run physical file, as the YouTube fixtures do. Filesystem preconditions
  *   remain outside this comparison; schema checks and all constraint mutations still run.
@@ -77,6 +79,8 @@ import assert from 'node:assert/strict';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { validateInput } from '../src/input-schema.js';
+import { measureFakeProxyBody } from './fake-provider.js';
+import { buildContext } from '../src/context.js';
 
 const CONNECTORS = fileURLToPath(new URL('../../connectors', import.meta.url));
 
@@ -99,6 +103,8 @@ const PATTERN_OK = {
   '^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$': 'proof-worker',
   '^[a-z0-9](?:[a-z0-9-]{0,40}[a-z0-9])?$': 'wiser-crm',
   '^(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})$': '1.0.0',
+  '^[A-Za-z0-9-]{8,64}$': 'invented-key-123',
+  '^#[0-9A-Fa-f]{6}$': '#01aBcF',
   '^UC[A-Za-z0-9_-]{22}$': 'UCabcdefghijklmnopqrstuv',
   '^[A-Za-z0-9_-]{11}$': 'abcdefghijk',
   '^[A-Za-z0-9_-]{2,64}$': 'PLexample123',
@@ -210,6 +216,7 @@ let FIXTURE_YOUTUBE_VIDEO = '';
 let FIXTURE_YOUTUBE_THUMBNAIL = '';
 let FIXTURE_YOUTUBE_CAPTION = '';
 let FIXTURE_ELEVENLABS_AUDIO = '';
+let FIXTURE_HEYGEN_AUDIO = '';
 let FIXTURE_FILE = '';
 let FIXTURE_DIST = '';
 let FIXTURE_MIGRATION = '';
@@ -240,6 +247,8 @@ const FIXTURES = {
 // State needed to sample a new action, not an accepted divergence. Legacy FIXTURES
 // above are applied after direction A so their existing baseline stays measurable.
 const SAMPLE_STATE = {
+  'heygen:voices.add': () => ({ path: FIXTURE_HEYGEN_AUDIO }),
+  'heygen:assets.upload_audio': () => ({ path: FIXTURE_HEYGEN_AUDIO }),
   'elevenlabs:voices.add': () => ({ path: FIXTURE_ELEVENLABS_AUDIO }),
 };
 
@@ -470,17 +479,27 @@ function withGatewayValidation(schema, run) {
 
 const REACHED = Symbol('reached-vendor');
 
-function makeCtx(service, module, action, input) {
+export function makeCtx(service, module, action, input, declaration = {}) {
   let reached = false;
   const reach = () => { reached = true; const e = new Error('reached vendor'); e[REACHED] = true; throw e; };
-  return {
-    ctx: { service, module, action, input, confirm: true, proxy: reach, http: reach, fetchRelease: reach, catalog: reach, audit() {} },
-    reached: () => reached,
-  };
+  const ctx = buildContext({
+    service, module, action, input, confirm: true,
+    record: { provider_account_id: 'agreement-account' },
+    auth: { provider: 'catalog' },
+    authProvider: { measureProxyBody: measureFakeProxyBody, proxy: reach },
+    catalogProvider: { execute: reach },
+    proxyBodyMaxBytes: declaration.proxy_body_max_bytes,
+  });
+  // These probes observe only the first transport, never a real download or
+  // authenticated request. Measurement above stays pure and is not a reach.
+  ctx.http = reach;
+  ctx.fetchRelease = reach;
+  if (declaration.download_media && declaration.output_file) ctx.downloadMedia = reach;
+  return { ctx, reached: () => reached };
 }
 
-export async function call(fn, input, service, module, action) {
-  const probe = makeCtx(service, module, action, input);
+export async function call(fn, input, service, module, action, declaration) {
+  const probe = makeCtx(service, module, action, input, declaration);
   try {
     const res = await fn(input, probe.ctx);
     // Modules may sanitize a caught transport error. The observed call, rather than
@@ -521,6 +540,10 @@ export async function collectDivergences() {
   writeFileSync(FIXTURE_YOUTUBE_THUMBNAIL, 'invented thumbnail fixture');
   FIXTURE_YOUTUBE_CAPTION = join(realScratch, 'youtube-caption.srt');
   writeFileSync(FIXTURE_YOUTUBE_CAPTION, '1\n00:00:00,000 --> 00:00:01,000\nInvented caption\n');
+  FIXTURE_HEYGEN_AUDIO = join(realScratch, 'heygen-audio.mp3');
+  const heygenFrame = Buffer.alloc(417);
+  heygenFrame.set([0xff, 0xfb, 0x90, 0]);
+  writeFileSync(FIXTURE_HEYGEN_AUDIO, heygenFrame);
   FIXTURE_ELEVENLABS_AUDIO = join(realScratch, 'elevenlabs-audio.mp3');
   writeFileSync(FIXTURE_ELEVENLABS_AUDIO, 'invented audio fixture');
   FIXTURE_MIGRATION = join(realScratch, 'migration.sql');
@@ -576,7 +599,7 @@ async function collect() {
         if (bad) { errors.push(`${where}: sample fails its own schema: ${bad}`); continue; }
 
         // A. measured before legacy fixture overrides: the module refuses what its schema permits.
-        const plain = await call(fn, base, manifest.service, mod, act);
+        const plain = await call(fn, base, manifest.service, mod, act, ad);
         if (plain.kind === 'refused') found.add(`A ${where} ${plain.field}`);
 
         const entry = FIXTURES[`${name}:${mod}.${act}`];
@@ -586,13 +609,13 @@ async function collect() {
           const bad2 = schemaViolation(schema, base);
           if (bad2) { errors.push(`${where}: fixture fails the schema: ${bad2}`); continue; }
         }
-        const accepted = fixture ? await call(fn, base, manifest.service, mod, act) : plain;
+        const accepted = fixture ? await call(fn, base, manifest.service, mod, act, ad) : plain;
         // Every direction below needs a baseline the module accepts; without one a refusal
         // after a mutation may be the baseline's own refusal repeated.
         if (accepted.kind !== 'reached') { found.add(`F ${where} no-accepted-baseline`); continue; }
 
         // C and D. the undeclared key.
-        const rx = await call(fn, { ...base, __agreement_undeclared__: 'x' }, manifest.service, mod, act);
+        const rx = await call(fn, { ...base, __agreement_undeclared__: 'x' }, manifest.service, mod, act, ad);
         const closed = schema.additionalProperties === false;
         if (closed && rx.kind === 'reached') found.add(`C ${where} undeclared-key-accepted`);
         if (!closed && rx.kind === 'refused') found.add(`D ${where} ${rx.field}`);
@@ -619,14 +642,14 @@ async function collect() {
 
           const without = { ...base };
           for (const f of named) delete without[f];
-          const rn = await call(fn, without, manifest.service, mod, act);
+          const rn = await call(fn, without, manifest.service, mod, act, ad);
           if (rn.kind === 'reached') found.add(`B ${where} ${key} none-of-the-branch-fields`);
           else if (rn.kind === 'threw') found.add(`G ${where} ${key} none-of-the-branch-fields threw`);
 
           if (key !== 'oneOf') continue;
           const withAll = { ...base };
           for (const f of named) withAll[f] = sample(schema.properties?.[f] ?? { type: 'string' });
-          const ra = await call(fn, withAll, manifest.service, mod, act);
+          const ra = await call(fn, withAll, manifest.service, mod, act, ad);
           if (ra.kind === 'reached') found.add(`B ${where} oneOf every-branch-field`);
           else if (ra.kind === 'threw') found.add(`G ${where} oneOf every-branch-field threw`);
         }
@@ -639,7 +662,7 @@ async function collect() {
             if (!new RegExp(ps.pattern).test(cand)) continue;
             if (ps.maxLength !== undefined && [...cand].length > ps.maxLength) continue;
             if (ps.minLength !== undefined && [...cand].length < ps.minLength) continue;
-            const rp = await call(fn, { ...base, [pn]: cand }, manifest.service, mod, act);
+            const rp = await call(fn, { ...base, [pn]: cand }, manifest.service, mod, act, ad);
             if (rp.kind === 'refused') found.add(`E ${where} ${pn} ${JSON.stringify(cand)}`);
           }
 
@@ -678,7 +701,7 @@ async function collect() {
           else if (ps.type === 'array') muts.push(['type', 'not-an-array']);
 
           for (const [why, value] of muts) {
-            const rr = await call(fn, { ...base, [pn]: value }, manifest.service, mod, act);
+            const rr = await call(fn, { ...base, [pn]: value }, manifest.service, mod, act, ad);
             // Only a value that reached the vendor proves the module let it through. A throw
             // is neither enforcement nor acceptance and is recorded as its own thing.
             if (rr.kind === 'reached') found.add(`B ${where} ${pn} ${why}`);

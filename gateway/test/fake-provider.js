@@ -11,6 +11,21 @@ import { loadConnectors } from '../src/manifest.js';
 import { loadPolicy } from '../src/policy.js';
 import { JsonFileStore } from '../src/store.js';
 import { pickResponseHeaders } from '../src/response-headers.js';
+import { STATUS, statusSignal } from '../src/errors.js';
+
+// Independent invented proxy envelope for fake transport and agreement probes.
+// It deliberately does not borrow an adapter's implementation as wire proof.
+export function measureFakeProxyBody({ providerAccountId, endpoint, method, body, binary_body, parameters }) {
+  try {
+    const envelope = { connected_account_id: providerAccountId, endpoint, method: method || 'GET' };
+    if (body !== undefined) envelope.body = body;
+    if (binary_body !== undefined) envelope.binary_body = binary_body;
+    if (Array.isArray(parameters) && parameters.length) envelope.parameters = parameters;
+    return Buffer.byteLength(JSON.stringify(envelope), 'utf8');
+  } catch {
+    throw statusSignal(STATUS.NEEDS_PROVIDER_CAPABILITY);
+  }
+}
 
 const DEFAULT_POLICY = fileURLToPath(new URL('../policy.default.json', import.meta.url));
 const DEFAULT_CONNECTORS = fileURLToPath(new URL('../../connectors', import.meta.url));
@@ -398,7 +413,17 @@ export function createFakeProviders({ proxyRules: suppliedRules = [] } = {}) {
       if (!accounts.has(providerAccountId)) return 'ABSENT';
       return accounts.get(providerAccountId);
     },
-    async proxy({ endpoint, method, response_headers }) {
+    measureProxyBody: measureFakeProxyBody,
+    async proxy(request, { proxyBodyMaxBytes } = {}) {
+      if (proxyBodyMaxBytes !== undefined) {
+        if (!Number.isSafeInteger(proxyBodyMaxBytes) || proxyBodyMaxBytes <= 0) {
+          throw statusSignal(STATUS.NEEDS_PROVIDER_CAPABILITY);
+        }
+        if (measureFakeProxyBody(request) > proxyBodyMaxBytes) {
+          throw statusSignal(STATUS.VENDOR_ERROR, { reason: 'proxy_body_too_large' });
+        }
+      }
+      const { endpoint, method, response_headers } = request;
       let result = { status: 200, data: {} };
       for (const rule of proxyRules) {
         if (rule.match(endpoint, method)) {

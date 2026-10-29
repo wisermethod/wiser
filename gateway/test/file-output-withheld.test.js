@@ -290,9 +290,10 @@ test('T4: cleanup removes only old, matching, singly linked regular files in out
   const oldPartial = `${id()}.mp3.partial`;
   const newMatch = `${id()}.mp3`;
   const oldOtherName = 'notes.mp3';
-  const oldOtherExt = `${id()}.wav`;
-  for (const n of [oldMatch, oldPartial, newMatch, oldOtherName, oldOtherExt]) writeFileSync(join(dir, n), 'x');
-  for (const n of [oldMatch, oldPartial, oldOtherName, oldOtherExt]) utimesSync(join(dir, n), old, old);
+  const oldOtherExt = `${id()}.flac`;
+  const addedMatches = ['wav', 'mp4'].flatMap((ext) => ['', '.partial'].map((suffix) => `${id()}.${ext}${suffix}`));
+  for (const n of [oldMatch, oldPartial, newMatch, oldOtherName, oldOtherExt, ...addedMatches]) writeFileSync(join(dir, n), 'x');
+  for (const n of [oldMatch, oldPartial, oldOtherName, oldOtherExt, ...addedMatches]) utimesSync(join(dir, n), old, old);
   for (const n of ['connections.json.keep', 'audit-old.jsonl']) { writeFileSync(join(home, n), 'keep'); utimesSync(join(home, n), old, old); }
   mkdirSync(join(home, 'classifier-sessions'));
   writeFileSync(join(home, 'classifier-sessions', `${id()}.mp3`), 'keep');
@@ -304,6 +305,7 @@ test('T4: cleanup removes only old, matching, singly linked regular files in out
   const left = readdirSync(dir);
   assert.equal(left.includes(oldMatch), false, 'an old matching file was kept');
   assert.equal(left.includes(oldPartial), false, 'an old matching .partial was kept');
+  for (const n of addedMatches) assert.equal(left.includes(n), false, 'an old WAV/MP4 final or partial was kept');
   for (const n of [newMatch, oldOtherName, oldOtherExt]) assert.ok(left.includes(n), `${n} was removed`);
   assert.ok(existsSync(join(home, 'connections.json.keep')));
   assert.ok(existsSync(join(home, 'audit-old.jsonl')));

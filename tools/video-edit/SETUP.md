@@ -1,6 +1,6 @@
 # video-edit Setup
 
-Once per machine. Skip it if `ffmpeg -version` already succeeds and a short `edit` help run works; before the first `mux`, `loudness` or `finish`, run the ffprobe check in section 2, and before the first `finish`, section 4.
+Once per machine. Skip it if `ffmpeg -version` already succeeds and a short `edit` help run works; before the first `mux`, `loudness`, `finish`, `conform`, `exact-frames` or `composite`, run the ffprobe check in section 2, and before the first `finish`, section 4.
 
 Run every command below from this tool's directory when a Node command is shown. On Windows, use Git Bash for shell checks.
 
@@ -20,7 +20,7 @@ ffmpeg -version
 
 Any recent build is enough for trim, resize, speed, concat, frames, and GIF. This tool imports no npm package, so there is no install step at all.
 
-`mux`, `loudness` and `finish` also need ffprobe, which ships with FFmpeg:
+`mux`, `loudness`, `finish`, `conform`, `exact-frames` and `composite` also need ffprobe, which ships with FFmpeg:
 
 ```bash
 ffprobe -version
@@ -46,7 +46,11 @@ Only needed if you will run `finish`:
 ffmpeg -hide_banner -encoders | grep -E '^ [A-Z.]{6} (libx264|libopus) '
 ```
 
-A line naming `libx264` and a line naming `libopus` mean the build can encode a finished video. A missing one means every other command still works; only `finish` fails until a build with both encoders is installed. TOOL.md Dependencies names the same check.
+A line naming `libx264` and a line naming `libopus` mean the build can encode a finished video. A missing one prevents `finish`; conform separately needs libx264. Other operations retain their existing dependency checks. TOOL.md Dependencies names the same check.
+
+For `conform`, libx264 alone is required; libopus is not probed. Its operation also checks scale, format, setsar, setparams, aresample and asetpts with `ffmpeg -filters`.
+
+`composite` also requires libx264, with scale, setsar and setparams. `exact-frames` requires the png encoder, with scale, format, select and crop. Those commands check only their own encoder/filter names with `ffmpeg -encoders` and `ffmpeg -filters`; an unavailable one does not affect older operations.
 
 ## 5. Verify
 
@@ -62,6 +66,6 @@ Usage text with nothing configured. On a correctly set up copy, help exits 0 and
 
 **drawtext check fails** The FFmpeg build lacks freetype or no font is resolvable. Other commands remain usable; fix only when captions are required.
 
-**`ffprobe: command not found`** The FFmpeg install did not put ffprobe on PATH. Every command but `mux`, `loudness` and `finish` still runs; install a build that includes ffprobe.
+**`ffprobe: command not found`** The FFmpeg install did not put ffprobe on PATH. `edit`, `concat`, sampled `frames` and `gif` still run; make the ffprobe presence check succeed before using the other commands.
 
-**The encoder check names only one of the two, or neither** The build lacks `libx264` or `libopus`. Every command but `finish` still runs; fix only when a finished video is needed.
+**The encoder check names only one of the two, or neither** The build lacks `libx264` or `libopus`. Fix only when the requested operation needs that encoder: both for `finish`, libx264 for `conform` or `composite`. Exact extraction separately checks png.

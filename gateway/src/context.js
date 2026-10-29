@@ -1,5 +1,8 @@
 import { STATUS, StatusSignal, statusSignal, vendorErrorFrom } from './errors.js';
 import { pickResponseHeaders } from './response-headers.js';
+import { isAbsolute } from 'node:path';
+import { OUTPUT_EXTENSIONS } from './file-output.js';
+import { createMediaDownload, isCanonicalMediaHost } from './media-download.js';
 
 const RELEASE_REQUEST_TIMEOUT_MS = 60_000;
 const MAX_RELEASE_BYTES = 33_554_432;
@@ -106,6 +109,11 @@ function releaseFetcher(releaseHosts, fetchImpl) {
  * @param {object} [opts.unwrap]
  * @param {string[]} [opts.responseHeaders] The action's manifest declaration.
  * @param {object} [opts.responseHeaderGuard] Private call-scoped address tracker.
+ * @param {number} [opts.proxyBodyMaxBytes] The action's private proxy body budget.
+ * @param {object} [opts.downloadMedia] The action's download_media declaration.
+ * @param {object} [opts.outputFile] The action's output_file declaration.
+ * @param {string} [opts.outputsDir] Explicit local destination, never from input.
+ * @param {AbortSignal} [opts.executionSignal] Aborted when the action ends.
  * @param {() => void} [opts.onAudit]
  */
 export function buildContext({
@@ -124,6 +132,7 @@ export function buildContext({
   onAudit,
   releaseHosts,
   fetchImpl = globalThis.fetch,
+  downloadMedia, outputFile, outputsDir, executionSignal, proxyBodyMaxBytes,
 }) {
   const toolkit = auth?.toolkit;
   const providerAccountId = record?.provider_account_id ?? null;
@@ -131,15 +140,14 @@ export function buildContext({
 
   function refuseAddress(value) {
     if (responseHeaderGuard?.holdsValue(value)) {
-      throw statusSignal(STATUS.VENDOR_ERROR, { reason: 'output_refused', detail: 'response_header' });
+      throw statusSignal(STATUS.VENDOR_ERROR, { reason: 'output_refused', detail: responseHeaderGuard.detail });
     }
   }
 
-  async function proxy(req = {}) {
-    if (!authProvider || typeof authProvider.proxy !== 'function') {
-      throw statusSignal(STATUS.NEEDS_PROVIDER_CAPABILITY);
-    }
-    let res = await authProvider.proxy({
+  // Project only module request fields; neither identity nor the private budget
+  // can be replaced by a field supplied by the module.
+  function proxyRequest(req) {
+    return {
       providerAccountId,
       toolkit,
       endpoint: req.endpoint,
@@ -148,7 +156,47 @@ export function buildContext({
       binary_body: req.binary_body,
       parameters: req.parameters,
       ...(declared === undefined ? {} : { response_headers: [...declared] }),
-    });
+    };
+  }
+
+  async function measureRequest(request) {
+    try {
+      const count = await authProvider.measureProxyBody(request);
+      if (Number.isSafeInteger(count) && count >= 0) return count;
+    } catch { /* Provider error text and request contents never escape. */ }
+    throw statusSignal(STATUS.NEEDS_PROVIDER_CAPABILITY);
+  }
+
+  async function measureProxyBody(req = {}) {
+    try {
+      return await measureRequest(proxyRequest(req));
+    } catch {
+      throw statusSignal(STATUS.NEEDS_PROVIDER_CAPABILITY);
+    }
+  }
+
+  async function proxy(req = {}) {
+    if (!authProvider || typeof authProvider.proxy !== 'function') {
+      throw statusSignal(STATUS.NEEDS_PROVIDER_CAPABILITY);
+    }
+    let request;
+    try { request = proxyRequest(req); } catch (err) {
+      if (proxyBodyMaxBytes !== undefined) throw statusSignal(STATUS.NEEDS_PROVIDER_CAPABILITY);
+      throw err;
+    }
+    let res;
+    if (proxyBodyMaxBytes === undefined) {
+      res = await authProvider.proxy(request);
+    } else {
+      if (!Number.isSafeInteger(proxyBodyMaxBytes) || proxyBodyMaxBytes <= 0) {
+        throw statusSignal(STATUS.NEEDS_PROVIDER_CAPABILITY);
+      }
+      const count = await measureRequest(request);
+      if (count > proxyBodyMaxBytes) {
+        throw statusSignal(STATUS.VENDOR_ERROR, { reason: 'proxy_body_too_large' });
+      }
+      res = await authProvider.proxy(request, { proxyBodyMaxBytes });
+    }
     if (res && res.supported === false) {
       throw statusSignal(STATUS.NEEDS_PROVIDER_CAPABILITY);
     }
@@ -246,6 +294,16 @@ export function buildContext({
     if (typeof onAudit === 'function') onAudit();
   }
 
+  const canDownload = responseHeaders === undefined && typeof responseHeaderGuard?.rememberMediaUrl === 'function' &&
+    typeof outputsDir === 'string' && isAbsolute(outputsDir) && executionSignal &&
+    downloadMedia && Object.keys(downloadMedia).length === 1 && Array.isArray(downloadMedia.hosts) &&
+    downloadMedia.hosts.length > 0 && downloadMedia.hosts.every(isCanonicalMediaHost) &&
+    new Set(downloadMedia.hosts).size === downloadMedia.hosts.length &&
+    outputFile && Object.keys(outputFile).length === 2 &&
+    Object.keys(outputFile).every((key) => key === 'media_types' || key === 'max_bytes') && Array.isArray(outputFile.media_types) && outputFile.media_types.length > 0 &&
+    outputFile.media_types.every((type) => Object.hasOwn(OUTPUT_EXTENSIONS, type)) &&
+    new Set(outputFile.media_types).size === outputFile.media_types.length &&
+    Number.isSafeInteger(outputFile.max_bytes) && outputFile.max_bytes > 0;
   return {
     service,
     module,
@@ -253,9 +311,14 @@ export function buildContext({
     input,
     confirm: Boolean(confirm),
     proxy,
+    measureProxyBody,
     http,
     catalog,
     audit,
     ...(releaseHosts ? { fetchRelease: releaseFetcher([...releaseHosts], fetchImpl) } : {}),
+    ...(canDownload ? { downloadMedia: createMediaDownload({
+      hosts: [...downloadMedia.hosts], mediaTypes: [...outputFile.media_types], maxBytes: outputFile.max_bytes,
+      signal: executionSignal, remember: (url) => responseHeaderGuard?.rememberMediaUrl(url),
+    }) } : {}),
   };
 }

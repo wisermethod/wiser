@@ -2,19 +2,21 @@
 name: video-edit
 type: tool
 category: media
-description: Edits a video with FFmpeg and writes the result where the caller names, covering trim, resize, speed, text overlay, audio removal, concatenation, frame extraction, GIF conversion, narration laid onto a silent video, loudness set to a named level, and one encode of joined scenes to YouTube's recommended settings
-version: 0.2.0
+description: Edits existing video with FFmpeg, including audio-correlated silent conform, exact decoded frame evidence, timed silent video composition, trim, resize, speed, text, audio removal, concatenation, sampled frames, GIF, narration mux, loudness and the final joined encode
+version: 0.3.0
 ---
 
 # video-edit
 
-One video, image sequence, or GIF, written where the caller said, holding what FFmpeg made of the files the caller named.
+One video, image sequence, GIF or checked evidence bundle, written where the caller said, holding what FFmpeg made of the files the caller named.
 
 ## Context
 
 Use it when a video already exists and has to come out different: cut to a range, resized to a platform's frame, sped up or slowed down, captioned with a line of text, stripped of its audio, joined end to end with other clips, sampled into stills, or turned into a GIF for somewhere that will not play video. Use it too when a silent video needs its narration laid on (`mux`), when a video's sound has to sit at a named loudness under a true-peak limit (`loudness`), and when scenes have to become one file encoded once to YouTube's recommended settings (`finish`). It is the finishing pass after footage arrives, whatever produced it.
 
-Do not use it to produce video from a description or from a still image; that is generation, it costs money per call, and it routes through `Media Generator`. Do not use it to pull words out of a recording, which is transcription, or to work on a still image, which the image tools do. An audio file enters only as the track `mux` lays onto a video: no command edits an audio file on its own or writes one, and mixing two sounds, such as music under narration, is not here. It decides nothing about the edit: it applies the operations it was given, in the order below, and reports what it wrote.
+Use `exact-frames` for chosen decoded pictures and crops from a delivered segment, and `composite` for a timed inset over a silent base. The caller chooses evidence ordinals, word associations, temporal neighborhoods and window placement. These operations make no mouth, performance, caption-occlusion or continuous synchronization judgment.
+
+Do not use it to produce video from a description or from a still image; that is generation, it costs money per call, and it routes through `Media Generator`. Do not use it to pull words out of a recording, which is transcription, or to work on a still image, which the image tools do. An audio file enters as the track `mux` lays onto a video, or as the reference witness `conform` analyses against the video’s own audio before dropping that track. The conform reference is never written: no command edits an audio file on its own or writes one, and mixing two sounds, such as music under narration, is not here. It decides nothing about the edit: it applies the operations it was given, in the order below, and reports what it wrote.
 
 It authenticates to nothing, holds no credential, reaches no other primitive, and opens no network connection. Every input is a local file that must already exist, which is also what keeps an address out of FFmpeg's hands.
 
@@ -47,12 +49,12 @@ FFmpeg is a separate program, not an npm package, so it is checked rather than i
 
 | Dependency | Needed for | Present when |
 |------------|------------|--------------|
-| FFmpeg | Every command | `ffmpeg -version` succeeds |
+| FFmpeg | Every media command | `ffmpeg -version` succeeds |
 | A drawtext-capable FFmpeg build with a resolvable font | `edit --text` only | `ffmpeg -f lavfi -i color=c=black:s=32x32:d=1 -vf drawtext=text=x -frames:v 1 -f null -` exits 0 |
-| ffprobe, which ships with FFmpeg | `mux`, `loudness` and `finish` | `ffprobe -version` succeeds |
-| FFmpeg's `libx264` and `libopus` encoders | `finish` only | `ffmpeg -hide_banner -encoders` lists both |
+| ffprobe, which ships with FFmpeg | `mux`, `loudness`, `finish`, `conform`, `exact-frames`, `composite` | `ffprobe -version` succeeds |
+| FFmpeg's `libx264`, `png` and `libopus` encoders | `libx264` for `conform` and `composite`; `png` for `exact-frames`; libx264 and libopus for `finish` | `ffmpeg -hide_banner -encoders` lists the required names |
 
-The drawtext and encoder rows are the same program in a narrower condition: a build without freetype, `libx264` or `libopus`, or a machine with no font FFmpeg can resolve, runs every other command and fails only on the one that needs it. Each is checked separately so that failure arrives before the pass rather than inside it.
+The drawtext and encoder rows narrow the same program's requirements. Encoder/filter presence checks run only for the operation needing them. Each is checked separately so that failure arrives before the pass rather than inside it.
 
 This tool imports no npm package, so there is no package install and no consent prompt; Node and FFmpeg are the whole of what it needs.
 
@@ -74,7 +76,106 @@ Audio follows the speed change while a factor stays from 0.5 through 2.0, endpoi
 
 Text is drawn horizontally centered, and `--text-position` chooses the vertical band: `top` sits 50 pixels down, `bottom` sits 100 pixels up from the bottom, `center` is the middle. A caller's text is escaped for both parsers FFmpeg runs it through, so a colon, an apostrophe, a comma, a percent sign, or a bracket is drawn rather than read as part of the filter.
 
-The other commands take no part in this chain. `concat` joins whole files, `frames` samples stills, and `gif` converts; none of them trims, resizes, or captions on the way. `mux`, `loudness` and `finish` are the next section's.
+The other commands take no part in this chain. `concat` joins whole files, `frames` samples stills, and `gif` converts; none of them trims, resizes, or captions on the way. The separate exact operations follow.
+
+## Audio-correlated conform
+
+Use `conform` when one retained video must supply exactly the caller's picture grid, with its own audio establishing correspondence to an identified upload reference. It supplies no mouth judgment and changes no playback speed. It does not invoke another tool, select a take or interpret a production registry.
+
+Every flag below is required, once. Supply all policy values; when any is missing, ask the caller for it. Times accept nonnegative exact decimal or integer-fraction seconds, at most 128 characters. There is no `--fps` alias or vendor preset.
+
+| Flag | Meaning and bound |
+|------|-------------------|
+| `--input`, `--sha256` | Local MP4 and expected complete-file SHA-256 |
+| `--reference`, `--reference-sha256` | Speech Preparation's PCM16 mono/stereo `padded.wav` and expected SHA-256; sample zero is upload sample zero |
+| `--upload-receipt`, `--upload-receipt-sha256` | Its colocated JSON receipt and caller-pinned expected SHA-256 |
+| `--output` | New bundle directory, outside this tool, with an existing parent; existing destinations, including incomplete ones, refuse |
+| `--frames` | Exact positive count N, at most 100000 |
+| `--rate` | Rational p/q, 1 through 240 fps, reduced numerator and denominator at most 1000000 |
+| `--width`, `--height` | Even target dimensions, 2 through 8192 |
+| `--origin` | Exact reference time shown by output frame 0: zero for a full padded scene; positive to start a window after its guard |
+| `--correlation-floor` | Required normalized peak, greater than zero through one, inclusive at the upper bound |
+| `--max-offset` | Maximum absolute measured timestamp-corrected lag, 0 through 1 second inclusive |
+| `--drift-tolerance` | Maximum lag spread over whole-file and useful consecutive-window measurements, 0 through 1 second inclusive |
+| `--window` | Consecutive analysis window length, 0.25 through 60 seconds; floor to whole 48000 Hz samples |
+| `--max-hold-start`, `--max-hold-end` | Independent nonnegative integer budgets for output frames held outside available picture, inclusive |
+| `--source-colour` | Explicit `bt709-tv` interpretation, required even for tagged input; no other interpretation or conversion is supported |
+
+Only `conform` needs its additional checks: `ffmpeg -encoders` must list libx264, and `ffmpeg -filters` must list scale, format, setsar, setparams, aresample and asetpts. Neither new dependency check affects an older command. All input paths are canonical regular files with one link. Protected memory/credential paths and aliases are refused, as are output aliases inside this tool. MP4 and WAV use forced local demuxers and file/pipe protocols; no playlists or network protocols are accepted. Receipt paths are never followed or opened. Reference WAV is limited to 256 MiB, receipt JSON to 4 MiB, decoded audio to 360 seconds per input, and combined source/selected planar picture scratch to 64 GiB. Exceeding a bound refuses.
+
+**Reference identity.** Read `speech-upload` version 1 as data only: the padded hash, bytes, rate, channels and sample count must match measured WAV bytes/decoding, and its decoded residual displacement must be zero. The receipt's source mapping is retained as provenance, never applied to picture time. No other receipt shape is accepted. No source or upload path in the receipt is reopened. No lead, guard or codec priming is added: the padded reference already includes it. A stale or mismatched identity refuses.
+
+**Clock measurement, version 2.** Decode each audio track, retaining its first decoded PTS and native time base. Every decoded audio frame must continue the previous sample clock exactly and its PTS must agree with any reported best-effort timestamp; absent, multiple, unsupported, discontinuous or undecodable tracks refuse. FFmpeg resets analysis PTS with `asetpts=N/SR/TB`. At native 48000 Hz it inserts no resampler; at other rates it appends `aresample=48000:first_pts=0` with delay compensation, matching the audio placement path. Analyse floating-point samples using the arithmetic mean of mono/stereo channels; refuse stereo whose mean energy is below 1% of its strongest channel, and any whole track below RMS 16/32768. No gain or DC removal is applied.
+
+`bounded-linear-fft-normalized-v2` computes whole-file linear cross-correlation within timestamp-corrected lag [-1,1] seconds, independently of the caller's acceptance bound. Each candidate needs at least 0.25 seconds of real decoded overlap. It also needs 95% of the reference interval overlapping real decoded samples, except when each uncovered reference edge separately has RMS strictly below 16/32768. Such uncovered silence may extend beyond the video's audio without failing the fractional overlap rule. An uncovered edge at or above that silence level receives no exemption: less than 95% real overlap still refuses, even if the covered samples correlate perfectly. The absolute 0.25-second minimum always applies. These rules apply to both whole-file and window measurements, and the bounded search is not pre-clipped by a 95% duration-only bound. Normalize the dot product by both overlapping energies. Floating-point FFT roundoff alone is clamped to [-1,1]. The best peak must meet the floor and exceed the next candidate outside its immediate +/-1 sample neighbourhood by at least 0.000001; ties and near-ties inside that bound refuse. The 0.000001 margin is the fixed ambiguity acceptance bound, not a claim about FFT roundoff or a one-frame timing tolerance: a legal second peak 0.001 below the best, even one frame away, is accepted by this rule. The same bounded search is repeated independently in consecutive reference windows. Silent windows below the same RMS, and a terminal remainder shorter than 0.25 seconds, are recorded as excluded evidence. Every other window must pass peak, ambiguity, overlap and offset checks. A reference longer than one requested window requires at least two useful windows; otherwise drift is unestablished and the run refuses. The largest minus smallest lag, including the whole-file lag, must be <= the drift tolerance. No excluded window is claimed to establish a clock. All floor comparisons are >=; offset, drift and hold comparisons are <= and recorded with actual and limit.
+
+**Sign and selection.** Let k be the measured index shift for which video audio sample j+k matches reference sample j after analysis resampling. The source picture clock starts at its first displayed picture PTS V; its audio sample zero is decoded PTS A. The corrected lag is exactly `A - V + k/48000`. Positive lag selects later source picture. Reference sample zero is zero even if its container timestamps differ. Output frame n selects at exact rational time `origin + n/rate + lag`; it never adds the receipt's padding or encoder delay. Native audio/picture PTS, their normalization and this arithmetic are recorded.
+
+Decode picture PTS in presentation order, including B-frames. Missing, unsafe, duplicate or non-increasing PTS refuse, as does disagreement with the best-effort PTS. Intervals are half-open, from a picture's PTS to the next PTS; an exact boundary takes the later picture. The last interval ends at its decoded positive duration; missing terminal duration refuses. Before the first interval or at/after the last interval's end, hold the first/last picture within the separate edge budgets. Exactly N selections are recorded, including every held range. There is no interpolation or rate/speed filter choosing pictures.
+
+**Pixels and intermediate.** Input must be square-pixel H.264 yuv420p with no display matrix or rotation; a stream that states no sample aspect ratio (ffprobe's `N/A` or `0:1`) is read as square and recorded in the receipt's `treatment`, and any stated ratio but 1:1 refuses. Missing colour tags acquire only the caller's explicit BT.709 TV interpretation; any contradictory stream or decoded-frame tag refuses. The declared scale path is Lanczos with explicit BT.709 input/output matrix and TV input/output range, then yuv420p, square pixels and BT.709 parameters. Already interpreted BT.709 samples need no gamut/transfer conversion. Other interpretations require another operation. Encode H.264 libx264 CRF 0, preset medium, one thread, no B-frames, metadata stripped, bitexact flags, faststart, no edit list, target numerator as the MP4 timescale and a zero first-picture origin. This supplies `video-render/TOOL.md`'s intermediate profile. Repeatability is scoped to the same FFmpeg build/settings.
+
+Before publication, independently decode the source again through that scale/colour path and decode every output frame. Readback independently walks probed source intervals at each probed output presentation time plus origin and measured lag; it never calls the construction selector. Each output planar YUV SHA-256 must equal that independently chosen source frame's, and the recorded source ordinal must agree, in addition to exact count, every rational grid interval, size, codec, tags, SAR, no matrix/edit list and silence. The unchanged `mux` accepts this silent segment; `loudness` and `finish` accept the file `mux` writes from it. On the bare segment, `loudness` refuses the missing audio track and `finish` refuses its all-silent program at the loudness gate.
+
+**Bundle and completion.** Only after all checks, before/after input hashes and staged receipt readback pass, publish `segment.mp4`, `receipt.json` and `complete.json` together by renaming a unique staging sibling. `receipt.json` has `schema: video-conform`, `version: 1` and tool version, all three expected/measured input identities, decoded origins/clocks, reference provenance, policy and boundary comparisons, whole/window peaks/lags, actual `overlap_samples`, new `silent_uncovered_samples` (the uncovered count only when both edges are below the silence threshold, otherwise zero), the new correlation `overlap_rule` string, offset arithmetic, every output-to-source ordinal/PTS/interval and pixel hash, held ranges, scaling/colour settings, full captured FFmpeg/ffprobe version strings in `decoder.build`/`decoder.probe_build` and `encoder.ffmpeg_version`/`encoder.ffprobe_version`, encoder arguments, output identity and readback. It has no self-hash. `complete.json` has `schema: video-conform-complete`, `version: 1`, `complete: true` and the segment/receipt hashes and sizes. Reuse only a final directory whose marker identities and receipt inputs/policy all match; existence alone proves nothing. Ordinary failure removes only this run's staging, publishes nothing and leaves stdout empty. A kill may leave staging, always incomplete. A later run refuses any existing destination and removes no abandoned staging. Writes are inventoried in `tools/AGENTS.md`.
+
+Success stdout contains `ok`, `output`, `operations: ["conform"]`, `segment`, `receipt`, `receipt_identity`, `completion`, segment `bytes/sha256`, exact `frames/fps`, measured `lag_seconds`, `peak`, `drift_seconds` and start/end `held` counts. Failure names the failing check and the need for corrected inputs or a fresh destination. Missing/ambiguous caller inputs: ask before running. Audio correlation establishes the audio clock; picture performance still needs its caller's judgment.
+
+## Exact decoded frame evidence
+
+`exact-frames` is separate from sampled `frames`; its flags, defaults, numbering and output remain unchanged. Use a delivered conformed segment as input, and a final composite as input when reviewing an inset. Sparse stills alone do not establish continuous lip synchronization. Which evidence is sufficient is the caller's judgment.
+
+Every flag is required once:
+
+| Flag | Meaning |
+|------|---------|
+| `--input`, `--sha256` | Local `.mp4` and caller-pinned complete-file SHA-256 |
+| `--requests` | Inline JSON array of 1 through 60 objects, at most 16384 characters; each has only integer `ordinal` and optional `crop` |
+| `--output` | Fresh bundle directory outside this tool, with an existing parent |
+
+Request shape: `[{"ordinal":12},{"ordinal":12,"crop":[100,80,300,160]}]`. Ordinal 0 is the first **decoded displayed** picture, including with reordered B-frames, never packet order, a seek time or an fps-filter result. Unsorted requests retain their original order by `request_index`. An identical ordinal/crop pair is served once with every request row kept. A full frame and a crop of the same ordinal produce separate images. A full-frame rectangle and an omitted crop are distinct requests. Word/occurrence associations stay with the caller, keyed to request index; the decoder does not interpret words.
+
+Crops use integer stored-pixel `[left,top,right,bottom]` coordinates, right/bottom exclusive, with positive area. Odd edges and a one-pixel crop are supported after RGB conversion. Fractional, negative, unsafe or out-of-range ordinals, empty/oversized lists, duplicate JSON keys, extra keys, malformed or out-of-frame crops refuse. There is no clipping, decimal seeking or `--fps` option. Paths, hashes and the operating bounds below are checked before staging.
+
+The source must have exactly one progressive square-pixel H.264 yuv420p video stream, even stored dimensions 2 through 8192, tagged BT.709 primaries/transfer/matrix at TV range. Audio may be present and is ignored; other stream types refuse. Any display matrix, rotation, interlacing, changing geometry, missing/unsafe PTS, disagreement with best-effort PTS or duplicate/non-increasing displayed PTS refuses. All stored dimensions and timestamps come from decoded frames. At most 100000 decoded pictures and 64 GiB of whole-source RGB scratch are supported. A nonzero first PTS is retained and becomes the declared time origin; this operation does not need a constant rate or terminal duration.
+
+**Image conversion and proof.** Disable autorotation and force the local MOV/MP4 demuxer, file/pipe protocols and disabled external data references. Convert with `scale=iw:ih:flags=bilinear+accurate_rnd:in_color_matrix=bt709:out_color_matrix=bt709:in_range=tv:out_range=pc,format=rgb24`; select by decoded `n`, then crop with `exact=1`, and encode PNG. A separate whole-source RGB decode has no select/crop filter. Decode every PNG to RGB and compare every byte with its ordinal's integer region in that independent source decode. This promises those decoded RGB samples, not the original pre-encode camera RGB. Fixed FFmpeg build/settings define repeatability.
+
+**Manifest version 1.** `manifest.json`, schema `video-exact-frames`, binds tool version, expected source SHA-256, measured source SHA-256 and bytes before/after, full video stream, decoded count, dimensions, native rational time base, first displayed PTS and rational seconds, no-autorotation and conversion settings, and full FFmpeg/ffprobe builds. Each request carries requested/actual ordinal, native PTS, exact rational `presentation_time` from the first displayed picture, requested/applied crop, relative image path, file SHA-256/bytes, width/height, decoded RGB SHA-256 and independent verification. Files use unique `image_000000_frame_000012.png` names in the new bundle. Counts come from verified requests/images, never existing PNGs.
+
+## Timed silent video composition
+
+`composite` lays one silent inset over one retained silent base. It is independent of conform and does no correlation, speed change or synthesis. First conform the inset separately if its clock/format needs adjustment. No position is defaulted; the caller names all geometry and timing.
+
+| Flag | Meaning |
+|------|---------|
+| `--base`, `--base-sha256` | Retained local `.mp4` base and expected SHA-256 |
+| `--inset`, `--inset-sha256` | Distinct retained local `.mp4` inset and expected SHA-256 |
+| `--output` | Fresh bundle directory with an existing parent |
+| `--start`, `--end` | Integer base interval `[s,e)`, nonempty and entirely inside the decoded base |
+| `--inset-start` | Nonnegative integer inset ordinal shown at base ordinal s; inset must cover all e-s pictures |
+| `--rect` | Comma-separated stored-pixel `left,top,right,bottom`, exclusive right/bottom; the complete footprint, border included |
+| `--fit` | Required `contain`; no other fit or crop policy is offered |
+| `--border-colour` | Required planar TV-range `Y,U,V` integers, Y 16 through 235 and U/V 16 through 240; fills border and fit bars |
+| `--border-width` | Optional even nonnegative integer pixels, default 0, drawn inside the rectangle |
+
+Every required flag appears once. Audio in either source, extra streams, unequal rates, nonzero first displayed PTS, edit lists, nonconstant or unusable decoded clocks, unsupported orientation/colour/geometry, short inset and invalid intervals refuse. Both sources obey Exact decoded frame evidence's progressive/size/count/colour rules. Both must occupy the same exact rational CFR grid from zero, each decoded frame at `n/f` and each duration exactly `1/f`; native time bases may differ (for example 1/15360 and 1/30 at 30 fps). Compare presentation times by exact rational arithmetic, never time-base strings; a single off-grid frame refuses; rate 1 through 240 fps, reduced terms at most 1000000, time base with numerator 1. The output preserves the base's native time base as well as size, rate and decoded count. No implicit stretching, rounding of timestamps or edge hold occurs.
+
+**Geometry, version 1.** Rectangle edges and border width must be even for the 2-by-2 yuv420p chroma grid; the rectangle must fit inside the base. Shrink its interior by the border on every edge. Reduce the inset aspect to a:b, choose the largest even multiplier k for which a*k by b*k fits that interior, and scale to exactly that size with Lanczos and explicit BT.709 TV input/output matrix/range. Refuse if no positive even multiplier fits. This preserves aspect exactly on the chroma grid; coprime dimensions can leave larger bars than approximate aspect fits. Center the fitted picture by rounding each left/top spare margin down to an even coordinate; surplus stays on the right/bottom. The receipt records the actual fitted rectangle. Fit bars and border use the same explicit YUV colour. Shadow, rounded corners, arbitrary shapes and antialiasing beyond the declared rectangle are not offered.
+
+**Sample equality and intermediate.** Base n shows inset `inset_start+n-s` precisely when `s <= n < e`. Copy planar YUV samples without converting the base to RGB. Outside that interval every decoded output sample equals the base's. Inside, every sample outside the complete rectangle equals the base's; inside it, fitted samples equal the identically scaled inset and remaining samples equal the declared colour. Border is inside the footprint. No chroma sample spills outside it.
+
+Encode as `video-render/TOOL.md`'s intermediate, with the same libx264 CRF 0, medium preset, yuv420p, one thread, no B-frames, BT.709 TV, square pixels, metadata stripping, bitexact flags, faststart and no edit list as conform. Decode base, scaled inset and output again independently of construction. Check every planar sample, output stream/grid/count/size and both source identities before publication. The unchanged `mux` accepts the silent result; `loudness` and `finish` accept the file `mux` writes from it. Combined planar scratch is limited to 64 GiB, computed as four base sequences plus two scaled-inset sequences.
+
+**Receipt version 1.** `receipt.json`, schema `video-composite`, binds tool version, both expected and measured source hashes/bytes before/after, source streams/counts/clocks, exact exclusive active interval and inset-start mapping, rectangle/footprint, actual fitted geometry, border width and YUV colour, scaling/colour treatment, decoder/encoder builds and settings, output identity and every-frame decoded hash with equality/readback results. The retained base and inset are never written.
+
+## Exact-operation publication and recovery
+
+Both commands install nothing. Only they probe their additional encoder/filter lists: exact frames needs png plus scale/format/select/crop; composition needs libx264 plus scale/setsar/setparams. Neither changes dependency requirements on old operations. Unknown, duplicate and inapplicable flags refuse before dependency work. Each source path is canonicalized and thereafter used as resolved, must be a regular file with one link, and is refused under a protected `memory` or credential path, including through links. A destination inside this tool, input alias or preexisting destination, including incomplete bundles, refuses. All new media reads use forced demuxers and local protocols; no receipt input paths are opened.
+
+Stage the bundle in a unique sibling, remove scratch only after checks, then reserve the final name with exclusive directory creation and rename the checked bundle over that run's own empty reservation. Publication follows manifest/receipt and completion-marker readback. A late destination collision refuses; an ordinary rename failure removes only this run's still-empty reservation. A kill can leave an empty reserved destination or staging; either is incomplete. `complete.json` has schema `video-exact-frames-complete` or `video-composite-complete`, version 1, `complete: true`, and SHA-256/bytes for every image or segment and its manifest/receipt. Records contain no self-hash; stdout returns the record's identity. A resumed caller must verify every marker hash/size and the record's source/settings against its request before reusing a final bundle. Existence alone proves nothing. This operation always refuses an existing destination; it never resumes, overwrites, repairs or deletes an earlier bundle or abandoned staging. Ordinary failure removes only its own staging and prints no success. `tools/AGENTS.md` inventories every final and scratch path.
+
+`exact-frames` success returns `ok`, `output`, `operations: ["exact-frames"]`, `manifest`, `record_identity`, `completion`, verified unique-image `frames`, and every `requests` row. `composite` returns `ok`, `output`, `operations: ["composite"]`, `segment`, `receipt`, `record_identity`, `completion`, segment `bytes/sha256`, base `frames/fps`, `active_interval` and `footprint`. Missing caller inputs: ask before running. A refused media or readback check: correct that cause and select a fresh destination. Neither operation selects evidence or tolerances for the caller.
 
 ## Sound and the final encode
 
@@ -140,11 +241,14 @@ Audio with no gated block, nothing above EBU R128's −70 LUFS floor, has no lou
 | `node scripts/edit.js concat --input <path> --input <path> [...] --output <path.mp4>` | Join two or more videos in the order given | One MP4 |
 | `node scripts/edit.js frames --input <path> --output <dir>` | Sample stills into a directory | `frame_0001.png` onward |
 | `node scripts/edit.js gif --input <path> --output <path.gif>` | Convert a video to an animated GIF | One GIF |
+| `node scripts/edit.js conform <required flags above>` | Conform one audio-witnessed video to an exact silent grid | New segment/receipt/completion bundle |
+| `node scripts/edit.js exact-frames <required flags above>` | Extract exact decoded ordinal images and crops | New PNG/manifest/completion bundle |
+| `node scripts/edit.js composite <required flags above>` | Apply one timed silent inset | New segment/receipt/completion bundle |
 | `node scripts/edit.js mux --input <video.mp4> --audio <file> [--audio-start <seconds>] --output <path.mp4>` | Lay one audio file onto one silent video | One MP4 |
 | `node scripts/edit.js loudness --input <path> --output <path.mp4> --target <LUFS> --true-peak <dBTP>` | Set one video's loudness, its picture copied | One MP4 |
 | `node scripts/edit.js finish --input <path> [--input <path> ...] --output <path.mp4> --target <LUFS> --true-peak <dBTP>` | Join videos and encode them once to YouTube's recommended settings | One MP4 |
 
-Options:
+Options for the existing commands (the three exact operations have their complete flag tables above):
 
 | Option | Effect | Default |
 |--------|--------|---------|
@@ -169,7 +273,7 @@ Options:
 
 `--target` and `--true-peak` have no default, so the caller names the level: a scene matched at one level, and a finished video at another. Which levels a production uses is the caller's, not this tool's. Does the request name both numbers? Yes: pass them. Either one is missing: ask for it, and do not take a number from a platform's name; "for YouTube" names the picture settings `finish` writes, not a loudness or a peak.
 
-Outputs are MP4 for every command but `frames` and `gif`, GIF for `gif`, and the extension has to say so. `edit` and `concat` re-encode to H.264 with AAC audio every run; `mux` and `loudness` copy the picture; `finish` encodes as Sound and the final encode says. Paths are absolute because a relative one resolves against whichever directory the caller happened to be in. This tool never picks an output location and never falls back to one: the caller resolves a work directory in the owning root per `standards/conventions.md` and names the file inside it. Missing parent directories are created; a file already there is replaced.
+`conform`, `exact-frames` and `composite` write the new bundles described above. Other outputs are MP4 for every command but `frames` and `gif`, GIF for `gif`, and the extension has to say so. `edit` and `concat` re-encode to H.264 with AAC audio every run; `mux` and `loudness` copy the picture; `finish` encodes as Sound and the final encode says. Paths are absolute because a relative one resolves against whichever directory the caller happened to be in. This tool never picks an output location and never falls back to one: the caller resolves a work directory in the owning root per `standards/conventions.md` and names the file inside it. Missing parent directories are created by older file-output commands, which replace a file already there. The three exact operations require existing parents and fresh bundles.
 
 No command takes `--env`. Nothing it does is destructive beyond writing what it was told to write, so no command takes `--confirm`.
 
@@ -177,11 +281,11 @@ No command takes `--env`. Nothing it does is destructive beyond writing what it 
 
 The scripts this tool ships, `scripts/edit.js` and the modules it imports beside it, follow `system/templates/Script Contract.md`; what a user meets when running them is `tools/RUNNING.md`. They import no package, so the contract's dependency install clause has nothing to install and its `--env` clause has nothing to bind. The sections above state what each command does; the contract states how the script behaves getting there.
 
-Every usage mistake is caught before FFmpeg is reached, so a bad path, a bad number, or an option that belongs to another command never starts a pass. No message repeats FFmpeg's own output, which quotes full paths and whatever the container's metadata holds; a run that fails names the operation and the input instead. When FFmpeg fails after opening a file destination (`edit`, `concat`, `gif`), any partial or zero-byte file left at `--output` is removed before the error is printed, so a failed concat does not leave a stub that looks like a finished product; `mux`, `loudness` and `finish` never write `--output` until their file has passed its checks. A `frames` directory is left as it is. Nothing is read from stdin, and FFmpeg is run with stdin closed, so a run with nobody watching fails rather than waiting for a keystroke.
+Flag and path mistakes are caught before FFmpeg is reached; decoded bounds are checked after reading the media. No message repeats FFmpeg's own output, which quotes full paths and whatever the container's metadata holds; a run that fails names the operation and the cause instead. When FFmpeg fails after opening a file destination (`edit`, `concat`, `gif`), any partial or zero-byte file left at `--output` is removed before the error is printed; `mux`, `loudness` and `finish` never write `--output` until their file has passed its checks. The three exact operations publish only their complete checked bundles. A sampled `frames` directory is left as it is. Nothing is read from stdin, and FFmpeg is run with stdin closed.
 
 ## Output
 
-One JSON object on stdout, exit 0, once the work is written.
+One JSON object on stdout, exit 0, once the work is written. The exact-operation result fields are specified above; this table covers the older commands.
 
 | Field | Carries | Commands |
 |-------|---------|----------|
@@ -217,12 +321,12 @@ The stops every tool shares, an unknown flag and a path that is relative or insi
 | `missing FFmpeg; check: ffmpeg -version` | FFmpeg is absent or not on the path | The agent follows the Script Contract's System dependencies clause; install steps never live here |
 | `missing a drawtext-capable FFmpeg build with a resolvable font` | The build lacks freetype, or no font resolves on this machine | Same clause; every command other than `edit --text` still runs |
 | `missing ffprobe` | ffprobe is absent or not on the path | Same clause; `edit`, `concat`, `frames` and `gif` still run |
-| `missing FFmpeg's libx264 encoder` or `libopus encoder` | The FFmpeg build lacks the encoder `finish` needs | Same clause; every command but `finish` still runs |
+| `missing … libx264 encoder`, `libopus encoder` or `png encoder` | The FFmpeg build lacks the encoder the requested operation needs | Same clause; use the operation-specific encoder requirements in Dependencies |
 | `Error: --input is required` | No video was named | Pass `--input <path>` |
 | `Error: --input must be absolute` | A relative path, which resolves against the caller's directory, or a web address, which is not a path at all | Pass the resolved absolute path of a local file; this tool reads nothing over a network |
 | `Error: no file at <path>` | The path does not exist | Check the path; an absolute one cannot be misread |
 | `Error: --output is required` | No destination was named | Resolve a work directory in the owning root and name the file; this tool picks no location |
-| `Error: --output must end .mp4 for edit` | An extension the command does not write | Rename the output; every command but `frames` and `gif` writes MP4, `gif` writes GIF |
+| `Error: --output must end .mp4 for edit` | An extension the command does not write | Name an MP4 for `edit`, `concat`, `mux`, `loudness` or `finish`, a GIF for `gif`, or the directory the requested bundle/extraction command requires |
 | `Error: --output must be a directory for frames` | A filename was passed where a directory belongs | Pass the directory; the frame files are named inside it |
 | `Error: edit needs at least one operation` | `edit` ran with paths and nothing to do | Pass one of the five operations, or use another command |
 | `Error: --trim-start and --trim-end go together` | Only one end of the range was given | Pass both; the range is what gets kept |
@@ -274,4 +378,6 @@ The stops every tool shares, an unknown flag and a path that is relative or insi
 - `finish` writes a file within 1 LU of `--target` with its true peak at or under `--true-peak`, read on the encoded file. Every frame sits on its constant grid, and every input's narration lands where the running total puts it. The file meets the settings Sound and the final encode names.
 - Run twice on the same inputs and flags, `mux`, `loudness` and `finish` each give byte-identical files.
 - Every refusal of `mux`, `loudness` or `finish` exits 1 with stdout empty and writes nothing at `--output` or beside it.
-- No run opens a network connection, reads stdin, repeats FFmpeg's own output, or writes anywhere other than the path the caller named: one file for every command but `frames`, and one PNG per extracted frame inside that directory for `frames`. `mux`, `loudness` and `finish` also write, while they run, the hidden sibling and one temporary directory `tools/AGENTS.md` names, and remove both. A run that fails removes the partial file it had begun at that path, and never removes anything else.
+- `conform` publishes only a complete checked silent intermediate with every decoded frame matching its declared source interval, policy comparisons and input identities. Run `npm test` for the unchanged old suites and offline synthetic conform/negative-control suite, all fixtures in system temporary storage.
+- `exact-frames` retains every requested association with independently verified ordinal/crop pixels, times and identities; stale PNGs cannot inflate success. `composite` preserves the exact base clock and every planar sample outside its interval/footprint and matches the declared scaled inset/border inside. `npm test` exercises full/crop evidence from conform and composite plus planted faults, cleanup and interruption recovery offline.
+- No run opens a network connection, reads stdin, repeats FFmpeg's own output, or writes anywhere other than the caller's deliverable and the scratch/staging paths inventoried in `tools/AGENTS.md`. Ordinary failure removes only this run's partial file or staging, never retained sources or an earlier bundle.

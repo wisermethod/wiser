@@ -3,6 +3,9 @@ import { types } from 'node:util';
 /** The only response header names an action may request from a provider. */
 export const RESPONSE_HEADER_NAMES = Object.freeze(['location', 'range']);
 export const RESPONSE_HEADER_VALUE_CAP = 8192;
+export const MEDIA_URL_VALUE_CAP = 8192;
+const MEDIA_WINDOW = 8;
+const MAX_WINDOWS = 16384;
 
 function isHttpsUrl(value) {
   try { return new URL(value).protocol === 'https:'; } catch { return false; }
@@ -28,21 +31,41 @@ export function pickResponseHeaders(raw, declared) {
 }
 
 /**
- * Private to one execute call. A delivered upload address is a credential for
- * that upload, including its canonical URL and partial or complete upload id.
+ * Private to one execute call. Tracks delivered upload credentials and media
+ * addresses handed to the downloader, including their private fragments.
  * Neither the tracker nor its contents is exposed on the module's context.
  */
 export function createResponseHeaderGuard() {
   const addresses = new Set();
   const fragments = new Set();
+  const mediaFragments = new Set();
+  let windows = 0;
+  let overflow = false;
+  let media = false;
+  function rememberWhole(value) {
+    addresses.add(value);
+  }
+  function rememberWindows(value, width, target) {
+    for (let i = 0; i <= value.length - width; i += 1) {
+      // A call may hand over several addresses. Exhaustion fails closed rather
+      // than silently dropping later signatures or growing the index forever.
+      if (windows === MAX_WINDOWS) { overflow = true; return; }
+      windows++;
+      target.add(value.slice(i, i + width));
+    }
+  }
   function holds(text) {
     if (addresses.size === 0 || typeof text !== 'string') return false;
+    if (overflow) return true;
     if (text.includes('upload_id=')) return true;
     for (const address of addresses) {
       if (text.includes(address)) return true;
     }
     for (let i = 0; i <= text.length - 16; i += 1) {
       if (fragments.has(text.slice(i, i + 16))) return true;
+    }
+    if (mediaFragments.size) for (let i = 0; i <= text.length - MEDIA_WINDOW; i += 1) {
+      if (mediaFragments.has(text.slice(i, i + MEDIA_WINDOW))) return true;
     }
     return false;
   }
@@ -51,6 +74,7 @@ export function createResponseHeaderGuard() {
   // bytes, or throw on a cycle or BigInt. An unreadable value fails closed.
   function holdsValue(value) {
     if (addresses.size === 0) return false;
+    if (overflow) return true;
     const seen = new Set();
     function walk(value, depth) {
       if (depth > 64) return true;
@@ -79,10 +103,40 @@ export function createResponseHeaderGuard() {
     try { return walk(value, 0); } catch { return true; }
   }
 
+  // A file slot is consumed by the writer, not JSON. Scan its bytes without
+  // decoding the whole media file or enumerating millions of typed-array keys.
+  // Other fields keep the ordinary fail-closed walk, including slot metadata.
+  function holdsOutput(value) {
+    if (addresses.size === 0) return false;
+    if (overflow) return true;
+    try {
+      if (!value || typeof value !== 'object' || types.isProxy(value)) return holdsValue(value);
+      const output = Object.getOwnPropertyDescriptor(value, 'output_file');
+      if (!output) return holdsValue(value);
+      if (!Object.hasOwn(output, 'value')) return true;
+      const slot = output.value;
+      if (!slot || typeof slot !== 'object' || types.isProxy(slot)) return holdsValue(value);
+      const data = Object.getOwnPropertyDescriptor(slot, 'data');
+      if (!data || !Object.hasOwn(data, 'value')) return holdsValue(value);
+      const bytes = data.value;
+      if (!Buffer.isBuffer(bytes) && !types.isUint8Array(bytes)) return holdsValue(value);
+      const view = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      for (const text of [...addresses, 'upload_id=']) {
+        if (view.includes(text, 0, 'utf8') || view.includes(text, 0, 'latin1')) return true;
+      }
+      const slotFields = Object.getOwnPropertyDescriptors(slot);
+      slotFields.data = { value: null, enumerable: true, configurable: true };
+      const fields = Object.getOwnPropertyDescriptors(value);
+      fields.output_file = { value: Object.create(Object.getPrototypeOf(slot), slotFields), enumerable: true, configurable: true };
+      return holdsValue(Object.create(Object.getPrototypeOf(value), fields));
+    } catch { return true; }
+  }
+
   // Errors are not plain result objects. Check their message and own string
   // fields, plus one cause's string fields, without following a cause chain.
   function holdsError(err) {
     if (addresses.size === 0) return false;
+    if (overflow) return true;
     function stringFields(value) {
       if (typeof value === 'string') return holds(value);
       if (!value || (typeof value !== 'object' && typeof value !== 'function')) return false;
@@ -105,19 +159,52 @@ export function createResponseHeaderGuard() {
       let url;
       try { url = new URL(value); } catch { return; }
       if (url.protocol !== 'https:') return;
-      addresses.add(value);
-      addresses.add(url.href);
+      rememberWhole(value);
+      rememberWhole(url.href);
       for (const id of url.searchParams.getAll('upload_id')) {
         if (id.length === 0) continue;
-        addresses.add(id);
-        if (id.length >= 16) {
-          for (let i = 0; i <= id.length - 16; i += 1) fragments.add(id.slice(i, i + 16));
+        rememberWhole(id);
+        if (id.length >= 16) rememberWindows(id, 16, fragments);
+      }
+    },
+    rememberMediaUrl(value) {
+      if (typeof value !== 'string' || value.length === 0) return;
+      media = true;
+      rememberWhole(value);
+      // An oversized refusal still protects an echo of the complete input, but
+      // never parses it or builds any substring index.
+      if (value.length > MEDIA_URL_VALUE_CAP) return;
+      function rememberPart(part) {
+        if (part.length < 16) return;
+        rememberWhole(part);
+        rememberWindows(part, 16, fragments);
+      }
+      let url;
+      try { url = new URL(value); } catch {
+        rememberWindows(value, 16, fragments);
+        return;
+      }
+      rememberWhole(url.href);
+      // File bytes see only these whole components, never individual query
+      // values. Avoid charging identical raw/decoded forms twice to the budget.
+      for (const part of [url.pathname, url.search, url.hash]) {
+        const forms = new Set([part]);
+        try { forms.add(decodeURIComponent(part)); } catch { /* Raw form still held. */ }
+        for (const form of forms) rememberPart(form);
+      }
+      // URLSearchParams decodes each value once. Short credential segments
+      // (dates, regions, service names) are not private signature windows.
+      for (const [, part] of url.searchParams) {
+        for (const segment of part.split('/')) {
+          if (segment.length >= 16) rememberWindows(segment, MEDIA_WINDOW, mediaFragments);
         }
       }
     },
+    get detail() { return media ? 'private_address' : 'response_header'; },
     get active() { return addresses.size > 0; },
     holds,
     holdsValue,
+    holdsOutput,
     holdsError,
   };
 }

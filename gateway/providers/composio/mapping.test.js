@@ -111,3 +111,15 @@ test('ElevenLabs discovers three modules on the built-in toolkit without catalog
     assert.equal(toSlug(`elevenlabs.${id}`), null);
   }
 });
+
+test('HeyGen discovers six proxy-only modules on its built-in toolkit', () => {
+  for (const module of ['speech', 'voices', 'avatars', 'assets', 'videos', 'account']) {
+    assert.equal(toolkitFor('heygen', module), 'HEYGEN');
+    assert.deepEqual(toolkitsFor('heygen', module), ['HEYGEN']);
+  }
+  assert.deepEqual(toolkitsFor('heygen'), ['HEYGEN']);
+  for (const future of ['voice']) assert.deepEqual(toolkitsFor('heygen', future), []);
+  for (const id of ['speech.synthesize','voices.list','voices.get','voices.add','voices.delete','avatars.list','avatars.list_looks','assets.upload_audio','videos.create','videos.get','videos.download','account.wallet','account.permissions']) {
+    assert.equal(toSlug(`heygen.${id}`), null);
+  }
+});

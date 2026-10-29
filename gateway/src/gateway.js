@@ -448,6 +448,16 @@ export function validateArgs(name, args) {
     ? statusObject(STATUS.INVALID_ARGUMENTS, { tool: name, field: 'arguments', reason: 'type' })
     : bad('arguments');
   const a = args;
+  // Every tool publishes additionalProperties: false, so an undeclared key is refused by name,
+  // never ignored: a host's misspelled `inputs` once ran an action with no input at all.
+  const declared = TOOLS.find((tool) => tool.name === name)?.inputSchema.properties;
+  if (declared) {
+    for (const key of Object.keys(a)) {
+      if (!Object.hasOwn(declared, key)) {
+        return statusObject(STATUS.INVALID_ARGUMENTS, { tool: name, field: key, reason: 'not_declared' });
+      }
+    }
+  }
   if (['execute', 'start_connect', 'connect_status', 'disconnect', 'standing_approvals'].includes(name)
     && Object.hasOwn(a, 'label')
     && (typeof a.label !== 'string' || !LABEL_RE.test(a.label))) {
@@ -467,9 +477,6 @@ export function validateArgs(name, args) {
     case 'standing_approvals': {
       const invalid = (field, reason) => statusObject(STATUS.INVALID_ARGUMENTS, { tool: name, field, reason });
       const schema = TOOLS.find((tool) => tool.name === name).inputSchema;
-      for (const key of Object.keys(a)) {
-        if (!Object.hasOwn(schema.properties, key)) return invalid(key, 'not_declared');
-      }
       if (!schema.properties.mode.enum.includes(a.mode)) return invalid('mode', 'enum');
       if (!optString('root', ROOT_RE)) return invalid('root', 'pattern');
       if (!optString('playbook', PLAYBOOK_RE)) return invalid('playbook', 'pattern');
@@ -1306,6 +1313,12 @@ export class ConnectionGateway {
       const found = this.lookupModule(parsed.service, parsed.module);
       const act = found?.mod?.actions?.[parsed.action];
       const auth = found?.auth;
+      // Call-local permissions also govern the writer after the module returns.
+      const outputDeclaration = act?.output_file ? {
+        media_types: [...act.output_file.media_types], max_bytes: act.output_file.max_bytes,
+      } : null;
+      const downloadDeclaration = act?.download_media ? { hosts: [...act.download_media.hosts] } : null;
+      const proxyBodyMaxBytes = act?.proxy_body_max_bytes;
       if (label !== undefined && auth?.provider === 'local-file') {
         return statusObject(STATUS.INVALID_ARGUMENTS, { tool: 'execute', field: 'label' });
       }
@@ -1538,12 +1551,12 @@ export class ConnectionGateway {
       const responseHeaderGuard = createResponseHeaderGuard();
       const classifyExecuteResult = async (result) => {
         if (responseHeaderGuard.holdsValue(result)) {
-          return statusObject(STATUS.VENDOR_ERROR, { reason: 'output_refused', detail: 'response_header' });
+          return statusObject(STATUS.VENDOR_ERROR, { reason: 'output_refused', detail: responseHeaderGuard.detail });
         }
         if (!isStatusObject(result) && result?.error?.code === 'vendor_error') result = vendorErrorFrom(result);
         result = projectProviderCodes(result);
         if (result?.status === STATUS.NEEDS_CONNECT && label !== undefined) result = { ...result, label };
-        if (authForRun?.provider === 'local-file' || result?.status !== STATUS.VENDOR_ERROR ||
+        if (result?.reason === 'media_download_failed' || authForRun?.provider === 'local-file' || result?.status !== STATUS.VENDOR_ERROR ||
             !GRANT_REFUSAL_STATUSES.includes(result.http_status) || typeof provider?.status !== 'function') {
           return result;
         }
@@ -1559,6 +1572,7 @@ export class ConnectionGateway {
         return result;
       };
 
+      const execution = new AbortController();
       try {
         if (resolved.path === 'catalog') {
           const result = await this.catalogProvider.execute({
@@ -1607,12 +1621,17 @@ export class ConnectionGateway {
           responseHeaderGuard,
           releaseHosts: resolved.connector?.manifest.modules[parsed.module].release_hosts,
           fetchImpl: this.fetchImpl,
+          downloadMedia: downloadDeclaration,
+          proxyBodyMaxBytes,
+          outputFile: outputDeclaration,
+          outputsDir: this.outputsDir,
+          executionSignal: execution.signal,
         });
         if (this.catalogProvider && typeof this.catalogProvider.execute === 'function') {
           ctx.catalog = async (actionId, catalogInput) => {
             const args = catalogInput ?? input ?? {};
             if (responseHeaderGuard.holdsValue({ actionId, arguments: args })) {
-              throw new StatusSignal(statusObject(STATUS.VENDOR_ERROR, { reason: 'output_refused', detail: 'response_header' }));
+              throw new StatusSignal(statusObject(STATUS.VENDOR_ERROR, { reason: 'output_refused', detail: responseHeaderGuard.detail }));
             }
             const res = await this.catalogProvider.execute({
               actionId,
@@ -1628,15 +1647,27 @@ export class ConnectionGateway {
         }
 
         const result = await resolved.fn(input ?? {}, ctx);
-        return classifyExecuteResult(act.output_file
-          ? writeOutputFile(act.output_file, result, this.outputsDir, line.cid)
+        // Screen every public field (including extra fields and the byte slot)
+        // before publication, not just the metadata returned by the writer.
+        if (responseHeaderGuard.holdsOutput(result)) {
+          return statusObject(STATUS.VENDOR_ERROR, { reason: 'output_refused', detail: responseHeaderGuard.detail });
+        }
+        return classifyExecuteResult(outputDeclaration
+          ? writeOutputFile(outputDeclaration, result, this.outputsDir, line.cid)
           : result);
       } catch (err) {
         // Classify ctx.proxy / ctx.catalog signals before withAudit sees them. A
         // file-output module's thrown status never carries its slot out.
-        if (err instanceof StatusSignal) return classifyExecuteResult(act.output_file ? stripSlot(err.object) : err.object);
+        if (err instanceof StatusSignal) {
+          if (responseHeaderGuard.holdsOutput(err.object) || responseHeaderGuard.holdsError(err)) {
+            return statusObject(STATUS.VENDOR_ERROR, { reason: 'output_refused', detail: responseHeaderGuard.detail });
+          }
+          return classifyExecuteResult(outputDeclaration ? stripSlot(err.object) : err.object);
+        }
         if (responseHeaderGuard.holdsError(err)) throw new Error('internal error');
         throw err;
+      } finally {
+        execution.abort();
       }
     });
     return standingApprovalResult(result, standingGrant);

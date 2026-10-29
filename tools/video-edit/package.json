@@ -1,11 +1,12 @@
 {
   "name": "video-edit",
-  "version": "0.2.0",
-  "description": "Edits a video with FFmpeg and writes the result where the caller names, covering trim, resize, speed, text overlay, audio removal, concatenation, frame extraction, GIF conversion, narration laid onto a silent video, loudness set to a named level, and one encode of joined scenes to YouTube's recommended settings",
+  "version": "0.3.0",
+  "description": "Edits existing video with FFmpeg, including audio-correlated silent conform, exact decoded frame evidence, timed silent video composition, trim, resize, speed, text, audio removal, concatenation, sampled frames, GIF, narration mux, loudness and the final joined encode",
   "private": true,
   "type": "module",
   "scripts": {
-    "help": "node scripts/edit.js help"
+    "help": "node scripts/edit.js help",
+    "test": "node --test --test-concurrency=1 test/*.test.js"
   },
   "dependencies": {},
   "engines": {

@@ -179,3 +179,28 @@ test('a symlinked --home is refused before it is resolved', async () => {
   assert.equal(run.status, 1);
   assert.match(run.stderr, /symbolic link/);
 });
+
+test('every tool refuses an undeclared argument by name before audit, so a misspelled input never runs', async () => {
+  const { gw, audit } = await createTestGateway();
+  const valid = {
+    execute: { action: 'github.repos.get' },
+    start_connect: { service: 'github', module: 'repos' },
+    connect_status: { service: 'github', module: 'repos' },
+    disconnect: { service: 'github', module: 'repos' },
+    standing_approvals: { mode: 'list' },
+    list_connections: {},
+    search_actions: {},
+    describe_action: { action: 'github.repos.get' },
+  };
+  const names = gw.listTools().map((tool) => tool.name);
+  assert.deepEqual([...names].sort(), Object.keys(valid).sort());
+  for (const name of names) {
+    assert.equal(validateArgs(name, valid[name]), null, name);
+    const r = await gw.callTool(name, { ...valid[name], inputs: { owner: 'o' } });
+    assert.equal(r.status, 'invalid_arguments', name);
+    assert.equal(r.field, 'inputs', name);
+    assert.equal(r.reason, 'not_declared', name);
+  }
+  const { existsSync, readFileSync } = await import('node:fs');
+  assert.ok(!existsSync(audit.file) || readFileSync(audit.file, 'utf8').trim() === '');
+});
