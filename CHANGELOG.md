@@ -4,6 +4,14 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.29.4, October 29, 2026
+
+- Wiser can now connect to HeyGen with your own HeyGen API key, through the local gateway in a command-line tool such as Claude Code or Codex. The key bills HeyGen's API wallet in US dollars, separate from any HeyGen web plan. Wiser narrates a scene of up to 5,000 characters in your HeyGen instant voice clone, with the timing of every word, lists your avatars and their looks, and turns narration you already have into a video of the look you choose, on HeyGen's Avatar IV or its higher-quality Avatar V. (8dca655, 81a3cac, 96d6987, 52c6fce, 8630846, 153b980, d3aefb3, 3ad0dc0, 4983041, 3df8b09, f12e2cd)
+- Making a voice clone, uploading narration and making an avatar video each ask for your approval, or you can approve a production's avatar videos once, for up to 7 days, from the gateway's own warning. HeyGen publishes no Avatar V rate for a photo look, so Wiser shows that cost as an estimate at Avatar V's one published rate, $0.12 a second, and says HeyGen may charge more. (81a3cac, 4a2a362)
+- `Speech Preparation` can now make the narration file an avatar service is given: the whole take with silence before and after, or one stretch of it, within an exact size limit, with a receipt that ties its timing back to the take. (f9d313c, c1b15d7, 49df730)
+- `video-edit` can now line an avatar video up with its narration, frame by frame, at your video's size and frame rate; pull exact frames out for review; and lay a small video window over a scene. (2456461, 500946c, c1b15d7, 49df730, 01c152a, 66f2057)
+- The gateway now refuses an argument it does not recognize, and names it, instead of running the action without it. It can also save a WAV or MP4 that an action downloads, from hosts that action declares. (60e1ed4, 85a3791, 42f9bd4, a2647d7, 5c00259, 11314c8)
+
 ## v2026.10.29.3, October 29, 2026
 
 - The voice coach's last line now names your own folder rather than a project, since setup runs the coach before you make the project. The horoscope step now calls what it writes your first piece, so it no longer sounds like a request for another writing sample. (6d6bde1)
