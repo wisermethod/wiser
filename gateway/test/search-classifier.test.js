@@ -178,12 +178,15 @@ test('no query, no classifier, an unbound session, and a refusal send nothing', 
     { session: false },
   );
   const plain = await loose.searchActions({ query: 'item' });
-  const ignored = await loose.callTool('search_actions', { query: 'item', owning_root: 'relative/root' });
-  assert.equal(JSON.stringify(ignored.actions), JSON.stringify(plain.actions));
-  assert.equal(ignored.classifier.path, 'builtin');
-  assert.equal(typeof ignored.classifier.reason, 'string');
+  // search_actions takes no owning_root: a caller's root is refused by name, never used.
+  const named = await loose.callTool('search_actions', { query: 'item', owning_root: 'relative/root' });
+  assert.equal(named.status, 'invalid_arguments');
+  assert.equal(named.field, 'owning_root');
+  assert.equal(named.reason, 'not_declared');
+  assert.equal(plain.classifier.path, 'builtin');
+  assert.equal(typeof plain.classifier.reason, 'string');
   assert.equal(looseCalls.calls.length, 0);
-  assert.equal(ignored.status, undefined);
+  assert.equal(plain.status, undefined);
 
   const home = makeHome();
   const refused = writeAgents(join(home, 'refused'), '---\ntype: personal\nclassifier_refusal: yes\n---\n\n# Root\n');

@@ -448,6 +448,16 @@ export function validateArgs(name, args) {
     ? statusObject(STATUS.INVALID_ARGUMENTS, { tool: name, field: 'arguments', reason: 'type' })
     : bad('arguments');
   const a = args;
+  // Every tool publishes additionalProperties: false, so an undeclared key is refused by name,
+  // never ignored: a host's misspelled `inputs` once ran an action with no input at all.
+  const declared = TOOLS.find((tool) => tool.name === name)?.inputSchema.properties;
+  if (declared) {
+    for (const key of Object.keys(a)) {
+      if (!Object.hasOwn(declared, key)) {
+        return statusObject(STATUS.INVALID_ARGUMENTS, { tool: name, field: key, reason: 'not_declared' });
+      }
+    }
+  }
   if (['execute', 'start_connect', 'connect_status', 'disconnect', 'standing_approvals'].includes(name)
     && Object.hasOwn(a, 'label')
     && (typeof a.label !== 'string' || !LABEL_RE.test(a.label))) {
@@ -467,9 +477,6 @@ export function validateArgs(name, args) {
     case 'standing_approvals': {
       const invalid = (field, reason) => statusObject(STATUS.INVALID_ARGUMENTS, { tool: name, field, reason });
       const schema = TOOLS.find((tool) => tool.name === name).inputSchema;
-      for (const key of Object.keys(a)) {
-        if (!Object.hasOwn(schema.properties, key)) return invalid(key, 'not_declared');
-      }
       if (!schema.properties.mode.enum.includes(a.mode)) return invalid('mode', 'enum');
       if (!optString('root', ROOT_RE)) return invalid('root', 'pattern');
       if (!optString('playbook', PLAYBOOK_RE)) return invalid('playbook', 'pattern');
