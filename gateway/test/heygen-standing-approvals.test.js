@@ -8,7 +8,7 @@ const DAY = 86400000;
 const ACTION = 'heygen.videos.create';
 const SCOPE = { module: 'heygen.videos', root: 'narration-project', playbook: 'avatar-production' };
 const SUMMARY = 'create HeyGen avatar video charged to your HeyGen API wallet';
-const CAUTION = "Each covered call spends wallet dollars with no stop per call. Rates read 2026-10-29: Avatar V $0.12 a second; Avatar IV $0.0805 for a custom video or studio avatar, $0.0385 for a photo avatar. The wallet's balance is HeyGen's only ceiling.";
+const CAUTION = "Each covered call spends wallet dollars with no stop per call. Read 2026-10-29: Avatar V $0.12 a second for a custom video avatar, none published for other looks; Avatar IV $0.0805 custom or studio, $0.0385 photo. Only the wallet caps it.";
 const WARNING = `This standing approval lets your assistant ${SUMMARY} on your connection with no label without asking you first, for work done from the root "narration-project", in the Playbook "avatar-production". For 7 days, until 2026-11-04, every call that matches runs straight away, with no approval step for you to see or refuse. Anything outside it still asks you, as today. ${CAUTION} Some of these actions spend money. Under this approval nobody looks at each one before it happens, and once done it cannot be called back. It lasts at most 7 days. You can end it at any time: ask your assistant to revoke it, or remove it on your Wiser account page. Answer yes to grant it, or no to leave things as they are.`;
 const tool = (f, args) => f.gw.callTool('standing_approvals', args);
 

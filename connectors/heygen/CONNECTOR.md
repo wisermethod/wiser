@@ -92,12 +92,12 @@ Before paid synthesis or video creation, the caller establishes self-serve USD A
 | `voices.delete` | Permanent clone deletion; no restore supplied. | always |
 | `assets.upload_audio` | Sends and retains narration; no independent upload fee established. | always |
 | `videos.create`, Avatar V | Rates read 2026-10-29: USD 0.12/second custom video avatar (`digital_twin`). | always, or the granted production scope |
-| `videos.create`, Avatar V | Rates read 2026-10-29: no Avatar V rate published for photo avatar (`photo_avatar`) or studio avatar (`studio_avatar`). The caller discloses USD 0.12/second, the one Avatar V rate published, and states that the rate for the selected type is unpublished. | always, or the granted production scope |
+| `videos.create`, Avatar V | Rates read 2026-10-29: no Avatar V rate published for photo avatar (`photo_avatar`) or studio avatar (`studio_avatar`). The caller discloses USD 0.12/second, the one Avatar V rate published, as an estimate, not a ceiling: it states that the selected type's rate is unpublished and that HeyGen may charge more, so an approval or wallet balance sized on that figure does not show the charge is covered. | always, or the granted production scope |
 | `videos.create`, Avatar IV | Rates read 2026-10-29: USD 0.0385/second photo avatar (`photo_avatar`). | always, or the granted production scope |
 | `videos.create`, Avatar IV | Rates read 2026-10-29: USD 0.0805/second custom video avatar (`digital_twin`) or studio avatar (`studio_avatar`). | always, or the granted production scope |
 | Reads and `videos.download` | No new generation charge planned. | none |
 
-Video rates apply to 720p and 1080p output. Neither an asset id nor script length bounds billable duration. For scale, 30 minutes at the highest rate, USD 0.12/second, is USD 216.00, not a per-call guarantee. Separate script-voice debit is unmeasured. Disclose selected engine, look/type, rate, expected duration and unestablished components.
+Video rates apply to 720p and 1080p output. Neither an asset id nor script length bounds billable duration. For scale, 30 minutes at the highest published rate, USD 0.12/second, is USD 216.00, not a per-call guarantee. Separate script-voice debit is unmeasured. Disclose selected engine, look/type, rate, expected duration and unestablished components.
 
 Only `videos.create` declares a `pay` standing approval. An always-confirmed call needs matched single-use approval for the identical input, account and label. Changed file content remains a caller duty: an unchanged path in a gateway approval does not fingerprint the file. Reads and bounded synthesis have no manifest stop. A policy denial wins. Explicitly chosen retries preserve both idempotency key and body for the same logical creation; changed work needs a new key. HeyGen documents 24-hour replay and in-flight 409. No action retries automatically after 429, timeout, 5xx or ambiguous failure.
 
@@ -105,7 +105,7 @@ Only `videos.create` declares a `pay` standing approval. An always-confirmed cal
 
 Keep `videos.create` confirmation always. A member may ask Standing Approval for one production, scoped to the root and optionally its Playbook, connection and this action. The gateway displays a heightened pay warning, refuses more than 7 days and requires the person's yes to that exact proposal. Its summary is "create HeyGen avatar video charged to your HeyGen API wallet". Its caution is:
 
-> Each covered call spends wallet dollars with no stop per call. Rates read 2026-10-29: Avatar V $0.12 a second; Avatar IV $0.0805 for a custom video or studio avatar, $0.0385 for a photo avatar. The wallet's balance is HeyGen's only ceiling.
+> Each covered call spends wallet dollars with no stop per call. Read 2026-10-29: Avatar V $0.12 a second for a custom video avatar, none published for other looks; Avatar IV $0.0805 custom or studio, $0.0385 photo. Only the wallet caps it.
 
 Covered rooted calls run without a per-call stop until expiry or revocation. A call without root stops; another production/connection or a policy denial is not covered. No other HeyGen action declares standing approval. Speech remains confirmation none and needs no grant.
 

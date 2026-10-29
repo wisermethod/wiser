@@ -463,7 +463,7 @@
           "standing_approval": {
             "kind": "pay",
             "summary": "create HeyGen avatar video charged to your HeyGen API wallet",
-            "caution": "Each covered call spends wallet dollars with no stop per call. Rates read 2026-10-29: Avatar V $0.12 a second; Avatar IV $0.0805 for a custom video or studio avatar, $0.0385 for a photo avatar. The wallet's balance is HeyGen's only ceiling."
+            "caution": "Each covered call spends wallet dollars with no stop per call. Read 2026-10-29: Avatar V $0.12 a second for a custom video avatar, none published for other looks; Avatar IV $0.0805 custom or studio, $0.0385 photo. Only the wallet caps it."
           }
         },
         "get": {
