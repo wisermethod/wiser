@@ -14,6 +14,7 @@ const WORDS = Object.freeze({
   sampleDefault: "Aa", sampleSecond: "Abc 123",
   seeBoard:"See it full size", backToBoards:"Back to the boards", pickBoard:"Pick this one",
   pickThree:"Pick up to three.", pickCount:"Pick up to {n}.", recommended:"Recommended",
+  look:"Look {n}", pickAtLeastOne:"Pick at least one.", pickAtLeastTwo:"Pick at least two.", pickAtLeastThree:"Pick at least three.",
   whatNext:"What next", moreRound:"One more round", blendPicks:"Blend the ones I picked",
   anotherAngle:"None of these: try another angle", lock:"Lock it", lockNote:"Pick just one to lock it",
   boardNot:"not {word}", light:"Light", dark:"Dark", licence:"Licence"
@@ -139,11 +140,11 @@ function choice(o, type, id, index) {
 }
 
 function boardQuestion(fieldset,q,id) {
-  const single=q.pick===1&&q.options.length===1;
+  const look=q.view==="look",single=!look&&q.pick===1&&q.options.length===1;
   const model=boardLib.resolveBoards(state.form.brand,q.options);
   globalThis.WiserBoardView.loadFonts(model,boardLib.FONT_HOSTS);
   const limit=el("p",{class:"board-limit",role:"status",hidden:true});
-  const grid=el("div",{class:"boards-tiles"});
+  const grid=el("div",{class:`boards-tiles${look?' looks-tiles':''}`});
   const picks=new Map();
   function sync(){
     const count=[...picks.values()].filter(n=>n.checked).length;
@@ -172,21 +173,23 @@ function boardQuestion(fieldset,q,id) {
   back.addEventListener("click",close);
   viewer.append(viewerBar,scroll);
   for(const [i,o]of q.options.entries()){
-    const b=model.boards[i];
-    if(q.pick===0||single){
+    const b=model.boards[i],label=o.label??WORDS.look.replace("{n}",i+1);
+    if(!look&&(q.pick===0||single)){
       if(single){const input=el("input",{type:"checkbox",name:id,value:o.value,hidden:true});input.checked=true;fieldset.append(input);picks.set(o.value,input);}
       fieldset.append(el("h2",{class:"locked-name",text:o.label}),globalThis.WiserBoardView.draw(model,b,{logo:state.form.brand.logo}));
       continue;
     }
+    if(look&&q.pick===0){grid.append(el("div",{class:"tile looks-tile"},globalThis.WiserBoardView.look(model,b,{logo:state.form.brand.logo}),el("span",{class:"tile-label",text:label})));continue;}
     const input=el("input",{type:"checkbox",class:"tile-input",id:`${id}-${i}`,name:id,value:o.value,"aria-describedby":o.note?`${id}-${i}-note`:undefined});
     if(q.pick===1&&q.options.length===1)input.checked=true;
     picks.set(o.value,input);
     input.addEventListener("change",()=>{pick(input,input.checked);if(activeInput===input)viewerInput.checked=input.checked;});
     input.addEventListener("keydown",event=>{if(event.key==='Enter'){event.preventDefault();if(!event.repeat){pick(input,!input.checked);if(activeInput===input)viewerInput.checked=input.checked;}}});
-    const caption=el("span",{class:"tile-label"},el("span",{text:o.label}),el("span",{class:"mark check","aria-hidden":true}),o.note?el("small",{id:`${id}-${i}-note`,text:o.note}):null,
-      o.recommendation?el("small",{class:"board-recommendation"},el("b",{text:WORDS.recommended}),document.createTextNode(" · "+o.recommendation)):null);
-    const preview=el("div",{class:"board-crop","aria-hidden":true},globalThis.WiserBoardView.draw(model,b,{compact:true,logo:state.form.brand.logo}));
-    const tile=el("label",{class:"tile boards-tile",for:input.id},input,preview,caption);
+    const caption=el("span",{class:"tile-label"},el("span",{text:label}),el("span",{class:"mark check","aria-hidden":true}),o.note?el("small",{id:`${id}-${i}-note`,text:o.note}):null,
+      !look&&o.recommendation?el("small",{class:"board-recommendation"},el("b",{text:WORDS.recommended}),document.createTextNode(" · "+o.recommendation)):null);
+    const preview=look?globalThis.WiserBoardView.look(model,b,{logo:state.form.brand.logo}):el("div",{class:"board-crop","aria-hidden":true},globalThis.WiserBoardView.draw(model,b,{compact:true,logo:state.form.brand.logo}));
+    const tile=el("label",{class:`tile boards-tile${look?' looks-tile':''}`,for:input.id},input,preview,caption);
+    if(look){grid.append(tile);continue;}
     const full=el("button",{class:"see-board",type:"button",text:WORDS.seeBoard});
     full.addEventListener("click",()=>{
       returnFocus=full;activeInput=input;
@@ -199,7 +202,8 @@ function boardQuestion(fieldset,q,id) {
     });
     grid.append(el("div",{class:"board-option"},tile,full));
   }
-  if(q.pick!==0&&!single){fieldset.append(grid,limit);document.getElementById("root").append(viewer);}
+  if(look||q.pick!==0&&!single){fieldset.append(grid,limit);if(!look)document.getElementById("root").append(viewer);}
+  if(q.min)fieldset.append(el("p",{class:"board-minimum help",role:"status",text:WORDS[['','pickAtLeastOne','pickAtLeastTwo','pickAtLeastThree'][q.min]]}));
   fieldset.dataset.picks=[...picks.values()].filter(n=>n.checked).length;
 }
 
@@ -210,7 +214,7 @@ function questionBlock(q, index) {
   if (q.help) fieldset.append(el("p", { class: "help", text: q.help }));
   const opts = Array.isArray(q.options) ? q.options : [];
   if(q.type === "boards") {
-    if(q.pick===0||(q.pick===1&&q.options.length===1))fieldset.querySelector("legend").hidden=true;
+    if(q.pick===0||(q.view!=="look"&&q.pick===1&&q.options.length===1))fieldset.querySelector("legend").hidden=true;
     boardQuestion(fieldset,q,id);
   } else if (q.type === "radio" || q.type === "checkbox") {
     const list = el("div", { class: "choices" });
@@ -261,7 +265,7 @@ function readAnswers() {
   for (const [i, q] of state.form.questions.entries()) {
     const box = document.querySelectorAll("#form fieldset")[i];
     const opts = Array.isArray(q.options) ? q.options : [];
-    const label = (v) => (opts.find((o) => o.value === v) || {}).label || v;
+    const label = (v) => {const i=opts.findIndex(o=>o.value===v);return opts[i]?.label??(q.type==="boards"&&q.view==="look"?WORDS.look.replace("{n}",i+1):v);};
     let value;
     if (q.type === "slider") value = Number(box.querySelector("input[type=range]").value);
     else if (q.type === "text") value = [...box.querySelector("textarea").value].slice(0, 1000).join("").trim();
@@ -325,8 +329,8 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
   }
   const gridView=el("div",{id:"board-grid-view"});
   const destination=hasBoards?gridView:root;
-  // A paged form's title is its progress line, set quieter than the question it counts.
-  const heading = el("h1",{text:form.title,...(form.paged ? {class:"progress","aria-live":"polite","aria-atomic":"true"} : {})});
+  // Board rounds and paged forms both carry their title as a quiet progress line.
+  const heading = el("h1",{text:form.title,...(form.paged||hasBoards ? {class:"progress"} : {}),...(form.paged?{"aria-live":"polite","aria-atomic":"true"}:{})});
   destination.append(heading);
   const intro = form.intro ? el("p",{class:"intro",text:form.intro}) : null;
   if (intro) destination.append(intro);
@@ -336,14 +340,17 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
   const actionButtons=(form.actions||[]).map(a=>el("button",{type:"submit","data-action":a.value},el("span",{text:a.label}),el("small",{text:a.note||""})));
   const actionRow=el("div",{class:"board-actions","aria-label":WORDS.whatNext},...actionButtons);
   function pickedCount(){return readAnswers().filter(a=>a.type==="boards").reduce((n,a)=>n+a.value.length,0);}
+  const boardQuestion=form.questions.find(q=>q.type==="boards");
+  const canSend=()=>!boardQuestion||pickedCount()>=boardLib.minimumPicks(boardQuestion);
   function syncActions(){
     const count=pickedCount();
     actionButtons.forEach((button,i)=>{
-      const a=form.actions[i];button.disabled=!boardLib.actionAllowed(a.needs,count);
+      const a=form.actions[i];button.disabled=!boardLib.actionAllowed(a.needs,count,boardQuestion?.min);
       const note=a.label===WORDS.moreRound?(count?WORDS.blendPicks:WORDS.anotherAngle):a.label===WORDS.lock&&count!==1?WORDS.lockNote:a.note||"";
       button.querySelector("small").textContent=note;button.querySelector("small").hidden=!note;
     });
-    if(!form.actions)button.disabled=form.questions.some(q=>q.type==="boards"&&q.pick===1&&count!==1);
+    if(!form.actions)button.disabled=!canSend();
+    const minimum=f.querySelector('.board-minimum');if(minimum)minimum.hidden=count>=boardQuestion.min;
   }
   const button = el("button",{id:"submit",type:"submit",text: state.sends ? WORDS.buttonSends : WORDS.buttonDrafts});
   let page = 0, advanceTimer;
@@ -360,6 +367,7 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
     button.hidden = !next.hidden||Boolean(form.actions)||onlyDisplay;
     actionRow.hidden=!next.hidden;
     fitSamples();
+    if(hasBoards)globalThis.WiserBoardView.fitLooks();
     // Focus follows the member from one question to the next; on opening, nothing looks picked.
     if (focus) questions[page].querySelector("input,textarea,select,button")?.focus({preventScroll:true});
   }
@@ -402,7 +410,7 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
     event.preventDefault();
     if(onlyDisplay||state.sending)return;
     const action=form.actions?.find(a=>a.value===event.submitter?.dataset.action);
-    if(form.actions?(!action||!boardLib.actionAllowed(action.needs,pickedCount())):button.disabled)return;
+    if(form.actions?(!action||!boardLib.actionAllowed(action.needs,pickedCount(),boardQuestion?.min)):button.disabled||!canSend())return;
     state.sending=true;actionButtons.forEach(b=>b.disabled=true);
     // Implicit submission from an earlier question must never send a partial form.
     if (form.paged && page !== questions.length - 1) {state.sending=false;return;}
@@ -420,7 +428,7 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
     setStatus([status ?? (!sent ? WORDS.notSent : state.sends ? WORDS.sent : WORDS.drafted)], sent ? "ok" : "bad");
     metadata({delivery});
     document.getElementById("copy").textContent = sent && !form.paged ? "" : summary;
-    state.submitted = true; state.sending=false;syncActions();button.textContent = WORDS.buttonAgain; button.disabled = false;
+    state.submitted = true; state.sending=false;button.disabled = false;syncActions();button.textContent = WORDS.buttonAgain;
     if (form.paged) { back.disabled = false; next.disabled = false; }
     if (disabled) for (const control of f.querySelectorAll("input,textarea,select,button,fieldset")) control.disabled = true;
   });
@@ -430,6 +438,7 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
   if(hasBoards)syncActions();
   if (form.paged) move(0,{focus:false});
   fitSamples();
+  if(hasBoards)globalThis.WiserBoardView.fitLooks();
   metadata({host:state.host,source,delivery:"idle"});
 }
 globalThis.WiserForm = Object.freeze({WORDS,render,readAnswers,setStatus,setHost,setTheme,showEmpty,metadata});

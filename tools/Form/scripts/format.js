@@ -183,7 +183,7 @@ function validate(value, template = false) {
     if (!record(q)) { add(p,"Expected an object."); return; }
     const choice = ["radio","checkbox","image-radio","image-checkbox"].includes(q.type), image = ["image-radio","image-checkbox"].includes(q.type);
     const boards = q.type === "boards";
-    const extra = boards ? ["options","pick"] : choice ? ["options"] : q.type === "slider" ? ["min","max","step","value","minLabel","maxLabel"] : q.type === "text" ? ["placeholder"] : [];
+    const extra = boards ? ["options","pick","view","min"] : choice ? ["options"] : q.type === "slider" ? ["min","max","step","value","minLabel","maxLabel"] : q.type === "text" ? ["placeholder"] : [];
     object(q,p,["id","type","label","short","help",...extra],["id","type","label",...(boards ? ["options","pick"] : choice ? ["options"] : q.type === "slider" ? ["min","max"] : [])]);
     strings(q,p,[["id",1,L.idMax,ID],["label",1,L.questionLabelMax],["short",0,L.shortMax],["help",0,L.helpMax]]);
     if (typeof q.id === "string") { if (ids.has(q.id)) add(`${p}.id`,"Question id must be unique."); ids.add(q.id); }
@@ -201,16 +201,19 @@ function validate(value, template = false) {
       if (image && pictured < L.optionsMin) add(`${p}.options`,"At least two options must have a picture.");
     }
     if (boards) {
-      if(![0,1,3].includes(q.pick)) add(`${p}.pick`,"Expected 0, 1 or 3.");
+      if(![0,1,2,3].includes(q.pick)) add(`${p}.pick`,"Expected 0, 1, 2 or 3.");
+      if(own(q,"view") && !["board","look"].includes(q.view)) add(`${p}.view`,"Expected board or look.");
+      if(own(q,"min") && (!Number.isInteger(q.min)||q.min<1||q.min>q.pick)) add(`${p}.min`,"Expected a whole number from 1 to pick.");
       if(!own(value,"brand")) add("brand","Boards require the shared brand.");
       if(array(q.options,`${p}.options`,1,12)) {
         const values=new Set();let recommended=0;
         q.options.forEach((o,j)=>{
           const op=`${p}.options[${j}]`;
-          if(!object(o,op,["value","label","note","recommendation","board"],["value","label","board"]))return;
+          if(!object(o,op,["value","label","note","recommendation","board"],["value",...(q.view==="look"?[]:["label"]),"board"]))return;
           strings(o,op,[["value",1,L.optionValueMax,VALUE],["label",1,B.label],["note",0,B.note],["recommendation",1,B.recommendation]]);
           if(values.has(o.value))add(`${op}.value`,"Option value must be unique.");values.add(o.value);
           if(own(o,"recommendation") && ++recommended>2)add(`${op}.recommendation`,"At most two recommendations.");
+          if(q.view==="look" && own(o,"recommendation"))add(`${op}.recommendation`,"Looks carry no recommendation.");
           if(!object(o.board,`${op}.board`,BOARD_KEYS,["pairing","palette","graphicSet","primaryMode"]))return;
           // Validate each option to locate independent failures; then validate the page too.
           try { resolveBoards(value.brand,[o]); } catch(e) { add(`${op}.board`,e.message); }
@@ -319,26 +322,27 @@ export function formJsonSchema() {
     board, recommendation:str(B.recommendation,"Boards only; at most two recommended options, one line each.",1),
     picture: str(L.fontSrcMax,"Optional on image types; at least two options in an image question must have a picture. An option without one is a word choice drawn after the tiles. Other question types refuse it. palette:#hex,#hex,... has 1 to 8 colours, each #rgb or #rrggbb. motif:<name>[:#fg,#bg] uses dots, grid, waves, arcs, stripes, rings, triangles or blob and either no colours or exactly two. type:<family>[+<family>][:#fg,#bg] uses one or two declared font families or serif, sans-serif, monospace, system-ui, and either no colours or exactly two. Nothing is fetched for pictures.",1),
     sample: str(L.sampleMax,"Only with a type: picture, refused without a picture; at most 24 code points. Both type families draw this sample when supplied; otherwise the first draws Aa and the second Abc 123.")
-  },["value","label"],"Options have unique values within their question.");
+  },["value"],"Options have unique values within their question. label is required except on boards with view look, where it defaults to Look 1, Look 2, etc. Board options require board.");
   const question = obj({
     id: str(L.idMax,"Unique question id: lowercase letter then up to 39 lowercase letters, digits or hyphens.",1,ID.source),
     type: { type:"string",enum:[...TYPES],description:"Supported question type; only that type's keys are accepted by checkForm." },
     label: str(L.questionLabelMax,"Question label, 1 to 200 code points.",1), short: str(L.shortMax,"Optional answer heading, at most 40 code points."),help:str(L.helpMax,"Optional help, at most 300 code points."),
-    pick:{type:"integer",enum:[0,1,3],description:"Boards only, required: 3 up to three, 1 exactly one (a sole option is selected), 0 display-only with no actions or send."},
+    pick:{type:"integer",enum:[0,1,2,3],description:"Boards only, required: 2 or 3 caps the picks, 1 exactly one (a sole option is selected), 0 display-only with no actions or send."},
+    view:{type:"string",enum:["board","look"],description:"Boards only: board (default) draws whole boards; look draws 600 by 360 whole-look tiles, four across from 734px, two below, without full-size controls or recommendations."},
     options:arr(option,1,L.optionsMax,"Boards need 1 to 12 options. Required for choices: 2 to 12 options for radio/checkbox, 2 to 8 for image-radio/image-checkbox, with at least two options carrying a picture. Remaining image options may omit picture and draw as word choices after the tiles, in the same input group. Other types refuse options."),
-    min:{type:"number",description:"Slider only, required finite minimum below max."},max:{type:"number",description:"Slider only, required finite maximum above min; range must be finite."},
+    min:{type:"number",description:"Slider: required finite minimum below max. Boards: optional whole number from 1 to pick; Send and actions with needs some require at least this many picks. Defaults to 1 for pick 1, otherwise 0 for Send and 1 for needs some."},max:{type:"number",description:"Slider only, required finite maximum above min; range must be finite."},
     step:{type:"number",description:"Slider only: positive, default 1. (max-min)/step must be a whole number from 1 to 100."},
     value:{type:"number",description:"Slider only: in range and on a step; default step nearest the middle, ties upward."},
     minLabel:str(L.endLabelMax,"Slider only, at most 24 code points."),maxLabel:str(L.endLabelMax,"Slider only, at most 24 code points."),
     placeholder:str(L.placeholderMax,"Text only, at most 120 code points. Answers are trimmed and capped at 1000 code points.")
   },["id","type","label"],"Only common fields and the fields for the selected type are permitted. No string may contain control characters.");
   return obj({ id:str(L.idMax,"Optional form id: lowercase letter then up to 39 lowercase letters, digits or hyphens.",1,ID.source),
-    title:str(L.titleMax,"Required title, 1 to 80 code points.",1),intro:str(L.introMax,"Optional introduction, at most 300 code points."),
+    title:str(L.titleMax,"Required title, 1 to 80 code points. Paged forms and any form containing boards show it as a muted h1.progress line.",1),intro:str(L.introMax,"Optional introduction, at most 300 code points."),
     paged:{type:"boolean",description:"Optional, default false. Show one question at a time and send all answers together. Refused on a form with only one question, even when false; checkForm enforces this cross-field rule."},
     fonts:arr(obj({family:str(L.familyMax,"Font family name, 1 to 40 characters: ASCII letters and digits, starting with a letter, words separated by single spaces; unique ignoring case; never a CSS keyword: serif, sans-serif, monospace, system-ui, cursive, fantasy, emoji, math, fangsong, inherit, initial, unset, revert, default.",1,FAMILY.source),
       src:str(L.fontSrcMax,"HTTPS font URL, at most 300 code points, origin https://fonts.gstatic.com or https://cdn.jsdelivr.net, no query, fragment or credentials, path ending .woff2, .woff, .ttf or .otf.",1)},["family","src"],"Declared font; no generic family names."),L.fontsMin,L.fontsMax,"Optional 1 to 6 declared fonts."),
     brand:obj({name:line(B.name),initials:line(B.initials),sentence:line(B.sentence),body:line(B.body),words:arr(obj({word:line(B.word),not:line(B.word)},["word","not"]),0,B.words),logo:str(B.logoBytes,"Optional kept SVG text, at most 8192 UTF-8 bytes, checked by Contact Sheet's standalone static SVG rules.",1)},["name","initials","sentence","body","words"],"Shared once by every board. Required for boards, otherwise refused."),
-    actions:arr(obj({value:str(L.optionValueMax,"Unique action value.",1,VALUE.source),label:line(60),note:str(120,"Optional action note."),needs:{type:"string",enum:["one","some","any","none"],description:"one exactly 1 pick; some at least 1; any any count; none zero picks. Unmet actions are disabled with their note shown."}},["value","label","needs"]),2,3,"Boards only. Replaces Send; chosen action is payload.action. Refused on a pick 0 display-only form."),
+    actions:arr(obj({value:str(L.optionValueMax,"Unique action value.",1,VALUE.source),label:line(60),note:str(120,"Optional action note."),needs:{type:"string",enum:["one","some","any","none"],description:"one exactly 1 pick; some at least the boards min (default 1); any any count; none zero picks. Unmet actions are disabled with their note shown."}},["value","label","needs"]),2,3,"Boards only. Replaces Send; chosen action is payload.action. Refused on a pick 0 display-only form."),
     questions:arr(question,L.questionsMin,L.questionsMax,"Required 1 to 12 questions; ids must be unique.")
   },["title","questions"],"Wiser form, JSON Schema draft 2020-12 vocabulary. At most 65536 UTF-8 bytes as JSON.stringify writes it. Lengths count code points; no control characters anywhere. Unknown keys, including submitLabel, are refused. checkForm enforces the conditional and cross-field rules described here.");
 }

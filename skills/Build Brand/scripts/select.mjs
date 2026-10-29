@@ -5,6 +5,7 @@ import { dirname, basename, resolve, join, isAbsolute, relative, sep } from 'nod
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { assemble, canonical, LIBRARY, AXES, partPositions } from './assemble.mjs';
 
 const SKILL = realpathSync(resolve(dirname(fileURLToPath(import.meta.url)), '..'));
@@ -29,7 +30,7 @@ Options:
   --help, -h        Help before reading files or checking fonts.
 Built-ins only. No network, configuration or installs; --env/--install refused.
 Success: one JSON object with selection, ranked spares, positions, replacements,
-checks and (for looks) Form options with pending whole-look picture descriptors.
+checks and (for looks) ready-to-use Form boards options for view: "look".
 Failure: JSON on stderr only, exit 1. No existing output is overwritten.
 All fields, pick records, off parts, kept assets and steer values: parts/parts.md.`;
 const copy = value => structuredClone(value);
@@ -166,7 +167,7 @@ function candidates(library,state) {
   return result.sort((a,b)=>b.score-a.score || (state.darkLed?Number(b.palette.energy==='dark-first')-Number(a.palette.energy==='dark-first'):0) || a.order-b.order);
 }
 const key=c=>`${c.pairing.id}/${c.palette.id}/${c.graphicSet.id}`;
-const lookId=c=>'look:'+key(c);
+const lookId=c=>'look-'+createHash('sha256').update(key(c)).digest('hex').slice(0,32);
 function chooseLooks(pool, accept=()=>true, onChoose=()=>{}) {
   const chosen=[],palettes=new Set(),pairings=new Set(),graphics=new Set(),axes=new Set(),targets=new Set(),spares=[];
   for(let i=0;i<4;i++) {
@@ -379,8 +380,10 @@ export function select(command, answers, {library=load(LIBRARY),data=load(TAPS),
     const result={command,selection,dials:state.dials,wholeLookBoosts:boosts,darkLed:state.darkLed,brightColour:state.brightColour,ignoredNudges:state.ignored,positions:chosen.map(summary),spares:spares.map((list,i)=>({slot:i+1,ranked:list.map(summary)})),replacements,checks:{enabled:check,attempts:checker?.attempts??0},notes};
     if(command==='looks') {
       result.looks=chosen.map((c,i)=>({value:lookId(c),label:`${c.pairing.name} / ${c.palette.name} / ${c.graphicSet.name}`,kind:c.kind,...summary(c)}));
-      result.options=result.looks.map((look,i)=>({value:look.value,label:look.label,picture:{pending:'whole-look grammar',name:a.name,pairing:look.pairing,palette:look.palette,graphicSet:look.graphicSet,primaryMode:chosen[i].mode,positions:look.positions}}));
-      result.notes.push('picture is a descriptor for the whole-look grammar, not yet a supported Form picture. Its renderer needs the name, three part ids, primary mode and six positions.');
+      result.options=result.looks.map((look,i)=>{
+        const b=boards[i];
+        return {value:look.value,label:`Look ${i+1}`,board:{pairing:copy(b.pairing),palette:copy(b.palette),graphicSet:copy(b.graphicSet),primaryMode:b.primaryMode,...(b.container?{container:b.container}:{}),handwriting:b.handwriting,buttonRadius:b.buttonRadius}};
+      });
       // Associate every rejected look with the actual passing choice for its slot.
     }
     return result;

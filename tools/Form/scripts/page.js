@@ -3,7 +3,7 @@ import {FONT_HOSTS} from './format.js';
 const boardsLibrary = readFileSync(new URL('../engine/boards-lib.js',import.meta.url),'utf8').replace(/\bexport /g,'');
 const boardContract = readFileSync(new URL('./boards.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace(/\bexport /g,'');
 const boardView = readFileSync(new URL('../engine/boards.js',import.meta.url),'utf8');
-const boards = `(() => {${boardsLibrary}\n${boardContract}\nglobalThis.WiserBoards={BOARD_CSS,BOARD_PARTS,PUBLIC_FONT_FILES,BOARD_LIMITS,resolveBoards,actionAllowed,displayOnly,FONT_HOSTS:${JSON.stringify(FONT_HOSTS)}};})();\n${boardView}\n`;
+const boards = `(() => {${boardsLibrary}\n${boardContract}\nglobalThis.WiserBoards={BOARD_CSS,BOARD_PARTS,PUBLIC_FONT_FILES,BOARD_LIMITS,resolveBoards,actionAllowed,minimumPicks,displayOnly,FONT_HOSTS:${JSON.stringify(FONT_HOSTS)}};})();\n${boardView}\n`;
 const style = readFileSync(new URL('../engine/style.css',import.meta.url),'utf8');
 const escape = text => String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 export function composePage({script,form,title,closes} = {}) {

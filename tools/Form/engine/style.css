@@ -77,6 +77,11 @@ button:disabled{opacity:.6;cursor:progress}
 .board-viewer-scroll:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}
 .boards-tiles{display:grid;grid-template-columns:minmax(0,1fr);gap:20px 16px}
 @media(min-width:560px){.boards-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.looks-tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media(min-width:734px){.looks-tiles{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.look-art{display:block;width:100%;height:auto;aspect-ratio:600/360;pointer-events:none;font-synthesis:none}
+.look-art text{white-space:pre}
+.looks-tile .tile-label{padding:10px 8px}
 .board-option{min-width:0}
 .boards-tile{display:block;width:100%}
 .board-crop{height:280px;overflow:hidden;pointer-events:none}

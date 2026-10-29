@@ -123,6 +123,46 @@ function draw(model,b,{compact=false,logo}={}) {
   }
   return n;
 }
+const ns='http://www.w3.org/2000/svg';
+function shape(tag,attrs={}) {
+  const n=document.createElementNS(ns,tag);for(const [k,v]of Object.entries(attrs))n.setAttribute(k,v);return n;
+}
+function fitLooks() {
+  for(const n of document.querySelectorAll('svg.look-art')) {
+    const name=n.querySelector('.look-name'),lines=[...name.children],height=Number(name.dataset.lineHeight);
+    name.style.fontSize='90px';
+    const widest=Math.max(...lines.map(t=>t.getComputedTextLength()),1);
+    const size=Math.min(90*294/widest,190/(height*lines.length));
+    name.style.fontSize=`${size}px`;
+    lines.forEach((t,i)=>t.setAttribute('y',i*size*height));
+    const box=name.getBBox();name.setAttribute('transform',`translate(42 ${57+(210-box.height)/2-box.y})`);
+    const initials=n.querySelector('.look-initials');
+    if(initials){initials.style.fontSize=`${Math.min(36,size*.6)}px`;const width=initials.getComputedTextLength();if(width>100)initials.style.fontSize=`${parseFloat(initials.style.fontSize)*100/width}px`;}
+  }
+}
+function look(model,b,{logo}={}) {
+  const mode=b.primaryMode,c=b.palette[mode],n=shape('svg',{viewBox:'0 0 600 360',class:'look-art','aria-hidden':'true','data-mode':mode});
+  n.append(shape('rect',{width:600,height:360,fill:c.ground}));
+  const pattern=repeatArt(b.modes[mode].drawings.pattern);
+  for(const [k,v]of Object.entries({class:'look-pattern',width:600,height:360,opacity:b.graphics.pattern.strength[mode],transform:`rotate(${b.graphics.pattern.angle||0} 300 180)`}))pattern.setAttribute(k,v);
+  n.append(pattern);
+  const name=type(shape('g',{class:'look-name',fill:c.headline}),b.textStyles.headline);
+  name.dataset.lineHeight=Math.max(1,b.textStyles.headline.lineHeight);
+  for(const word of model.person.split(/\s+/).filter(Boolean)){const line=shape('text',{x:0,y:0});line.textContent=word;name.append(line);}
+  n.append(name,shape('rect',{x:390,y:61,width:168,height:200,fill:c.pop}));
+  if(logo){const drawing=art(logo,'look-mark');for(const [k,v]of Object.entries({x:414,y:101,width:120,height:120}))drawing.setAttribute(k,v);n.append(drawing);}
+  else {
+    const plate=b.monogram.surfaces?.ground,ink=plate?c.pop:c.onPop;
+    if(plate)n.append(shape('rect',{x:414,y:101,width:120,height:120,rx:120*plate.radius/100,fill:c.onPop}));
+    const drawing=art(b.monogram.container.replace(/currentColor/g,ink).replace(/\{\{([A-Za-z]+)\}\}/g,(_,role)=>c[role]),'look-mark');
+    for(const [k,v]of Object.entries({x:414,y:101,width:120,height:120}))drawing.setAttribute(k,v);n.append(drawing);
+    const initials=type(shape('text',{class:'look-initials',x:474,y:161,'text-anchor':'middle','dominant-baseline':'central',fill:ink}),{...b.textStyles.person,weight:b.type.heading.sizes.small.weight,letterSpacing:0});
+    initials.textContent=b.monogram.initials;n.append(initials);
+  }
+  for(const [x,width,role]of [[0,300,'panel'],[300,200,'pop'],[500,100,'deep']])n.append(shape('rect',{x,y:302,width,height:58,fill:c[role]}));
+  return n;
+}
+document.fonts.addEventListener('loadingdone',fitLooks);
 function loadFonts(model,hosts) {
   const used=new Set();
   for(const b of model.boards)for(const face of Object.values(b.type))for(const f of lib.PUBLIC_FONT_FILES[face.family]||[]) {
@@ -131,5 +171,5 @@ function loadFonts(model,hosts) {
     try{const ff=new FontFace(face.family,`url(${JSON.stringify(u.href)})`,{weight:Array.isArray(f.weight)?f.weight.join(' '):String(f.weight),style:f.style});document.fonts.add(ff);ff.load().catch(()=>{});}catch{/* Keep the generic of the same kind. */}
   }
 }
-globalThis.WiserBoardView={draw,loadFonts};
+globalThis.WiserBoardView={draw,look,fitLooks,loadFonts};
 })();

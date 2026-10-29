@@ -3,7 +3,7 @@ name: Form
 type: tool
 category: automation
 description: Check and fill Wiser forms and draw their questions in a page that returns answers to the chat
-version: 0.3.0
+version: 0.4.0
 ---
 
 # Form
@@ -69,7 +69,7 @@ A form takes exactly these keys:
 | Key | Rule |
 |-----|------|
 | `id` | Optional; `^[a-z][a-z0-9-]{0,39}$` |
-| `title` | Required string, 1 to 80 code points |
+| `title` | Required string, 1 to 80 code points; a muted progress line (`h1.progress`) on paged forms and every form containing boards |
 | `intro` | Optional string, at most 300 |
 | `paged` | Optional boolean, default false; refused on a one-question form, even when false |
 | `fonts` | Optional array, 1 to 6 font objects |
@@ -88,7 +88,7 @@ Every question has required `id`, `type`, `label` and optional `short`, `help`. 
 | `radio`, `checkbox` | Required `options`, 2 to 12 entries |
 | `image-radio`, `image-checkbox` | Required `options`, 2 to 8 entries, at least two with a picture |
 | `slider` | Required finite numbers `min`, `max`, with `min < max`; optional `step`, `value`, `minLabel`, `maxLabel` |
-| `boards` | Required `pick` (0, 1 or 3), and `options`, 1 to 12 boards; requires form-level `brand` |
+| `boards` | Required `pick` (0, 1, 2 or 3), and `options`, 1 to 12 boards; optional `view` (`board`, the default, or `look`) and `min` (a whole number from 1 to `pick`); requires form-level `brand` |
 | `text` | Optional `placeholder`, at most 120 characters; answer capped at 1000 characters |
 
 Slider `step` is positive, default 1, and divides `(max - min)` into a whole number of steps from 1 to 100. A supplied `value` is between the ends and on a step. Without it, the engine uses the step nearest the middle, rounding a tie upward. `minLabel` and `maxLabel` are each at most 24 characters. Step arithmetic allows eight machine epsilons of relative floating point rounding, and every step must land on a value of its own: far from zero a small step can vanish in rounding, and such a range is refused.
@@ -123,13 +123,17 @@ Use one `boards` question per form. Both the chat card and local window draw it 
 
 `brand` has exactly required `name` (1 to 80 code points), `initials` (1 to 12), `sentence` (1 to 300), `body` (1 to 500), and `words` (0 to 5 `{word, not}` objects, each field 1 to 60). Optional `logo` is kept SVG text, at most 8192 UTF-8 bytes, checked by Contact Sheet's standalone static SVG validator, including local references and refusal of active or external content. The format's no-controls rule applies: send SVG on one line. A kept logo replaces the container on every board. Shared fields are sent once.
 
-Each option has required `value` (the usual value grammar), `label` (the board's name, 1 to 120), `board`, optional `note` (up to 300, the member's this/not-that words) and `recommendation` (1 to 200, one line, at most two boards). Other option types retain their existing label and note limits.
+Each option has required `value` (the usual value grammar), `label` (the board's name, 1 to 120), `board`, optional `note` (up to 300, the member's this/not-that words) and `recommendation` (1 to 200, one line, at most two boards). With `view: "look"`, `label` is optional, defaulting to "Look 1", "Look 2", and so on, and `recommendation` is refused. Other option types retain their existing label and note limits.
 
 `board` takes references exactly as `select.mjs` names them: required `pairing: {id, headingFrom?, bodyFrom?}`, `palette: {id, overrides?}`, `graphicSet: {id, pattern?, texture?}`, `primaryMode: "light" | "dark"`, and a `container` id without a kept logo. Every id and donor id must exist in the bundled library. Optional `handwriting` is an offered public note family or null (default null); `buttonRadius` defaults to 4. Supplied font-file objects and mark-file paths cannot travel in a form. Palette overrides, pattern angle/strength and texture strength retain Assembly's closed fields and limits.
 
 Optional board copy uses Assembly's `heroPhrase`, `note: {text, direction}`, `sample`, `items`, and `closingExamples` shapes. Optional `content` takes only `smallPrint`, `photoRules`, `never`, `markCaption` and nullable `closing`; shared brand fields are refused there. Absent copy uses the member's shared words; heroPhrase defaults to the sentence. Contact Sheet checks matching, both colour modes, SVG and public font-weight coverage on the assembled result. Only file-byte checks stay in disk assembly. Checks never silently change a colour or part.
 
 `pick: 3` allows zero through three picks. One tap on the tile or its caption checkbox picks; another unpicks. A fourth pick says “Pick up to three.” `pick: 1` requires one for normal Send; a second pick is refused until the first is unticked. A sole board in a one-pick round shows whole without a question and starts selected, so Lock it applies to that board. Board answers are arrays of option values in option order.
+
+`pick: 2` caps the picks at two. Optional `min` requires at least that many picks for Send or an action with `needs: "some"`; until then the engine shows "Pick at least two." (or one or three). Without `min`, Send retains its existing rule: one for `pick: 1`, otherwise zero; `some` requires one. Other action needs keep their meanings. The local listener checks these rules again.
+
+`view: "look"` draws small whole looks from exactly the same `board` references and shared `brand`: the member's name large in the pairing's heading face, on the palette's ground in its primary mode, with the graphic set's pattern at its own strength, its placeholder mark (or kept logo) in a colour field and a colour band below. Each picture has the prototype's 600 by 360 proportions. Tiles show four across from a 734px viewport, two below. The checkbox sits beside the caption; there is no full-size control or recommendation. A sole one-pick look stays a tile and starts selected. `pick: 0` shows look tiles without controls or submission. `select.mjs looks` returns eight ready-to-use `options`; pass that array unchanged into a question with `type: "boards"`, `view: "look"`, `pick: 3`, `min: 2`, and the member's shared `brand`. Its stable `look-` values fit the usual option grammar; ranking details remain in the selection report.
 
 Tiles show the top of each board at their own width: two across from 560px, one below. Name, tick, note and recommendation sit below the picture. “See it full size” is outside the picking label. It opens both full modes inside the same card, keeping its height, capped at 720px and three quarters of the available screen. The board scrolls beneath “Back to the boards” and the mirrored “Pick this one” checkbox. Back preserves picks and restores focus. No display-mode request is made. Full boards use the model's 734px and 390px layouts; chrome follows the host theme while each board keeps its own colours.
 
@@ -140,7 +144,7 @@ Board fonts load with `FontFace` from the model's public map, restricted to `FON
 | Needs | Enabled with |
 |-------|--------------|
 | `one` | Exactly one pick |
-| `some` | At least one pick |
+| `some` | At least `min` picks, or one when `min` is absent |
 | `any` | Any count, including zero |
 | `none` | No picks |
 
@@ -180,7 +184,7 @@ Tokens in any other value or any key are refused. Every token names a declared s
 
 `engine/engine.js` is a classic script defining `globalThis.WiserForm`. A host checks the form first and calls `WiserForm.render(form, { onSubmit, host, source, sends })`. `onSubmit({ payload, summary })` returns `{ sent, delivery }`. `setHost`, `setTheme`, `metadata`, `readAnswers`, `setStatus` and `showEmpty` serve host integration; `WORDS` is the single home of visible engine wording. The renderer uses safe DOM construction. Its only external network activity is loading each declared sample font or board-map font with `FontFace`. Samples draw at once, in a generic face until the font arrives, and keep that face if it never does or the browser refuses it. A sample wider than its card is set smaller until it fits, again whenever a face arrives. Before a form arrives, the page shows the shape of one, in no words. `engine/style.css` is the one stylesheet, with host light/dark theme overrides and operating-system theme otherwise. Native controls provide keyboard operation and visible focus rings.
 
-With `paged: true`, the same engine shows one question at a time in both the chat card and the local window (`engine/local.js`, including `scripts/ask.js`). Its single heading is the form's title plus `WORDS.progress`, such as " · 4 of 9", announced politely. The intro shows only on the first question. A pointer tap, click, Enter or Space on a radio or image-radio option selects it, keeps the pick visible for 250 ms, then moves on; arrow keys only change the pick. Every question before the last has `WORDS.next` ("Next"), which allows an unanswered skip; every question after the first has `WORDS.back` ("Back"), preserving answers. Moving focuses the question's first control. Hidden questions retain their controls but take no layout space, so the existing host size reporting follows the current question. The last question keeps the existing host-specific submit button; a radio pick there never sends by itself. Submission reads every question, uses the same transport once, and shows all answers together in the summary. Retry and local locking keep their existing behavior. Without paged mode, rendering and submission are unchanged.
+With `paged: true`, the same engine shows one question at a time in both the chat card and the local window (`engine/local.js`, including `scripts/ask.js`). Its single heading is the form's title plus `WORDS.progress`, such as " · 4 of 9", announced politely. The intro shows only on the first question. A pointer tap, click, Enter or Space on a radio or image-radio option selects it, keeps the pick visible for 250 ms, then moves on; arrow keys only change the pick. Every question before the last has `WORDS.next` ("Next"), which allows an unanswered skip; every question after the first has `WORDS.back` ("Back"), preserving answers. Moving focuses the question's first control. Hidden questions retain their controls but take no layout space, so the existing host size reporting follows the current question. The last question keeps the existing host-specific submit button; a radio pick there never sends by itself. Submission reads every question, uses the same transport once, and shows all answers together in the summary. Retry and local locking keep their existing behavior. Every form containing a boards question also shows its title as the muted `h1.progress` line, without a question count unless paged; other unpaged forms keep their heading.
 
 `engine/chat.js` supplies the in-chat transport. Bundle it with the host's esbuild as `bundle: true`, `format: "iife"`, `target: "es2022"`, `minify: true`, using `@modelcontextprotocol/ext-apps` 2.0.0. Pass the resulting script to `composePage({ script })` from `scripts/page.js`; serve the returned HTML as the host's app resource.
 
@@ -258,6 +262,14 @@ The `ask` tests also cover a scripted answer, timeout, refusals, host reuse, SIG
 Paged fixtures and format tests cover the optional boolean, wrong types, one-question refusal, template filling and the published schema. The existing AppBridge host harness exercises one visible question, progress and first-page intro, radio pointer/Enter/Space advance with an observable selection, arrows without advance, Next skipping, Back preserving answers, focus, size reporting, one final delivery in context-then-message order and the full summary. Local tests exercise the same paged engine through the listener. Paged layout checks cover light and dark themes at 390 and 760 pixels, text contrast of at least 4.5:1 and controls at least 44 pixels tall.
 
 Board tests cover every new format field, library membership, public-map validation, generated-file freshness and both recorded twelve-board tap sets under 65,536 bytes. Browser cases exercise pointer/touch and keyboard picks, cap refusal, action enablement, mirrored whole-view selection, equal card heights, Back, structured action delivery in both transports, display-only non-submission, font success/failure and intercepted requests. The host records display-mode requests to prove none are made.
+
+Whole-look cases pass both recorded tap sets' `select.mjs looks` options unchanged through the validator and schema, then check 600 by 360 structure, numbered and supplied captions, the progress class, two/four columns, minimum enablement, refused fourth picks, keyboard picks with `pick: 2`, and listener rejection below the minimum or above the cap. An offline render command saves both sets at 390 and 734 in light and dark, with zero, two and refused-fourth picks, plus all-content captures and prototype comparisons:
+
+```sh
+PLAYWRIGHT_BROWSERS_PATH="$HOME/Library/Caches/ms-playwright" node scripts/render-look-checks.mjs --output /absolute/new/render-directory --prototype /absolute/prototype-directory
+```
+
+The prototype directory holds `looks/looks.json` and its named PNGs. All fonts come from the installed local pack through intercepted public-map requests; no external service is contacted and nothing is installed.
 
 To regenerate offline visual evidence with installed development packages, browser and local font pack:
 

@@ -10,6 +10,7 @@ import {select,tapDials,ground,score,run,ENERGIES} from '../scripts/select.mjs';
 import {assemble,LIBRARY,AXES} from '../scripts/assemble.mjs';
 import {runContactSheet} from '../../../tools/Contact Sheet/scripts/contact-sheet.js';
 import {operator,firstStrategy} from './select-fixtures.mjs';
+import {checkForm} from '../../../tools/Form/scripts/format.js';
 const library=JSON.parse(readFileSync(LIBRARY)),data=JSON.parse(readFileSync(new URL('../parts/taps.json',import.meta.url)));
 const work=mkdtempSync(join(tmpdir(),'brand-selection-tests-'));
 const script=fileURLToPath(new URL('../scripts/select.mjs',import.meta.url));let count=0;
@@ -46,9 +47,15 @@ for(const [label,fixture]of [['operator',operator],['First Strategy',firstStrate
     assert.equal(new Set(r.looks.map(l=>l.palette)).size,8);
     for(const field of ['pairing','graphicSet'])assert.equal(new Set(r.looks.slice(0,4).map(l=>l[field])).size,4);
     for(const look of r.looks.slice(4))assert.equal(Object.keys(AXES).filter(k=>look.positions[k]!==r.looks[0].positions[k]).length,1);
-    for(const [i,option]of r.options.entries()){assert.equal(option.value,r.looks[i].value);assert.ok(option.label);assert.equal(option.picture.name,a.name);assert.equal(option.picture.pending,'whole-look grammar');assert.equal(Object.keys(option.picture.positions).length,6);}
+    for(const [i,option]of r.options.entries()){assert.equal(option.value,r.looks[i].value);assert.equal(option.label,`Look ${i+1}`);assert.deepEqual(Object.keys(option),['value','label','board']);assert.deepEqual(option.board.pairing,r.selection.boards[i].pairing);assert.deepEqual(option.board.palette,r.selection.boards[i].palette);assert.deepEqual(option.board.graphicSet,r.selection.boards[i].graphicSet);}
     const picked=r.looks.slice(0,2),boosted=select('round1',{...a,looks:picked.map(l=>l.value)});
     for(const [axis,[neg,pos]]of Object.entries(AXES))assert.equal(boosted.dials[axis]-r.dials[axis],picked.reduce((n,l)=>n+(l.positions[axis]===pos?1:l.positions[axis]===neg?-1:0),0));
+  });
+  test(`${label} looks CLI output is an unchanged valid boards option list`,()=>{
+    const a=fixture(),input=path('looks-answers.json');writeFileSync(input,JSON.stringify(a));
+    const r=run(['looks','--answers',input,'--check']),before=structuredClone(r.options);
+    const form={title:'Step 3: how it should look',brand:{name:a.name,initials:r.selection.boards[0].initials,sentence:a.sentence,body:a.body,words:a.words},questions:[{id:'looks',type:'boards',view:'look',label:'Which of these feel like you? Pick two or three.',pick:3,min:2,options:r.options}]};
+    assert.deepEqual(checkForm(form),{ok:true,problems:[]});assert.deepEqual(r.options,before);
   });
 }
 test('operator and First Strategy dial arithmetic retains small nudges exactly',()=>{

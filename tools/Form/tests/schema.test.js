@@ -26,7 +26,8 @@ test('schema describes optional word choices, the picture minimum and type-only 
  assert.match(options.description,/at least two.*picture/i);
  assert.match(options.items.properties.picture.description,/optional.*image/i);
  assert.match(options.items.properties.sample.description,/both.*famil/i);
- assert.deepEqual(options.items.required,['value','label']);
+ assert.deepEqual(options.items.required,['value']);
+ assert.match(options.items.description,/label is required except.*view look/);
 });
 test('schema callers cannot mutate the validator vocabulary',()=>{
  const schema=formJsonSchema();schema.properties.questions.items.properties.type.enum.push('other');
