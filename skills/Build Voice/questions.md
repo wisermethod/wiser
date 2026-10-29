@@ -6,7 +6,7 @@ Each question says what it **feeds**. A line in quotation marks after a pick is 
 
 ## S1. Your writing (tapped)
 
-The coach's first question, before anything else is said.
+The coach's first question, said after any offer `SKILL.md` The coach step 1 makes and before anything else. Where the request itself brings their writing, it is not asked: the writing is its samples.
 
 > Do you have examples of content you've written that you want to use to help craft your Wiser voice?
 
@@ -23,11 +23,11 @@ Yes:
 
 Each piece that arrives is a sample, numbered E1 onward, read and filed as `SKILL.md` The coach step 2 says. Feeds: the portrait, the pieces, `## How They Write`, and every pair or tap the samples settle.
 
-Where a piece cannot be read, said once in the run, naming each piece that could not be read:
+Where a piece cannot be read, said once in the run, naming each piece that could not be read, and then wait for their answer:
 
 > I couldn't read [which one, and why, in a few words]. Paste the writing here instead, or say "skip" and we'll go on without it.
 
-Where nothing could be read and they skip, or what they send next cannot be read either, go on as S1's No, with its line and the opening. Once at least one sample is read, say this line in place of the opening:
+Where nothing could be read and they skip, or what they send next cannot be read either, go on as S1's No, with its line and the opening. Once at least one sample is read and nothing is waiting on that answer, say this line in place of the opening:
 
 > Thanks, I've read [them, or it for one]. [One line on what stood out in their writing.] Now a few questions your writing can't answer, then I'll show you how you come across and write your first piece. "Not sure" is always a fine answer.
 
@@ -96,7 +96,7 @@ Writes:
 
 ### P6. Humour
 
-P6 to P9 are not pairs: each is the same for everyone and asked on every run, and each line it writes covers only the moment its question names. A skip writes nothing. Typed instead of tapped, an answer that plainly matches an option writes that option's line; one that matches none, such as "only about my own mistakes", writes one line in their words, for the same moment, cited with the tap's number.
+P6 to P9 are not pairs: each is the same for everyone, P7 is asked on every run, and P6, P8 and P9 on every run whose samples did not settle them; each line it writes covers only the moment its question names. A skip writes nothing. Typed instead of tapped, an answer that plainly matches an option writes that option's line; one that matches none, such as "only about my own mistakes", writes one line in their words, for the same moment, cited with the tap's number.
 
 > To help me gauge your usage of humor, tell me: when something's gone a bit wrong, would you make a joke about it in writing?
 
@@ -136,9 +136,13 @@ Feeds: `## Prohibitions`, the line they tap as the example of what W4 names. Non
 
 ## Screen 2 (tapped)
 
-Said before it:
+Said before it, where it asks more than one question:
 
 > A few more taps, then I'll show you how you come across.
+
+Where the samples left it only one:
+
+> One more tap, then I'll show you how you come across.
 
 ### P9. The stock phrase
 
