@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.29, October 29, 2026
+
+- Wiser can now install Wiser CRM into your own Cloudflare account and keep it up to date. Before installing, it checks that the release is signed by Wiser and that every file matches. Before an upgrade it stops new changes and takes a restore point, and if the upgrade fails it puts the database and the app back as they were. Each step asks for your approval first. (a061d5f, c86f181, 323fb03, ae1b816, 7d44223, 73844b1)
+- Wiser can put a Cloudflare Access sign-in in front of the CRM's address, so only your staff can open it, and add or remove the email addresses allowed in. Wiser never creates or sees an Access service token. (978daaf, 6c3d169, 1f822b7, 011ed65, b8fa12b)
+- One Cloudflare token, pasted once, now covers all six parts of Wiser's Cloudflare connection, Workers and Access included. The Cloudflare guide lists which permissions each part needs. (c86f181, 32bcf5b)
+
 ## v2026.10.28, October 28, 2026
 
 - Wiser now asks before installing anything only once per person, not once per copy of the plugin. Your yes is kept in Wiser's own folder on your computer, so a Wiser update no longer asks again. (1c654e6)

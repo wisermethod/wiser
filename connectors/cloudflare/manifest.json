@@ -584,7 +584,7 @@
       }
     },
     "workers": {
-      "release_hosts": ["releases.example.test"],
+      "release_hosts": ["releases.wisermemory.com"],
       "auth": {
         "provider": "catalog",
         "toolkit": "CLOUDFLARE_API_KEY",
