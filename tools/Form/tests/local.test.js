@@ -7,6 +7,8 @@ import {join} from 'node:path';
 import {launch} from '../../lib/browser-runtime/browser-runtime.js';
 import {SAMPLE_FORM,FONT_HOSTS} from '../scripts/format.js';
 import {mixedPictures} from './cases.js';
+import {boardForm,lookForm} from './board-fixtures.js';
+import {onlyFonts} from './boards-harness.js';
 import {form,payload,serve,wait,stop,http,cli,dest,equal,delay,sentinel,listeners,cleanupAndScan} from './local-harness.js';
 
 let browser,runtime;
@@ -24,7 +26,7 @@ after(async t => {
   try { await browser?.close(); }
   finally { if (runtime) await rm(runtime,{recursive:true,force:true}); await cleanupAndScan(t); }
 });
-async function pageAt(s,width = 390) {
+async function pageAt(s,width = 390,ready = '#submit') {
   const context = await browser.newContext({viewport:{width,height:900},serviceWorkers:'block'});
   const errors = [],requests = [];
   await context.route('**/*',route => {
@@ -33,7 +35,7 @@ async function pageAt(s,width = 390) {
     return url.origin === new URL(s.url).origin ? route.continue() : route.abort();
   });
   const page = await context.newPage(); page.on('pageerror',() => errors.push('page error'));
-  try { await page.goto(s.url); await page.locator('#submit').waitFor(); }
+  try { await page.goto(s.url); await page.locator(ready).waitFor(); }
   catch (error) { await context.close(); throw error; }
   return {context,page,errors,requests};
 }
@@ -243,4 +245,55 @@ test('unused replay expires 60 seconds after first collection, replacing the sho
   assert.equal((await wait(s)).status,'answered');
   await delay(3500); assert.equal((await http(s)).status,200,'replay survives original closing time');
   await delay(57000); assert.equal((await wait(s)).status,'gone','unclaimed replay ends at 60 seconds');
+});
+
+test('local paged form: one question, Back retains pick and final send includes all answers',async()=>{
+ const f={...form('paged-local'),paged:true},s=await serve(f),h=await pageAt(s,390,'#next');
+ try{
+  assert.equal(await h.page.locator('fieldset:visible').count(),1);
+  await h.page.getByText('Warm',{exact:true}).click();
+  await h.page.locator('fieldset[data-id=note]:visible').waitFor();
+  await h.page.locator('#back').click();assert.equal(await h.page.locator('input[value=warm]').isChecked(),true);
+  await h.page.locator('#next').click();await h.page.locator('textarea').fill(sentinel);
+  await h.page.locator('#submit').click();await h.page.locator('#status.ok').waitFor();
+  equal(await wait(s),{status:'answered',...payload(f)},'paged listener returns every answer in the existing shape');
+  assert.equal(await h.page.locator('#copy').innerText(),`Here are my answers:\n- Which mood?: Warm\n- Note: ${sentinel}`);
+  await locked(h.page);assert.deepEqual(h.errors,[]);
+ }finally{await h.context.close();await stop(s);}
+});
+
+// Board local cases share this suite's listener lifetime and privacy checks.
+test('local display-only board sends nothing and shows no expiry message',async()=>{
+ const form=boardForm();form.questions[0].pick=0;form.questions[0].options.length=1;delete form.actions;
+ const s=await serve(form,['--ttl','2']),context=await browser.newContext({viewport:{width:390,height:900}}),requests=[];
+ await context.route('**/*',route=>{const url=route.request().url();requests.push(url);return url===s.url?route.continue():route.abort();});
+ try{const page=await context.newPage();await page.goto(s.url);await page.locator('#form').waitFor();await page.locator('#form').evaluate(n=>n.requestSubmit());await page.waitForTimeout(2100);assert.equal(await page.locator('button,input').count(),0);assert.equal(await page.locator('#status').innerText(),'');assert.ok(requests.every(url=>url===s.url||onlyFonts([url])));}finally{await context.close();await stop(s);}
+});
+
+test('local window uses the same boards engine and accepts picks plus action; listener rejects forged needs',async()=>{
+ const form=boardForm(),s=await serve(form),context=await browser.newContext({viewport:{width:734,height:900}}),requests=[];
+ await context.route('**/*',route=>{const url=route.request().url();requests.push(url);return url.startsWith(s.url)?route.continue():route.abort();});
+ try{
+  const page=await context.newPage();await page.goto(s.url);await page.locator('#form').waitFor();
+  const body={form:form.title,answers:{boards:[]},action:'lock',shown:[{id:'boards',question:form.questions[0].label,shown:'(none)'}]};
+  assert.equal((await http(s,'answers',{method:'POST',body})).status,400);
+  await page.locator('.boards-tile').first().click();await page.locator('button[data-action=lock]').click();await page.locator('#status.ok').waitFor();
+  const result=await wait(s);assert.deepEqual(result.answers,{boards:['board-1']});assert.equal(result.action,'lock');
+  assert.ok(requests.every(url=>url.startsWith(s.url)||onlyFonts([url])));
+ }finally{await context.close();await stop(s);}
+});
+for(const actions of [false,true])test(`local looks minimum is enforced in the window and listener, actions ${actions}`,async()=>{
+ const form=lookForm();if(actions)form.actions=[{value:'use',label:'Use these',needs:'some'},{value:'stop',label:'Stop for now',needs:'any'}];
+ const s=await serve(form),h=await pageAt(s,390,actions?'[data-action=use]':'#submit');
+ const options=form.questions[0].options;
+ const body=count=>({form:form.title,answers:{looks:options.slice(0,count).map(o=>o.value)},...(actions?{action:'use'}:{}),shown:[{id:'looks',question:form.questions[0].label,shown:options.slice(0,count).map(o=>o.label).join(', ')}]});
+ try{
+  const button=h.page.locator(actions?'[data-action=use]':'#submit');
+  assert.equal(await button.isDisabled(),true);assert.equal(await h.page.locator('h1.progress').innerText(),form.title);
+  for(const count of [0,1,4])assert.equal((await http(s,'answers',{method:'POST',body:body(count)})).status,400);
+  await h.page.locator('.looks-tile').nth(0).click();assert.equal(await button.isDisabled(),true);
+  await h.page.locator('.looks-tile').nth(1).click();assert.equal(await button.isDisabled(),false);
+  await button.click();await h.page.locator('#status.ok').waitFor();
+  assert.deepEqual((await wait(s)).answers,body(2).answers);await locked(h.page);assert.deepEqual(h.errors,[]);
+ }finally{await h.context.close();await stop(s);}
 });

@@ -4,6 +4,22 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {checkForm,checkTemplate,fillTemplate,FORM_LIMITS,FONT_HOSTS,SAMPLE_FORM} from '../scripts/format.js';
 import {passing,refused,base,clone,set,template,mixedPictures} from './cases.js';
+test('paged templates retain the boolean through filling and refuse one question or a token',()=>{
+ const values={name:'Ada',font:'Member Face'};
+ for(const paged of [true,false]) {
+  const t=template();t.paged=paged;const before=clone(t);
+  assert.equal(checkTemplate(t).ok,true);
+  assert.equal(fillTemplate(t,values).form.paged,paged);
+  assert.deepEqual(t,before);
+  t.questions.length=1;
+  assert.ok(checkTemplate(t).problems.some(p=>p.path==='paged'));
+  assert.equal(fillTemplate(t,values).ok,false);
+ }
+ const t=template();t.paged='{{name}}';
+ assert.ok(checkTemplate(t).problems.some(p=>p.path==='paged'));
+ const f=base(),before=clone(f);assert.equal(checkForm(f).ok,true);assert.deepEqual(f,before);
+ assert.equal(Object.hasOwn(f,'paged'),false,'default remains implicit');
+});
 for(const [name,form] of passing)test(`accept: ${name}`,()=>assert.deepEqual(checkForm(form),{ok:true,problems:[]}));
 for(const [name,path,form] of refused)test(`refuse: ${name}`,()=>{const r=checkForm(form);assert.equal(r.ok,false);assert.ok(r.problems.some(p=>p.path===path),JSON.stringify(r));});
 test('never throws for arbitrary input, even hostile objects',()=>{
@@ -17,8 +33,8 @@ test('JSON byte limit counts UTF-8 and controls anywhere',()=>{
  f.questions[0].options[0]['bad\u0001']='x';assert.ok(checkForm(f).problems.some(p=>/Control/.test(p.message)));
  for(const c of ['\0','\n','\u007f','\u009f'])assert.equal(checkForm({...base(),intro:c}).ok,false);
 });
-test('portable module has no imports and sample has six questions',()=>{
- assert.doesNotMatch(readFileSync(new URL('../scripts/format.js',import.meta.url),'utf8'),/^import\b/m);
+test('portable modules use only relative shipped imports and sample has six questions',()=>{
+ for(const file of ['../scripts/format.js','../scripts/boards.js','../engine/boards-lib.js']) { const source=readFileSync(new URL(file,import.meta.url),'utf8');assert.doesNotMatch(source,/from ['"](?:node:|[a-z@])|\b(?:process|Buffer)\b|\brequire\s*\(/); }
  assert.equal(SAMPLE_FORM.questions.length,6);assert.equal(FORM_LIMITS.answerMax,1000);assert.deepEqual(FONT_HOSTS,['https://fonts.gstatic.com','https://cdn.jsdelivr.net']);
 });
 const values={name:'Ada 😀',font:'Member Face'};
@@ -77,4 +93,8 @@ test('mixed picture templates keep word values and defer only tokenized picture 
  assert.equal(filled.ok,true,JSON.stringify(filled));assert.equal(filled.form.questions[0].options[0].value,'neither');
  t.questions[0].options[0].sample='{{label}}';
  assert.ok(checkTemplate(t).problems.some(p=>p.path==='questions[0].options[0].sample'));
+});
+test('journey opening fixture is a valid nine-question paged form',()=>{
+ const f=JSON.parse(readFileSync(new URL('./fixtures/paged-opening.json',import.meta.url),'utf8'));
+ assert.equal(f.paged,true);assert.equal(f.questions.length,9);assert.deepEqual(checkForm(f),{ok:true,problems:[]});
 });

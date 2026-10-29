@@ -33,7 +33,7 @@ test.after(() => rmSync(work,{recursive:true,force:true}));
 test('selection assembles and Contact Sheet builds it, with absolute local fonts', () => {
   const {spec,result}=build(select());
   assert.equal(result.itemCount,1);
-  for(const f of Object.values(spec.boards[0].type)) for(const file of f.files) { assert.ok(isAbsolute(file.path)); assert.ok(file.path.startsWith(resolve(dirname(LIBRARY),'fonts')+'/')); }
+  for(const f of Object.values(spec.boards[0].type)) for(const file of f.files) { assert.ok(isAbsolute(file.path)); assert.ok(file.path.startsWith(realpathSync(resolve(dirname(LIBRARY),'fonts'))+'/')); }
 });
 test('family: boards using only two families assemble after only those family assets are installed', () => {
   const root = mkdtempSync(join(work, 'two-families-')), plugin = join(root, 'plugin');
@@ -350,4 +350,19 @@ test("all four specimen selections build with the complete library",()=>{
  for(const name of result.pages){
    const html=readFileSync(join(output,name+'.html'),'utf8');assert.ok(/placeholder monogram/.test(html),name+' initials label');assert.ok(/monograms are placeholders/i.test(html),name+' placeholder notice');
  }
+});
+
+for(const [kind,id]of [['pairings','warm-grotesque'],['palettes','paper-orange'],['graphics','drawn']])for(const value of [undefined,'loud'])test(`${kind} ${id} with ${String(value)} softStrong refuses before output`,()=>{
+  const invalid=structuredClone(library),entry=invalid[kind].find(p=>p.id===id);
+  if(value===undefined)delete entry.tags.softStrong;else entry.tags.softStrong=value;
+  assert.throws(()=>assemble(select(),invalid),/tags.softStrong/);
+});
+test('assembly success report carries six positions per part without extending Contact Sheet match tags',()=>{
+  const input=path('positions-selection'),output=path('positions-spec');writeFileSync(input,JSON.stringify(select()));
+  const result=run(['--selection',input,'--output',output]);
+  assert.equal(result.positions[0].parts.pairing.softStrong,'soft');
+  assert.equal(result.positions[0].parts.palette.softStrong,'soft');
+  assert.equal(result.positions[0].parts.graphicSet.softStrong,'soft');
+  assert.equal(Object.keys(result.positions[0].parts.pairing).length,6);
+  assert.deepEqual(Object.keys(JSON.parse(readFileSync(output)).boards[0].tags),['paletteLoudness','typeLoudness','typeCut']);
 });
