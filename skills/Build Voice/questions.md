@@ -210,7 +210,7 @@ On Close, but or Not quite, they say what to change, in the free-text answer or 
 
 ## F1. The reading (typed)
 
-> Now let's have a little fun with your first writing sample. I'll write a personality profile of you in the style of a horoscope. Tell me your:
+> Now let's have a little fun with your first piece. I'll write a personality profile of you in the style of a horoscope. Tell me your:
 >
 > - Birthday with year
 > - State / province / locality where you were born
@@ -303,4 +303,6 @@ Asked with the third version, after two returns, in place of A2, and carrying th
 
 ## Close
 
-> Your voice is saved in your project folder. Whenever you have something you wrote and like, bring it to me and ask me to tune your voice using it.
+[name] is their folder's name, as `skills/Onboard Root/`'s close says it.
+
+> Your voice is saved in your [name] folder. Whenever you have something you wrote and like, bring it to me and ask me to tune your voice using it.
