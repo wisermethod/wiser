@@ -2,13 +2,13 @@
 name: heygen
 type: connector
 category: media
-description: Synthesizes timestamped WAV speech, manages instant voice clones, discovers avatars and looks, uploads narration, renders Avatar IV video to MP4 and reads API wallet and key permissions, confirming uploads, clone changes and video creation unless a standing approval covers the render
+description: Synthesizes timestamped WAV speech, manages instant voice clones, discovers avatars and looks, uploads narration, renders caller-chosen Avatar IV or Avatar V video to MP4 with no engine default and reads API wallet and key permissions, confirming uploads, clone changes and video creation unless a standing approval covers the render
 version: 0.1.0
 ---
 
 # HeyGen
 
-Six modules and thirteen actions cover instant narration, existing avatar discovery, narration uploads and Avatar IV video, with local WAV/MP4 output.
+Six modules and thirteen actions cover instant narration, existing avatar discovery, narration uploads and Avatar IV or Avatar V video, chosen by the caller and never defaulted, with local WAV/MP4 output.
 
 ## Status
 
@@ -28,7 +28,7 @@ Use the gateway's `execute` with these action ids. Inputs are closed objects. Al
 | `heygen.avatars.list` | Optional `ownership` (`public`, `private`), `limit` (integer 1 to 50), `token` | none | `groups`, `has_more`, `next_token` |
 | `heygen.avatars.list_looks` | Optional `group_id`, `ownership`, `avatar_type`, `limit` (integer 1 to 50), `token` | none | `looks`, `has_more`, `next_token` |
 | `heygen.assets.upload_audio` | `path` (1 to 4,096), `idempotency_key` | always | `asset_id`, `mime_type`, `size_bytes`; no asset URL |
-| `heygen.videos.create` | `avatar_id`, `resolution` (`720p`, `1080p`), `aspect_ratio` (`16:9`, `9:16`, `4:5`, `5:4`, `1:1`, `auto`), `idempotency_key`; either `script` (1 to 5,000) and `voice_id`, or `audio_asset_id` alone; optional `title` (1 to 200), `background_color` (`#RRGGBB`) | always unless covered by a standing approval | `video_id`, `video_status`, `output_format:mp4` |
+| `heygen.videos.create` | `avatar_id`, required caller-chosen `engine` (`avatar_iv` for Avatar IV or `avatar_v` for Avatar V, never defaulted), `resolution` (`720p`, `1080p`), `aspect_ratio` (`16:9`, `9:16`, `4:5`, `5:4`, `1:1`, `auto`), `idempotency_key`; either `script` (1 to 5,000) and `voice_id`, or `audio_asset_id` alone; optional `title` (1 to 200), `background_color` (`#RRGGBB`) | always unless covered by a standing approval | `video_id`, `video_status`, `output_format:mp4` |
 | `heygen.videos.get` | `video_id` | none | `video_id`, `video_status`, nullable `duration`, recognized `failure_code` |
 | `heygen.videos.download` | `video_id` | none | `video_status`, nullable `duration`, recognized `failure_code`; completed video adds gateway MP4 `file` |
 | `heygen.account.wallet` | `{}` | none | Only `billing_type` and typed `wallet` currency/remaining balance, or null when unavailable |
@@ -56,13 +56,13 @@ The four local actions are `speech.synthesize`, `voices.add`, `assets.upload_aud
 
 Group and look lists return one page; omission of ownership requests both. Follow every `has_more`/`next_token`, then choose the character and its look by name. Resolve duplicate names with ids. Never select the first group/look or infer one id from another: a look id may equal its group's id. `list_looks` checks returned group/type relationships against supplied filters. Empty lists and nullable optional metadata are valid; malformed fields, missing pages and contradictory pagination stop.
 
-Groups carry id, name, look count, preview presence and state/consent/default voice when present. Looks carry id, name, nullable group id, avatar type, status, nullable default voice, supported engines and preview-presence flags. Types are `studio_avatar`, `digital_twin`, `photo_avatar`. Video creation sends only Avatar IV after readiness/consent/engine checks. Vendor consent state is not another Wiser consent ask. No avatar or look creation, training, editing, deletion or likeness consent collection is included.
+Groups carry id, name, look count, preview presence and state/consent/default voice when present. Looks carry id, name, nullable group id, avatar type, status, nullable default voice, supported engines and preview-presence flags. Types are `studio_avatar`, `digital_twin`, `photo_avatar`. Video creation sends Avatar IV or Avatar V, chosen by the caller and never defaulted, after readiness/consent/engine checks. Vendor consent state is not another Wiser consent ask. No avatar or look creation, training, editing, deletion or likeness consent collection is included.
 
-## Narration assets and Avatar IV video
+## Narration assets and Avatar IV or Avatar V video
 
 `assets.upload_audio` uses the same safe local file screen and 3,000,000-byte limit as cloning. It sends one multipart `file` part named `narration.mp3` or `narration.wav`, with matching MIME and a boundary absent from the bytes, through base64 `binary_body`. It measures the entire proxy envelope and sends the required idempotency header. The acknowledgement must have a valid asset id, matching MIME and exact integer source-byte count. Its URL is discarded. Upload once, keep the asset id, then call `videos.create`. These are two writes and two confirmation stops; upload success is independent of video success. Assets remain at HeyGen; no deletion is included. Large WAV narration refuses before opening/sending; the caller may prepare and name a complete smaller MP3 through its normal workflow. No automatic transcode, compression, splitting or alternate hosting.
 
-Video requires exactly script plus explicit voice id, or asset id with neither script nor voice id. It checks the selected look id by reading that look, requires `status:completed` and `avatar_iv` support, and checks the returned group relationship across pages when present. Explicit group status must be completed/ready/active and explicit consent status approved/accepted/consented/verified/completed (case insensitive); missing/null optional states are not invented. Malformed pages, repeated cursors, a missing group or unsupported engine stops before render. A null group id does not invent a group. Send `type:avatar`, the chosen look id, `engine:{type:"avatar_iv"}`, `output_format:mp4`, resolution, ratio, optional title and `background:{value:background_color}`. An instant clone id was accepted for script video once on 2026-10-28; compatibility is not promised for every voice. No default voice, retry or engine substitution.
+Video requires the caller to choose `engine:avatar_iv` (Avatar IV) or `engine:avatar_v` (Avatar V), never defaulted, and exactly script plus explicit voice id, or asset id with neither script nor voice id. It checks the selected look id by reading that look, requires `status:completed` and the chosen engine in `supported_api_engines`, and checks the returned group relationship across pages when present. A noncompleted look or unsupported engine returns `invalid_arguments` on `avatar_id` with a fixed reason naming Avatar IV or Avatar V, before the wallet read and before any POST. Explicit group status must be completed/ready/active and explicit consent status approved/accepted/consented/verified/completed (case insensitive); missing/null optional states are not invented. Malformed pages, repeated cursors, a missing group or unsupported engine stops before render. A null group id does not invent a group. Send `type:avatar`, the chosen look id, `engine:{type:<the caller's engine>}`, `output_format:mp4`, resolution, ratio, optional title and `background:{value:background_color}`. An instant clone id was accepted for script video once on 2026-10-28; compatibility is not promised for every voice. No default engine or voice, retry or engine substitution.
 
 Persist the accepted video id before polling. `get` performs one read; `download` rereads that same id. States are pending, waiting, processing, completed and failed; other safe provider states become `unknown`, which stops automatic polling. `get` returns the video id; `download` omits it. Both project `video_status` rather than a gateway `status`, nullable finite nonnegative duration and a recognized failure code, discarding every media/thumbnail/GIF/page URL and raw failure message. The connector's failure-code allowlist is AUDIO_INVALID, AVATAR_NOT_READY, INSUFFICIENT_CREDITS, VIDEO_GENERATION_FAILED and INTERNAL_ERROR; unexpected codes are omitted. Compatibility with live failure codes is unverified. A mismatched id or malformed metadata stops. Neither action sleeps, resubmits or renders again.
 
@@ -91,8 +91,13 @@ Before paid synthesis or video creation, the caller establishes self-serve USD A
 | `voices.add` | Sends one recording and creates a resource; preview cloning has no permanent free-price promise, and capacity can refuse it. No automatic retry or ready claim. | always |
 | `voices.delete` | Permanent clone deletion; no restore supplied. | always |
 | `assets.upload_audio` | Sends and retains narration; no independent upload fee established. | always |
-| `videos.create` | Avatar IV rates read 2026-10-28, by the look's `avatar_type`: USD 0.0385/second photo avatar (`photo_avatar`); USD 0.0805/second custom video avatar (`digital_twin`) or studio avatar (`studio_avatar`). Neither an asset id nor script length bounds billable duration. For scale, 30 minutes at the latter rate is USD 144.90, not a per-call guarantee. Separate script-voice debit is unmeasured. Disclose selected look/type, rate, expected duration and unestablished components. | always, or the granted production scope |
+| `videos.create`, Avatar V | Rates read 2026-10-29: USD 0.12/second custom video avatar (`digital_twin`). | always, or the granted production scope |
+| `videos.create`, Avatar V | Rates read 2026-10-29: no Avatar V rate published for photo avatar (`photo_avatar`) or studio avatar (`studio_avatar`). The caller discloses USD 0.12/second, the one Avatar V rate published, and states that the rate for the selected type is unpublished. | always, or the granted production scope |
+| `videos.create`, Avatar IV | Rates read 2026-10-29: USD 0.0385/second photo avatar (`photo_avatar`). | always, or the granted production scope |
+| `videos.create`, Avatar IV | Rates read 2026-10-29: USD 0.0805/second custom video avatar (`digital_twin`) or studio avatar (`studio_avatar`). | always, or the granted production scope |
 | Reads and `videos.download` | No new generation charge planned. | none |
+
+Video rates apply to 720p and 1080p output. Neither an asset id nor script length bounds billable duration. For scale, 30 minutes at the highest rate, USD 0.12/second, is USD 216.00, not a per-call guarantee. Separate script-voice debit is unmeasured. Disclose selected engine, look/type, rate, expected duration and unestablished components.
 
 Only `videos.create` declares a `pay` standing approval. An always-confirmed call needs matched single-use approval for the identical input, account and label. Changed file content remains a caller duty: an unchanged path in a gateway approval does not fingerprint the file. Reads and bounded synthesis have no manifest stop. A policy denial wins. Explicitly chosen retries preserve both idempotency key and body for the same logical creation; changed work needs a new key. HeyGen documents 24-hour replay and in-flight 409. No action retries automatically after 429, timeout, 5xx or ambiguous failure.
 
@@ -100,13 +105,13 @@ Only `videos.create` declares a `pay` standing approval. An always-confirmed cal
 
 Keep `videos.create` confirmation always. A member may ask Standing Approval for one production, scoped to the root and optionally its Playbook, connection and this action. The gateway displays a heightened pay warning, refuses more than 7 days and requires the person's yes to that exact proposal. Its summary is "create HeyGen avatar video charged to your HeyGen API wallet". Its caution is:
 
-> Each covered call spends wallet dollars with no stop per call. Avatar IV rates read 2026-10-28: $0.0805 a second for a custom video or studio avatar; $0.0385 for a photo avatar. The wallet's own balance is the only ceiling HeyGen applies.
+> Each covered call spends wallet dollars with no stop per call. Rates read 2026-10-29: Avatar V $0.12 a second; Avatar IV $0.0805 for a custom video or studio avatar, $0.0385 for a photo avatar. The wallet's balance is HeyGen's only ceiling.
 
 Covered rooted calls run without a per-call stop until expiry or revocation. A call without root stops; another production/connection or a policy denial is not covered. No other HeyGen action declares standing approval. Speech remains confirmation none and needs no grant.
 
 ## Boundaries and troubleshooting
 
-Excluded: asset deletion; avatar creation/training/editing/deletion; new looks; likeness consent collection; professional voice training/retraining, arbitrary URLs, transcode, chunking, speech-to-speech, voice design, publishing, callbacks, batches, billing/key administration, v1/v2 endpoints and a bare `voice` alias. Commercial entitlement and three-varied-input live verification remain separate human checks.
+Video uses only caller-chosen Avatar IV or Avatar V, never defaulted. Excluded: Avatar III; Avatar V reference look, blinking, `motion_prompt` and `expressiveness`; 4K; asset deletion; avatar creation/training/editing/deletion; new looks; likeness consent collection; professional voice training/retraining, arbitrary URLs, transcode, chunking, speech-to-speech, voice design, publishing, callbacks, batches, billing/key administration, v1/v2 endpoints and a bare `voice` alias. Commercial entitlement and three-varied-input live verification remain separate human checks.
 
 `needs_connect`: Connect Account for the required module with `auth.md`, in its own human turn. `invalid_arguments`: fix the field or filesystem/state condition. `local_only`: use local stdio. `needs_provider_capability`: update/check the provider's measurement/download capability. `proxy_body_too_large`: reduce the request without splitting/truncating the recording. `unexpected answer`: stop and report sanitized endpoint/method. 401/403 require a workspace/permissions check; 402 a wallet check; 409 an idempotency review; 413 a request-size check; 422 an input/vendor-state check; 429 or 5xx require inspection before any explicitly chosen retry. No raw exception text is returned.
 
@@ -116,6 +121,8 @@ Excluded: asset deletion; avatar creation/training/editing/deletion; new looks; 
 - `gateway/AGENTS.md`, byte output, download and request budgets
 - `standards/script-contract.md`, published schemas
 - [HeyGen API](https://developers.heygen.com/llms.txt)
+- [Video creation](https://developers.heygen.com/reference/create-video)
+- [API wallet pricing](https://platform.heygen.com/pricing), rates read 2026-10-29
 - [Speech](https://developers.heygen.com/reference/generate-model-speech)
 - [Instant clones](https://developers.heygen.com/docs/voices/heygen-voice-instant-clone)
 - [Key permissions](https://developers.heygen.com/docs/api-key-permissions)

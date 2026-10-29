@@ -108,17 +108,19 @@ test('new upload and video envelopes obey exact 4100000/4100001 wire budget with
   }
 });
 
-test('both video alternatives send exact Avatar IV body, selected look, bounds, title and background', async (t) => {
+test('both engines and video alternatives send exact caller-selected engine body, look, bounds, title and background', async (t) => {
   const f = await setup(t, { hosted: true });
-  for (const input of [videoInput({ title: '𐐀'.repeat(200), script: '𐐀'.repeat(5000), background_color: '#01aBcF', resolution: '1080p', aspect_ratio: '9:16' }), assetInput()]) {
+  for (const engine of ['avatar_iv', 'avatar_v']) for (const input of [videoInput({ engine, title: '𐐀'.repeat(200), script: '𐐀'.repeat(5000), background_color: '#01aBcF', resolution: '1080p', aspect_ratio: '9:16' }), assetInput({ engine })]) {
+    const original = structuredClone(input);
     const before = postCount(f); const got = await run(f, 'videos.create', input);
     assert.deepEqual(got, { video_id: 'video_fake-1', video_status: 'waiting', output_format: 'mp4' }); noPrivate(got);
     assert.equal(postCount(f), before + 1);
     const req = f.calls.at(-1);
-    assert.deepEqual(req.body, { type: 'avatar', avatar_id: input.avatar_id, engine: { type: 'avatar_iv' }, resolution: input.resolution, aspect_ratio: input.aspect_ratio, output_format: 'mp4',
+    assert.deepEqual(req.body, { type: 'avatar', avatar_id: input.avatar_id, engine: { type: engine }, resolution: input.resolution, aspect_ratio: input.aspect_ratio, output_format: 'mp4',
       ...(input.title ? { title: input.title } : {}), ...(input.background_color ? { background: { value: input.background_color } } : {}),
       ...(input.audio_asset_id ? { audio_asset_id: input.audio_asset_id } : { script: input.script, voice_id: input.voice_id }) });
     assert.deepEqual(req.parameters, [{ name: 'Idempotency-Key', value: input.idempotency_key, type: 'header' }]);
+    assert.deepEqual(input, original);
     assert.ok(f.calls.every((r) => r.budget === 4100000 && r.providerAccountId === 'fake-acct-heygen-videos'));
   }
   const base = videoInput(); delete base.script; delete base.voice_id;
@@ -129,6 +131,47 @@ test('both video alternatives send exact Avatar IV body, selected look, bounds, 
     assert.equal((await modules.videos.create(videoInput(extra), {})).status, 'invalid_arguments');
   }
 });
+
+test('engine is required and rejects Avatar III, other strings and case variants before confirmation or transport', async (t) => {
+  const f = await setup(t);
+  const missing = videoInput(); delete missing.engine;
+  const missingResult = await f.gw.execute({ action: 'heygen.videos.create', input: missing });
+  assert.equal(missingResult.status, 'invalid_arguments'); assert.equal(missingResult.field, 'engine');
+  for (const engine of ['avatar_iii', 'Avatar_V', 'other-engine', '']) {
+    const got = await f.gw.execute({ action: 'heygen.videos.create', input: videoInput({ engine }) });
+    assert.equal(got.status, 'invalid_arguments'); assert.equal(got.field, 'engine');
+  }
+  assert.equal(f.calls.length, 0); assert.equal(f.measurements.length, 0);
+  assert.equal(f.gw.pendingConfirmations.size, 0);
+});
+
+for (const [engine, otherEngine, label] of [['avatar_v', 'avatar_iv', 'Avatar V'], ['avatar_iv', 'avatar_v', 'Avatar IV']]) {
+  test(`${engine}: unsupported or noncompleted look refuses before wallet read or POST with no engine fallback`, async (t) => {
+    const f = await setup(t);
+    for (const extra of [{ supported_api_engines: [otherEngine] }, { supported_api_engines: [] },
+      { status: 'processing', supported_api_engines: [engine] }, { status: null, supported_api_engines: [engine] }]) {
+      f.reply = (req) => {
+        assert.equal(req.method, 'GET');
+        assert.equal(req.endpoint, 'https://api.heygen.com/v3/avatars/looks/look_fake-1');
+        return { status: 200, data: { data: avatarLook(extra) } };
+      };
+      const before = f.calls.length;
+      assert.deepEqual(await run(f, 'videos.create', videoInput({ engine })), {
+        status: 'invalid_arguments', field: 'avatar_id', reason: `requires a completed look supporting ${label}`,
+      });
+      assert.equal(f.calls.length, before + 1);
+      assert.equal(f.calls.some((req) => req.endpoint.endsWith('/v3/users/me')), false);
+      assert.equal(postCount(f), 0);
+    }
+  });
+  test(`${engine}: a completed look listing only the chosen engine renders successfully`, async (t) => {
+    const f = await setup(t);
+    f.reply = (req) => req.endpoint.includes('/looks/')
+      ? { status: 200, data: { data: avatarLook({ supported_api_engines: [engine] }) } } : f.defaultReply(req);
+    assert.equal((await run(f, 'videos.create', videoInput({ engine }))).video_id, 'video_fake-1');
+    assert.equal(postCount(f), 1); assert.deepEqual(f.calls.at(-1).body.engine, { type: engine });
+  });
+}
 
 test('selected look and multiple group pages: no first-item inference, malformed pages, missing group, readiness/consent and engines stop spend', async (t) => {
   const f = await setup(t);
@@ -301,9 +344,9 @@ test('asset and JSON-only video answers discard private JSON fields even without
   noPrivate(fs.readFileSync(join(f.home, 'audit.jsonl'), 'utf8'));
 });
 
-test('new mutations require matched confirmation; changed look, scene, asset, key or local file path stops', async (t) => {
+test('new mutations require matched confirmation; changed engine, look, scene, asset, key or local file path stops', async (t) => {
   const f = await setup(t);
-  for (const [id, input, changes] of [['videos.create', videoInput(), [{ avatar_id: 'other-look' }, { script: 'changed' }, { voice_id: 'other-voice' }, { idempotency_key: 'other-key-123' }]], ['videos.create', assetInput(), [{ audio_asset_id: 'other-asset' }]], ['assets.upload_audio', upload(f), [{ path: join(f.home, 'other.mp3') }, { idempotency_key: 'other-key-123' }]]]) {
+  for (const [id, input, changes] of [['videos.create', videoInput(), [{ engine: 'avatar_v' }, { avatar_id: 'other-look' }, { script: 'changed' }, { voice_id: 'other-voice' }, { idempotency_key: 'other-key-123' }]], ['videos.create', assetInput(), [{ audio_asset_id: 'other-asset' }]], ['assets.upload_audio', upload(f), [{ path: join(f.home, 'other.mp3') }, { idempotency_key: 'other-key-123' }]]]) {
     const call = { action: `heygen.${id}`, input };
     for (const change of changes) {
       await f.gw.execute(call); const before = f.calls.length;

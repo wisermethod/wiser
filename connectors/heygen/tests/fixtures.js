@@ -20,7 +20,7 @@ export const videoAddress = (videoId) => `https://files2.heygen.ai/${PRIVATE}/${
 export const VIDEO_ADDRESS = videoAddress('video_fake-1');
 export const avatarGroup = (extra = {}) => ({ id: 'group_fake-1', name: 'Duplicate character', looks_count: 3, preview_image_url: ADDRESS, ...extra });
 export const avatarLook = (extra = {}) => ({ id: 'look_fake-1', group_id: 'group_fake-1', name: 'Duplicate look', avatar_type: 'digital_twin', status: 'completed', default_voice_id: 'voice_fake-1', supported_api_engines: ['avatar_v', 'avatar_iv'], preview_image_url: ADDRESS, preview_video_url: VIDEO_ADDRESS, ...extra });
-export const videoInput = (extra = {}) => ({ avatar_id: 'look_fake-1', script: 'Invented scene.', voice_id: 'voice_fake-1', resolution: '720p', aspect_ratio: '16:9', idempotency_key: 'invented-video-key', ...extra });
+export const videoInput = (extra = {}) => ({ avatar_id: 'look_fake-1', engine: 'avatar_iv', script: 'Invented scene.', voice_id: 'voice_fake-1', resolution: '720p', aspect_ratio: '16:9', idempotency_key: 'invented-video-key', ...extra });
 export const videoAnswer = (extra = {}) => {
   const videoId = extra.id ?? 'video_fake-1';
   return { id: videoId, status: 'completed', duration: 3.97, video_url: videoAddress(videoId),

@@ -130,13 +130,14 @@ function video(v, videoId) {
   return { video_id: v.id, video_status: VIDEO_STATES.has(v.status) ? v.status : 'unknown', duration: v.duration ?? null,
     ...(VIDEO_FAILURES.has(v.failure_code) ? { failure_code: v.failure_code } : {}) };
 }
-async function selectedLook(ctx, avatarId) {
+async function selectedLook(ctx, avatarId, engine) {
   const path = `/v3/avatars/looks/${encodeURIComponent(avatarId)}`;
   const read = await request(ctx, path); if (read.stop) return read;
   const selected = look(read.data);
   if (!selected || selected.id !== avatarId) return { stop: unexpected(API + path, 'GET') };
-  if (selected.status !== 'completed' || !selected.supported_api_engines.includes('avatar_iv'))
-    return { stop: invalid('avatar_id', 'requires a completed look supporting Avatar IV') };
+  if (selected.status !== 'completed' || !selected.supported_api_engines.includes(engine))
+    return { stop: invalid('avatar_id', engine === 'avatar_v'
+      ? 'requires a completed look supporting Avatar V' : 'requires a completed look supporting Avatar IV') };
   // A group id is a relationship returned by HeyGen, never inferred from the look id.
   // Missing optional group states do not invent consent; explicit non-ready states stop.
   if (selected.group_id !== null) {
@@ -279,14 +280,14 @@ export const modules = {
       const script = input.script !== undefined, voiceId = input.voice_id !== undefined, asset = input.audio_asset_id !== undefined;
       if (!((script && voiceId && !asset) || (asset && !script && !voiceId)))
         return invalid('audio_asset_id', 'supply script and voice_id, or audio_asset_id alone');
-      const checked = await selectedLook(ctx, input.avatar_id); if (checked.stop) return checked.stop;
+      const checked = await selectedLook(ctx, input.avatar_id, input.engine); if (checked.stop) return checked.stop;
       const read = await request(ctx, '/v3/users/me'); if (read.stop) return read.stop;
       const w = wallet(read.data);
       // Duration is not bounded by this action. A positive wallet is an advisory
       // preflight only; the caller estimates the charge, and HeyGen enforces balance.
       if (!w || w.billing_type !== 'wallet' || w.wallet?.currency !== 'usd' || w.wallet.remaining_balance <= 0)
         return { status: 'vendor_error', reason: 'wallet_unavailable_or_insufficient' };
-      const body = { type: 'avatar', avatar_id: checked.selected.id, engine: { type: 'avatar_iv' },
+      const body = { type: 'avatar', avatar_id: checked.selected.id, engine: { type: input.engine },
         resolution: input.resolution, aspect_ratio: input.aspect_ratio, output_format: 'mp4',
         ...(input.title === undefined ? {} : { title: input.title }),
         ...(input.background_color === undefined ? {} : { background: { value: input.background_color } }),

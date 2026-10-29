@@ -256,7 +256,7 @@
           }
         },
         "list_looks": {
-          "description": "Read one look page with optional group id, ownership, avatar type, limit (1 to 50) and token (1 to 2048 code points). Project id, name, nullable group id, type, status, default voice, supported engines and preview presence. Validate supplied group/type relationships, fields and pagination; never infer group from look id, which may be identical. Select by group and look names and resolve duplicate names by id. Video creation sends only Avatar IV.",
+          "description": "Read one look page with optional group id, ownership, avatar type, limit (1 to 50) and token (1 to 2048 code points). Project id, name, nullable group id, type, status, default voice, supported engines and preview presence. Validate supplied group/type relationships, fields and pagination; never infer group from look id, which may be identical. Select by group and look names and resolve duplicate names by id. Video creation sends Avatar IV or Avatar V, chosen by the caller and never defaulted.",
           "risk": "low",
           "confirmation": "none",
           "execution": {
@@ -353,7 +353,7 @@
       },
       "actions": {
         "create": {
-          "description": "Render one completed look supporting Avatar IV. Supply exactly script (1 to 5000 code points) and explicit voice_id, or audio_asset_id alone. Title is at most 200 code points. Check returned look id and group membership across valid nonrepeating pages when group_id is available. Explicit non-ready group status or non-consented state refuses; absent/null group state is not invented. Require positive USD API wallet balance; duration and full charge cannot be established from an asset id or script length, so caller discloses an estimate and HeyGen enforces wallet sufficiency. Send fixed Avatar IV and MP4, selected look id, resolution, ratio and optional background/title. No fallback, retry or automatic upload. Project accepted video id, safe state (unknown for an unrecognized state) and output format.",
+          "description": "Render one completed look supporting the caller's required engine, Avatar IV (avatar_iv) or Avatar V (avatar_v), never defaulted. Require status completed and the chosen engine in supported_api_engines before the wallet read or any POST; otherwise invalid_arguments names the engine. Supply exactly script (1 to 5000 code points) and explicit voice_id, or audio_asset_id alone. Title is at most 200 code points. Check returned look id and group membership across valid nonrepeating pages when group_id is available. Explicit non-ready group status or non-consented state refuses; absent/null group state is not invented. Require positive USD API wallet balance; duration and full charge cannot be established from an asset id or script length, so caller discloses an estimate and HeyGen enforces wallet sufficiency. Send the chosen engine and fixed MP4, selected look id, resolution, ratio and optional background/title. No fallback, retry or automatic upload. Project accepted video id, safe state (unknown for an unrecognized state) and output format.",
           "risk": "medium",
           "confirmation": "always",
           "execution": {
@@ -366,6 +366,13 @@
               "avatar_id": {
                 "type": "string",
                 "pattern": "^[A-Za-z0-9_-]{1,128}$"
+              },
+              "engine": {
+                "type": "string",
+                "enum": [
+                  "avatar_iv",
+                  "avatar_v"
+                ]
               },
               "script": {
                 "type": "string",
@@ -414,6 +421,7 @@
             },
             "required": [
               "avatar_id",
+              "engine",
               "resolution",
               "aspect_ratio",
               "idempotency_key"
@@ -455,7 +463,7 @@
           "standing_approval": {
             "kind": "pay",
             "summary": "create HeyGen avatar video charged to your HeyGen API wallet",
-            "caution": "Each covered call spends wallet dollars with no stop per call. Avatar IV rates read 2026-10-28: $0.0805 a second for a custom video or studio avatar; $0.0385 for a photo avatar. The wallet's own balance is the only ceiling HeyGen applies."
+            "caution": "Each covered call spends wallet dollars with no stop per call. Rates read 2026-10-29: Avatar V $0.12 a second; Avatar IV $0.0805 for a custom video or studio avatar, $0.0385 for a photo avatar. The wallet's balance is HeyGen's only ceiling."
           }
         },
         "get": {

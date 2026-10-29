@@ -132,12 +132,21 @@ test('control: removing video alternative check fails the incomplete-pair refusa
   assert.throws(() => assert.equal(got.status, 'invalid_arguments'), assert.AssertionError);
 });
 
-test('control: removing Avatar IV readiness check fails the no-charged-render assertion', async (t) => {
+test('control: removing chosen-engine readiness check fails the no-charged-render assertion', async (t) => {
   const f = await setup(t);
   f.reply = (req) => req.endpoint.includes('/looks/') ? { status: 200, data: { data: avatarLook({ supported_api_engines: ['avatar_v'] }) } } : f.defaultReply(req);
-  install(f, await variant("if (selected.status !== 'completed' || !selected.supported_api_engines.includes('avatar_iv'))", 'if (false)'));
+  install(f, await variant("if (selected.status !== 'completed' || !selected.supported_api_engines.includes(engine))", 'if (false)'));
   await run(f, 'videos.create', videoInput());
   assert.throws(() => assert.equal(f.calls.some((r) => r.method === 'POST'), false), assert.AssertionError);
+});
+
+test('control: fixed Avatar IV body fails caller-selected Avatar V engine assertion', async (t) => {
+  const f = await setup(t);
+  install(f, await variant('engine: { type: input.engine }', "engine: { type: 'avatar_iv' }"));
+  const got = await run(f, 'videos.create', videoInput({ engine: 'avatar_v' }));
+  assert.equal(got.video_id, 'video_fake-1');
+  assert.equal(f.calls.at(-1).method, 'POST');
+  assert.throws(() => assert.equal(f.calls.at(-1).body.engine.type, 'avatar_v'), assert.AssertionError);
 });
 
 test('control: substituting group id for chosen look fails the exact avatar_id assertion', async (t) => {
