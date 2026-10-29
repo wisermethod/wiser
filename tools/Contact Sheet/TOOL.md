@@ -170,6 +170,7 @@ The calling skill supplies a whole brand per board. Contact Sheet sets those par
 | `groups` | Non-empty array of `{id, label}` objects; both required single-line strings, ids unique. Labels appear in this order; each board's `group` names an id. Empty groups are refused |
 | `footnote` | String; said once at the page's foot |
 | `boards` | Non-empty array of board objects; spec order within each group, with board zero first |
+| `showChecks` | Optional boolean, default false. `true` enables the designer view: palette role names, shares and their label, contrast summary and every checked pairing. Validation and JSON checks always run in either view |
 
 | Board field | Type and use |
 |-------------|--------------|
@@ -218,7 +219,7 @@ The calling skill supplies a whole brand per board. Contact Sheet sets those par
 | `panelSmallPrint` | Optional small print on panels, including `items.bannerLine` on the social banner's `panel` ground; defaults to `smallPrint` |
 | `hairline` | Optional fine outline for the card front; defaults to `panel` |
 
-`swatches` is a non-empty array, in display order. Each entry has required `name` (unique single-line string), `role` (single-line role in words), `share` (number above zero, at most 100, percent of a page), and `key` (string naming a mode role). Shares total 100 within 0.01 point; at least one entry names `pop`. The palette is one stacked column: each filled bar contains its bold name and role at the left, value and share at the right, with the proportional share strip beneath. Tiles use the names only. Alternate-mode panels use named chips. For each bar and chip the layout selects the palette role with the greatest WCAG ratio on that fill, ties resolved in the role-table order. That exact pairing must pass 4.5:1 and is listed in the checks; no outside colour is substituted. Optional `modeSwatches` is an object with required `light` and `dark` lists in this same format. When supplied these replace `swatches` in their respective modes, allowing different names, roles and proportions. Both lists are validated, including the pop role and total shares. Optional `chips` has required `light` and `dark` non-empty arrays of `{name, key}` entries (single-line name and palette role key), replacing only the alternate panel’s strip; their inks are selected and checked the same way as bars.
+`swatches` is a non-empty array, in display order. Each entry has required `name` (unique single-line string), `role` (single-line role in words), `share` (number above zero, at most 100, percent of a page), and `key` (string naming a mode role). Shares total 100 within 0.01 point; at least one entry names `pop`. The palette is one stacked column: each filled bar shows its everyday name and value, with the proportional share strip beneath. The member view hides role names, percentages and “Share of a typical page”. `showChecks: true` adds them for a designer. Names that merely describe a colour’s job (“Page base”, “Inset field”, “Reading ink”, “Deep field”, “Drawing ink”, “Action fill”, “Detail ink”, “Title ink”) are hidden too. If no everyday name is supplied, the value appears alone; the tool invents none. Alternate chips use an everyday swatch name for the same role or resolved colour where one exists; designer chips retain their supplied labels. Tiles use the names only. Alternate-mode panels use named chips. For each bar and chip the layout selects the palette role with the greatest WCAG ratio on that fill, ties resolved in the role-table order. That exact pairing must pass 4.5:1 and is listed in the checks; no outside colour is substituted. Optional `modeSwatches` is an object with required `light` and `dark` lists in this same format. When supplied these replace `swatches` in their respective modes, allowing different names, roles and proportions. Both lists are validated, including the pop role and total shares. Optional `chips` has required `light` and `dark` non-empty arrays of `{name, key}` entries (single-line name and palette role key), replacing only the alternate panel’s strip; their inks are selected and checked the same way as bars.
 
 Each face has:
 
@@ -234,7 +235,7 @@ Each face has:
 | `sizes` | Required object with `display`, `middle` and `small`, each a size object below. Display drives the headline and large specimen, middle the sample title and specimen line, small the name and supporting face settings |
 | `files` | Required non-empty array of `{path, weight, style}` objects. `path` is a local `.ttf`, `.otf`, `.woff` or `.woff2` path; `weight` is a number 1–1000 or ordered two-number inclusive range `[min,max]` for a variable file; `style` is `normal`, `italic` or `oblique`. Duplicate range/style declarations are refused |
 
-Each size object has required numeric `size` (8–240 pixels), `lineHeight` (0.7–3, unitless), `tracking` (-0.15–0.5 em), and `weight` (1–1000, also declared in `weights`). Required `variations` is a non-empty object of four-letter axes to finite numbers -1000000–1000000, or `null` to use the face-level settings, normal when those are absent. Optional numeric `maxWidth` (2–100 em) bounds the display headline; omitted means 12 em. Values are emitted per face, rather than sharing one headline style. The tile headline is 0.47 of display size (0.36 on a narrow screen); its full-board counterpart uses display size directly. Other-mode headlines use 0.6 of display. Supporting applications scale the supplied settings to their physical size.
+Each size object has required numeric `size` (8–240 pixels), `lineHeight` (0.7–3, unitless), `tracking` (-0.15–0.5 em), and `weight` (1–1000, also declared in `weights`). Required `variations` is a non-empty object of four-letter axes to finite numbers -1000000–1000000, or `null` to use the face-level settings, normal when those are absent. Optional numeric `maxWidth` (2–100 em) bounds the display headline; omitted means 12 em. Values are emitted per face, rather than sharing one headline style. The tile headline is 0.47 of display size (0.36 on a narrow screen); its wide full-board counterpart uses display size directly. At card widths it uses 0.58 with a 32px floor, and at phone widths 0.48 with a 30px floor. Other-mode headlines use 0.6 of display. Supporting applications scale the supplied settings to their physical size.
 
 Every file is read, signature-checked and checked for a complete font-container header and table bounds, then embedded as base64 with its weight and style. Private family identifiers avoid system font lookup. Heading and body are the two text faces; handwriting, if supplied, appears in the tile strip, supplied margin notes and the card back. Each face supplies its own sample line. Heading and body cards show a large Aa, the sample, description, weights and licence. The handwriting face is named in the tile strip and licensed in the foot; it supplies notes and the card back. No font is fetched or licence guessed. Container checking is not a full font decoder or an embedding-rights audit.
 
@@ -280,14 +281,37 @@ Hero, arrow, legend, sample and banner marks, patterns and textures have their d
 | `smallPrint` | Required single-line string; small print beneath the whole-board hero |
 | `photoRules` | Optional non-empty string; photography rules in words, with no photographs. Omitted means no photo-rules block or heading |
 | `never` | Optional array of non-empty single-line strings; visible never list. Omitted or empty means no never block or heading |
+| `markCaption` | Optional single-line initials caption. Default: “These initials hold the place of a logo. Ask for a logo any time after you lock a board.” A supplied mark uses “Your mark” |
+| `closing` | Optional single-line closing question, followed by `closingExamples`. Absent or `null` omits both the question and examples; there is no default question |
 
-The page header is "{OvO} Wiser · Brand boards for" the person. Two-across tiles become one across on a narrow screen. Name, energy, why and any recommendation sit above each tile. Its bottom-right button uses its pop, onPop, radius and body face and says "Open the whole board". Local fragment links reach labelled whole-view sections in this same file, each with a link back to all boards. No script or separate board file is needed. A one-board page shows the whole board directly, with no tile.
+The page header is "{OvO} Wiser · Brand boards for" the person. Two-across tiles become one across on a narrow screen. Name, energy, why and any recommendation sit above each tile. When `why` equals `recommendation`, only the recommendation line is shown. Its bottom-right button uses its pop, onPop, radius and body face and says "Open the whole board". Local fragment links reach labelled whole-view sections in this same file, each with a link back to all boards. No script or separate board file is needed. A one-board page shows the whole board directly, with no tile.
 
 The tile places the headline and palette column in one row, a face strip below, then card front, card back and a banner in one row, with space before the bottom-right open button. The whole board places the heading and body specimens beside the core words when supplied, then a drawn sample page and legend beside the cards and four mark sizes, followed by a full-width banner and alternate panel. The card back is slightly turned, carrying its texture.
 
 Each whole view contains both complete modes, primary first in the file, with one visible at a time through local fragment targets. The slim bar names the person, links to all N boards, says Board n of N and the visible mode, and links to the other complete mode. Each complete board also includes a composed panel in its other mode: name, headline, body, primary button, secondary link, content card and named palette chips. This works for dark-first boards too. The complete board shows: the name and monogram or supplied mark; headline, body, small print; palette; every face and sample; graphic language; social banner and business card front/back; marks from profile picture down to browser tab; photo rules and never list when supplied. These optional blocks are omitted in both modes, with no empty headings. Its closing question carries the supplied example answers; its foot names every face's licence and summarizes contrast results in a sentence, with a disclosure listing every pairing. Without a supplied mark it says the monogram is a placeholder, not a logo, and the real mark is drawn after a board is locked. The closing question is "What would you keep, and what would you change?"
 
 Before writing anything, every board is checked. Palette and type loudness may differ by at most one; loudness-3 palettes need contemporary type of loudness at least 2. Every text foreground/surface pairing in both modes meets WCAG 2: 4.5:1 below 24px, 3:1 for large headlines and monograms. Decorative marks are measured and reported with no required ratio; they cannot cause a contrast refusal. Text over a highlight, pattern or texture retains its required ratio. Tile names and all face names use the stricter 4.5:1 because they are smaller. Button text meets both 4.5:1 and APCA absolute Lc 60, using APCA-W3 0.1.9 / SAPC constants 0.0.98G-4g. File existence, signatures and licence names are checked for every face. Any failure refuses the whole spec; it is never overridden or silently repaired.
+
+## Board model and card geometry
+
+`scripts/board-model.js` exports `createBoardModel(validatedSpec)`, `BOARD_LAYOUT`, `BOARD_LABELS`, `DEFAULT_MARK_CAPTION`, `FACE_ROLES`, `PUBLIC_FONT_FILES`, `faceSetting`, `resolveDrawing`, `heroRole` and `oppositeMode`. It has no imports, Node built-ins, `Buffer`, file access, network access or side effects. Pass the successful result of `validateBrandBoards`, not an unchecked spec. It returns detached JSON data:
+
+- Page identity, intro, groups, footnote, display option and the shared layout description.
+- Each board’s metadata, supplied text, palette, face descriptions and `display`, `middle`, `small` settings. Resolved face settings name family, weight, style, size in pixels, line height, letter spacing in em and variation axes. `textStyles` supplies the exact settings for each application (hero, face specimens, cards, banner, notes and every mark size); `variants` describe weight/style coverage; no font path or font bytes enter the model.
+- `modes.light` and `modes.dark`: role colours, named swatches/chips and their measured inks, every drawing as resolved standalone SVG text, and ordered `blocks` for the whole board and `tile` for its preview. The blocks describe hero, palette, faces/words, graphic language, cards/mark sizes, banner, alternate panel, optional rules and tile navigation. A supplied mark is only `{supplied: true}`; its asset remains the caller’s responsibility.
+- Complete contrast checks, independent of label visibility. `markCaption`, `closing` and the deduplicated `why` are the resolved display words; `footer` describes the closing/examples, licences and optional designer contrast notes.
+
+`brand-board-view.js` writes the HTML from this description and embeds local font/mark assets separately. `brand-board-style.js` reads the same `BOARD_LAYOUT` geometry. The model supplies no HTML page, image bytes or font files; a browser or Worker can consume it without filesystem access. This seam does not validate untrusted input or grant permission to transmit a member’s record.
+
+`PUBLIC_FONT_FILES` maps every font-pack family to upright Latin WOFF2 entries `{url, weight, style, verified}`. Weight is a number or inclusive two-number range. All 35 families are covered by 37 files at `fonts.gstatic.com`; each address answered HTTP 200 with `font/woff2` on 2026-10-29. Families without a public file: none. These are references, never fetched by Contact Sheet. Public Latin files follow the provider’s coverage and may differ from the bundled subset; for example Libre Caslon Text uses separate 400 and 700 files. The standalone page continues to embed the caller’s validated local files. The map is kept in JavaScript so the same module imports unchanged in Node, a browser and a Worker.
+
+| Width | Whole-board layout |
+|-------|--------------------|
+| Above 900px | Existing twelve-column page layout and supplied display sizes |
+| 734px target, at most 900px | 16px outer margins, 24px padding; hero then palette; two face columns then words; sample and legend alongside; two business cards alongside with mark sizes below; alternate panel stacks. Hero body is 20px |
+| 390px target, at most 600px | 12px outer margins, 20px padding; faces, sample/legend, cards and rules stack; notes and chips wrap. Hero body is 18px |
+
+Business cards retain 3.5:2 and the banner 4:1 in both widths. The banner’s headline has an 18px floor on phones. No viewport scaling shrinks the whole wide page into the card.
 
 ## Script Contract
 
@@ -315,7 +339,7 @@ Help prints usage text to stdout and exits 0. Failure prints one JSON object, `{
 
 The limit is 40 MB, 40,000,000 bytes. Embedded sizes are checked before assets are read, then the complete page is measured before writing. An oversized page is refused with a message naming `tools/image/` for resizing first. There is no clock, random value or filesystem-order walk in the output. Identical spec bytes and asset bytes produce identical HTML bytes, independent of destination or current directory.
 
-The file contains inline styles and embedded image/font data only. All supplied text is escaped, including source addresses; addresses display as text using HTML entities. A restrictive content security policy permits only inline styles and image/font data. The neutral page chrome, wrapping text and responsive grid support 1440px and 390px widths. A PNG, if wanted, is produced by the caller's separate `tools/render/` `html` run.
+The file contains inline styles and embedded image/font data only. All supplied text is escaped, including source addresses; addresses display as text using HTML entities. A restrictive content security policy permits only inline styles and image/font data. The neutral page chrome, wrapping text and responsive grid support wide pages and the 734px card and 390px phone widths below. A PNG, if wanted, is produced by the caller's separate `tools/render/` `html` run.
 
 ## Troubleshooting
 
@@ -334,6 +358,16 @@ The file contains inline styles and embedded image/font data only. All supplied 
 | Colour/sample error | Use the documented colour notation, unique names and explicit sample assignments; total shares to 100 |
 | Output exists, is inside tool, or parent is missing | Choose a fresh `.html` path in an existing work directory outside the tool |
 | Page exceeds 40 MB | Resize with `tools/image/` first or split the options across pages |
+
+## Verification
+
+From this tool’s directory, run the complete suite with the installed shared browser runtime and Chromium:
+
+```sh
+PLAYWRIGHT_BROWSERS_PATH="$HOME/Library/Caches/ms-playwright" npm test
+```
+
+The suite installs nothing. Its browser check requires the existing runtime (`tools/render/` `check` surveys it); without one, the browser test fails explicitly. It verifies fixtures against the model in both modes at 734px and 390px, horizontal overflow, card/banner proportions, the isolated import with all module imports and Node globals denied, complete font-pack coverage, caller-owned words, hidden labels with unchanged refusal checks, recommendation deduplication, and a recorded pre-extraction page hash with only the intended wording and responsive CSS excluded. The other tests cover the complete pick and board contracts, including font containers and unsafe SVG refusals. Public font reachability was checked once when constructing the map; the offline suite checks its coverage, weights and URL format without fetching anything.
 
 ## Success
 

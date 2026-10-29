@@ -225,8 +225,9 @@ function inks(svg, fallback) {
 }
 
 export function validateBrandBoards(spec, assets, readAsset) {
-  object(spec, ['layout', 'person', 'intro', 'groups', 'footnote', 'boards'], 'spec');
+  object(spec, ['layout', 'person', 'intro', 'groups', 'footnote', 'boards', 'showChecks'], 'spec');
   text(spec.person, 'spec.person');
+  if (own(spec, 'showChecks') && typeof spec.showChecks !== 'boolean') fail('spec.showChecks must be boolean. Use true for designer labels.');
   if (!Array.isArray(spec.intro) || spec.intro.length !== 2) fail('spec.intro needs exactly two single-line strings. Correct the two lines before the boards.');
   spec.intro.forEach((s, i) => text(s, `spec.intro[${i}]`));
   text(spec.footnote, 'spec.footnote', false);
@@ -348,9 +349,11 @@ export function validateBrandBoards(spec, assets, readAsset) {
       }
     });
     attempt(() => {
-      object(b.content, ['brandName', 'sentence', 'body', 'smallPrint', 'photoRules', 'never'], 'content');
+      object(b.content, ['brandName', 'sentence', 'body', 'smallPrint', 'photoRules', 'never', 'markCaption', 'closing'], 'content');
       for (const k of ['brandName', 'sentence', 'smallPrint']) text(b.content[k], `content.${k}`);
       text(b.content.body, 'content.body', false);
+      if (own(b.content, 'markCaption')) text(b.content.markCaption, 'content.markCaption');
+      if (own(b.content, 'closing') && b.content.closing !== null) text(b.content.closing, 'content.closing');
       if (own(b.content, 'photoRules')) text(b.content.photoRules, 'content.photoRules', false);
       if (own(b.content, 'never')) {
         list(b.content.never, 'content.never', true); b.content.never.forEach((s) => text(s, 'content.never entry'));

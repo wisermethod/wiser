@@ -422,7 +422,7 @@ test('28. Brand boards render names before tiles, ordered groups, whole links an
     assert.match(whole, /href="#all-boards"/);
     for (const mode of ['light', 'dark']) assert.ok(whole.includes(`data-board="${b.number}" data-mode="${mode}"`));
     assert.ok(whole.indexOf(`data-mode="${b.primaryMode}"`) < whole.indexOf(`data-mode="${b.primaryMode === 'light' ? 'dark' : 'light'}"`));
-    for (const words of ['Social banner', 'Business card · front and back', 'Graphic language', 'Photo rules', 'Never', 'profile picture to browser tab', 'Licence: CC0', 'Contrast results', 'What would you keep, and what would you change?']) assert.ok(whole.includes(words), words);
+    for (const words of ['Social banner', 'Business card · front and back', 'Graphic language', 'Photo rules', 'Never', 'profile picture to browser tab', 'Licence: CC0']) assert.ok(whole.includes(words), words);
     const reports = reply.boards[i].checks;
     assert.ok(reports.length >= 40);
     for (const check of reports) {
@@ -437,7 +437,7 @@ test('28. Brand boards render names before tiles, ordered groups, whole links an
   const ownMark = html.slice(html.indexOf('id="whole-2"'), html.indexOf('id="whole-3"'));
   assert.doesNotMatch(ownMark, /class="monogram"|The monogram is a placeholder/);
   assert.match(ownMark, /class="own-mark"/);
-  assert.match(html, /The monogram is a placeholder, not a logo/);
+  assert.match(html, /These initials hold the place of a logo/);
   assert.equal(reply.embedded.length, 2);
 });
 
@@ -686,6 +686,7 @@ test('50. Standalone SVGs without a namespace become browser-readable embedded d
 
 test('51. Mode-specific swatches, chip names and item texts are caller-owned and checked', (t) => {
   const dir = temp(t), spec = brandFixture(), b = spec.boards[0];
+  spec.showChecks = true; // designer labels retain caller-supplied chip names
   b.palette.modeSwatches = { light: b.palette.swatches, dark: b.palette.swatches.map((s) => ({ ...s, name: `Night ${s.name}` })) };
   b.palette.chips = { light: [{ name: 'Reading ground', key: 'ground' }], dark: [{ name: 'Night field', key: 'deep' }] };
   b.items.cardBackShort = 'Keep this detail.';
@@ -708,6 +709,7 @@ test('52. Monogram surface styles render and refuse illegible initials before wr
 
 test('53. Every decorative slot reports low contrast without a need, including the marks-only foot', (t) => {
   const dir = temp(t), spec = brandFixture(), b = spec.boards[0];
+  spec.showChecks = true;
   b.graphics.hero.shape = 'underline'; delete b.graphics.hero.role;
   b.palette.light.mark = '#dddddd'; b.palette.light.cardBackMark = '#19243d';
   b.palette.swatches[0].share -= 1;
