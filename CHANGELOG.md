@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.29.2, October 29, 2026
+
+- The voice coach now opens by asking whether you have writing of your own to use. Share links, drop in files or paste it into the chat: the coach reads it, keeps a copy in your folder's sources, and leaves out the quick taps your writing already answers. With none, it runs as before. (1df4430, 8e433e8, 9370c79)
+- When you ask the coach to tune your voice with a piece you like, it reads that piece beside your earlier writing and keeps your earlier answers. (8e433e8, 9370c79)
+
 ## v2026.10.29, October 29, 2026
 
 - Wiser can now install Wiser CRM into your own Cloudflare account and keep it up to date. Before installing, it checks that the release is signed by Wiser and that every file matches. Before an upgrade it stops new changes and takes a restore point, and if the upgrade fails it puts the database and the app back as they were. Each step asks for your approval first. (a061d5f, c86f181, 323fb03, ae1b816, 7d44223, 73844b1)
