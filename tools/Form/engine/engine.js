@@ -10,6 +10,7 @@ const WORDS = Object.freeze({
   noFormTitle: "No form arrived", noFormBody: "This page didn't receive a form. Ask in the chat to show it again.",
   refusedTitle: "This form couldn't be shown", refusedBody: "Something in it was set up wrong. Ask in the chat to try again.",
   answersHeading: "Here are my answers:", none: "(none)", sliderValue: "Value:",
+  next: "Next", back: "Back", progress: " · {n} of {m}",
   sampleDefault: "Aa", sampleSecond: "Abc 123"
 });
 const state = { form: null, host: "unknown", sends: false, submitted: false };
@@ -242,15 +243,72 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
     } catch { /* A face this browser refuses leaves its sample in the generic face. */ }
   }
   const root = document.getElementById("root"); root.textContent = "";
-  root.append(el("h1",{text:form.title}));
-  if (form.intro) root.append(el("p",{class:"intro",text:form.intro}));
+  // A paged form's title is its progress line, set quieter than the question it counts.
+  const heading = el("h1",{text:form.title,...(form.paged ? {class:"progress","aria-live":"polite","aria-atomic":"true"} : {})});
+  root.append(heading);
+  const intro = form.intro ? el("p",{class:"intro",text:form.intro}) : null;
+  if (intro) root.append(intro);
   const f = el("form",{id:"form"});
-  form.questions.forEach((q,i) => f.append(questionBlock(q,i)));
+  const questions = form.questions.map(questionBlock);
+  questions.forEach(q => f.append(q));
   const button = el("button",{id:"submit",type:"submit",text: state.sends ? WORDS.buttonSends : WORDS.buttonDrafts});
-  f.append(button);
+  let page = 0, advanceTimer;
+  const back = el("button",{id:"back",type:"button",text:WORDS.back});
+  const next = el("button",{id:"next",type:"button",text:WORDS.next});
+  function move(index, {focus = true} = {}) {
+    clearTimeout(advanceTimer);
+    page = index;
+    questions.forEach((q,i) => { q.hidden = i !== page; });
+    heading.textContent = form.title + WORDS.progress.replace("{n}",page + 1).replace("{m}",questions.length);
+    if (intro) intro.hidden = page !== 0;
+    back.hidden = page === 0;
+    next.hidden = page === questions.length - 1;
+    button.hidden = !next.hidden;
+    fitSamples();
+    // Focus follows the member from one question to the next; on opening, nothing looks picked.
+    if (focus) questions[page].querySelector("input,textarea,select,button")?.focus({preventScroll:true});
+  }
+  function advance(input,index) {
+    clearTimeout(advanceTimer);
+    if (index === questions.length - 1) return;
+    advanceTimer = setTimeout(() => {
+      if (page === index && input.isConnected && !input.disabled && !input.closest("fieldset").disabled) move(index + 1);
+    },250);
+  }
+  if (form.paged) {
+    f.append(el("div",{class:"page-actions"},back,next,button));
+    back.addEventListener("click",() => move(page - 1));
+    next.addEventListener("click",() => move(page + 1));
+    questions.forEach((q,index) => {
+      let arrow = false;
+      q.addEventListener("keydown",event => {
+        arrow = event.key.startsWith("Arrow");
+        if (arrow) clearTimeout(advanceTimer);
+      });
+      q.addEventListener("keyup",() => { arrow = false; });
+      q.addEventListener("pointerdown",() => { arrow = false; });
+      for (const input of q.querySelectorAll('input[type="radio"]')) {
+        // A click includes a pointer tap, label activation and Space's native click.
+        // Native radio arrow changes also emit clicks, so handle those keys separately.
+        input.addEventListener("keydown",event => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            if (event.repeat) return;
+            input.checked = true;
+            advance(input,index);
+          }
+        });
+        input.addEventListener("click",() => { if (!arrow) advance(input,index); });
+      }
+    });
+  } else f.append(button);
   f.addEventListener("submit",async event => {
     event.preventDefault(); if (button.disabled) return;
+    // Implicit submission from an earlier question must never send a partial form.
+    if (form.paged && page !== questions.length - 1) return;
+    clearTimeout(advanceTimer);
     button.disabled = true;
+    if (form.paged) { back.disabled = true; next.disabled = true; }
     const answers = readAnswers();
     // One line per question: a line break typed into an answer becomes a space here, and stays in the data.
     const oneLine = text => String(text).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, " ");
@@ -261,11 +319,13 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
     try { const result = await onSubmit({payload,summary}); ({sent,delivery,status,disabled = false} = result); } catch { /* Keep a copy for retry. */ }
     setStatus([status ?? (!sent ? WORDS.notSent : state.sends ? WORDS.sent : WORDS.drafted)], sent ? "ok" : "bad");
     metadata({delivery});
-    document.getElementById("copy").textContent = sent ? "" : summary;
+    document.getElementById("copy").textContent = sent && !form.paged ? "" : summary;
     state.submitted = true; button.textContent = WORDS.buttonAgain; button.disabled = false;
+    if (form.paged) { back.disabled = false; next.disabled = false; }
     if (disabled) for (const control of f.querySelectorAll("input,textarea,select,button,fieldset")) control.disabled = true;
   });
   root.append(f,el("p",{id:"status",class:"status",role:"status","aria-live":"polite"}),el("pre",{id:"copy",class:"copy"}));
+  if (form.paged) move(0,{focus:false});
   fitSamples();
   metadata({host:state.host,source,delivery:"idle"});
 }

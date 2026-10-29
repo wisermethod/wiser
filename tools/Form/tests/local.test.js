@@ -24,7 +24,7 @@ after(async t => {
   try { await browser?.close(); }
   finally { if (runtime) await rm(runtime,{recursive:true,force:true}); await cleanupAndScan(t); }
 });
-async function pageAt(s,width = 390) {
+async function pageAt(s,width = 390,ready = '#submit') {
   const context = await browser.newContext({viewport:{width,height:900},serviceWorkers:'block'});
   const errors = [],requests = [];
   await context.route('**/*',route => {
@@ -33,7 +33,7 @@ async function pageAt(s,width = 390) {
     return url.origin === new URL(s.url).origin ? route.continue() : route.abort();
   });
   const page = await context.newPage(); page.on('pageerror',() => errors.push('page error'));
-  try { await page.goto(s.url); await page.locator('#submit').waitFor(); }
+  try { await page.goto(s.url); await page.locator(ready).waitFor(); }
   catch (error) { await context.close(); throw error; }
   return {context,page,errors,requests};
 }
@@ -243,4 +243,19 @@ test('unused replay expires 60 seconds after first collection, replacing the sho
   assert.equal((await wait(s)).status,'answered');
   await delay(3500); assert.equal((await http(s)).status,200,'replay survives original closing time');
   await delay(57000); assert.equal((await wait(s)).status,'gone','unclaimed replay ends at 60 seconds');
+});
+
+test('local paged form: one question, Back retains pick and final send includes all answers',async()=>{
+ const f={...form('paged-local'),paged:true},s=await serve(f),h=await pageAt(s,390,'#next');
+ try{
+  assert.equal(await h.page.locator('fieldset:visible').count(),1);
+  await h.page.getByText('Warm',{exact:true}).click();
+  await h.page.locator('fieldset[data-id=note]:visible').waitFor();
+  await h.page.locator('#back').click();assert.equal(await h.page.locator('input[value=warm]').isChecked(),true);
+  await h.page.locator('#next').click();await h.page.locator('textarea').fill(sentinel);
+  await h.page.locator('#submit').click();await h.page.locator('#status.ok').waitFor();
+  equal(await wait(s),{status:'answered',...payload(f)},'paged listener returns every answer in the existing shape');
+  assert.equal(await h.page.locator('#copy').innerText(),`Here are my answers:\n- Which mood?: Warm\n- Note: ${sentinel}`);
+  await locked(h.page);assert.deepEqual(h.errors,[]);
+ }finally{await h.context.close();await stop(s);}
 });

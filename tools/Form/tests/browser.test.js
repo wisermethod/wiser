@@ -23,7 +23,7 @@ before(async()=>{
 after(async()=>{await browser?.close();});
 const tailored=structuredClone(SAMPLE_FORM);tailored.id='tailored';tailored.title='For the bakery';tailored.questions[0].options[0].picture='type:serif+monospace:#000,#fff';tailored.questions[0].options[0].sample='Bake';tailored.questions[1].options.push({value:'triangles',label:'Triangles',picture:'motif:triangles'},{value:'blob',label:'Blob',picture:'motif:blob'});
 async function open(form,width=390,options={}){
- const context=await browser.newContext({viewport:{width,height:900},colorScheme:options.preference??'light'});
+ const context=await browser.newContext({viewport:{width,height:900},colorScheme:options.preference??'light',hasTouch:Boolean(options.touch)});
  const requests=[],errors=[];
  await context.route('**/*',async route=>{
   requests.push(route.request().url());
@@ -287,5 +287,107 @@ for(const width of [360,390,720])for(const font of [true,false])test(`paired typ
   for(const t of pair)assert.ok(t.x>=0&&t.y>=0&&t.right<=120&&t.bottom<=80,JSON.stringify(t));
  }
  assert.deepEqual(h.requests,['https://fonts.gstatic.com/fixture.ttf']);assert.deepEqual(h.errors,[]);
+ }finally{await h.context.close();}
+});
+
+const pagedForm={title:'Step 3 of 6: how it should look',intro:'Quick taps about taste you already have. There are no wrong answers.',paged:true,questions:[
+ {id:'single',type:'radio',label:'Choose a direction',options:[{value:'a',label:'A'},{value:'b',label:'B'}]},
+ {id:'skip',type:'checkbox',label:'Pick any',options:[{value:'x',label:'X'},{value:'y',label:'Y'}]},
+ {id:'picture',type:'image-radio',label:'Choose a picture',options:[{value:'dots',label:'Dots',picture:'motif:dots'},{value:'grid',label:'Grid',picture:'motif:grid'}]},
+ {id:'many',type:'image-checkbox',label:'Pick pictures',options:[{value:'a',label:'Arcs',picture:'motif:arcs'},{value:'b',label:'Blob',picture:'motif:blob'}]},
+ {id:'range',type:'slider',label:'Quiet or bold?',min:0,max:10},
+ {id:'note',type:'text',label:'Anything else?'}
+]};
+async function pagedAt(h,index,{opening=false}={}){
+ await h.f.locator(`fieldset[data-id="${pagedForm.questions[index].id}"]:visible`).waitFor();
+ assert.equal(await h.f.locator('fieldset:visible').count(),1);
+ assert.equal(await h.f.locator('h1').innerText(),`${pagedForm.title} · ${index+1} of 6`);
+ assert.equal(await h.f.locator('.intro').isVisible(),index===0);
+ assert.equal(await h.f.locator('#back').isVisible(),index!==0);
+ assert.equal(await h.f.locator('#next').isVisible(),index!==5);
+ assert.equal(await h.f.locator('#submit').isVisible(),index===5);
+ // On opening nothing is focused, so nothing looks picked; moving to a question focuses its first control.
+ assert.equal(await h.frame.evaluate(()=>document.activeElement?.id||null),opening?null:index<4?`q-${index}-0`:`q-${index}`);
+}
+for(const width of [390,760])for(const theme of ['light','dark'])test(`paged journey ${width}px ${theme}: skip, Back, every answer and one final send`,{skip},async()=>{
+ const h=await open(pagedForm,width,{theme});
+ try{
+  await ready(h);await pagedAt(h,0,{opening:true});await h.f.locator('#q-0-0').focus();
+  assert.equal(await h.f.locator('h1').getAttribute('aria-live'),'polite');
+  assert.equal(await h.f.locator('h1').getAttribute('aria-atomic'),'true');
+  await h.page.keyboard.press('ArrowRight');await h.page.waitForTimeout(320);
+  assert.equal(await h.f.locator('#q-0-1').isChecked(),true);await pagedAtSelection(h,0);
+  await h.f.locator('#next').click();await pagedAt(h,1);
+  await h.f.locator('#back').click();await pagedAt(h,0);
+  assert.equal(await h.f.locator('#q-0-1').isChecked(),true);
+  await h.f.locator('label[for=q-0-0]').click();
+  assert.equal(await h.f.locator('#q-0-0').isChecked(),true);
+  await h.page.waitForTimeout(70);assert.equal(await h.f.locator('fieldset').first().isVisible(),true,'pick is visible before advancing');
+  await pagedAt(h,1);
+  await h.f.locator('#next').click();await pagedAt(h,2); // Empty checkbox skips.
+  await h.f.locator('label[for=q-2-1]').click();await pagedAt(h,3);
+  await h.f.locator('label[for=q-3-0]').click();await h.page.waitForTimeout(320);await pagedAtSelection(h,3);
+  await h.f.locator('#next').click();await pagedAt(h,4);
+  await h.page.keyboard.press('ArrowRight');await h.f.locator('#next').click();await pagedAt(h,5);
+  await h.f.locator('textarea').fill('Keep it simple');
+  assert.equal((await h.page.evaluate(()=>window.__log.filter(e=>['context','message'].includes(e.kind)))).length,0);
+  await checkPagedLook(h);
+  await h.f.locator('#submit').evaluate(b=>{b.click();b.click();});
+  await h.f.locator('#status.ok').waitFor();
+  const log=await h.page.evaluate(()=>window.__log),sent=log.filter(e=>['context','message'].includes(e.kind));
+  assert.deepEqual(sent.map(e=>e.kind),['context','message']);
+  assert.deepEqual(sent[0].params.structuredContent.answers,{single:'a',skip:[],picture:'grid',many:['a'],range:6,note:'Keep it simple'});
+  assert.equal(await h.f.locator('#copy').innerText(),sent[1].params.content[0].text);
+  assert.match(await h.f.locator('#copy').innerText(),/Pick any: \(none\)/);
+  assert.equal((await h.f.locator('#copy').innerText()).split('\n').length,7);
+  assert.ok(new Set(log.filter(e=>e.kind==='size').map(e=>e.params.height)).size>1,'host receives changing question heights');
+  await checkPagedLook(h);assert.deepEqual(h.errors,[]);assert.deepEqual(h.requests,[]);
+ }finally{await h.context.close();}
+});
+async function pagedAtSelection(h,index){
+ assert.equal(await h.f.locator('fieldset:visible').getAttribute('data-id'),pagedForm.questions[index].id);
+}
+async function checkPagedLook(h){
+ const r=await h.frame.evaluate(()=>{
+  const lum=s=>(s.match(/[\d.]+/g)||[]).slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0);
+  const ratio=(a,b)=>(Math.max(lum(a),lum(b))+.05)/(Math.min(lum(a),lum(b))+.05);
+  const bg=e=>{for(let p=e;p;p=p.parentElement){const c=getComputedStyle(p).backgroundColor;if(c!=='rgba(0, 0, 0, 0)'&&c!=='transparent')return c;}return getComputedStyle(document.body).backgroundColor;};
+  return {overflow:document.documentElement.scrollWidth-document.documentElement.clientWidth,
+   heights:[...document.querySelectorAll('button,label.choice,label.tile')].filter(e=>e.getClientRects().length).map(e=>e.getBoundingClientRect().height),
+   contrast:[...document.querySelectorAll('#root *')].filter(e=>e.getClientRects().length&&[...e.childNodes].some(n=>n.nodeType===3&&n.textContent.trim())).map(e=>ratio(getComputedStyle(e).color,bg(e)))};
+ });
+ assert.equal(r.overflow,0);assert.ok(r.heights.every(h=>h>=44),JSON.stringify(r));assert.ok(r.contrast.every(c=>c>=4.5),JSON.stringify(r));
+}
+for(const key of ['Enter','Space'])for(const type of ['radio','image-radio'])test(`paged ${type}: ${key} selects and advances, last pick never submits`,{skip},async()=>{
+ const form=structuredClone(pagedForm);form.questions=[form.questions[type==='radio'?0:2],{id:'last',type:'radio',label:'Last choice',options:[{value:'yes',label:'Yes'},{value:'no',label:'No'}]}];
+ const h=await open(form);
+ try{await ready(h);await h.f.locator('#q-0-0').focus();await h.page.keyboard.press(key);await h.f.locator('fieldset[data-id=last]:visible').waitFor();
+  assert.equal((await h.frame.evaluate(()=>WiserForm.readAnswers()))[0].value,type==='radio'?'a':'dots');
+  await h.page.keyboard.press(key);await h.page.waitForTimeout(320);
+  assert.equal(await h.f.locator('#q-1-0').isChecked(),true);
+  assert.equal((await h.page.evaluate(()=>window.__log.filter(e=>e.kind==='message'))).length,0);
+  await h.f.locator('#submit').click();await h.f.locator('#status.ok').waitFor();
+  assert.equal((await h.page.evaluate(()=>window.__log.filter(e=>e.kind==='message'))).length,1);
+ }finally{await h.context.close();}
+});
+test('paged image radio arrows keep the page; Next cancels a pending auto advance',{skip},async()=>{
+ const form=structuredClone(pagedForm);form.questions[0]=form.questions[2];form.questions[2]={id:'end',type:'text',label:'End'};
+ const h=await open(form);
+ try{await ready(h);await h.f.locator('#q-0-0').focus();await h.page.keyboard.press('ArrowRight');await h.page.waitForTimeout(320);
+  assert.equal(await h.f.locator('#q-0-1').isChecked(),true);assert.equal(await h.f.locator('fieldset:visible').getAttribute('data-id'),'picture');
+  await h.f.locator('label[for=q-0-0]').click();await h.f.locator('#next').click();
+  await h.page.waitForTimeout(400);assert.equal(await h.f.locator('fieldset:visible').getAttribute('data-id'),'skip');
+  await h.f.locator('#back').click();assert.equal(await h.f.locator('#q-0-0').isChecked(),true);
+ }finally{await h.context.close();}
+});
+test('paged touch tap advances; Next can skip an unanswered radio',{skip},async()=>{
+ const form=structuredClone(pagedForm);form.questions=[form.questions[0],form.questions[5]];
+ const h=await open(form,390,{touch:true});
+ try{await ready(h);await h.f.locator('#next').click();
+  assert.equal((await h.frame.evaluate(()=>WiserForm.readAnswers()))[0].value,null);
+  await h.f.locator('#back').click();await h.f.locator('label[for=q-0-1]').tap();
+  await h.f.locator('fieldset[data-id=note]:visible').waitFor();
+  assert.equal((await h.frame.evaluate(()=>WiserForm.readAnswers()))[0].value,'b');
+  assert.equal(await h.frame.evaluate(()=>document.activeElement.id),'q-1');
  }finally{await h.context.close();}
 });

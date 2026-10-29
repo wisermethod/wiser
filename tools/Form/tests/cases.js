@@ -15,9 +15,16 @@ export function set(v,path,value,drop=false) {
   return v;
 }
 export const passing = [['sample',clone(SAMPLE_FORM)],['all fields',base()]];
+passing.push(['paged sample',{...clone(SAMPLE_FORM),paged:true}]);
 export const refused = [];
 const bad=(name,path,value,drop=false)=>refused.push([name,path,set(base(),path,value,drop)]);
 const good=(name,path,value,drop=false)=>passing.push([name,set(base(),path,value,drop)]);
+for(const value of [true,false])good(`paged ${value}`,'paged',value);
+for(const value of [null,0,1,'true',[],{}])bad(`paged wrong type ${JSON.stringify(value)}`,'paged',value);
+for(const value of [true,false]) {
+  const f=base();f.paged=value;f.questions.length=1;
+  refused.push([`paged ${value} with one question`,'paged',f]);
+}
 for(const [path,min,max] of [
   ['title',1,80],['intro',0,300],['questions[0].label',1,200],['questions[0].short',0,40],['questions[0].help',0,300],
   ['questions[0].options[0].label',1,60],['questions[0].options[0].note',0,80],['questions[2].options[0].sample',0,24],

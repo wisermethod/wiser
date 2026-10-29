@@ -4,6 +4,15 @@ import assert from 'node:assert/strict';
 import {formJsonSchema,checkForm} from '../scripts/format.js';
 import {passing} from './cases.js';
 import {z} from 'zod';
+test('schema publishes optional paged boolean, its default and one-question refusal',()=>{
+ const schema=formJsonSchema(),validator=z.fromJSONSchema(schema);
+ assert.equal(schema.properties.paged.type,'boolean');
+ assert.equal(schema.required.includes('paged'),false);
+ assert.match(schema.properties.paged.description,/default false/i);
+ assert.match(schema.properties.paged.description,/one question/i);
+ for(const paged of [true,false])assert.equal(validator.safeParse({...passing[0][1],paged}).success,true);
+ for(const paged of ['true',null,1,{}])assert.equal(validator.safeParse({...passing[0][1],paged}).success,false);
+});
 test('draft 2020-12 vocabulary is closed; zod accepts every passing fixture',()=>{
  const allowed=new Set(['type','properties','required','additionalProperties','items','minItems','maxItems','minLength','maxLength','pattern','enum','minimum','maximum','description']);
  const schema=formJsonSchema();

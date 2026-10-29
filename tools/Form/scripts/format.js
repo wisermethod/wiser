@@ -15,6 +15,7 @@ export const FORM_LIMITS = Object.freeze({
 export const FONT_HOSTS = Object.freeze(["https://fonts.gstatic.com", "https://cdn.jsdelivr.net"]);
 export const SAMPLE_FORM = {
   title: "Your look",
+  paged: false,
   intro: "Pick what feels like you. There are no wrong answers.",
   questions: [
     { id: "mood", short: "Colour mood", type: "image-radio", label: "Which colour mood feels most like your work?", options: [
@@ -124,8 +125,12 @@ function validate(value, template = false) {
     return true;
   }
   function number(v, p) { if (typeof v !== "number" || !Number.isFinite(v)) { add(p, "Expected a finite number."); return false; } return true; }
-  if (!object(value, "", ["id", "title", "intro", "fonts", "questions", ...(template ? ["slots"] : [])], ["title", "questions", ...(template ? ["slots"] : [])])) return { ok: false, problems };
+  if (!object(value, "", ["id", "title", "intro", "paged", "fonts", "questions", ...(template ? ["slots"] : [])], ["title", "questions", ...(template ? ["slots"] : [])])) return { ok: false, problems };
   strings(value, "", [["id",1,L.idMax,ID],["title",1,L.titleMax],["intro",0,L.introMax]]);
+  if (own(value, "paged")) {
+    if (typeof value.paged !== "boolean") add("paged", "Expected a boolean.");
+    if (Array.isArray(value.questions) && value.questions.length === 1) add("paged", "Paged is allowed only on forms with more than one question.");
+  }
   const families = new Set(GENERICS), declared = new Set(); let pendingFamily = false;
   if (own(value, "fonts") && array(value.fonts,"fonts",L.fontsMin,L.fontsMax)) value.fonts.forEach((font,i) => {
     const p = `fonts[${i}]`;
@@ -272,6 +277,7 @@ export function formJsonSchema() {
   },["id","type","label"],"Only common fields and the fields for the selected type are permitted. No string may contain control characters.");
   return obj({ id:str(L.idMax,"Optional form id: lowercase letter then up to 39 lowercase letters, digits or hyphens.",1,ID.source),
     title:str(L.titleMax,"Required title, 1 to 80 code points.",1),intro:str(L.introMax,"Optional introduction, at most 300 code points."),
+    paged:{type:"boolean",description:"Optional, default false. Show one question at a time and send all answers together. Refused on a form with only one question, even when false; checkForm enforces this cross-field rule."},
     fonts:arr(obj({family:str(L.familyMax,"Font family name, 1 to 40 characters: ASCII letters and digits, starting with a letter, words separated by single spaces; unique ignoring case; never a CSS keyword: serif, sans-serif, monospace, system-ui, cursive, fantasy, emoji, math, fangsong, inherit, initial, unset, revert, default.",1,FAMILY.source),
       src:str(L.fontSrcMax,"HTTPS font URL, at most 300 code points, origin https://fonts.gstatic.com or https://cdn.jsdelivr.net, no query, fragment or credentials, path ending .woff2, .woff, .ttf or .otf.",1)},["family","src"],"Declared font; no generic family names."),L.fontsMin,L.fontsMax,"Optional 1 to 6 declared fonts."),
     questions:arr(question,L.questionsMin,L.questionsMax,"Required 1 to 12 questions; ids must be unique.")

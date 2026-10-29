@@ -1,0 +1,26 @@
+{
+  "id": "opening-taps",
+  "title": "Step 3 of 6: how it should look",
+  "intro": "Quick taps about taste you already have. There are no wrong answers.",
+  "paged": true,
+  "questions": [
+    {"id":"mode","short":"Light or dark","type":"radio","label":"Do you prefer light mode or dark mode?","options":[
+      {"value":"light","label":"Light"},{"value":"dark","label":"Dark"},{"value":"either","label":"Either"}]},
+    {"id":"feel","short":"Brand feel","type":"radio","label":"Which feels closest to how your brand should feel?","options":[
+      {"value":"mechanical","label":"Mechanical","note":"Precise and engineered"},{"value":"natural","label":"Natural"},{"value":"suit-and-tie","label":"Suit and tie"},{"value":"playful-and-creative","label":"Playful and creative"},{"value":"not-sure","label":"Not sure"}]},
+    {"id":"history","short":"History","type":"radio","label":"How much history should your brand feel like it has?","options":[
+      {"value":"rooted","label":"Rooted, like it's been trusted for generations"},{"value":"established","label":"Established, but current"},{"value":"of-the-moment","label":"Of the moment, like it arrived this year"},{"value":"not-sure","label":"Not sure"}]},
+    {"id":"strength","short":"Soft or strong","type":"radio","label":"Should your brand feel soft and graceful, or strong and solid?","options":[
+      {"value":"soft-and-graceful","label":"Soft and graceful"},{"value":"balanced","label":"Balanced"},{"value":"strong-and-solid","label":"Strong and solid"},{"value":"not-sure","label":"Not sure"}]},
+    {"id":"tech","short":"Apple to Craftsman","type":"radio","label":"Choose the one brand that most reflects the direction you're going for.","options":[
+      {"value":"apple","label":"Apple"},{"value":"bose","label":"Bose"},{"value":"kitchenaid","label":"KitchenAid"},{"value":"craftsman","label":"Craftsman"},{"value":"none","label":"None of these"}]},
+    {"id":"clothing","short":"Patagonia to Brooks Brothers","type":"radio","label":"Choose the one brand that most reflects the direction you're going for.","options":[
+      {"value":"patagonia","label":"Patagonia"},{"value":"lululemon","label":"Lululemon"},{"value":"j-crew","label":"J Crew"},{"value":"brooks-brothers","label":"Brooks Brothers"},{"value":"none","label":"None of these"}]},
+    {"id":"cars","short":"Tesla to Subaru","type":"radio","label":"Choose the one brand that most reflects the direction you're going for.","options":[
+      {"value":"tesla","label":"Tesla"},{"value":"porsche","label":"Porsche"},{"value":"ford","label":"Ford"},{"value":"subaru","label":"Subaru"},{"value":"none","label":"None of these"}]},
+    {"id":"home","short":"Home references","type":"radio","label":"Choose the one brand that most reflects the direction you're going for.","options":[
+      {"value":"restoration-hardware","label":"Restoration Hardware"},{"value":"anthropologie","label":"Anthropologie"},{"value":"ikea","label":"Ikea"},{"value":"ethan-allen","label":"Ethan Allen"},{"value":"none","label":"None of these"}]},
+    {"id":"places","short":"Where clients feel at home","type":"radio","label":"Where would your clients feel most at home with you?","options":[
+      {"value":"spa","label":"A calm spa"},{"value":"hotel","label":"A nice hotel lobby"},{"value":"coffee","label":"A coffee shop"},{"value":"studio","label":"A buzzing design studio"},{"value":"workshop","label":"A workshop with tools on the wall"},{"value":"none","label":"None of these"}]}
+  ]
+}

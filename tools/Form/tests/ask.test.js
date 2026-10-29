@@ -459,3 +459,22 @@ test('ask retries reset probes until its stopped host refuses connections',{time
     await clean(status);
   } finally { await writeFile(ask,original); await rm(net); }
 });
+
+test('ask paged: local window uses the shared navigation and returns all answers',{timeout:30000},async()=>{
+ const f={...structuredClone(SAMPLE_FORM),paged:true},file=join(root,'paged.json');
+ await writeFile(file,JSON.stringify(f));
+ const run=command(script,['ask','--form',file,'--headless']);
+ const status=await ready(run);
+ const initial=(await bc(['execute','--code',`({count:[...document.querySelectorAll('fieldset')].filter(e=>!e.hidden).length,title:document.querySelector('h1').textContent})`])).result;
+ assert.deepEqual(initial,{count:1,title:`${f.title} · 1 of 6`});
+ await bc(['execute','--code',`document.querySelector('input[value="bright"]').click()`]);
+ for(let i=0;i<100;i++) {
+  const page=(await bc(['execute','--code',`document.querySelector('fieldset:not([hidden])').dataset.id`])).result;
+  if(page==='shapes')break;
+  assert.ok(i<99,'radio advances in the ask window');await delay(25);
+ }
+ await bc(['execute','--code',`(() => {for(let i=0;i<4;i++)document.getElementById('next').click();document.querySelector('textarea').value='Paged answer';document.getElementById('submit').click();})()`]);
+ const result=json(await run.done);
+ assert.equal(result.status,'answered');assert.deepEqual(result.answers,{mood:'bright',shapes:[],era:null,places:[],loudness:5,never:'Paged answer'});
+ assert.equal(result.shown.length,6);await clean(status);
+});
