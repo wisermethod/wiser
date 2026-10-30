@@ -578,6 +578,20 @@ function validateConfig(config) {
   if (config.typography?.quote_font !== undefined && !['body', 'sans'].includes(config.typography.quote_font)) {
     errors.push('typography.quote_font must be body or sans');
   }
+  for (const key of ['contents', 'headings']) {
+    if (config[key] !== undefined && (!config[key] || typeof config[key] !== 'object' || Array.isArray(config[key]))) {
+      errors.push(`${key} must be a mapping`);
+    }
+  }
+  if (config.contents?.enabled !== undefined && typeof config.contents.enabled !== 'boolean') {
+    errors.push('contents.enabled must be a boolean');
+  }
+  if (config.contents?.depth !== undefined && (!Number.isInteger(config.contents.depth) || config.contents.depth < 1 || config.contents.depth > 5)) {
+    errors.push('contents.depth must be an integer from 1 to 5 (Markdown heading levels)');
+  }
+  if (config.headings?.numbered !== undefined && typeof config.headings.numbered !== 'boolean') {
+    errors.push('headings.numbered must be a boolean');
+  }
   if (config.margins !== undefined) {
     if (!config.margins || typeof config.margins !== 'object' || Array.isArray(config.margins)) {
       errors.push('margins must be a mapping of top, bottom, outer and inner in inches');
@@ -824,28 +838,65 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
   if (includeIndex) {
     pandocArgs.push('--variable', 'include-index=true');
   }
+  if (config.contents?.enabled === true) {
+    pandocArgs.push('--variable', 'print-contents=true',
+      '--variable', `print-contents-depth=${(config.contents.depth ?? 1) - 1}`);
+  }
+  if (config.headings?.numbered === false) {
+    pandocArgs.push('--variable', 'unnumbered-headings=true');
+  }
 
   await runCommand('pandoc', pandocArgs, config._configDir);
 
   const pdflatexArgs = ['-interaction=nonstopmode', `-output-directory=${tempDir}`, texFile];
 
-  // pdflatex exits non-zero on warnings (missing images, rerun-needed), so a
-  // non-zero exit here is tolerated; a missing PDF below is the real failure.
-  log('  LaTeX pass 1...');
-  await runCommand('pdflatex', pdflatexArgs, tempDir, true);
+  if (config.contents?.enabled === true) {
+    // The first .toc can grow into several pages on the next pass, moving
+    // both chapter references and index terms. Regenerate the index from each
+    // changed .idx and stop only once a PDF has consumed unchanged inputs.
+    // Keep this opt-in: books without a contents page retain their pass order.
+    let previous;
+    let indexedInput;
+    const readState = (extension) => {
+      const file = join(tempDir, `${slug}.${extension}`);
+      return existsSync(file) ? readFileSync(file, 'utf8') : null;
+    };
+    for (let pass = 1; pass <= 12; pass += 1) {
+      log(`  LaTeX contents pass ${pass}...`);
+      // An errored pass cannot prove convergence, even if stale files match.
+      await runCommand('pdflatex', pdflatexArgs, tempDir);
+      const indexInput = readState('idx');
+      if (includeIndex && indexInput !== null && indexInput !== indexedInput) {
+        log('  Processing index...');
+        await runCommand('makeindex', [`${slug}.idx`], tempDir);
+        indexedInput = indexInput;
+      }
+      const state = JSON.stringify(['aux', 'toc', 'idx', 'ind'].map(readState));
+      if (state === previous) break;
+      if (pass === 12) {
+        throw new Error('contents and index references did not stabilize after 12 LaTeX passes; see the retained .aux, .toc and .idx files');
+      }
+      previous = state;
+    }
+  } else {
+    // pdflatex exits non-zero on warnings (missing images, rerun-needed), so a
+    // non-zero exit here is tolerated; a missing PDF below is the real failure.
+    log('  LaTeX pass 1...');
+    await runCommand('pdflatex', pdflatexArgs, tempDir, true);
 
-  if (includeIndex) {
-    const idxFile = join(tempDir, `${slug}.idx`);
-    if (existsSync(idxFile)) {
-      log('  Processing index...');
-      // Pass the basename with cwd set to tempDir: makeindex derives its output
-      // path from the input path, and TeX Live's paranoid openout_any refuses an
-      // absolute output path. A relative name keeps the write inside the temp dir.
-      await runCommand('makeindex', [`${slug}.idx`], tempDir);
-      log('  LaTeX pass 2...');
-      await runCommand('pdflatex', pdflatexArgs, tempDir, true);
-      log('  LaTeX pass 3...');
-      await runCommand('pdflatex', pdflatexArgs, tempDir, true);
+    if (includeIndex) {
+      const idxFile = join(tempDir, `${slug}.idx`);
+      if (existsSync(idxFile)) {
+        log('  Processing index...');
+        // Pass the basename with cwd set to tempDir: makeindex derives its output
+        // path from the input path, and TeX Live's paranoid openout_any refuses an
+        // absolute output path. A relative name keeps the write inside the temp dir.
+        await runCommand('makeindex', [`${slug}.idx`], tempDir);
+        log('  LaTeX pass 2...');
+        await runCommand('pdflatex', pdflatexArgs, tempDir, true);
+        log('  LaTeX pass 3...');
+        await runCommand('pdflatex', pdflatexArgs, tempDir, true);
+      }
     }
   }
 

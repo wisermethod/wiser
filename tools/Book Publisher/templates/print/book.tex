@@ -445,9 +445,18 @@ $endif$
 %% =============================================================================
 %% DOCUMENT
 %% =============================================================================
+$if(unnumbered-headings)$
+\setcounter{secnumdepth}{-2}
+$endif$
 \begin{document}
 
 \pagestyle{plain}
+
+$if(print-contents)$
+\setcounter{tocdepth}{$print-contents-depth$}
+\tableofcontents
+\clearpage
+$endif$
 
 $body$
 

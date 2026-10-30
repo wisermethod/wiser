@@ -87,6 +87,9 @@ Pass `--config` as an absolute path. Paths inside YAML resolve relative to that 
 | `typography.quote_font` | Print quotation face: `body` inherits the surrounding body face; `sans` selects Source Sans Pro. Thumb-tab labels retain Source Sans Pro Bold in either case | `body` |
 | `typography.font_size` | Print base size in points | `12` |
 | `typography.line_spacing` | Print line stretch | `1.15` |
+| `contents.enabled` | Generate a print contents page before the manuscript; EPUB keeps its own navigation | `false` |
+| `contents.depth` | Deepest Markdown heading level listed in the print contents, an integer from 1 to 5; 1 lists chapters (`#`), 2 also lists `##`, and so on | `1` |
+| `headings.numbered` | Keep LaTeX's existing print heading numbering; `false` sets `secnumdepth` to -2, suppressing automatic part/chapter/section numbers without removing numbers written in a title | `true` (LaTeX's existing numbering depth) |
 | `index.enabled` | Enable makeindex | `true` |
 | `index.extractor` | Enable two-pass extraction when `index.enabled` is false | Absent |
 | `index.extractor.indexHeading` | Index section boundary | `Appendix C: Index` |
@@ -95,6 +98,8 @@ Pass `--config` as an absolute path. Paths inside YAML resolve relative to that 
 | `index.extractor.indexFallbackFromEnd` | Fallback index start, this many pages from the end | `10` |
 
 Margins may be set independently; omitted edges keep their defaults. The inner and outer margins must leave a positive text width within the trim, and the top and bottom margins must leave a positive text height. Print image sizing uses the trim width minus the inner and outer margins.
+
+With `contents.enabled: true`, print builds repeat LaTeX and regenerate makeindex whenever its input changes until the contents, labels and index references stop changing. This also runs without makeindex and under `--draft`. A build that does not stabilize within 12 LaTeX passes fails and retains its intermediates. The generated contents precedes all manuscript content; omit any hand-written contents listing or blank-page reservation it replaces. These settings affect print only. With the settings omitted, the existing print layout, numbering and pass order are preserved.
 
 `init` supplies title/author placeholders, 6 by 9 inch trim, `chapters/`, `assets/`, `publish/print/`, `publish/epub/`, and the `none` index strategy. Other metadata is left for the member. Extra publishing metadata may be kept in YAML, but keys outside the table do not govern this build.
 
