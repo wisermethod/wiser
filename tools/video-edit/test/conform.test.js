@@ -110,7 +110,7 @@ test('AAC, 44.1k reference, unchanged mux/loudness/finish', () => temp(d => {
 }));
 test('receipts, identities, links, protected paths, collisions, CLI and missing dependencies', () => temp(d => {
   const f = fixture(d), base = args(f), blocked = { env: { ...process.env, PATH: '/no-dependencies' } };
-  for (const values of [['help'], ['conform', '--help']]) { const h = run(process.execPath, [entry, ...values], blocked); assert.equal(h.status, 0); assert.match(h.stdout, /video-edit 0.3.0/); }
+  for (const values of [['help'], ['conform', '--help']]) { const h = run(process.execPath, [entry, ...values], blocked); assert.equal(h.status, 0); assert.match(h.stdout, /video-edit 0.4.0/); }
   for (const extra of [['--bogus', 'x'], ['--origin', '0'], ['--fps', '30']]) { const r = run(process.execPath, [entry, ...base, ...extra], blocked); assert.equal(r.status, 1); assert.equal(r.stdout, ''); assert.doesNotMatch(r.stderr, /missing ffmpeg/); }
   const missing = run(process.execPath, [entry, ...base], blocked); assert.equal(missing.status, 1); assert.match(missing.stderr, /missing ffmpeg/); refusal(f, { sha256: '0'.repeat(64) }, /SHA-256/);
   const original = readFileSync(f.receipt), stale = JSON.parse(original); stale.padded.identity.sha256 = '0'.repeat(64); writeFileSync(f.receipt, JSON.stringify(stale)); refusal(f, {}, /receipt/); writeFileSync(f.receipt, original); assert.throws(() => strictJSON('{"padded":1,"padded":2}'), /duplicate/);

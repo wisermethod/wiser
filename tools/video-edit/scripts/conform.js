@@ -9,7 +9,7 @@ import { hash, mp4Structure } from './finish.js';
 import { correlate } from './conform-clock.js';
 import { rateFilter } from './loudness.js';
 
-export const VERSION = '0.3.0';
+export const VERSION = '0.4.0';
 export const CONFORM_HELP = `Conform (all flags required, each once):
   node scripts/edit.js conform --input <local.mp4> --sha256 <HEX>
     --reference <padded.wav> --reference-sha256 <HEX>

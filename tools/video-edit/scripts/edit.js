@@ -20,6 +20,7 @@ import { muxCommand, startSamples } from './mux.js';
 import { conform, CONFORM_HELP } from './conform.js';
 import { exactFrames, EXACT_HELP } from './exact-frames.js';
 import { composite, COMPOSITE_HELP } from './composite.js';
+import { compositeAlpha, COMPOSITE_ALPHA_HELP } from './composite-alpha.js';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, realpathSync, statSync, unlinkSync } from 'node:fs';
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
@@ -44,7 +45,7 @@ const TEXT_BOTTOM_MARGIN = 100;
 const GIF_WIDTH = 480;
 const DEFAULT_FPS = 10;
 
-const USAGE = `video-edit 0.3.0 - apply FFmpeg edits to a video file
+const USAGE = `video-edit 0.4.0 - apply FFmpeg edits to a video file
 
 Usage:
   node scripts/edit.js help
@@ -97,7 +98,9 @@ ${CONFORM_HELP}
 
 ${EXACT_HELP}
 
-${COMPOSITE_HELP}`;
+${COMPOSITE_HELP}
+
+${COMPOSITE_ALPHA_HELP}`;
 
 function fail(message) {
   throw new Error(message);
@@ -122,6 +125,16 @@ export function main(argv = process.argv.slice(2)) {
     const result = (command === 'exact-frames' ? exactFrames : composite)(argv.slice(1));
     process.stdout.write(`${JSON.stringify(result)}\n`);
     return result;
+  }
+
+  if (command === 'composite-alpha') {
+    return compositeAlpha(argv.slice(1)).then(result => {
+      process.stdout.write(`${JSON.stringify(result)}\n`);
+      return result;
+    }).catch(error => {
+      process.stderr.write(`${error.message}\n`);
+      process.exitCode = 1;
+    });
   }
 
   if (!COMMANDS.has(command)) {
