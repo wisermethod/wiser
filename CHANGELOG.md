@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.30.3, October 30, 2026
+
+- Wiser now carries its round teal icon for Claude's plugin directory, and the README links to Wiser's Privacy and Terms. (4637f13)
+
 ## v2026.10.30.2, October 30, 2026
 
 - `video-edit` can now lay a transparent picture, such as drawn captions, over a video you already have, keeping everything outside it exactly as it was. (bb6f4c0, 5007d44, c538f95, ba86194, 108f2bd, 2c063c5)
