@@ -45,4 +45,4 @@ Run TOOL.md's Success checks. `init --output /path/to/new/book` makes a project;
 
 **A system runtime is false:** read its row in TOOL.md and follow the Script Contract's System dependencies clause.
 
-**Validation or structural checks fail:** correct the input named on stderr, then validate or rebuild. TOOL.md describes Standing, index strategies and the advisory output profile result.
+**Validation or structural checks fail:** correct the input named on stderr, then validate or rebuild. TOOL.md describes Standing and index strategies; a PDF/X file without its output profile, or a non-zero Ghostscript exit, fails the build.
