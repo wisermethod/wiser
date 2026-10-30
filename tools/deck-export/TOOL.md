@@ -3,7 +3,9 @@ name: deck-export
 type: tool
 category: documents
 description: Writes a new reveal.js deck project on disk, from a brand template or as a self-contained starter, and renders a finished deck to a PDF or to one PNG per slide
-version: 0.2.5
+version: 0.2.6
+gaps:
+  - typesetting a long-form document, such as a book, into a print-ready interior or an EPUB
 ---
 
 # deck-export
