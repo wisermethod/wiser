@@ -43,6 +43,7 @@ const INSTALL_BYTES = 67866624;
 const INSTALL_SIZE = formatInstallSize(INSTALL_BYTES);
 
 const COMMANDS = new Set(['build', 'validate', 'check', 'init']);
+const DEFAULT_MARGINS = { top: 0.85, bottom: 0.85, outer: 0.85, inner: 1.1 };
 
 const USAGE = `Book Publisher - build print-ready PDF/X-1a and EPUB from markdown
 
@@ -525,7 +526,33 @@ function validateConfig(config) {
   if (!config.output?.print && !config.output?.epub) {
     errors.push('missing: output.print or output.epub (nowhere to write)');
   }
+  if (config.margins !== undefined) {
+    if (!config.margins || typeof config.margins !== 'object' || Array.isArray(config.margins)) {
+      errors.push('margins must be a mapping of top, bottom, outer and inner in inches');
+    } else {
+      for (const edge of Object.keys(DEFAULT_MARGINS)) {
+        const value = config.margins[edge];
+        if (value !== undefined && (!Number.isFinite(value) || value < 0)) {
+          errors.push(`margins.${edge} must be a finite nonnegative number in inches`);
+        }
+      }
+      const margins = printMargins(config);
+      if (Object.values(margins).every(Number.isFinite)) {
+        if (config.trim?.width - margins.outer - margins.inner <= 0) {
+          errors.push('margins.outer and margins.inner must leave a positive text width within trim.width');
+        }
+        if (config.trim?.height - margins.top - margins.bottom <= 0) {
+          errors.push('margins.top and margins.bottom must leave a positive text height within trim.height');
+        }
+      }
+    }
+  }
   return errors;
+}
+
+function printMargins(config) {
+  return Object.fromEntries(Object.entries(DEFAULT_MARGINS).map(([edge, fallback]) =>
+    [edge, config.margins?.[edge] ?? fallback]));
 }
 
 function authorNames(config) {
@@ -708,6 +735,7 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
   const templateFile = join(TEMPLATES_DIR, 'print', 'book.tex');
   const indexFilter = join(FILTERS_DIR, 'index-filter.lua');
   const formatFilter = join(FILTERS_DIR, 'format-filter.lua');
+  const margins = printMargins(config);
 
   const pandocArgs = [
     mergedFile,
@@ -720,7 +748,11 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
     '--top-level-division=chapter',
     '--variable', `paperwidth=${config.trim.width}in`,
     '--variable', `paperheight=${config.trim.height}in`,
-    '--metadata', `content-width=${(config.trim.width - 0.85 - 1.1).toFixed(2)}`,
+    '--variable', `margin-top=${margins.top}in`,
+    '--variable', `margin-bottom=${margins.bottom}in`,
+    '--variable', `margin-outer=${margins.outer}in`,
+    '--variable', `margin-inner=${margins.inner}in`,
+    '--metadata', `content-width=${(config.trim.width - margins.outer - margins.inner).toFixed(2)}`,
     '--resource-path', bookDir
   ];
 

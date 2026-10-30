@@ -10,10 +10,10 @@
 \usepackage[
   paperwidth=$if(paperwidth)$$paperwidth$$else$8in$endif$,
   paperheight=$if(paperheight)$$paperheight$$else$10in$endif$,
-  top=0.85in,
-  bottom=0.85in,
-  outer=0.85in,
-  inner=1.1in,
+  top=$if(margin-top)$$margin-top$$else$0.85in$endif$,
+  bottom=$if(margin-bottom)$$margin-bottom$$else$0.85in$endif$,
+  outer=$if(margin-outer)$$margin-outer$$else$0.85in$endif$,
+  inner=$if(margin-inner)$$margin-inner$$else$1.1in$endif$,
   footskip=0.45in,
   headheight=14pt
 ]{geometry}

@@ -57,6 +57,10 @@ Pass `--config` as an absolute path. Paths inside YAML resolve relative to that 
 | `title` | Book title | Required |
 | `authors` and `authors[].name` | List of name strings or objects with `name` | Required nonempty list |
 | `trim.width`, `trim.height` | Print dimensions in inches | Required, including for validation and EPUB-only |
+| `margins.top` | Print top margin in inches, a finite nonnegative number | `0.85` |
+| `margins.bottom` | Print bottom margin in inches, a finite nonnegative number | `0.85` |
+| `margins.outer` | Print outer margin in inches, a finite nonnegative number | `0.85` |
+| `margins.inner` | Print binding-side margin in inches, a finite nonnegative number | `1.1` |
 | `source.chapters` | Directory of chapter Markdown files | Required |
 | `source.assets` | Asset directory | Print falls back to `../assets` relative to the config; supply explicitly for EPUB |
 | `source.exclude` | Filenames excluded from the merge | `[]` |
@@ -80,6 +84,8 @@ Pass `--config` as an absolute path. Paths inside YAML resolve relative to that 
 | `index.extractor.glossaryHeading` | Section following the index | `Appendix D: Glossary` |
 | `index.extractor.frontMatterPages` | Initial pages skipped during term and heading searches | `5` |
 | `index.extractor.indexFallbackFromEnd` | Fallback index start, this many pages from the end | `10` |
+
+Margins may be set independently; omitted edges keep their defaults. The inner and outer margins must leave a positive text width within the trim, and the top and bottom margins must leave a positive text height. Print image sizing uses the trim width minus the inner and outer margins.
 
 `init` supplies title/author placeholders, 6 by 9 inch trim, `chapters/`, `assets/`, `publish/print/`, `publish/epub/`, and the `none` index strategy. Other metadata is left for the member. Extra publishing metadata may be kept in YAML, but keys outside the table do not govern this build.
 
