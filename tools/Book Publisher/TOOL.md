@@ -103,6 +103,8 @@ For two-pass extraction, write the boundary headings as `## Heading` or a bold-o
 
 Use ordinary Pandoc Markdown for prose, lists, headings, images and tables. In the print template, `#` starts a chapter-style page, `##` a part or appendix, `###` a chapter within a part, and `####`/`#####` sections within it. EPUB navigation includes headings through level 3.
 
+Raw LaTeX `\section`, `\subsection` and `\subsubsection` retain their normal, starred and optional short-title forms. Each runs an automatic float barrier before the heading.
+
 | Markup | Meaning |
 |--------|---------|
 | `<!-- format: centered, font-size=small -->` ... `<!-- /format -->` | A format block; directives may be combined with commas and nested blocks close in reverse order |

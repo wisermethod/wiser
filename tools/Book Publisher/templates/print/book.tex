@@ -92,14 +92,6 @@ $endif$
 \captionsetup[figure]{labelformat=empty, textformat=empty, skip=0pt}
 \renewcommand{\figurename}{}
 
-% Make FloatBarrier automatic at section breaks
-\let\oldsection\section
-\renewcommand{\section}[1]{\FloatBarrier\oldsection{#1}}
-\let\oldsubsection\subsection
-\renewcommand{\subsection}[1]{\FloatBarrier\oldsubsection{#1}}
-\let\oldsubsubsection\subsubsection
-\renewcommand{\subsubsection}[1]{\FloatBarrier\oldsubsubsection{#1}}
-
 %% =============================================================================
 %% TABLES
 %% =============================================================================
@@ -195,6 +187,15 @@ $endif$
   {0pt}
   {\uline}
 \titlespacing*{\paragraph}{0pt}{2ex plus .5ex minus .2ex}{1ex plus .2ex}
+
+% Prefix the finished titlesec commands without consuming their star or arguments.
+% Installing these after titlesec preserves normal, starred and short-title forms.
+\let\oldsection\section
+\renewcommand{\section}{\FloatBarrier\oldsection}
+\let\oldsubsection\subsection
+\renewcommand{\subsection}{\FloatBarrier\oldsubsection}
+\let\oldsubsubsection\subsubsection
+\renewcommand{\subsubsection}{\FloatBarrier\oldsubsubsection}
 
 %% =============================================================================
 %% LINE SPACING
