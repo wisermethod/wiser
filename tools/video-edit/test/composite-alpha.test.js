@@ -262,6 +262,59 @@ test('AL6: complete versioned receipt, every source/media/record/marker identity
 function actual(bin) { const r=run('/usr/bin/which',[bin]); assert.equal(r.status,0);return r.stdout.trim(); }
 function wrapper(d,name,bin,source) {const dir=join(d,name);mkdirSync(dir);writeFileSync(join(dir,bin),`#!${process.execPath}\n${source}`,{mode:0o755});return {env:{...process.env,PATH:dir+':'+process.env.PATH}};}
 function forward(binary,after='') {return `const a=process.argv.slice(2),r=require('node:child_process').spawnSync(${JSON.stringify(binary)},a,{stdio:'inherit'});${after}process.exit(r.status??1);`;}
+function alive(pid) {
+  try { process.kill(pid, 0); return true; }
+  catch (error) { if (error.code === 'ESRCH') return false; throw error; }
+}
+function stuckPeerReadback(d, program = entry) {
+  const { base, a } = setup(d, { count: 1 }), ffmpeg = actual('ffmpeg');
+  const count = join(d, 'base-decodes'), ready = join(d, 'base-mid-frame'), pids = join(d, 'stand-in-pids');
+  for (const [file, value] of [[count, '0'], [ready, ''], [pids, '']]) writeFileSync(file, value);
+  const extra = wrapper(d, 'stuck-readback', 'ffmpeg', `
+const fs=require('node:fs'),argv=process.argv.slice(2),input=argv[argv.indexOf('-i')+1];
+fs.appendFileSync(${JSON.stringify(pids)},process.pid+'\\n');
+if(argv.at(-1)==='pipe:1'&&input===${JSON.stringify(base)}){
+  const n=Number(fs.readFileSync(${JSON.stringify(count)},'utf8'))+1;fs.writeFileSync(${JSON.stringify(count)},String(n));
+  if(n===2){
+    process.stdout.write(Buffer.alloc(1),()=>fs.writeFileSync(${JSON.stringify(ready)},'mid-frame'));
+    setInterval(()=>{},1000);return;
+  }
+}
+if(argv.at(-1)==='pipe:1'&&input?.endsWith('/segment.mp4')){
+  const timer=setInterval(()=>{if(fs.readFileSync(${JSON.stringify(ready)},'utf8')==='mid-frame'){clearInterval(timer);process.stdout.write(Buffer.alloc(1),()=>{fs.writeFileSync(${JSON.stringify(ready)},'output-failed');process.exit(77);});}},2);return;
+}
+${forward(ffmpeg)}`);
+  delete extra.env.NODE_OPTIONS;
+  const before = readdirSync(d).sort(), tracked = () => readFileSync(pids, 'utf8').trim().split('\n').filter(Boolean).map(Number);
+  try {
+    const r = run(process.execPath, [program, ...a], { ...extra, timeout: 30000, killSignal: 'SIGKILL' });
+    assert.equal(r.error?.code, undefined, 'read-back must settle within the test\'s 30000 ms bound');
+    assert.equal(r.status, 1, r.stderr); assert.equal(r.stdout, '');
+    assert.match(r.stderr, /decoder returned a partial frame/);
+    assert.doesNotMatch(r.stderr, /\n\s+at |UnhandledPromiseRejection|unhandled.rejection|node:internal/i);
+    assert.equal(readFileSync(count, 'utf8'), '2', 'fault occurs only in read-back');
+    assert.equal(readFileSync(ready, 'utf8'), 'output-failed', 'output fails while base is stuck mid-frame');
+    assert.ok(!existsSync(a[a.indexOf('--output') + 1]), 'no output on refusal');
+    assert.deepEqual(readdirSync(d).sort(), before, 'refusal removes its staging sibling');
+    assert.ok(tracked().length > 0, 'stand-in process IDs were recorded');
+    for (const pid of tracked()) assert.equal(alive(pid), false, `stand-in ${pid} must be gone`);
+  } finally {
+    // A failing control must not leave the deliberately stuck decoder alive.
+    for (const pid of tracked()) if (alive(pid)) process.kill(pid, 'SIGKILL');
+    const deadline = Date.now() + 1000;
+    while (tracked().some(alive) && Date.now() < deadline) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 2);
+    assert.ok(tracked().every(pid => !alive(pid)), 'test cleanup leaves no stand-in alive');
+  }
+}
+test('N1 stuck peer: partial output failure kills the nonclosing base decoder and removes staging within 30 s', () => temp(d => {
+  stuckPeerReadback(d);
+}));
+test('N1 control: removing the read-back kills fails the same stuck-peer test at its 30 s bound', () => temp(d => {
+  const program = mutant(d, 'readback-without-kill', 'composite-alpha.js', replace(
+    "verifyBase.child.kill('SIGKILL'); verifyOutput.child.kill('SIGKILL');", 'void 0;'));
+  assert.throws(() => stuckPeerReadback(d, program), { code: 'ERR_ASSERTION', message: /30000 ms bound/, actual: 'ETIMEDOUT' });
+  console.log('CONTROL readback-without-kill: ETIMEDOUT at the 30000 ms bound as required');
+}));
 test('R1 readback: partial output decode while base is mid-frame refuses cleanly in default rejection mode', () => temp(d => {
   const { base, a } = setup(d, { count: 1 }), ffmpeg = actual('ffmpeg');
   const count = join(d, 'base-decodes'), ready = join(d, 'base-mid-frame'), settled = join(d, 'base-read-settled');
@@ -284,7 +337,7 @@ ${forward(ffmpeg)}`);
   const r = refuse(d, a, /decoder returned a partial frame/, entry, extra);
   assert.equal(readFileSync(count, 'utf8'), '2', 'fault occurs in read-back, after construction');
   assert.equal(readFileSync(ready, 'utf8'), 'output-failed', 'base had an incomplete frame before output failed');
-  assert.equal(readFileSync(settled, 'utf8'), 'settled', 'pending base next settles before child teardown');
+  assert.equal(readFileSync(settled, 'utf8'), '', 'failed output decode kills base before its delayed frame completion');
   assert.doesNotMatch(r.stderr, /\n\s+at |UnhandledPromiseRejection|unhandled.rejection|node:internal/i);
 }));
 test('R1 paths: absent layer, absent parent and nondirectory parent use the canonicalization refusal before probes/staging', () => temp(d => {

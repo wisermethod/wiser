@@ -250,10 +250,13 @@ export async function compositeAlpha(argv) {
     const verifyBase = launch('ffmpeg', decodeArgs(base), children), verifyOutput = launch('ffmpeg', decodeArgs(video), children);
     const bases = frames(verifyBase.child.stdout, size), outputs = frames(verifyOutput.child.stdout, size), frameHashes = [];
     const readPair = async () => {
-      const results = await Promise.allSettled([bases.next(), outputs.next()]);
-      const failed = results.find(result => result.status === 'rejected');
-      if (failed) throw failed.reason;
-      return results.map(result => result.value);
+      const pending = [bases.next(), outputs.next()];
+      try { return await Promise.all(pending); }
+      catch (error) {
+        verifyBase.child.kill('SIGKILL'); verifyOutput.child.kill('SIGKILL');
+        await Promise.allSettled(pending);
+        throw error;
+      }
     };
     try {
       for (let n = 0; n < b.count; n++) {
