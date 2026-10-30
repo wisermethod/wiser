@@ -4,6 +4,8 @@ type: skill
 category: onboarding
 description: Settle a book's production decisions and fill its project instructions and edition configurations before writing or bringing in a manuscript
 version: 0.1.0
+gaps:
+  - producing a print interior with bleed
 ---
 
 # Set Up Book
