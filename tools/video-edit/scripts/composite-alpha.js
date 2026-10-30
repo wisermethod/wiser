@@ -37,10 +37,15 @@ function unlinked(path, directory = false) {
 }
 function layerDirectory(raw) {
   if (!isAbsolute(raw) || protectedPath(raw)) fail('--layer must be absolute and outside protected paths');
-  unlinked(raw, true);
-  const directory = realpathSync(raw);
-  if (protectedPath(directory)) fail('--layer resolves to a protected path');
-  return directory;
+  try {
+    unlinked(raw, true);
+    const directory = realpathSync(raw);
+    if (protectedPath(directory)) fail('--layer resolves to a protected path');
+    return directory;
+  } catch (error) {
+    if (['ENOENT', 'ENOTDIR'].includes(error.code)) fail('path cannot be canonicalized or its parent does not exist');
+    throw error;
+  }
 }
 function sourceFile(raw) {
   const path = screen(raw);
@@ -48,8 +53,13 @@ function sourceFile(raw) {
   return path;
 }
 function listing(directory, names) {
-  unlinked(directory, true);
-  if (!isDeepStrictEqual(readdirSync(directory).sort(), [...names].sort())) fail('layer directory must contain exactly frames.sha256 and the requested indexed PNG frames');
+  try {
+    unlinked(directory, true);
+    if (!isDeepStrictEqual(readdirSync(directory).sort(), [...names].sort())) fail('layer directory must contain exactly frames.sha256 and the requested indexed PNG frames');
+  } catch (error) {
+    if (['ENOENT', 'ENOTDIR'].includes(error.code)) fail('path cannot be canonicalized or its parent does not exist');
+    throw error;
+  }
 }
 
 // Parse the container rather than asking a decoder to discard unsupported chunks.
@@ -179,7 +189,7 @@ export async function compositeAlpha(argv) {
     if (o['layer-colour'] !== 'bt709') fail('--layer-colour supports only bt709');
     const base = sourceFile(o.base), directory = layerDirectory(o.layer), output = screen(o.output, true);
     if (extname(base).toLowerCase() !== '.mp4') fail('--base must be a local .mp4');
-    alphaDependencies();
+    await alphaDependencies();
     const baseBefore = expectedIdentity(base, o['base-sha256']), b = inspect(base, true), rate = alphaClock(b, base);
     const pixels = b.width * b.height, size = pixels * 3 / 2;
     if (pixels > MAX_PIXELS || b.count > MAX_FRAMES || first + b.count - 1 > 999999 || 14 * pixels * b.count > 784000000000) fail('picture, frame count, index or streamed-byte bound exceeded');
@@ -239,15 +249,27 @@ export async function compositeAlpha(argv) {
     // Neither composeAlpha nor supportMasks participates in this pass.
     const verifyBase = launch('ffmpeg', decodeArgs(base), children), verifyOutput = launch('ffmpeg', decodeArgs(video), children);
     const bases = frames(verifyBase.child.stdout, size), outputs = frames(verifyOutput.child.stdout, size), frameHashes = [];
-    for (let n = 0; n < b.count; n++) {
-      const [baseFrame, actual] = await Promise.all([bases.next(), outputs.next()]);
-      if (baseFrame.done || actual.done) fail('independent decoded frame count decreased');
-      const layer = await rgba(pngs[n], pixels * 4, hashes[n], children), mismatch = verifyFrame(actual.value, baseFrame.value, layer, b.width, b.height);
-      if (mismatch) fail(`independent readback ${mismatch.protected ? 'protected' : 'expected'} sample mismatch at frame ${n}, plane ${mismatch.plane}, ${mismatch.x},${mismatch.y}`);
-      frameHashes.push(digest(actual.value));
+    const readPair = async () => {
+      const results = await Promise.allSettled([bases.next(), outputs.next()]);
+      const failed = results.find(result => result.status === 'rejected');
+      if (failed) throw failed.reason;
+      return results.map(result => result.value);
+    };
+    try {
+      for (let n = 0; n < b.count; n++) {
+        const [baseFrame, actual] = await readPair();
+        if (baseFrame.done || actual.done) fail('independent decoded frame count decreased');
+        const layer = await rgba(pngs[n], pixels * 4, hashes[n], children), mismatch = verifyFrame(actual.value, baseFrame.value, layer, b.width, b.height);
+        if (mismatch) fail(`independent readback ${mismatch.protected ? 'protected' : 'expected'} sample mismatch at frame ${n}, plane ${mismatch.plane}, ${mismatch.x},${mismatch.y}`);
+        frameHashes.push(digest(actual.value));
+      }
+      const [baseEnd, outputEnd] = await readPair();
+      if (!baseEnd.done || !outputEnd.done) fail('independent decoded frame count increased');
+      await Promise.all([verifyBase.completed, verifyOutput.completed]);
+    } catch (error) {
+      await Promise.allSettled([bases.return(), outputs.return()]);
+      throw error;
     }
-    if (!(await bases.next()).done || !(await outputs.next()).done) fail('independent decoded frame count increased');
-    await Promise.all([verifyBase.completed, verifyOutput.completed]);
     listing(directory, entries);
     for (const path of paths) unlinked(path);
     const after = sameSources(paths, before), outId = identity(video);

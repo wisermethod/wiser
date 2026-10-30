@@ -72,7 +72,16 @@ export function dependencies(composite = false) {
     if (!new RegExp(`^\\s*\\S+\\s+${name}\\s`, 'm').test(filters)) fail(`missing ${name} filter; check: ffmpeg -filters`);
   }
 }
-export function alphaDependencies() {
+export async function alphaDependencies() {
+  if (process.platform === 'win32') fail('missing mkfifo; composite-alpha needs a POSIX named pipe');
+  const { mkdtempSync } = await import('node:fs'), { tmpdir } = await import('node:os');
+  let probe;
+  try {
+    probe = mkdtempSync(join(tmpdir(), '.wiser-video-alpha-mkfifo-'));
+    const fifo = join(probe, 'probe.fifo');
+    if (spawnSync('mkfifo', [fifo], { stdio: 'ignore' }).status !== 0 || !lstatSync(fifo).isFIFO()) fail('missing mkfifo; composite-alpha needs a POSIX named pipe');
+  } catch { fail('missing mkfifo; composite-alpha needs a POSIX named pipe'); }
+  finally { if (probe) rmSync(probe, { recursive: true, force: true }); }
   for (const bin of ['ffmpeg', 'ffprobe']) if (spawnSync(bin, ['-version'], { stdio: 'ignore' }).status !== 0) fail(`missing ${bin}; check: ${bin} -version`);
   const encoders = run('ffmpeg', ['-v', 'error', '-encoders']);
   if (!/^\s*V\S*\s+libx264\s/m.test(encoders)) fail('missing libx264 encoder; check: ffmpeg -encoders');
@@ -188,13 +197,16 @@ export function alphaEditList(path) {
     if (readSync(file, bytes, 0, length, offset) !== length) invalid();
     return bytes;
   }
-  function boxes(start, end, allowed) {
+  function boxes(start, end, allowed, topLevel = false) {
     const result = [];
     for (let offset = start; offset < end;) {
       const header = read(offset, 8, end), type = header.toString('latin1', 4, 8);
       let length = BigInt(header.readUInt32BE(0)), head = 8;
       if (length === 1n) { length = read(offset + 8, 8, end).readBigUInt64BE(0); head = 16; }
-      else if (length === 0n) length = BigInt(end - offset);
+      else if (length === 0n) {
+        if (!topLevel) invalid();
+        length = BigInt(end - offset);
+      }
       if (length < BigInt(head) || length > BigInt(end - offset)) invalid();
       if (['moov', 'trak', 'mdia', 'edts', 'mvhd', 'mdhd', 'elst'].includes(type) && !allowed.includes(type)) invalid();
       const next = offset + Number(length);
@@ -219,7 +231,7 @@ export function alphaEditList(path) {
   }
   try {
     if (!Number.isSafeInteger(size) || size < 8) invalid();
-    const movie = one(boxes(0, size, ['moov']), 'moov');
+    const movie = one(boxes(0, size, ['moov'], true), 'moov');
     const movieBoxes = boxes(movie.start, movie.end, ['mvhd', 'trak']);
     const mvhd = mediaClock(one(movieBoxes, 'mvhd'), true), track = one(movieBoxes, 'trak');
     const trackBoxes = boxes(track.start, track.end, ['mdia', 'edts']), media = one(trackBoxes, 'mdia');
@@ -239,7 +251,10 @@ export function alphaEditList(path) {
 }
 
 export function alphaClock(info, path) {
-  if (!mp4Structure(path).editList) return { ...clock(info, path), edit_list: 'none' };
+  let structure;
+  try { structure = mp4Structure(path); }
+  catch { fail('malformed or truncated MP4 edit-list structure'); }
+  if (!structure.editList) return { ...clock(info, path), edit_list: 'none' };
   const edit = alphaEditList(path), rate = rational(info.stream.r_frame_rate);
   if (cmp(rate, rat(1n)) < 0 || cmp(rate, rat(240n)) > 0 || rate.n > 1000000n || rate.d > 1000000n || info.tb.n !== 1n) fail('unsupported rate or clock');
   if (cmp(info.first, rat(0n)) || !edit || !(edit.media_time === 0n && edit.rate_integer === 1 && edit.rate_fraction === 0

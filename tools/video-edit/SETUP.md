@@ -26,15 +26,21 @@ Any recent build is enough for trim, resize, speed, concat, frames, and GIF. Thi
 ffprobe -version
 ```
 
-Only `composite-alpha` runs its own additional checks for the libx264 encoder, png decoder, and setsar and setparams filters:
+Only `composite-alpha` runs its own additional checks for the libx264 encoder, png decoder, setsar and setparams filters, and POSIX `mkfifo`. This command runs on macOS and Linux and refuses on Windows; it has been run on macOS:
 
 ```bash
 ffmpeg -v error -encoders
 ffmpeg -v error -decoders
 ffmpeg -v error -filters
+command -v mkfifo
+(
+  probe="$(mktemp -d)" || exit 1
+  trap 'rm -rf "$probe"' EXIT
+  mkfifo "$probe/probe.fifo" && test -p "$probe/probe.fifo"
+)
 ```
 
-The lists must contain `libx264`, `png`, and both `setsar` and `setparams`, respectively. These requirements apply only to `composite-alpha`; other commands keep their own dependency checks. It installs no packages.
+The lists must contain `libx264`, `png`, and both `setsar` and `setparams`, respectively. The `mkfifo` check must find the command and create a named pipe successfully; its temporary directory is removed immediately. These requirements apply only to `composite-alpha`; other commands keep their own dependency checks. It installs no packages.
 
 When FFmpeg is missing, the agent follows the Script Contract's System dependencies clause: it reads FFmpeg's current documentation, runs whatever install the host can run itself, and hands you only the smallest step it cannot. Install steps are deliberately not written in this repository; they rot as platforms change.
 
@@ -70,7 +76,7 @@ node scripts/edit.js help
 
 Usage text with nothing configured. On a correctly set up copy, help exits 0 and `ffmpeg -version` succeeds.
 
-For `composite-alpha`, confirm that help lists its eight required flags and bounds, `ffprobe -version` succeeds, and the section 2 lists contain its libx264 encoder, png decoder and two filters. Help itself probes none of them; the command's own dependency check runs only when processing media. Missing one affects this command alone under these checks.
+For `composite-alpha`, confirm that help lists its eight required flags and bounds, `ffprobe -version` succeeds, the section 2 lists contain its libx264 encoder, png decoder and two filters, and its POSIX `mkfifo` probe succeeds on macOS or Linux. Help itself probes none of them; the command's own dependency check runs only when processing media. Missing one affects this command alone under these checks.
 
 ## Troubleshooting
 

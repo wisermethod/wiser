@@ -262,6 +262,116 @@ test('AL6: complete versioned receipt, every source/media/record/marker identity
 function actual(bin) { const r=run('/usr/bin/which',[bin]); assert.equal(r.status,0);return r.stdout.trim(); }
 function wrapper(d,name,bin,source) {const dir=join(d,name);mkdirSync(dir);writeFileSync(join(dir,bin),`#!${process.execPath}\n${source}`,{mode:0o755});return {env:{...process.env,PATH:dir+':'+process.env.PATH}};}
 function forward(binary,after='') {return `const a=process.argv.slice(2),r=require('node:child_process').spawnSync(${JSON.stringify(binary)},a,{stdio:'inherit'});${after}process.exit(r.status??1);`;}
+test('R1 readback: partial output decode while base is mid-frame refuses cleanly in default rejection mode', () => temp(d => {
+  const { base, a } = setup(d, { count: 1 }), ffmpeg = actual('ffmpeg');
+  const count = join(d, 'base-decodes'), ready = join(d, 'base-mid-frame'), settled = join(d, 'base-read-settled');
+  writeFileSync(count, '0'); writeFileSync(ready, ''); writeFileSync(settled, '');
+  const extra = wrapper(d, 'partial-readback', 'ffmpeg', `
+const fs=require('node:fs'),argv=process.argv.slice(2),input=argv[argv.indexOf('-i')+1];
+if(argv.at(-1)==='pipe:1'&&input===${JSON.stringify(base)}){
+  const n=Number(fs.readFileSync(${JSON.stringify(count)},'utf8'))+1;fs.writeFileSync(${JSON.stringify(count)},String(n));
+  if(n===2){
+    process.stdout.write(Buffer.alloc(1),()=>fs.writeFileSync(${JSON.stringify(ready)},'mid-frame'));
+    const timer=setInterval(()=>{if(fs.readFileSync(${JSON.stringify(ready)},'utf8')==='output-failed'){clearInterval(timer);setTimeout(()=>{fs.writeFileSync(${JSON.stringify(settled)},'settled');process.stdout.end(Buffer.alloc(383));},100);}},2);return;
+  }
+}
+if(argv.at(-1)==='pipe:1'&&input?.endsWith('/segment.mp4')){
+  const timer=setInterval(()=>{if(fs.readFileSync(${JSON.stringify(ready)},'utf8')==='mid-frame'){clearInterval(timer);process.stdout.write(Buffer.alloc(1),()=>{fs.writeFileSync(${JSON.stringify(ready)},'output-failed');process.exit(77);});}},2);return;
+}
+${forward(ffmpeg)}`);
+  // No --unhandled-rejections flag or NODE_OPTIONS override of Node's default.
+  delete extra.env.NODE_OPTIONS;
+  const r = refuse(d, a, /decoder returned a partial frame/, entry, extra);
+  assert.equal(readFileSync(count, 'utf8'), '2', 'fault occurs in read-back, after construction');
+  assert.equal(readFileSync(ready, 'utf8'), 'output-failed', 'base had an incomplete frame before output failed');
+  assert.equal(readFileSync(settled, 'utf8'), 'settled', 'pending base next settles before child teardown');
+  assert.doesNotMatch(r.stderr, /\n\s+at |UnhandledPromiseRejection|unhandled.rejection|node:internal/i);
+}));
+test('R1 paths: absent layer, absent parent and nondirectory parent use the canonicalization refusal before probes/staging', () => temp(d => {
+  const { a } = setup(d, { count: 1 }), starts = join(d, 'ffmpeg-starts'); writeFileSync(starts, '');
+  const extra = wrapper(d, 'path-ffmpeg-tripwire', 'ffmpeg', `require('node:fs').appendFileSync(${JSON.stringify(starts)},'started');process.exit(99);`);
+  const program = mutant(d, 'path-stage-tripwire', 'composite-alpha.js', replace(
+    "stage = mkdtempSync(join(dirname(output), '.wiser-video-composite-alpha-'));", "throw new Error('STAGING REACHED');"));
+  const file = join(d, 'regular-layer'); writeFileSync(file, 'a file');
+  for (const path of [join(d, 'absent-layer'), join(d, 'absent-parent', 'frames'), join(file, 'frames')]) {
+    const request = replaceFlag(a, '--layer', path);
+    refuse(d, request, /path cannot be canonicalized or its parent does not exist/, entry, extra);
+    refuse(d, request, /path cannot be canonicalized or its parent does not exist/, program, extra);
+  }
+  refuse(d, replaceFlag(a, '--layer', file), /layer must be an unlinked directory/, entry, extra);
+  assert.equal(readFileSync(starts, 'utf8'), '', 'no FFmpeg invocation for invalid layer paths');
+}));
+test('R1 malformed MP4: truncated box header uses the malformed refusal before any media decode or staging', () => temp(d => {
+  const { base, directory } = setup(d, { count: 1 }), truncated = join(d, 'truncated.mp4');
+  writeFileSync(truncated, Buffer.concat([readFileSync(base), Buffer.from([0, 0, 0, 16])]));
+  const starts = join(d, 'media-starts'); writeFileSync(starts, '');
+  const extra = wrapper(d, 'malformed-ffmpeg-tripwire', 'ffmpeg', `if(process.argv.includes('-i')){require('node:fs').appendFileSync(${JSON.stringify(starts)},'started');process.exit(99);}${forward(actual('ffmpeg'))}`);
+  const program = mutant(d, 'malformed-stage-tripwire', 'composite-alpha.js', replace(
+    "stage = mkdtempSync(join(dirname(output), '.wiser-video-composite-alpha-'));", "throw new Error('STAGING REACHED');"));
+  const a = args(truncated, directory, join(d, 'out'));
+  refuse(d, a, /malformed or truncated MP4 edit-list structure/, entry, extra);
+  refuse(d, a, /malformed or truncated MP4 edit-list structure/, program, extra);
+  assert.equal(readFileSync(starts, 'utf8'), '', 'no FFmpeg media decode for malformed MP4; the dependency probe runs first, as composite runs its own');
+}));
+test('R1 mkfifo missing: PATH has FFmpeg/ffprobe only; refusal precedes staging', () => temp(d => {
+  const { a } = setup(d, { count: 1 }), bin = join(d, 'without-mkfifo'); mkdirSync(bin);
+  for (const name of ['ffmpeg', 'ffprobe']) symlinkSync(actual(name), join(bin, name));
+  const extra = { env: { ...process.env, PATH: bin } }, pattern = /missing mkfifo; composite-alpha needs a POSIX named pipe/;
+  const program = mutant(d, 'mkfifo-stage-tripwire', 'composite-alpha.js', replace(
+    "stage = mkdtempSync(join(dirname(output), '.wiser-video-composite-alpha-'));", "throw new Error('STAGING REACHED');"));
+  refuse(d, a, pattern, entry, extra);
+  refuse(d, a, pattern, program, extra);
+}));
+test('R1 mkfifo probe: failed or non-FIFO creation refuses before staging and removes its fresh temporary directory', () => temp(d => {
+  const { a } = setup(d, { count: 1 }), scratch = join(d, 'dependency-tmp'), calls = join(d, 'mkfifo-calls');
+  mkdirSync(scratch); writeFileSync(calls, '');
+  const program = mutant(d, 'mkfifo-probe-stage-tripwire', 'composite-alpha.js', replace(
+    "stage = mkdtempSync(join(dirname(output), '.wiser-video-composite-alpha-'));", "throw new Error('STAGING REACHED');"));
+  for (const [name, body] of [['fails', 'process.exit(99);'], ['regular-file', "fs.writeFileSync(process.argv[2],'not a pipe');"]]) {
+    const extra = wrapper(d, `mkfifo-${name}`, 'mkfifo', `const fs=require('node:fs');fs.appendFileSync(${JSON.stringify(calls)},process.argv[2]+'\\n');${body}`);
+    extra.env.TMPDIR = scratch; extra.env.TMP = scratch; extra.env.TEMP = scratch;
+    const pattern = /missing mkfifo; composite-alpha needs a POSIX named pipe/;
+    refuse(d, a, pattern, entry, extra); refuse(d, a, pattern, program, extra);
+    assert.deepEqual(readdirSync(scratch), [], 'dependency probe removed immediately on refusal');
+  }
+  const paths = readFileSync(calls, 'utf8').trim().split('\n');
+  assert.equal(paths.length, 4); assert.equal(new Set(paths.map(dirname)).size, 4, 'each probe has a fresh directory');
+  for (const path of paths) assert.equal(dirname(dirname(path)), scratch, 'probe is under os.tmpdir()');
+}));
+test('R1 mkfifo success: real dependency probe is removed before the staging FIFO is created', () => temp(d => {
+  const { a } = setup(d, { count: 1 }), scratch = join(d, 'dependency-tmp'), calls = join(d, 'mkfifo-calls');
+  mkdirSync(scratch); writeFileSync(calls, '');
+  const extra = wrapper(d, 'mkfifo-success', 'mkfifo', `const fs=require('node:fs');const path=process.argv[2];if(path.endsWith('/composite.fifo')&&fs.readdirSync(${JSON.stringify(scratch)}).length)process.exit(99);fs.appendFileSync(${JSON.stringify(calls)},path+'\\n');${forward(actual('mkfifo'))}`);
+  extra.env.TMPDIR = scratch; extra.env.TMP = scratch; extra.env.TEMP = scratch;
+  complete(success(a, entry, extra));
+  const paths = readFileSync(calls, 'utf8').trim().split('\n');
+  assert.equal(paths.length, 2, 'a dependency probe precedes the staging FIFO');
+  assert.equal(dirname(dirname(paths[0])), scratch);
+  assert.ok(paths[1].endsWith('/composite.fifo'));
+  assert.deepEqual(readdirSync(scratch), []);
+}));
+test('R1 docs dependencies: alpha declares mkfifo, supported platforms, macOS run and its setup check/refusal', () => {
+  const doc = readFileSync(join(tool, 'TOOL.md'), 'utf8'), setup = readFileSync(join(tool, 'SETUP.md'), 'utf8');
+  const dependency = doc.split('\n').find(line => line.startsWith('| ') && line.includes('`composite-alpha` only'));
+  const alpha = doc.split('## Full-frame alpha composition')[1].split('\n## ')[0];
+  for (const section of [dependency, alpha]) {
+    assert.match(section, /mkfifo/); assert.match(section, /macOS and Linux/);
+    assert.match(section, /refuses on Windows/); assert.match(section, /run on macOS/);
+  }
+  assert.match(setup, /command -v mkfifo/); assert.match(setup, /mkfifo "\$probe\/probe.fifo"/);
+  const row = doc.split('\n').find(line => line.startsWith('| `missing mkfifo;'));
+  assert.match(row ?? '', /POSIX named pipe.*\|.+\|.+\|/);
+});
+test('R1 docs kill window: alpha staging is never the bundle, even with a matching completion marker', () => {
+  const doc = readFileSync(join(tool, 'TOOL.md'), 'utf8'), inventory = readFileSync(join(tool, '..', 'AGENTS.md'), 'utf8');
+  const alpha = doc.split('## Full-frame alpha composition')[1].split('\n## ')[0];
+  const row = inventory.split('\n').find(line => line.includes('`video-edit` `composite-alpha`'));
+  for (const section of [alpha, row]) {
+    assert.match(section, /kill can leave.*staging sibling/);
+    assert.match(section, /never the bundle, even when it holds a completion marker that matches its files/);
+    assert.match(section, /only `--output` after the success JSON is the bundle/);
+  }
+});
 test('AL6 controls: changed base/layer/manifest, corrupt encoded media, record and completion refuse', () => temp(d => {
   const {base,directory,a}=setup(d), ffmpeg=actual('ffmpeg');
   for(const [name,target] of [['base',base],['manifest',join(directory,'frames.sha256')],['png',join(directory,'frame_000001.png')]]) {
@@ -582,6 +692,21 @@ test('AL8: media time 512, rate 2 and segment duration one unit short each refus
     caught(() => refuse(d, a, /one identity edit/, p));
     if (existsSync(join(d, `${name}-out`))) rmSync(join(d, `${name}-out`), { recursive: true });
   }
+}));
+
+test('R1 nested size zero: identity elst with unchanged payload refuses; old-rule mutant fails that assertion', () => temp(d => {
+  const { directory, bytes, entry } = muxedIdentity(d), patched = Buffer.from(bytes), base = join(d, 'nested-zero.mp4');
+  patched.writeUInt32BE(0, entry - 16);
+  assert.deepEqual(patched.subarray(entry - 12), bytes.subarray(entry - 12), 'only the elst size field changed');
+  writeFileSync(base, patched);
+  const a = args(base, directory, join(d, 'out')), pattern = /malformed or truncated MP4 edit-list structure/;
+  refuse(d, a, pattern);
+  const program = mutant(d, 'nested-zero-old-rule', 'evidence-media.js', replace('if (!topLevel) invalid();', 'void 0;'));
+  caught(() => refuse(d, replaceFlag(a, '--output', join(d, 'mutant-out')), pattern, program));
+  const top = join(d, 'top-level-zero.mp4'), topBytes = clockMovie(0, 0, 0, false);
+  writeFileSync(top, topBytes); const expected = alphaEditList(top);
+  topBytes.writeUInt32BE(0, 0); writeFileSync(top, topBytes);
+  assert.deepEqual(alphaEditList(top), expected, 'top-level size zero remains accepted');
 }));
 
 function mp4Box(type, payload, extended) {
