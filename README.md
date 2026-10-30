@@ -63,6 +63,10 @@ Codex, ChatGPT and Grok on a phone are not covered here.
 
 Email support@wisermemory.com.
 
+## Privacy
+
+How Wiser and the Wiser service handle your information is in [Privacy and Terms](https://wisermemory.com/privacy-and-terms).
+
 ## License
 
 See `LICENSE`. Free for an individual, including at work.
