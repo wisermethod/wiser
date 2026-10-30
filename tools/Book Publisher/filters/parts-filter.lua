@@ -13,6 +13,19 @@ function Pandoc(doc)
           -- Let Pandoc escape TeX and retain inline emphasis in the title.
           local latex = pandoc.write(pandoc.Pandoc({pandoc.Plain(block.content)}), 'latex')
             :gsub('%s+$', '')
+          local contents_latex = latex
+          if doc.meta['print-contents'] then
+            -- Index markers are raw inlines by this point. Strip those inlines
+            -- only from the moving title, retaining nested emphasis and escapes.
+            local contents_title = pandoc.Plain(block.content):walk({
+              RawInline = function(inline)
+                if inline.format == 'latex' and inline.text:match('^\\index%b{}$') then
+                  return {}
+                end
+              end
+            })
+            contents_latex = pandoc.write(pandoc.Pandoc({contents_title}), 'latex'):gsub('%s+$', '')
+          end
           -- Ask the writer to escape the identifier. Rendering an empty,
           -- unlisted Part lets us keep its anchors without parsing a title's
           -- nested or TeX-escaped braces, or adding an automatic contents entry.
@@ -23,7 +36,7 @@ function Pandoc(doc)
           -- The contents write must run on the Part title page, before
           -- \part* ships it out. The identifier belongs on that page too.
           doc.blocks[i] = pandoc.RawBlock('latex', '\\part*{' .. latex .. anchor ..
-            '\\addcontentsline{toc}{part}{' .. latex .. '}}')
+            '\\addcontentsline{toc}{part}{' .. contents_latex .. '}}')
         end
       elseif in_part then
         block.level = block.level - 1

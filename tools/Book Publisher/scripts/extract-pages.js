@@ -5,7 +5,7 @@
  */
 import fs from 'node:fs';
 
-export async function extractPages({ pdfPath, auxPath, mergedPath, extractor = {}, log }) {
+export async function extractPages({ pdfPath, auxPath, mergedPath, extractor = {}, generatedContents = false, log }) {
   if (!pdfPath || !auxPath || !mergedPath) {
     throw new Error('page extraction requires PDF, AUX, and merged manuscript paths');
   }
@@ -328,7 +328,7 @@ export async function extractPages({ pdfPath, auxPath, mergedPath, extractor = {
   
     // Search PDF for "Appendix C: Index" heading
     if (pages) {
-      const indexPages = findTermPages(pages, INDEX_HEADING, true, 0, true);
+      const indexPages = findTermPages(pages, INDEX_HEADING, true, generatedContents ? FRONT_MATTER_PAGES : 0, true);
       if (indexPages.length > 0) {
         log(`  Found index at page ${indexPages[0]} (from PDF search)`);
         return indexPages[0];
@@ -394,7 +394,17 @@ export async function extractPages({ pdfPath, auxPath, mergedPath, extractor = {
     throw new Error(`Merged file not found: ${mergedPath}`);
   }
   const auxLabels = parseAuxFile(auxPath);
-  const pages = await extractPdfPages(pdfPath);
+  let pages = await extractPdfPages(pdfPath);
+  if (generatedContents) {
+    const offset = auxLabels?.['bookpublisher-contents-pages'];
+    if (!Number.isInteger(offset) || offset < 1 || offset >= pages.length) {
+      throw new Error('generated contents page count missing or invalid in the first-pass AUX; rebuild the first pass');
+    }
+    // Searches, skip windows and fallbacks all use manuscript folios. AUX
+    // heading labels already use these same Arabic numbers after the reset.
+    pages = pages.slice(offset).map(page => ({ ...page, pageNum: page.pageNum - offset }));
+    log(`  Excluded ${offset} generated contents pages; manuscript folios start at 1`);
+  }
   log(`Reading merged file: ${mergedPath}`);
   const content = fs.readFileSync(mergedPath, 'utf8');
   const lines = content.split('\n');

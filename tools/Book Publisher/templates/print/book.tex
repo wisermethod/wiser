@@ -184,8 +184,10 @@ $endif$
 
 % Chapter format (# in markdown) - title page style, new page
 % \raggedright prevents hyphenation in headings
+% With contents, chapter already breaks before writing its locator; a second
+% break inside the title format would move the title away from that locator.
 \titleformat{\chapter}[display]
-  {\clearpage\normalfont\Huge\bfseries\raggedright}
+  {$if(print-contents)$$else$\clearpage$endif$\normalfont\Huge\bfseries\raggedright}
   {}
   {0pt}
   {}
@@ -194,7 +196,7 @@ $endif$
 % Section format (## in markdown) - Part headings and Appendices
 % cleardoublepage forces start on odd (recto) page for print layout
 \titleformat{\section}[display]
-  {\cleardoublepage\normalfont\huge\bfseries\raggedright}
+  {$if(print-contents)$$else$\cleardoublepage$endif$\normalfont\huge\bfseries\raggedright}
   {}
   {0pt}
   {}
@@ -203,7 +205,7 @@ $endif$
 % Subsection format (### in markdown) - Chapter titles
 % cleardoublepage forces start on odd (recto) page for print layout
 \titleformat{\subsection}[display]
-  {\cleardoublepage\normalfont\LARGE\bfseries\raggedright}
+  {$if(print-contents)$$else$\cleardoublepage$endif$\normalfont\LARGE\bfseries\raggedright}
   {}
   {0pt}
   {}
@@ -230,9 +232,9 @@ $endif$
 % Prefix the finished titlesec commands without consuming their star or arguments.
 % Installing these after titlesec preserves normal, starred and short-title forms.
 \let\oldsection\section
-\renewcommand{\section}{\FloatBarrier\oldsection}
+\renewcommand{\section}{\FloatBarrier$if(print-contents)$\cleardoublepage$endif$\oldsection}
 \let\oldsubsection\subsection
-\renewcommand{\subsection}{\FloatBarrier\oldsubsection}
+\renewcommand{\subsection}{\FloatBarrier$if(print-contents)$\cleardoublepage$endif$\oldsubsection}
 \let\oldsubsubsection\subsubsection
 \renewcommand{\subsubsection}{\FloatBarrier\oldsubsubsection}
 
@@ -486,9 +488,25 @@ $endif$
 \pagestyle{plain}
 
 $if(print-contents)$
+% Keep generated front matter separate from manuscript folios and recto/verso.
+\pagenumbering{roman}
+\begingroup
+\makeatletter
+\let\ps@plain\ps@empty
+\makeatother
+\pagestyle{empty}
+% The template's heading pages have no automatic labels, at any numbering depth.
+\renewcommand{\numberline}[1]{}
 \setcounter{tocdepth}{$print-contents-depth$}
 \tableofcontents
-\clearpage
+\cleardoublepage
+\endgroup
+% An internal AUX label records the physical offset for two-pass extraction.
+\makeatletter
+\immediate\write\@auxout{\string\newlabel{bookpublisher-contents-pages}{{}{\number\numexpr\value{page}-1\relax}}}
+\makeatother
+\pagenumbering{arabic}
+\pagestyle{plain}
 $endif$
 
 $body$

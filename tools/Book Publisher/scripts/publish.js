@@ -507,7 +507,7 @@ try {
       const { extractPages } = await import('./extract-pages.js');
       await extractPages({
         pdfPath: firstPass.path, auxPath: firstPassAux, mergedPath,
-        extractor: config.index.extractor, log
+        extractor: config.index.extractor, generatedContents: config.contents?.enabled === true, log
       });
       mergedContent = readFileSync(mergedPath, 'utf8');
       // Keep the edition-specific ISBN replacement in the final pass too.
@@ -943,7 +943,7 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
     pandocArgs.push('--variable', 'include-index=true');
   }
   if (config.contents?.enabled === true) {
-    pandocArgs.push('--variable', 'print-contents=true',
+    pandocArgs.push('--variable', 'print-contents=true', '--metadata', 'print-contents=true',
       '--variable', `print-contents-depth=${(config.contents.depth ?? 1) - 1}`);
   }
   if (config.headings?.numbered === false) {
@@ -967,8 +967,14 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
     };
     for (let pass = 1; pass <= 12; pass += 1) {
       log(`  LaTeX contents pass ${pass}...`);
-      // An errored pass cannot prove convergence, even if stale files match.
-      await runCommand('pdflatex', pdflatexArgs, tempDir);
+      // Match the default path's tolerance for recoverable TeX errors, but a
+      // stale PDF must never count as output from this pass.
+      const passPdf = join(tempDir, `${slug}.pdf`);
+      if (existsSync(passPdf)) unlinkSync(passPdf);
+      await runCommand('pdflatex', pdflatexArgs, tempDir, true);
+      if (!isCompletePdf(passPdf)) {
+        throw new Error('pdflatex produced no complete PDF on this contents pass; see the .log file in the temp directory');
+      }
       const indexInput = readState('idx');
       if (includeIndex && indexInput !== null && indexInput !== indexedInput) {
         log('  Processing index...');
