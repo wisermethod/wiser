@@ -74,7 +74,7 @@ Pass `--config` as an absolute path. Paths inside YAML resolve relative to that 
 | `source.chapters` | Directory of chapter Markdown files | Required |
 | `source.assets` | Asset directory | Print falls back to `../assets` relative to the config; supply explicitly for EPUB |
 | `source.exclude` | Filenames excluded from the merge | `[]` |
-| `source.merged` | Optional persistent merged manuscript, reused in single-pass builds unless `--force-merge` | No persistent file in single-pass builds; two-pass uses `temp/<slug>-merged.md` in the print output directory |
+| `source.merged` | Optional persistent merged manuscript, reused in single-pass builds unless `--force-merge` or `index.terms_file` is set | No persistent file in single-pass builds; two-pass uses `temp/<slug>-merged.md` in the print output directory |
 | `output.print` | Print output directory | None; required when building print |
 | `output.epub` | EPUB output directory | None; required when building EPUB; validation requires at least one output directory |
 | `slug` | Output filename base | Title lowercased, non-alphanumeric runs replaced by hyphens, edge hyphens stripped |
@@ -107,6 +107,7 @@ Pass `--config` as an absolute path. Paths inside YAML resolve relative to that 
 | `boxes.<class>.epub.border_width` | Border width in CSS pixels, finite nonnegative number | `1` |
 | `boxes.<class>.epub.padding` | Inner padding on all sides in ems, finite nonnegative number | `0.75` |
 | `index.enabled` | Enable makeindex | `true` |
+| `index.terms_file` | Optional YAML terms list for makeindex, resolved relative to this config. Regenerate index markers in the disposable print manuscript from fresh chapters at every build, including when `source.merged` exists | Absent; use only the manuscript's existing inline markers |
 | `index.extractor` | Enable two-pass extraction when `index.enabled` is false | Absent |
 | `index.extractor.indexHeading` | Index section boundary | `Appendix C: Index` |
 | `index.extractor.glossaryHeading` | Section following the index | `Appendix D: Glossary` |
@@ -126,10 +127,32 @@ With `contents.enabled: true`, print builds repeat LaTeX and regenerate makeinde
 | Strategy | Config | Manuscript requirement |
 |----------|--------|------------------------|
 | `none` | `index.enabled: false`, no `index.extractor` | No index markup or index section needed |
-| `makeindex` | `index.enabled: true` (also the default) | Inline index markers; the index needs no marker heading and is placed once after the body |
+| `makeindex` | `index.enabled: true` (also the default) | Inline index markers or `index.terms_file`; the index needs no marker heading and is placed once after the body |
 | `two-pass` | `index.enabled: false` with an `index.extractor` block | Matching index and glossary headings, in that order; index terms ending in `<!-- br -->`; a `<!-- toc-entry: Index heading -->` matching the configured index heading |
 
 For two-pass extraction, write the boundary headings as `## Heading` or a bold-only `**Heading**` line. Set the extractor keys above when the book uses different boundaries or front matter. A two-pass print `build` freshly merges chapters, builds a first pass, extracts page numbers from its PDF and LaTeX AUX, injects TOC/index page references into the merged manuscript, and rebuilds in one invocation. Source chapters are unchanged. Single-pass builds may reuse `source.merged`; two-pass always merges fresh. `--draft` skips makeindex, not the two-pass extractor.
+
+`index.terms_file` requires the makeindex strategy. Its file is a nonempty YAML list of mappings. Each entry accepts only these keys:
+
+| Terms-file key | Meaning | Default when omitted |
+|----------------|---------|----------------------|
+| `term` | Literal index label, nonempty single-line text without braces or backslashes; commas remain part of the label | Required |
+| `match` | Nonempty list of literal single-line phrases; case-insensitive whole-word matching, with flexible whitespace including source line wraps | `[term]` |
+| `scope` | `chapters` indexes the first eligible hit per source chapter file; `first` indexes only the first eligible hit in the book | `chapters` |
+| `see` | Literal cross-reference target, with the same text requirements as `term`; emit once at the first eligible hit, without a page locator | No cross-reference |
+
+Duplicate terms (ignoring case) and malformed entries fail `check`, `validate` and `build`. Matching searches prose, including text inside emphasis, lists and fenced divs. It skips headings, code, HTML tags and comments, links and image references, bare URLs, div delimiters, raw LaTeX commands and existing index markers. A phrase must lie within one eligible prose interval; it cannot cross intervening markup. Unmatched entries produce no marker. For example:
+
+```yaml
+- term: "Agent memory"
+  match: ["Agent memory", "Agent memories"]
+  scope: chapters
+- term: "Data, information, knowledge, and wisdom"
+- term: "Information"
+  see: "Data, information, knowledge, and wisdom"
+```
+
+Generated markers are zero-width Pandoc raw LaTeX index commands placed after the matched text in the print build copy. They preserve literal punctuation and coexist with hand-written `{{idx:...}}` markers. Chapter files and the terms file are read-only. A configured `source.merged` is refreshed with the unmarked merged text; markers are written only under the print output's `temp/`. EPUB receives the unmarked text. `--draft` still skips makeindex. Omit `index.terms_file` to retain the existing merge reuse and marker-only output.
 
 ### Manuscript markup
 

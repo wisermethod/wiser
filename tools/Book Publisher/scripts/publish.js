@@ -363,6 +363,12 @@ try {
 }
 
 const problems = validateConfig(config);
+if (!problems.length && config.index?.terms_file !== undefined) {
+  try {
+    const { loadIndexTerms } = await import('./index-terms.js');
+    config._indexTerms = loadIndexTerms(resolve(config._configDir, config.index.terms_file));
+  } catch (error) { problems.push(error.message); }
+}
 if (problems.length > 0) {
   fail(`Error: ${configPath} is not a valid book config:\n- ${problems.join('\n- ')}`);
 }
@@ -430,18 +436,26 @@ const mergedPath = guardOutside(
 );
 if (twoPass) log('Step 1/5: Merging chapters');
 let mergedContent;
+// Terms-file builds always read the current chapters. The persistent merge stays
+// unmarked; only the disposable print copy gets regenerated index commands.
+const indexSections = config._indexTerms ? [] : undefined;
+let indexedContent;
 try {
-  if (mergedPath && existsSync(mergedPath) && !forceMerge && !twoPass) {
+  if (mergedPath && existsSync(mergedPath) && !forceMerge && !twoPass && !indexSections) {
     log(`Using merged file: ${config.source.merged}`);
     mergedContent = readFileSync(mergedPath, 'utf8');
   } else {
     log('Merging chapters...');
-    mergedContent = mergeChapters(config);
+    mergedContent = mergeChapters(config, indexSections);
     if (mergedPath) {
       mkdirSync(dirname(mergedPath), { recursive: true });
       writeFileSync(mergedPath, mergedContent);
       log(`  Merged manuscript written to ${mergedPath}`);
     }
+  }
+  if (indexSections && buildPrint) {
+    const { indexChapters } = await import('./index-terms.js');
+    indexedContent = indexChapters(indexSections, config._indexTerms);
   }
 } catch (error) {
   // The merge runs before the build's own try below, so it carries a handler of
@@ -458,6 +472,7 @@ if (config.isbn?.print) {
   const isbnPattern = /\*\*ISBN:\*\*\s*[\d-]+/;
   if (isbnPattern.test(mergedContent)) {
     mergedContent = mergedContent.replace(isbnPattern, `**ISBN:** ${config.isbn.print}`);
+    if (indexedContent !== undefined) indexedContent = indexedContent.replace(isbnPattern, `**ISBN:** ${config.isbn.print}`);
     log(`  ISBN set to ${config.isbn.print}`);
   }
 }
@@ -493,7 +508,7 @@ try {
       }
       log('Step 4/5: Building final PDF');
     }
-    const built = await buildPrintPdf(config, mergedContent, slug, printTempDir);
+    const built = await buildPrintPdf(config, indexedContent ?? mergedContent, slug, printTempDir);
 
     // The standard PDF is a deliverable in its own right and the PDF/X-1a source.
     const standardPdf = join(config.output._printPath, `${slug}-interior.pdf`);
@@ -587,6 +602,12 @@ function validateConfig(config) {
   }
   if (config.typography?.quote_font !== undefined && !['body', 'sans'].includes(config.typography.quote_font)) {
     errors.push('typography.quote_font must be body or sans');
+  }
+  if (config.index?.terms_file !== undefined) {
+    if (typeof config.index.terms_file !== 'string' || !config.index.terms_file.trim()) {
+      errors.push('index.terms_file must be a nonempty file path');
+    }
+    if (config.index.enabled === false) errors.push('index.terms_file requires the makeindex strategy (index.enabled: true)');
   }
   for (const key of ['contents', 'headings', 'parts']) {
     if (config[key] !== undefined && (!config[key] || typeof config[key] !== 'object' || Array.isArray(config[key]))) {
@@ -799,7 +820,7 @@ function getChapterFiles(chaptersDir, exclude = []) {
     });
 }
 
-function mergeChapters(config) {
+function mergeChapters(config, indexSections) {
   const chaptersDir = config.source._chaptersPath;
   const files = getChapterFiles(chaptersDir, config.source?.exclude ?? []);
   if (files.length === 0) {
@@ -813,6 +834,7 @@ function mergeChapters(config) {
     content = content.replace(/\[([^\]]+)\]\(\.\.\/([^)]+)\)/g, '[$1]($2)');
     return content.trim();
   });
+  if (indexSections) indexSections.push(...sections);
   return sections.join('\n\n');
 }
 
