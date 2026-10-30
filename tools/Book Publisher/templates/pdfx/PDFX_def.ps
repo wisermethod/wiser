@@ -23,12 +23,12 @@ systemdict /ProcessColorModel known {
   /Trapped /False
   /DOCINFO pdfmark
 
-% Define the ICC profile stream (if ICCProfile is defined)
-currentdict /ICCProfile known {
-  [/_objdef {icc_PDFX} /type /stream /OBJ pdfmark
-  [{icc_PDFX} << >> /PUT pdfmark
-  [{icc_PDFX} ICCProfile (r) file /PUT pdfmark
-} if
+% The caller requires a CMYK profile and defines ICCProfile with -sICCProfile.
+% Command-line strings live in systemdict, not currentdict. Resolve the name
+% normally and require it: Custom output conditions must embed their profile.
+[/_objdef {icc_PDFX} /type /stream /OBJ pdfmark
+[{icc_PDFX} << /N 4 >> /PUT pdfmark
+[{icc_PDFX} ICCProfile (r) file /PUT pdfmark
 
 % Create the OutputIntent dictionary
 [/_objdef {OutputIntent_PDFX} /type /dict /OBJ pdfmark
@@ -39,9 +39,7 @@ currentdict /ICCProfile known {
   /Info (CMYK printing)
   /OutputConditionIdentifier (Custom)
   /RegistryName (http://www.color.org)
-  currentdict /ICCProfile known {
-    /DestOutputProfile {icc_PDFX}
-  } if
+  /DestOutputProfile {icc_PDFX}
 >> /PUT pdfmark
 
 % Attach OutputIntent to document catalog

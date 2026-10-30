@@ -894,11 +894,16 @@ function findIccProfile() {
     '/usr/local/share/ghostscript/iccprofiles/default_cmyk.icc',
     '/opt/homebrew/share/ghostscript/iccprofiles/default_cmyk.icc'
   ];
-  return profiles.find((p) => existsSync(p)) || null;
+  const profile = profiles.find((p) => existsSync(p));
+  if (!profile) {
+    throw new Error(`CMYK ICC profile missing; PDF/X requires an embedded output profile. Looked for: ${profiles.join(', ')}. Install one of these CMYK profiles and rebuild`);
+  }
+  return profile;
 }
 
 async function convertToPdfX(inputPdf, outputPdf, tempDir) {
   log('Converting to PDF/X-1a...');
+  const iccProfile = findIccProfile();
 
   // Pre-flatten: remove layers and transparency that a single-pass conversion
   // may preserve. Best-effort; if it fails, the original PDF is used.
@@ -927,29 +932,21 @@ async function convertToPdfX(inputPdf, outputPdf, tempDir) {
     `-sOutputFile=${outputPdf}`
   ];
 
-  // Ghostscript's -sOutputICCProfile cannot handle spaces in the path, so copy a
-  // space-containing profile into the temp directory (inside the output tree).
-  const iccProfile = findIccProfile();
-  if (iccProfile) {
-    let profilePath = iccProfile;
-    if (iccProfile.includes(' ')) {
-      profilePath = join(tempDir, 'cmyk-profile.icc');
-      copyFileSync(iccProfile, profilePath);
-    }
-    gsArgs.push(`-sOutputICCProfile=${profilePath}`);
-  }
+  // Use the same profile for conversion and the OutputIntent. A relative name
+  // avoids spaces even when tempDir contains them. SAFER needs an explicit read
+  // grant: without it Ghostscript can exit 1 after writing a complete PDF.
+  const profileName = 'cmyk-profile.icc';
+  copyFileSync(iccProfile, join(tempDir, profileName));
+  gsArgs.push(
+    `--permit-file-read=${profileName}`,
+    `-sOutputICCProfile=${profileName}`,
+    `-sICCProfile=${profileName}`
+  );
   gsArgs.push(pdfxDef, pdfInput);
 
-  // The conversion is judged by its output, not by gs's exit code: passing a
-  // PostScript definition file alongside a PDF makes some Ghostscript versions
-  // exit non-zero after writing a complete, valid PDF/X-1a. A complete output is
-  // the success criterion; anything less is the failure.
-  const gsExit = await runCommand('gs', gsArgs, tempDir, true);
+  await runCommand('gs', gsArgs, tempDir);
   if (!isCompletePdf(outputPdf)) {
-    throw new Error(`Ghostscript wrote no complete PDF/X-1a (exit ${gsExit}); see the Ghostscript output above (re-run with --verbose)`);
-  }
-  if (gsExit !== 0) {
-    log(`  Note: Ghostscript exited ${gsExit} but wrote a complete PDF/X-1a; accepted.`);
+    throw new Error('Ghostscript wrote no complete PDF/X-1a; see the Ghostscript output above (re-run with --verbose)');
   }
 }
 

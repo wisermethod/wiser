@@ -38,7 +38,9 @@ The print template requires `book.cls`; the `geometry`, `fontenc`, `ulem`, `micr
 
 The tool's packages are `yaml` and `pdfjs-dist`. Consent is once per person as the Script Contract states: answer the install request with `--install` on the same command, or `WISER_ALLOW_INSTALL=1` for an unattended run. The authorized run uses `npm ci` and completes the command; it never requires a second run after installation. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates. Run no package install by hand.
 
-There is no PDF/X preflight dependency. After conversion the PDF/X file is checked for an OutputIntent carrying `/DestOutputProfile`, CMYK color without DeviceRGB (monochrome DeviceGray images and masks are permitted), PDF version 1.3, every font embedded, and an even page count. Missing output profile is reported as false and currently does not fail the build; each other failed check does. These structural checks do not certify PDF/X-1a conformance. Conformance is checked by the printer's own upload preflight or Adobe Acrobat Pro's Preflight.
+Print conversion requires a local CMYK ICC profile. The tool uses the first existing file in this order: `/System/Library/ColorSync/Profiles/Generic CMYK Profile.icc`, `/System/Library/ColorSync/Profiles/USWebCoatedSWOP.icc`, `/usr/share/color/icc/ghostscript/default_cmyk.icc`, `/usr/share/ghostscript/iccprofiles/default_cmyk.icc`, `/usr/local/share/ghostscript/iccprofiles/default_cmyk.icc`, `/opt/homebrew/share/ghostscript/iccprofiles/default_cmyk.icc`. If none exists, the build fails and names the missing profiles. The same profile is used for conversion and embedded in the OutputIntent; Ghostscript must exit 0 even when it has written a complete file.
+
+There is no PDF/X preflight dependency. After conversion the PDF/X file is checked for an OutputIntent carrying `/DestOutputProfile`, CMYK color without DeviceRGB (monochrome DeviceGray images and masks are permitted), PDF version 1.3, every font embedded, and an even page count. Each failed check, including a missing output profile, fails the build. These structural checks do not certify PDF/X-1a conformance. Conformance is checked by the printer's own upload preflight or Adobe Acrobat Pro's Preflight.
 
 ## Input contract
 
@@ -174,11 +176,11 @@ Every write location, including project scaffolding, dependencies and build inte
 | `validate` | `ok`, `title`, `authors`, `trim`, `index`, `indexStrategy`, `project`, `standingFound`, `chapters` |
 | `build` | `ok`, `title`, `outputs`; requested `print_pdf`, `print_pdfx`, `pages`, `epub`; print also carries `outputs.pdfx` |
 
-`outputs.pdfx.checks` contains five booleans: `outputIntentProfile`, `cmykOnly`, `pdf13`, `fontsEmbedded`, `evenPageCount`. Its sibling fields are `version`, `fonts.embedded`, `fonts.total`, `pages`, `certified: false`, and the structural-only `scope`. The profile check is advisory; the other four gate success. The reader handles classic PDF cross-references and Flate-compressed content from this conversion, refusing encrypted PDFs, unsupported content filters or inline images instead of claiming they passed.
+`outputs.pdfx.checks` contains five booleans: `outputIntentProfile`, `cmykOnly`, `pdf13`, `fontsEmbedded`, `evenPageCount`. Its sibling fields are `version`, `fonts.embedded`, `fonts.total`, `pages`, `certified: false`, and the structural-only `scope`. All five checks gate success. The reader handles classic PDF cross-references and Flate-compressed content from this conversion, refusing encrypted PDFs, unsupported content filters or inline images instead of claiming they passed.
 
 ## Troubleshooting
 
-Shared stops are in `tools/RUNNING.md`. Correct malformed YAML, chapter ordering, missing assets or index boundaries and run validate again. For a Standing refusal on an init project, fill the completion condition or record `Awaiting its owner.`; another book needs its own readable `AGENTS.md`. For an engine or structural failure, inspect retained build logs or use `--verbose`; a missing OutputIntent profile alone is currently an advisory result, not a certification. A printer's conformance refusal is resolved through its upload preflight or Acrobat Pro's Preflight.
+Shared stops are in `tools/RUNNING.md`. Correct malformed YAML, chapter ordering, missing assets or index boundaries and run validate again. For a Standing refusal on an init project, fill the completion condition or record `Awaiting its owner.`; another book needs its own readable `AGENTS.md`. For an engine or structural failure, inspect retained build logs or use `--verbose`; install a missing CMYK ICC profile at one of the paths named in the error and rebuild. A missing OutputIntent profile fails the build. A printer's conformance refusal is resolved through its upload preflight or Acrobat Pro's Preflight.
 
 ## Success
 
@@ -186,5 +188,5 @@ Shared stops are in `tools/RUNNING.md`. Correct malformed YAML, chapter ordering
 - Bare check surveys without an implicit install, returning one object of six booleans and exit 0. With a config it also checks the required TeX files for print; an authorized install completes that same command.
 - Validation accepts each index strategy, requires project instructions, and enforces filled Standing only on template-identified projects.
 - A two-pass print build merges, extracts, injects and rebuilds in one invocation; the resulting PDF has the reported page count and embedded fonts.
-- Print success reports every structural property and explicitly disclaims conformance certification. RGB, wrong PDF version, unembedded fonts or odd pages fail with stderr only and exit 1; absent output profile is reported without failing.
+- Print success reports every structural property and explicitly disclaims conformance certification. A missing output profile, RGB, wrong PDF version, unembedded fonts, odd pages or any nonzero Ghostscript conversion status fail with stderr only and exit 1.
 - Requested outputs exist outside the tool directory, and EPUB has native navigation with print-only markers removed.

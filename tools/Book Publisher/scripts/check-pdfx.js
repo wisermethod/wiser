@@ -235,6 +235,7 @@ export function checkPdfX(path) {
   const pageCount = pages(catalog.get('Pages'));
   const checks = { outputIntentProfile, cmykOnly, pdf13: version === '1.3', fontsEmbedded: embedded === fonts.length, evenPageCount: pageCount > 0 && pageCount % 2 === 0 };
   const failures = [];
+  if (!checks.outputIntentProfile) failures.push('missing OutputIntent /DestOutputProfile stream');
   if (!checks.cmykOnly) failures.push(rgb ? 'DeviceRGB/RGB color found' : `non-DeviceCMYK color space found (${otherColor.join(', ')})`);
   if (!checks.pdf13) failures.push(`PDF version ${version ?? 'unknown'}; expected 1.3`);
   if (!checks.fontsEmbedded) failures.push(`unembedded fonts (${embedded}/${fonts.length} embedded)`);
