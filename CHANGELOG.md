@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.30, October 30, 2026
+
+- `video-edit` can now lay a transparent picture, such as drawn captions, over a video you already have, keeping everything outside it exactly as it was. (bb6f4c0, 5007d44, c538f95, ba86194, 108f2bd, 2c063c5)
+
 ## v2026.10.29.4, October 29, 2026
 
 - Wiser can now connect to HeyGen with your own HeyGen API key, through the local gateway in a command-line tool such as Claude Code or Codex. The key bills HeyGen's API wallet in US dollars, separate from any HeyGen web plan. Wiser narrates a scene of up to 5,000 characters in your HeyGen instant voice clone, with the timing of every word, lists your avatars and their looks, and turns narration you already have into a video of the look you choose, on HeyGen's Avatar IV or its higher-quality Avatar V. (8dca655, 81a3cac, 96d6987, 52c6fce, 8630846, 153b980, d3aefb3, 3ad0dc0, 4983041, 3df8b09, f12e2cd)
