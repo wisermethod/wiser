@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.30.4, October 30, 2026
+
+- Screen Capture no longer stops on a Mac whose Screen Recording and Accessibility are already granted, and names the app that holds them correctly when a launcher runs in between. (9bc30ed, 645860c)
+
 ## v2026.10.30.3, October 30, 2026
 
 - Wiser now carries its round teal icon for Claude's plugin directory, and the README links to Wiser's Privacy and Terms. (4637f13)
