@@ -578,7 +578,7 @@ function validateConfig(config) {
   if (config.typography?.quote_font !== undefined && !['body', 'sans'].includes(config.typography.quote_font)) {
     errors.push('typography.quote_font must be body or sans');
   }
-  for (const key of ['contents', 'headings']) {
+  for (const key of ['contents', 'headings', 'parts']) {
     if (config[key] !== undefined && (!config[key] || typeof config[key] !== 'object' || Array.isArray(config[key]))) {
       errors.push(`${key} must be a mapping`);
     }
@@ -591,6 +591,13 @@ function validateConfig(config) {
   }
   if (config.headings?.numbered !== undefined && typeof config.headings.numbered !== 'boolean') {
     errors.push('headings.numbered must be a boolean');
+  }
+  if (config.parts?.enabled !== undefined && typeof config.parts.enabled !== 'boolean') {
+    errors.push('parts.enabled must be a boolean');
+  }
+  if (config.parts?.prefix !== undefined && (typeof config.parts.prefix !== 'string' ||
+      !config.parts.prefix.trim() || /[\x00-\x1f\x7f]/.test(config.parts.prefix))) {
+    errors.push('parts.prefix must be nonempty text on one line');
   }
   if (config.margins !== undefined) {
     if (!config.margins || typeof config.margins !== 'object' || Array.isArray(config.margins)) {
@@ -822,6 +829,10 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
     '--resource-path', bookDir
   ];
 
+  if (config.parts?.enabled === true) {
+    pandocArgs.push('--lua-filter', join(FILTERS_DIR, 'parts-filter.lua'),
+      '--metadata', `parts-prefix=${config.parts.prefix ?? 'Part '}`);
+  }
   if (config.typography?.font_size) {
     pandocArgs.push('--variable', `fontsize=${config.typography.font_size}pt`);
   }

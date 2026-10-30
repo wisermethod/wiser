@@ -88,8 +88,10 @@ Pass `--config` as an absolute path. Paths inside YAML resolve relative to that 
 | `typography.font_size` | Print base size in points | `12` |
 | `typography.line_spacing` | Print line stretch | `1.15` |
 | `contents.enabled` | Generate a print contents page before the manuscript; EPUB keeps its own navigation | `false` |
-| `contents.depth` | Deepest Markdown heading level listed in the print contents, an integer from 1 to 5; 1 lists chapters (`#`), 2 also lists `##`, and so on | `1` |
+| `contents.depth` | Deepest print heading level listed in the contents, an integer from 1 to 5; 1 lists chapters (`#`), 2 also lists `##`, and so on. With Parts enabled, uses the promoted levels below a Part and also lists the Parts | `1` |
 | `headings.numbered` | Keep LaTeX's existing print heading numbering; `false` sets `secnumdepth` to -2, suppressing automatic part/chapter/section numbers without removing numbers written in a title | `true` (LaTeX's existing numbering depth) |
+| `parts.enabled` | Recognize document-level `#` headings beginning with `parts.prefix` as print Parts and promote headings below them by one level | `false` |
+| `parts.prefix` | Literal, case-sensitive prefix of the visible heading title, without the Markdown `#`; nonempty text on one line. The full title, including this prefix, is retained | `"Part "` (including the trailing space) |
 | `index.enabled` | Enable makeindex | `true` |
 | `index.extractor` | Enable two-pass extraction when `index.enabled` is false | Absent |
 | `index.extractor.indexHeading` | Index section boundary | `Appendix C: Index` |
@@ -116,6 +118,8 @@ For two-pass extraction, write the boundary headings as `## Heading` or a bold-o
 ### Manuscript markup
 
 Use ordinary Pandoc Markdown for prose, lists, headings, images and tables. In the print template, `#` starts a chapter-style page, `##` a part or appendix, `###` a chapter within a part, and `####`/`#####` sections within it. EPUB navigation includes headings through level 3.
+
+With `parts.enabled: true`, a document-level heading such as `# Part One. Getting started` makes an unnumbered print Part page with its full title and a Part contents entry. Below it, `## Chapter 1. First steps` becomes a print chapter, and headings from `###` through `######` are also promoted one level. This scope continues across chapter files until the next document-level `#` heading; a matching heading starts the next Part, while any other `#` ends the promotion scope and keeps its normal chapter behavior. Headings before the first Part keep their existing levels. Code examples and headings inside quotes or lists do not start or end a Part. EPUB keeps the original heading hierarchy, so both Parts and their chapters remain in its native navigation. The `<!-- toc-part: -->` directive retains its compact print contents meaning and never creates a Part page. Omit `parts.enabled` or set it to `false` to retain the existing output.
 
 Raw LaTeX `\section`, `\subsection` and `\subsubsection` retain their normal, starred and optional short-title forms. Each runs an automatic float barrier before the heading.
 
