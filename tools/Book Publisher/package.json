@@ -1,0 +1,17 @@
+{
+  "name": "book-publisher",
+  "version": "0.1.0",
+  "description": "Builds print-ready PDF/X-1a and EPUB book files from a directory of markdown chapters and a YAML config",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "help": "node scripts/publish.js help"
+  },
+  "dependencies": {
+    "yaml": "^2.8.2",
+    "pdfjs-dist": "^6.2.108"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  }
+}

@@ -1,0 +1,20 @@
+# Book title, also used for output filenames unless a slug is supplied.
+title: {{title}}
+# Author names; replace this placeholder with the book's authors.
+authors:
+  - {{author}}
+# Print page dimensions in inches; confirm them for the chosen edition.
+trim:
+  width: 6       # Page width in inches.
+  height: 9      # Page height in inches.
+# Input paths resolve relative to this config.
+source:
+  chapters: "chapters/"   # Directory of numbered Markdown chapter files.
+  assets: "assets/"       # Directory holding the chapter assets.
+# At least one output path is required; paths resolve relative to this config.
+output:
+  print: "publish/print/" # Print PDF and PDF/X-1a output directory.
+  epub: "publish/epub/"   # EPUB output directory.
+# The scaffold selects none: no index and no extractor boundaries.
+index:
+  enabled: false         # An index strategy can be selected during book setup.
