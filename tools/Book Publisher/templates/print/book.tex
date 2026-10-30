@@ -37,7 +37,13 @@ $else$
 \usepackage{lmodern}
 $endif$
 
-\usepackage{sourcesanspro}  % Sans-serif for blockquotes
+$if(quote-sans)$
+\usepackage{sourcesanspro}
+$else$
+% Preserve the existing sans family used by thumb tabs, without loading the
+% sourcesanspro package's unused LY1 encoding. NFSS loads the T1 font on use.
+\renewcommand{\sfdefault}{SourceSansPro-TLF}
+$endif$
 \usepackage{microtype}
 
 %% =============================================================================
@@ -259,14 +265,14 @@ $endif$
 }
 
 %% =============================================================================
-%% BLOCK QUOTES - Sans-serif, grey, indented both sides
+%% BLOCK QUOTES - Body face by default, grey, indented both sides
 %% =============================================================================
 \usepackage{csquotes}
 
 % Define quote color
 \definecolor{quotetext}{cmyk}{0,0,0,0.70}
 
-% Styled blockquote: sans-serif, dark grey, indented both sides, tighter spacing
+% Styled blockquote: optional sans face, dark grey, indented both sides, tighter spacing
 \renewenvironment{quote}{%
   \par\vspace{\baselineskip}%
   \begin{list}{}{%
@@ -278,7 +284,10 @@ $endif$
     \setlength{\itemsep}{0pt}%
   }%
   \item\relax%
-  \sourcesanspro\color{quotetext}\setstretch{1.0}%
+$if(quote-sans)$
+  \sffamily%
+$endif$
+  \color{quotetext}\setstretch{1.0}%
 }{%
   \end{list}%
   \par\vspace{\baselineskip}%

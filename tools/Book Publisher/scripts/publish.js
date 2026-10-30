@@ -58,7 +58,7 @@ Commands:
   build            Merge chapters and build the requested outputs
   validate         Check config, chapters, assets, index and project Standing; writes nothing
   init             Write a new book project without installing packages
-  check            Survey dependencies; with --config also check the book project
+  check            Survey dependencies; with --config also check the project and TeX files
   help             Print this message
 
 Options:
@@ -171,7 +171,8 @@ const DEP = {
   pandoc: { bin: 'pandoc', args: ['--version'], name: 'pandoc', show: 'pandoc --version' },
   pdflatex: { bin: 'pdflatex', args: ['--version'], name: 'LaTeX (pdflatex)', show: 'pdflatex --version' },
   makeindex: { bin: 'makeindex', args: ['-q'], input: '', name: 'makeindex', show: "printf '' | makeindex -q" },
-  gs: { bin: 'gs', args: ['--version'], name: 'Ghostscript (gs)', show: 'gs --version' }
+  gs: { bin: 'gs', args: ['--version'], name: 'Ghostscript (gs)', show: 'gs --version' },
+  kpsewhich: { bin: 'kpsewhich', args: ['--version'], name: 'TeX file lookup (kpsewhich)', show: 'kpsewhich --version' }
 };
 
 function depPresent(dep) {
@@ -192,6 +193,54 @@ function requireDep(key) {
   const dep = DEP[key];
   if (!depPresent(dep)) {
     fail(`Error: missing ${dep.name}; check: ${dep.show}. See the Dependencies section of TOOL.md; the agent derives install steps from the dependency's own documentation, so none are written here.`);
+  }
+}
+
+// Keep this inventory aligned with templates/print/book.tex. Package presence
+// alone is insufficient: sourcesanspro's pdflatex branch also loads LY1 even
+// though this template uses T1. The default avoids that package, preserving its
+// sans family for thumb tabs through NFSS instead.
+function requireTexFiles(config) {
+  requireDep('kpsewhich');
+  const packages = [
+    'geometry', 'fontenc', 'ulem', 'microtype', 'inputenc', 'babel',
+    'amssymb', 'xcolor', 'graphicx', 'float', 'placeins', 'caption',
+    'longtable', 'booktabs', 'array', 'calc', 'enumitem', 'needspace',
+    'fancyhdr', 'titlesec', 'setspace', 'csquotes', 'listings', 'fancyvrb',
+    'makeidx', 'eso-pic', 'tikz', 'hyperref', 'lmodern'
+  ];
+  // The dotted fontfamily variables fall back to lmodern in Pandoc, so the
+  // template loads Latin Modern whatever typography.font_family names; check
+  // only what is loaded. A family's own packages join this list when the
+  // template starts loading that family.
+  const files = ['book.cls', ...packages.map((name) => `${name}.sty`),
+    't1enc.def', 'utf8.def', 'english.ldf',
+    'T1SourceSansPro-TLF.fd', 'SourceSansPro-Bold-tlf-t1.tfm',
+    'SourceSansPro-Bold.pfb', 'a_emkxm5.enc'];
+  if (config.typography?.quote_font === 'sans') {
+    files.push('sourcesanspro.sty', 'ly1enc.def', 'ot1enc.def',
+      'ifxetex.sty', 'ifluatex.sty', 'xkeyval.sty');
+    // Modern LaTeX incorporates mweights and marks it loaded in the format.
+    // On older kernels sourcesanspro instead needs the separate package.
+    let builtInWeights = false;
+    try {
+      const kernel = execFileSync('kpsewhich', ['latex.ltx'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+      builtInWeights = readFileSync(kernel, 'utf8').includes('ver@mweights.sty');
+    } catch { /* Without the kernel marker, require the package file. */ }
+    if (!builtInWeights) files.push('mweights.sty');
+    for (const shape of ['Regular', 'It', 'BoldIt']) {
+      files.push(`SourceSansPro-${shape}-tlf-t1.tfm`, `SourceSansPro-${shape}.pfb`);
+    }
+  }
+  const missing = files.filter((file) => {
+    try {
+      return !execFileSync('kpsewhich', [file], {
+        encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']
+      }).trim();
+    } catch { return true; }
+  });
+  if (missing.length) {
+    fail(`Error: missing TeX files for this book:\n- ${missing.map((file) => `${file}; check: kpsewhich ${file}`).join('\n- ')}\nSee the Dependencies section of TOOL.md for the required TeX files.`);
   }
 }
 
@@ -282,8 +331,7 @@ function ensureDependencies(names) {
 }
 
 if (command === 'check' && !flagAuthorised(install) && !existsSync(dependencyMarker('yaml'))) {
-  process.stdout.write(`${JSON.stringify({ ...dependencySurvey(), configChecked: false, reason: 'YAML reader missing; run check --config with --install to check this project.' })}\n`);
-  return;
+  fail('Error: YAML reader missing; run check --config with --install to check this project and its TeX files.');
 }
 ensureDependencies(command === 'check' && flagAuthorised(install) ? ['yaml', 'pdfjs-dist'] : ['yaml']);
 
@@ -313,6 +361,7 @@ if (command === 'validate' || command === 'check') {
   const { validateBook } = await import('./validate-book.js');
   const checked = validateBook(config, getChapterFiles(config.source._chaptersPath, config.source?.exclude ?? []));
   if (command === 'check') {
+    if (config.output._printPath) requireTexFiles(config);
     process.stdout.write(`${JSON.stringify({ ...dependencySurvey(), configChecked: true, ok: checked.errors.length === 0, title: config.title, indexStrategy: checked.strategy, standingFound: checked.standingFound, errors: checked.errors })}\n`);
     return;
   }
@@ -525,6 +574,9 @@ function validateConfig(config) {
   }
   if (!config.output?.print && !config.output?.epub) {
     errors.push('missing: output.print or output.epub (nowhere to write)');
+  }
+  if (config.typography?.quote_font !== undefined && !['body', 'sans'].includes(config.typography.quote_font)) {
+    errors.push('typography.quote_font must be body or sans');
   }
   if (config.margins !== undefined) {
     if (!config.margins || typeof config.margins !== 'object' || Array.isArray(config.margins)) {
@@ -762,6 +814,9 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
   if (config.typography?.font_family) {
     pandocArgs.push('--variable', 'fontfamily=true');
     pandocArgs.push('--variable', `fontfamily.${config.typography.font_family}=true`);
+  }
+  if (config.typography?.quote_font === 'sans') {
+    pandocArgs.push('--variable', 'quote-sans=true');
   }
   if (config.typography?.line_spacing) {
     pandocArgs.push('--variable', `linespacing=${config.typography.line_spacing}`);

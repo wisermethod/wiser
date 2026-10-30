@@ -29,7 +29,7 @@ node scripts/publish.js check
 node scripts/publish.js check --config /path/to/book/book-config.yaml
 ```
 
-The first command surveys local runtimes and packages without installing. The second also checks the book project when the YAML reader is available. TOOL.md's Dependencies section names pandoc, pdflatex, makeindex and Ghostscript, what needs each, and its presence command. Follow the Script Contract when one is missing; no install walkthrough lives here.
+The first command surveys local runtimes and packages without installing. The second also checks the book project and the TeX files its print settings require; it fails naming a missing file. If the YAML reader is missing, repeat it with `--install`. Use this config-aware check in a build harness before treating print output as ready. TOOL.md's Dependencies section names pandoc, pdflatex, makeindex and Ghostscript, what needs each, and its presence command. Follow the Script Contract when one is missing; no install walkthrough lives here.
 
 An EPUB-only build needs pandoc. Print needs pandoc, pdflatex and Ghostscript, plus makeindex only for its enabled index. PDF/X preflight is not a dependency: the structural checks and their limits are in TOOL.md.
 

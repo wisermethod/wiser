@@ -27,8 +27,14 @@ The entry point follows `system/templates/Script Contract.md`. Shared run behavi
 | Node 22.13 or newer and npm | Every command; `pdfjs-dist` 6 requires this Node minimum | `node --version` reports at least 22.13.0 |
 | pandoc | Every build, including EPUB-only | `pandoc --version` |
 | pdflatex | Print typesetting | `pdflatex --version` |
+| kpsewhich | `check --config` when `output.print` is set | `kpsewhich --version` |
+| TeX packages and font files | The print template for the selected typography | `kpsewhich <filename>` returns a path for each required file, listed below |
 | makeindex | Print indexing with `index.enabled: true`, except under `--draft` | `printf '' \| makeindex -q` exits 0 |
 | Ghostscript | Print conversion and page counting | `gs --version` |
+
+The print template requires `book.cls`; the `geometry`, `fontenc`, `ulem`, `microtype`, `inputenc`, `babel`, `amssymb`, `xcolor`, `graphicx`, `float`, `placeins`, `caption`, `longtable`, `booktabs`, `array`, `calc`, `enumitem`, `needspace`, `fancyhdr`, `titlesec`, `setspace`, `csquotes`, `listings`, `fancyvrb`, `makeidx`, `eso-pic`, `tikz`, `hyperref` and `lmodern` packages (each checked as `<name>.sty`); and `t1enc.def`, `utf8.def` and `english.ldf`. Latin Modern is checked even for a selected family because the existing Pandoc variable form falls back to it. Every book is currently set in Latin Modern whatever `typography.font_family` names, so `check` requires only the Latin Modern files; a family's own packages are checked once the template loads that family. The existing thumb-tab face uses `T1SourceSansPro-TLF.fd`, `SourceSansPro-Bold-tlf-t1.tfm`, `SourceSansPro-Bold.pfb` and `a_emkxm5.enc` directly, without loading the Source Sans package.
+
+`typography.quote_font: sans` additionally requires `sourcesanspro.sty`, its pdflatex dependencies `ly1enc.def`, `ot1enc.def`, `ifxetex.sty`, `ifluatex.sty`, `xkeyval.sty` (also `mweights.sty` on a LaTeX kernel that has not incorporated it), plus `SourceSansPro-{Regular,It,BoldIt}-tlf-t1.tfm` and `SourceSansPro-{Regular,It,BoldIt}.pfb`. In particular, the package requests LY1 even with T1 output. `check --config` fails on a missing TeX file with its name and `kpsewhich` command; run it before typesetting. EPUB-only builds and configs with only `output.epub` do not need TeX.
 
 The tool's packages are `yaml` and `pdfjs-dist`. Consent is once per person as the Script Contract states: answer the install request with `--install` on the same command, or `WISER_ALLOW_INSTALL=1` for an unattended run. The authorized run uses `npm ci` and completes the command; it never requires a second run after installation. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates. Run no package install by hand.
 
@@ -76,6 +82,7 @@ Pass `--config` as an absolute path. Paths inside YAML resolve relative to that 
 | `isbn.print` | Replaces the first existing `**ISBN:**` number in the merged manuscript | No replacement |
 | `covers.ebook` | Optional EPUB cover image | No cover; a named missing file is also skipped |
 | `typography.font_family` | Print family: `libertinus`, `source-serif`, otherwise Latin Modern | Latin Modern |
+| `typography.quote_font` | Print quotation face: `body` inherits the surrounding body face; `sans` selects Source Sans Pro. Thumb-tab labels retain Source Sans Pro Bold in either case | `body` |
 | `typography.font_size` | Print base size in points | `12` |
 | `typography.line_spacing` | Print line stretch | `1.15` |
 | `index.enabled` | Enable makeindex | `true` |
@@ -134,7 +141,7 @@ A book may follow these optional EPUB front-matter conventions: a copyright bloc
 |---------|----------------|--------|
 | `node scripts/publish.js help` | `--help`, `-h` | Usage on an uninstalled copy |
 | `node scripts/publish.js check` | `--install`, `--help`, `-h` | Survey four system runtimes and package presence; explicit installation repairs packages first |
-| `node scripts/publish.js check --config <path>` | `--config`, `--install`, `--help`, `-h` | Also check the project and report its index strategy; without the YAML package a non-installing survey reports `configChecked: false` |
+| `node scripts/publish.js check --config <path>` | `--config`, `--install`, `--help`, `-h` | Also check the project, report its index strategy and require the print template's TeX files when `output.print` is set; a missing YAML reader or TeX file fails with exit 1 |
 | `node scripts/publish.js validate --config <path>` | `--config`, `--install`, `--help`, `-h` | Check config, numbered chapters, local asset references, index ranges/boundaries and project instructions |
 | `node scripts/publish.js build --config <path>` | `--config`, `--print-only`, `--epub-only`, `--draft`, `--force-merge`, `--cleanup`, `--verbose`, `-v`, `--install`, `--help`, `-h` | Build both formats unless narrowed |
 | `node scripts/publish.js init --output <dir>` | `--output`, `--title`, `--author`, `--help`, `-h` | Write a new project without installing packages; refuse existing project paths |
@@ -176,7 +183,7 @@ Shared stops are in `tools/RUNNING.md`. Correct malformed YAML, chapter ordering
 ## Success
 
 - Help and init run with nothing installed; init refuses an occupied project and its result validates.
-- Check surveys without an implicit install, with or without a config; an authorized install completes that same command.
+- Bare check surveys without an implicit install, returning one object of six booleans and exit 0. With a config it also checks the required TeX files for print; an authorized install completes that same command.
 - Validation accepts each index strategy, requires project instructions, and enforces filled Standing only on template-identified projects.
 - A two-pass print build merges, extracts, injects and rebuilds in one invocation; the resulting PDF has the reported page count and embedded fonts.
 - Print success reports every structural property and explicitly disclaims conformance certification. RGB, wrong PDF version, unembedded fonts or odd pages fail with stderr only and exit 1; absent output profile is reported without failing.
