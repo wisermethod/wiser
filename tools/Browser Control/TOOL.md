@@ -3,7 +3,7 @@ name: Browser Control
 type: tool
 category: automation
 description: Drives a persistent Chromium session to read, navigate, and act on pages that need a real browser, answering every command with the page state that followed
-version: 0.8.1
+version: 0.9.0
 ---
 
 # Browser Control
@@ -14,7 +14,7 @@ A run of one command acts on a browser that is already open and returns what the
 
 Use when the work needs a real browser: a form to fill, a workflow behind a sign-in, content a page builds in JavaScript, a layout to look at, or any sequence of act-then-check steps against a live site.
 
-Do not use when a plain fetch of a static page would answer, when the question is answerable without a page at all, or when a connector already covers the platform and declares the action this job needs; a connector is faster, survives redesigns, and does not need a window. Reaching a platform through its own site instead of its connector, including where that connector declares no such action, is a last resort, not a shortcut.
+Do not use when a plain fetch of a static page would answer, when the question is answerable without a page at all, or when a connector already covers the platform and declares the action this job needs; a connector is faster, survives redesigns, and does not need a window. Prefer the connector whenever it covers the platform and declares the action. The one exception is a platform's own web route that the calling skill expressly declares and the person selects, where that skill states the route's eligibility, approval, submission-recovery and result-evidence rules; it never bypasses a denied action, a declined spend or an unresolved prior submission, and without that declared, selected route the connector is used. Otherwise, reaching a platform through its own site instead of its connector, including where that connector declares no such action, is a last resort, not a shortcut.
 
 This tool holds a session and drives it. Deciding what to do with a page belongs to the skill or expert that called it.
 
