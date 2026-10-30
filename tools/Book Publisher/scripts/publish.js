@@ -237,6 +237,7 @@ function requireTexFiles(config) {
     'T1SourceSansPro-TLF.fd', 'SourceSansPro-Bold-tlf-t1.tfm',
     'SourceSansPro-Bold.pfb', 'a_emkxm5.enc'];
   if (config.typography?.font_family === 'libertinus') files.push('binhex.tex');
+  if (config.contents?.enabled === true) files.push('etoolbox.sty');
   if (Object.keys(config.boxes ?? {}).length) {
     files.push('mdframed.sty', 'md-frame-0.mdf', 'kvoptions.sty', 'xparse.sty',
       'etoolbox.sty', 'zref-abspage.sty', 'zref-base.sty', 'color.sty',

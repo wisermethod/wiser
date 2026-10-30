@@ -183,6 +183,18 @@ $endif$
 %% =============================================================================
 \usepackage{titlesec}
 
+$if(print-contents)$
+% The old in-format chapter break discarded titlesec's starred before-skip
+% and its non-discardable spacer. Omit that spacer rather than breaking after
+% the chapter's contents locator has already been written by book.cls.
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd{\ttl@mkchap@i}{\vspace*{\@tempskipa}}{}{}{
+  \PackageError{Book Publisher}{Cannot remove titlesec chapter before-skip}{}
+}
+\makeatother
+$endif$
+
 % Chapter format (# in markdown) - title page style, new page
 % \raggedright prevents hyphenation in headings
 % With contents, chapter already breaks before writing its locator; a second
