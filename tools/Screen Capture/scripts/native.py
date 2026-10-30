@@ -42,6 +42,9 @@ def launching_app():
         except (OSError, ValueError):
             break
         for component in Path(executable).parts:
+            # A framework's interpreter or helper bundle does not hold the launching app's permissions.
+            if component.endswith('.framework'):
+                break
             if component.endswith('.app'):
                 return component[:-4]
         pid = parent
