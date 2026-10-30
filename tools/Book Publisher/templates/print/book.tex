@@ -66,6 +66,38 @@ $endif$
 %% GRAPHICS - Completely disable floating for figures and tables
 %% =============================================================================
 \usepackage{graphicx}
+
+$if(boxed-divs)$
+% Only opted-in books load the page-breakable box package and its environment.
+\usepackage[framemethod=default]{mdframed}
+\newsavebox{\bookpublisherimage}
+\let\bookpublisherincludegraphics\includegraphics
+\newenvironment{bookpublisherbox}[4]{%
+  \begingroup
+  \definecolor{bookpublisherboxbg}{gray}{#1}%
+  \definecolor{bookpublisherboxline}{gray}{#2}%
+  \begin{mdframed}[backgroundcolor=bookpublisherboxbg,linecolor=bookpublisherboxline,
+    linewidth=#3pt,innerleftmargin=#4pt,innerrightmargin=#4pt,
+    innertopmargin=#4pt,innerbottommargin=#4pt,
+    skipabove=\baselineskip,skipbelow=\baselineskip]%
+  % The existing image filter uses the page's content width. Cap those images
+  % (including explicit widths) at this box's narrower line width, locally.
+  \RenewDocumentCommand{\includegraphics}{s O{} m}{%
+    \sbox{\bookpublisherimage}{%
+      \IfBooleanTF{##1}{\bookpublisherincludegraphics*[##2]{##3}}%
+        {\bookpublisherincludegraphics[##2]{##3}}}%
+    \ifdim\wd\bookpublisherimage>\linewidth
+      \resizebox{\linewidth}{!}{\usebox{\bookpublisherimage}}%
+    \else
+      \usebox{\bookpublisherimage}%
+    \fi
+  }%
+}{%
+  \end{mdframed}%
+  \endgroup
+}
+$endif$
+
 \usepackage{float}
 \usepackage{placeins}
 \usepackage{caption}

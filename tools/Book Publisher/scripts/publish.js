@@ -44,6 +44,10 @@ const INSTALL_SIZE = formatInstallSize(INSTALL_BYTES);
 
 const COMMANDS = new Set(['build', 'validate', 'check', 'init']);
 const DEFAULT_MARGINS = { top: 0.85, bottom: 0.85, outer: 0.85, inner: 1.1 };
+const BOX_DEFAULTS = {
+  print: { background_gray: 0.95, border_gray: 0.5, border_width: 0.5, padding: 8 },
+  epub: { background: '#f2f2f2', border_color: '#808080', border_width: 1, padding: 0.75 }
+};
 
 const USAGE = `Book Publisher - build print-ready PDF/X-1a and EPUB from markdown
 
@@ -217,6 +221,12 @@ function requireTexFiles(config) {
     't1enc.def', 'utf8.def', 'english.ldf',
     'T1SourceSansPro-TLF.fd', 'SourceSansPro-Bold-tlf-t1.tfm',
     'SourceSansPro-Bold.pfb', 'a_emkxm5.enc'];
+  if (Object.keys(config.boxes ?? {}).length) {
+    files.push('mdframed.sty', 'md-frame-0.mdf', 'kvoptions.sty', 'xparse.sty',
+      'etoolbox.sty', 'zref-abspage.sty', 'zref-base.sty', 'color.sty',
+      'keyval.sty', 'ltxcmds.sty', 'kvsetkeys.sty', 'infwarerr.sty',
+      'kvdefinekeys.sty', 'pdftexcmds.sty', 'etexcmds.sty', 'auxhook.sty', 'expl3.sty');
+  }
   if (config.typography?.quote_font === 'sans') {
     files.push('sourcesanspro.sty', 'ly1enc.def', 'ot1enc.def',
       'ifxetex.sty', 'ifluatex.sty', 'xkeyval.sty');
@@ -599,6 +609,41 @@ function validateConfig(config) {
       !config.parts.prefix.trim() || /[\x00-\x1f\x7f]/.test(config.parts.prefix))) {
     errors.push('parts.prefix must be nonempty text on one line');
   }
+  if (config.boxes !== undefined) {
+    const mapping = (value) => value && typeof value === 'object' && !Array.isArray(value);
+    if (!mapping(config.boxes)) errors.push('boxes must be a mapping of fenced-div class names to styles');
+    else for (const [name, box] of Object.entries(config.boxes)) {
+      const label = `boxes.${name}`;
+      if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(name)) {
+        errors.push(`${label}: class names must start with an ASCII letter and contain only letters, digits, underscores or hyphens`);
+      }
+      if (!mapping(box)) { errors.push(`${label} must be a mapping (use {} for the default box)`); continue; }
+      for (const format of Object.keys(box)) {
+        if (!Object.hasOwn(BOX_DEFAULTS, format)) errors.push(`${label}: unknown format ${format}; use print or epub`);
+      }
+      for (const [format, defaults] of Object.entries(BOX_DEFAULTS)) {
+        const style = box[format];
+        if (style === undefined) continue;
+        if (!mapping(style)) { errors.push(`${label}.${format} must be a mapping`); continue; }
+        for (const [key, value] of Object.entries(style)) {
+          const field = `${label}.${format}.${key}`;
+          if (!Object.hasOwn(defaults, key)) errors.push(`${field}: unknown box style setting`);
+          else if (typeof defaults[key] === 'string') {
+            if (typeof value !== 'string' || !/^#[0-9a-f]{6}$/i.test(value)) errors.push(`${field} must be a quoted six-digit hex color such as "#f2f2f2"`);
+          } else if (!Number.isFinite(value) || value < 0 || (key.endsWith('_gray') && value > 1)) {
+            errors.push(`${field} must be ${key.endsWith('_gray') ? 'a number from 0 (black) to 1 (white)' : 'a finite nonnegative number'}`);
+          }
+        }
+      }
+      const print = { ...BOX_DEFAULTS.print, ...box.print };
+      const margins = printMargins(config);
+      const textWidth = (config.trim?.width - margins.inner - margins.outer) * 72.27;
+      if (Number.isFinite(print.padding) && Number.isFinite(print.border_width) &&
+          Number.isFinite(textWidth) && 2 * (print.padding + print.border_width) >= textWidth) {
+        errors.push(`${label}.print padding and border_width must leave a positive text width inside the print margins`);
+      }
+    }
+  }
   if (config.margins !== undefined) {
     if (!config.margins || typeof config.margins !== 'object' || Array.isArray(config.margins)) {
       errors.push('margins must be a mapping of top, bottom, outer and inner in inches');
@@ -626,6 +671,17 @@ function validateConfig(config) {
 function printMargins(config) {
   return Object.fromEntries(Object.entries(DEFAULT_MARGINS).map(([edge, fallback]) =>
     [edge, config.margins?.[edge] ?? fallback]));
+}
+
+// Only configured books receive the filter or metadata; the default build path
+// and EPUB's existing image/comment processing remain unchanged.
+function boxFilterArgs(config) {
+  if (!Object.keys(config.boxes ?? {}).length) return [];
+  const boxes = Object.fromEntries(Object.entries(config.boxes).map(([name, box]) =>
+    [name, Object.fromEntries(Object.entries(BOX_DEFAULTS).map(([format, defaults]) =>
+      [format, { ...defaults, ...box[format] }]))]));
+  return ['--lua-filter', join(FILTERS_DIR, 'boxes-filter.lua'),
+    '--metadata', `book-boxes=${JSON.stringify(boxes)}`];
 }
 
 function authorNames(config) {
@@ -833,6 +889,8 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
     pandocArgs.push('--lua-filter', join(FILTERS_DIR, 'parts-filter.lua'),
       '--metadata', `parts-prefix=${config.parts.prefix ?? 'Part '}`);
   }
+  pandocArgs.push(...boxFilterArgs(config));
+  if (Object.keys(config.boxes ?? {}).length) pandocArgs.push('--variable', 'boxed-divs=true');
   if (config.typography?.font_size) {
     pandocArgs.push('--variable', `fontsize=${config.typography.font_size}pt`);
   }
@@ -1083,6 +1141,7 @@ async function buildEpubFile(config, mergedContent, slug, tempDir) {
   if (config.covers?._ebookPath && existsSync(config.covers._ebookPath)) {
     pandocArgs.push('--epub-cover-image', config.covers._ebookPath);
   }
+  pandocArgs.push(...boxFilterArgs(config));
 
   await runCommand('pandoc', pandocArgs, config._configDir);
   if (!existsSync(epubFile)) {

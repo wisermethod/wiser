@@ -36,6 +36,8 @@ The print template requires `book.cls`; the `geometry`, `fontenc`, `ulem`, `micr
 
 `typography.quote_font: sans` additionally requires `sourcesanspro.sty`, its pdflatex dependencies `ly1enc.def`, `ot1enc.def`, `ifxetex.sty`, `ifluatex.sty`, `xkeyval.sty` (also `mweights.sty` on a LaTeX kernel that has not incorporated it), plus `SourceSansPro-{Regular,It,BoldIt}-tlf-t1.tfm` and `SourceSansPro-{Regular,It,BoldIt}.pfb`. In particular, the package requests LY1 even with T1 output. `check --config` fails on a missing TeX file with its name and `kpsewhich` command; run it before typesetting. EPUB-only builds and configs with only `output.epub` do not need TeX.
 
+A nonempty `boxes` mapping additionally requires `mdframed.sty` with its default renderer `md-frame-0.mdf`, and the packages `kvoptions`, `xparse`, `etoolbox`, `zref-abspage`, `zref-base`, `color`, `keyval`, `ltxcmds`, `kvsetkeys`, `infwarerr`, `kvdefinekeys`, `pdftexcmds`, `etexcmds`, `auxhook` and `expl3` (checked as `.sty` files). `check --config` verifies these files only when print output and at least one boxed class are configured.
+
 The tool's packages are `yaml` and `pdfjs-dist`. Consent is once per person as the Script Contract states: answer the install request with `--install` on the same command, or `WISER_ALLOW_INSTALL=1` for an unattended run. The authorized run uses `npm ci` and completes the command; it never requires a second run after installation. You'll only be asked once: your yes also covers anything else Wiser needs to download later, including after updates. Run no package install by hand.
 
 Print conversion requires a local CMYK ICC profile. The tool uses the first existing file in this order: `/System/Library/ColorSync/Profiles/Generic CMYK Profile.icc`, `/System/Library/ColorSync/Profiles/USWebCoatedSWOP.icc`, `/usr/share/color/icc/ghostscript/default_cmyk.icc`, `/usr/share/ghostscript/iccprofiles/default_cmyk.icc`, `/usr/local/share/ghostscript/iccprofiles/default_cmyk.icc`, `/opt/homebrew/share/ghostscript/iccprofiles/default_cmyk.icc`. If none exists, the build fails and names the missing profiles. The same profile is used for conversion and embedded in the OutputIntent; Ghostscript must exit 0 even when it has written a complete file.
@@ -92,6 +94,18 @@ Pass `--config` as an absolute path. Paths inside YAML resolve relative to that 
 | `headings.numbered` | Keep LaTeX's existing print heading numbering; `false` sets `secnumdepth` to -2, suppressing automatic part/chapter/section numbers without removing numbers written in a title | `true` (LaTeX's existing numbering depth) |
 | `parts.enabled` | Recognize document-level `#` headings beginning with `parts.prefix` as print Parts and promote headings below them by one level | `false` |
 | `parts.prefix` | Literal, case-sensitive prefix of the visible heading title, without the Markdown `#`; nonempty text on one line. The full title, including this prefix, is retained | `"Part "` (including the trailing space) |
+| `boxes` | Mapping of fenced-div class names to box styles; names start with an ASCII letter and contain only letters, digits, underscores or hyphens, without a leading dot | `{}`; no box styling or additional TeX packages |
+| `boxes.<class>` | Style mapping for that class; `{}` opts into the defaults in both formats | Class not boxed unless named |
+| `boxes.<class>.print` | Mapping of print style settings below | All print style defaults below |
+| `boxes.<class>.print.background_gray` | Background gray, from 0 (black) to 1 (white) | `0.95` |
+| `boxes.<class>.print.border_gray` | Border gray, from 0 (black) to 1 (white) | `0.5` |
+| `boxes.<class>.print.border_width` | Border width in points, finite nonnegative number | `0.5` |
+| `boxes.<class>.print.padding` | Inner padding on all sides in points, finite nonnegative number | `8` |
+| `boxes.<class>.epub` | Mapping of EPUB style settings below | All EPUB style defaults below |
+| `boxes.<class>.epub.background` | Background, quoted six-digit hex color | `"#f2f2f2"` |
+| `boxes.<class>.epub.border_color` | Border, quoted six-digit hex color | `"#808080"` |
+| `boxes.<class>.epub.border_width` | Border width in CSS pixels, finite nonnegative number | `1` |
+| `boxes.<class>.epub.padding` | Inner padding on all sides in ems, finite nonnegative number | `0.75` |
 | `index.enabled` | Enable makeindex | `true` |
 | `index.extractor` | Enable two-pass extraction when `index.enabled` is false | Absent |
 | `index.extractor.indexHeading` | Index section boundary | `Appendix C: Index` |
@@ -100,6 +114,8 @@ Pass `--config` as an absolute path. Paths inside YAML resolve relative to that 
 | `index.extractor.indexFallbackFromEnd` | Fallback index start, this many pages from the end | `10` |
 
 Margins may be set independently; omitted edges keep their defaults. The inner and outer margins must leave a positive text width within the trim, and the top and bottom margins must leave a positive text height. Print image sizing uses the trim width minus the inner and outer margins.
+
+For each boxed class, twice the sum of its print padding and border width must be smaller than the text width inside the print margins, leaving room for its content.
 
 With `contents.enabled: true`, print builds repeat LaTeX and regenerate makeindex whenever its input changes until the contents, labels and index references stop changing. This also runs without makeindex and under `--draft`. A build that does not stabilize within 12 LaTeX passes fails and retains its intermediates. The generated contents precedes all manuscript content; omit any hand-written contents listing or blank-page reservation it replaces. These settings affect print only. With the settings omitted, the existing print layout, numbering and pass order are preserved.
 
@@ -122,6 +138,26 @@ Use ordinary Pandoc Markdown for prose, lists, headings, images and tables. In t
 With `parts.enabled: true`, a document-level heading such as `# Part One. Getting started` makes an unnumbered print Part page with its full title and a Part contents entry. Below it, `## Chapter 1. First steps` becomes a print chapter, and headings from `###` through `######` are also promoted one level. This scope continues across chapter files until the next document-level `#` heading; a matching heading starts the next Part, while any other `#` ends the promotion scope and keeps its normal chapter behavior. Headings before the first Part keep their existing levels. Code examples and headings inside quotes or lists do not start or end a Part. EPUB keeps the original heading hierarchy, so both Parts and their chapters remain in its native navigation. The `<!-- toc-part: -->` directive retains its compact print contents meaning and never creates a Part page. Omit `parts.enabled` or set it to `false` to retain the existing output.
 
 Raw LaTeX `\section`, `\subsection` and `\subsubsection` retain their normal, starred and optional short-title forms. Each runs an automatic float barrier before the heading.
+
+Fenced divs such as `::: {.under-the-hood}` become boxes only when their class is named in `boxes`. The first named class in the div's class order wins. Unnamed classes retain the existing output, including within a configured book. Print boxes use grayscale backgrounds and borders and can continue across pages; Markdown headings inside them become bold local labels retaining their link targets, without chapter page breaks or contents entries. Print images inside boxes, including explicitly sized images, are capped at the width left by the box's padding and border. EPUB retains native divs, classes, identifiers and heading hierarchy, with the configured style on the div. Both formats retain the box's body markup. Box style mappings reject unknown settings and invalid values. For example:
+
+```yaml
+boxes:
+  under-the-hood:
+    print:
+      background_gray: 0.96
+      border_gray: 0.4
+      border_width: 0.6
+      padding: 10
+    epub:
+      background: "#f3f3f3"
+      border_color: "#666666"
+      border_width: 1
+      padding: 0.8
+  sidebar: {}  # Default style in both formats
+```
+
+Print boxes belong in the manuscript's normal text flow. A configured print box nested inside another configured box is refused because the TeX package cannot paginate the inner frame; close the outer box first. An unnamed div inside a box remains allowed. EPUB supports nested boxes. Use `--verbose` to see Pandoc's diagnostic if a build refuses nested print boxes.
 
 | Markup | Meaning |
 |--------|---------|
