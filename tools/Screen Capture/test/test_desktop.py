@@ -136,12 +136,19 @@ class DesktopTests(unittest.TestCase):
             '/bin/zsh', '/usr/bin/login', '/Applications/Terminal.app/Contents/MacOS/Terminal',
         ]), 'Terminal')
 
-    def test_launching_app_with_only_a_framework_bundle_is_unknown(self):
+    def test_launching_app_with_only_a_framework_bundle_names_it(self):
         self.assertEqual(self.launch_from([
             '/usr/bin/python3',
             '/Library/Frameworks/Example.framework/Resources/Python.app/Contents/MacOS/Python',
             '/usr/bin/login',
-        ]), 'unknown')
+        ]), 'Python')
+
+    def test_launching_app_keeps_an_app_holding_a_framework_helper(self):
+        self.assertEqual(self.launch_from([
+            '/bin/zsh',
+            '/Applications/Example.app/Contents/Frameworks/Example.framework/Versions/A/Helpers/Helper.app/Contents/MacOS/Helper',
+            '/Applications/Other.app/Contents/MacOS/Other',
+        ]), 'Example')
 
     def test_launching_app_with_plain_terminal_parent(self):
         self.assertEqual(self.launch_from([

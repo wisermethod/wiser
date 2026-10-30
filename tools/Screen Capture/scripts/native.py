@@ -34,21 +34,25 @@ def parent_process(pid):
 
 
 def launching_app():
-    pid, seen = os.getppid(), set()
+    pid, seen, nested = os.getppid(), set(), None
     while pid > 0 and pid not in seen:
         seen.add(pid)
         try:
             executable, parent = parent_process(pid)
         except (OSError, ValueError):
             break
-        for component in Path(executable).parts:
-            # A framework's interpreter or helper bundle does not hold the launching app's permissions.
-            if component.endswith('.framework'):
-                break
-            if component.endswith('.app'):
-                return component[:-4]
+        parts = Path(executable).parts
+        framework = next((i for i, c in enumerate(parts) if c.endswith('.framework')), len(parts))
+        outer = next((c for c in parts[:framework] if c.endswith('.app')), None)
+        if outer:
+            return outer[:-4]
+        # An interpreter's or helper's bundle inside a framework, such as a launcher's Python.app, is named only
+        # when no plain app is found above it.
+        inner = next((c for c in parts[framework:] if c.endswith('.app')), None)
+        if inner and nested is None:
+            nested = inner[:-4]
         pid = parent
-    return 'unknown'
+    return nested or 'unknown'
 
 
 def window_list(desktop=False):

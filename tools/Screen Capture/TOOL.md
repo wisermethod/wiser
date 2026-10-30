@@ -46,7 +46,7 @@ For desktop work, apply this host decision in order:
 
 1. Is the host a sandbox such as Cowork, or not macOS? Yes: stop and say this host is untested for this tool. No: read `check`.
 2. Does `check` report both permissions granted? Yes: continue with setup on this native macOS host; name `launching_app` to the person as the app holding them where it helps. No: go to step 3.
-3. Does `check` name a `launching_app` other than `unknown`, and can that app hold Screen Recording and Accessibility? Yes: the person grants the missing permissions to it as each permission's `pane` says, then re-run `check`. No, because it names `unknown` or the app cannot hold both: stop and say this host is untested for this tool.
+3. Does `check` name a `launching_app` other than `unknown`? Yes: the person grants each missing permission to it as that permission's `pane` says, then re-run `check`; both granted now, continue, and one still missing after that grant, stop and say this host is untested for this tool. No: stop and say this host is untested for this tool.
 
 With that setup complete, capture a raw still, then redact it. Replace the example paths with fresh absolute paths in the owning root, filed per `standards/conventions.md`, and replace the made-up terms with the person's own.
 
@@ -189,7 +189,7 @@ Except for help text, success is one JSON object on stdout and exit 0. Failure i
 
 | Command | Receipt or artifact |
 |---------|---------------------|
-| `check` | `ok`, `python`, `launching_app` (app name or `unknown`, whatever the permissions say), package records (`required`, `version`, `installed`), `programs`, permission objects; absent permissions also name `app` and `pane` |
+| `check` | `ok`, `python`, `launching_app` (an app name or `unknown`, present whether or not either permission is granted), package records (`required`, `version`, `installed`), `programs`, permission objects; absent permissions also name `app` and `pane` |
 | `windows` | `ok`, `windows` (id, title, layer, bounds), `main` id or null |
 | `size` | `ok`, actual `bounds` in points |
 | `click`, `move` | `ok`, global `point` actually used |
@@ -206,7 +206,7 @@ A file-processing report has `ok`, `kind`, `frames`, `distinct_frames`, `hits_pe
 
 Message fragments below identify the code's stops; variable paths, flags, steps and dependency names fill the indicated placeholders. Shared running behavior is defined in `tools/RUNNING.md`.
 
-`check` skips an interpreter's or helper's `.app` bundle inside a `.framework` and keeps walking to the launching app. If a copy still names that framework bundle, use version 0.1.2 or newer and re-run `check`. Apply Quick Start's host decision to its permissions and `launching_app`.
+`check` skips an interpreter's or helper's `.app` bundle inside a `.framework` and keeps walking to the launching app, naming that inner bundle only when no other app is found above it. Apply Quick Start's host decision to its permissions and `launching_app`.
 
 | Message | Cause | Fix |
 |---------|-------|-----|
