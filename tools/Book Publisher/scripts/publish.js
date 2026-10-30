@@ -44,6 +44,14 @@ const INSTALL_SIZE = formatInstallSize(INSTALL_BYTES);
 
 const COMMANDS = new Set(['build', 'validate', 'check', 'init']);
 const DEFAULT_MARGINS = { top: 0.85, bottom: 0.85, outer: 0.85, inner: 1.1 };
+// One source for the template's reserved space and its validation minima.
+// Match book.cls's existing separation, including its 10pt fallback for an
+// unsupported size, so making these lengths explicit does not move a page.
+const PRINT_LAYOUT = { footskip: '0.45in', headheight: '14pt', thumbtabwidth: '0.5in' };
+function printLayout(config) {
+  const size = config.typography?.font_size ? `${config.typography.font_size}pt` : '12pt';
+  return { ...PRINT_LAYOUT, headsep: ['11pt', '12pt'].includes(size) ? '0.275in' : '0.25in' };
+}
 const BOX_DEFAULTS = {
   print: { background_gray: 0.95, border_gray: 0.5, border_width: 0.5, padding: 8 },
   epub: { background: '#f2f2f2', border_color: '#808080', border_width: 1, padding: 0.75 }
@@ -683,15 +691,29 @@ function validateConfig(config) {
           errors.push(`margins.${edge} must be a finite nonnegative number in inches`);
         }
       }
-      const margins = printMargins(config);
-      if (Object.values(margins).every(Number.isFinite)) {
-        if (config.trim?.width - margins.outer - margins.inner <= 0) {
-          errors.push('margins.outer and margins.inner must leave a positive text width within trim.width');
-        }
-        if (config.trim?.height - margins.top - margins.bottom <= 0) {
-          errors.push('margins.top and margins.bottom must leave a positive text height within trim.height');
-        }
-      }
+    }
+  }
+  const margins = printMargins(config);
+  const layout = printLayout(config);
+  const inches = (length) => parseFloat(length) / (length.endsWith('pt') ? 72.27 : 1);
+  const minimums = {
+    bottom: [inches(layout.footskip), `footer (footskip ${layout.footskip})`],
+    top: [inches(layout.headheight) + inches(layout.headsep),
+      `header (headheight ${layout.headheight} plus headsep ${layout.headsep}), even on pages without a header`],
+    outer: [inches(layout.thumbtabwidth), `thumb tabs (${layout.thumbtabwidth}), reserved for every manuscript`]
+  };
+  for (const [edge, [minimum, reason]] of Object.entries(minimums)) {
+    if (Number.isFinite(margins[edge]) && margins[edge] < minimum) {
+      errors.push(`margins.${edge} must be at least ${minimum} inches for the ${reason}`);
+    }
+  }
+  // Test the margins in force, including when the whole mapping is omitted.
+  if (Object.values(margins).every(Number.isFinite)) {
+    if (config.trim?.width - margins.outer - margins.inner <= 0) {
+      errors.push('margins.outer and margins.inner must leave a positive text width within trim.width');
+    }
+    if (config.trim?.height - margins.top - margins.bottom <= 0) {
+      errors.push('margins.top and margins.bottom must leave a positive text height within trim.height');
     }
   }
   return errors;
@@ -895,6 +917,12 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
   const indexFilter = join(FILTERS_DIR, 'index-filter.lua');
   const formatFilter = join(FILTERS_DIR, 'format-filter.lua');
   const margins = printMargins(config);
+  const layout = printLayout(config);
+  const textWidth = config.trim.width - margins.outer - margins.inner;
+  const roundedWidth = textWidth.toFixed(2);
+  // Keep the existing metadata where it fits; otherwise retain the precision
+  // needed by the image filter to cap its final LaTeX width safely.
+  const imageWidth = Number(roundedWidth) > 0 && Number(roundedWidth) <= textWidth ? roundedWidth : String(textWidth);
 
   const pandocArgs = [
     mergedFile,
@@ -911,7 +939,8 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
     '--variable', `margin-bottom=${margins.bottom}in`,
     '--variable', `margin-outer=${margins.outer}in`,
     '--variable', `margin-inner=${margins.inner}in`,
-    '--metadata', `content-width=${(config.trim.width - margins.outer - margins.inner).toFixed(2)}`,
+    ...Object.entries(layout).flatMap(([key, value]) => ['--variable', `layout-${key}=${value}`]),
+    '--metadata', `content-width=${imageWidth}`,
     '--resource-path', bookDir
   ];
 

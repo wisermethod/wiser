@@ -14,8 +14,9 @@
   bottom=$if(margin-bottom)$$margin-bottom$$else$0.85in$endif$,
   outer=$if(margin-outer)$$margin-outer$$else$0.85in$endif$,
   inner=$if(margin-inner)$$margin-inner$$else$1.1in$endif$,
-  footskip=0.45in,
-  headheight=14pt
+  footskip=$layout-footskip$,
+  headheight=$layout-headheight$,
+  headsep=$layout-headsep$
 ]{geometry}
 
 %% =============================================================================
@@ -359,7 +360,7 @@ $endif$
 
 % Thumb tab configuration
 \newlength{\thumbtabwidth}
-\setlength{\thumbtabwidth}{0.5in}
+\setlength{\thumbtabwidth}{$layout-thumbtabwidth$}
 \newlength{\thumbtabheight}
 \setlength{\thumbtabheight}{1.0in}
 \newlength{\thumbtabpadding}

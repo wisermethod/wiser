@@ -69,9 +69,9 @@ Pass `--config` as an absolute path. Paths inside YAML resolve relative to that 
 | `title` | Book title | Required |
 | `authors` and `authors[].name` | List of name strings or objects with `name` | Required nonempty list |
 | `trim.width`, `trim.height` | Print dimensions in inches | Required, including for validation and EPUB-only |
-| `margins.top` | Print top margin in inches, a finite nonnegative number | `0.85` |
-| `margins.bottom` | Print bottom margin in inches, a finite nonnegative number | `0.85` |
-| `margins.outer` | Print outer margin in inches, a finite nonnegative number | `0.85` |
+| `margins.top` | Print top margin in inches, at least the template's header height plus separation (see below), even without a visible header | `0.85` |
+| `margins.bottom` | Print bottom margin in inches, at least the template's footer skip (`0.45`) | `0.85` |
+| `margins.outer` | Print outer margin in inches, at least the template's thumb-tab width (`0.5`), reserved for every manuscript | `0.85` |
 | `margins.inner` | Print binding-side margin in inches, a finite nonnegative number | `1.1` |
 | `source.chapters` | Directory of chapter Markdown files | Required |
 | `source.assets` | Asset directory | Print falls back to `../assets` relative to the config; supply explicitly for EPUB |
@@ -116,7 +116,9 @@ Pass `--config` as an absolute path. Paths inside YAML resolve relative to that 
 | `index.extractor.frontMatterPages` | Initial manuscript pages skipped during term and heading searches; generated contents pages never count toward this skip | `5` |
 | `index.extractor.indexFallbackFromEnd` | Fallback index start, this many pages from the end | `10` |
 
-Margins may be set independently; omitted edges keep their defaults. The inner and outer margins must leave a positive text width within the trim, and the top and bottom margins must leave a positive text height. Print image sizing uses the trim width minus the inner and outer margins.
+Margins must be finite numbers and may be set independently; omitted edges keep their defaults. `validate`, `check --config` and `build` refuse margins below the template's reserved space, naming the setting and minimum in inches. The header needs `14pt` plus `0.275in` separation at the default `12pt` size and at `11pt`, a minimum of `0.275 + 14/72.27` inches (approximately `0.468718`). At `10pt`, including the book class's fallback for unsupported sizes, separation remains `0.25in`, so the minimum is `0.25 + 14/72.27` inches (approximately `0.443718`). The footer needs `0.45in`; thumb tabs need `0.5in`. These template lengths and validation minima come from the same internal layout values; they add no config setting. Thumb-tab space is always reserved because config validation precedes the manuscript merge, which may reuse `source.merged`; it does not depend on finding tab markup. The inner margin remains nonnegative. The margins in force, including when `margins` is entirely omitted, must leave a positive text width and height within the trim. The defaults pass on both 8 by 10 inch and 5.5 by 8.5 inch trim.
+
+Automatic print image sizing uses the trim width minus the inner and outer margins. Existing two-decimal sizing is retained when it fits (including exactly `6.05in` on the default 8 inch trim). If rounding would exceed the text block, the width retains its precision and the image filter uses the actual LaTeX line width when its own rounding would exceed that limit. Explicit Markdown image widths still take precedence. EPUB sizing is unchanged.
 
 For each boxed class, twice the sum of its print padding and border width must be smaller than the text width inside the print margins, leaving room for its content.
 

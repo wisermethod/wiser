@@ -571,11 +571,21 @@ local function resolve_image_path(src)
 end
 
 -- Build centered image LaTeX (non-floating)
+local function latex_image_width(width_inches)
+  local rounded = string.format("%.2f", width_inches)
+  -- Preserve existing sizing unless rounding would cross the text block's
+  -- edge. Use the actual TeX line width even for widths below 0.01 inch.
+  if tonumber(rounded) > CONTENT_WIDTH_INCHES then
+    return "\\linewidth"
+  end
+  return rounded .. "in"
+end
+
 local function build_image_latex(src, width_inches)
   local latex = "\\begin{center}\n"
   
   if width_inches then
-    latex = latex .. "\\includegraphics[width=" .. string.format("%.2f", width_inches) .. "in]{" .. src .. "}\n"
+    latex = latex .. "\\includegraphics[width=" .. latex_image_width(width_inches) .. "]{" .. src .. "}\n"
   else
     latex = latex .. "\\includegraphics[width=\\linewidth,keepaspectratio]{" .. src .. "}\n"
   end
@@ -661,7 +671,7 @@ function Image(elem)
   if is_latex_output() then
     local latex
     if width_inches then
-      latex = "\\includegraphics[width=" .. string.format("%.2f", width_inches) .. "in]{" .. src .. "}"
+      latex = "\\includegraphics[width=" .. latex_image_width(width_inches) .. "]{" .. src .. "}"
     else
       latex = "\\includegraphics[width=\\linewidth,keepaspectratio]{" .. src .. "}"
     end
