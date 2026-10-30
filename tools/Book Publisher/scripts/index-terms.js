@@ -40,15 +40,30 @@ function phrasePattern(phrases) {
   return new RegExp(`(?<![\\p{L}\\p{N}_])(?:${alternatives.join('|')})(?![\\p{L}\\p{N}_])`, 'iu');
 }
 
-// Search original prose intervals, so inserted markers never become new hits.
-// Offsets always refer to the unchanged input, including multiline phrases.
-function eligibleSpans(text) {
+const referenceLabel = (text) => text.trim().replace(/\s+/gu, ' ').toLowerCase();
+
+// Keep a same-length search view: quote prefixes become whitespace, while all
+// offsets still point into the original manuscript, including wrapped phrases.
+function protectedProse(text) {
   const blocked = [];
+  const definitions = [];
+  let searchable = '';
+  let previousDepth = 0;
   let fence;
   const containers = [];
   let offset = 0;
   for (const line of text.match(/[^\n]*\n|[^\n]+$/g) ?? []) {
-    const body = line.replace(/^ {0,3}(?:>[ \t]?)+/, '').replace(/\t/g, '    ');
+    let prose = line;
+    let depth = 0;
+    for (let prefix; (prefix = /^ {0,3}>[ \t]?/.exec(prose)); depth += 1) {
+      prose = prose.slice(prefix[0].length);
+    }
+    searchable += ' '.repeat(line.length - prose.length) + prose;
+    // A newline between different quote depths is a prose boundary, even when
+    // Markdown would render an unprefixed line as a lazy quote continuation.
+    if (offset && depth !== previousDepth) blocked.push([offset - 1, offset]);
+    previousDepth = depth;
+    const body = prose.replace(/\t/g, '    ');
     const indent = /^ */.exec(body)[0].length;
     const list = /^ *(?:[-+*]|\d+[.)])[ \t]+/.exec(body);
     const footnote = /^ *\[\^[^\]]+\]:/.test(body);
@@ -68,7 +83,10 @@ function eligibleSpans(text) {
       blocked.push([offset, offset + line.length]);
     } else if (!body.trim() || (!list && !footnote && indent >= margin + 4) ||
         /^(?: {0,3}#{1,6}[ \t]|\s*:::|\s*\[[^\]]+\]:)/.test(content)) {
-      blocked.push([offset, offset + line.length]);
+      const definition = /^ {0,3}\[(?!\^)((?:\\.|[^\]\\\r\n])+)\]:[ \t]*(\S[^\r\n]*)?/.exec(content);
+      if (definition && (definition[2] || /^[ \t]*\S/.test(text.slice(offset + line.length)))) {
+        definitions.push([offset, offset + line.length, referenceLabel(definition[1])]);
+      } else blocked.push([offset, offset + line.length]);
     }
     offset += line.length;
   }
@@ -85,6 +103,15 @@ function eligibleSpans(text) {
   ]) {
     for (const match of text.matchAll(pattern)) blocked.push([match.index, match.index + match[0].length]);
   }
+  const references = definitions.filter(([a]) => !blocked.some(([x, y]) => x <= a && a < y))
+    .map(([, , label]) => label);
+  for (const [a, b] of definitions) blocked.push([a, b]);
+  return { blocked, references, searchable };
+}
+
+// Inserted markers never become new hits. References are collected book-wide
+// before searching, so a shortcut can use a definition in a later chapter.
+function eligibleSpans(text, blocked, references) {
   // Link labels and destinations are excluded together. Delimiters may nest.
   // A bracket inside code or a comment cannot consume later prose as a link.
   for (let i = 0; i < text.length; i += 1) {
@@ -99,13 +126,17 @@ function eligibleSpans(text) {
         if (text[pos] === open) depth += 1;
         if (text[pos] === close && --depth === 0) return pos + 1;
       }
-      return text.length;
+      return undefined;
     };
     let end = balanced(i, '[', ']');
-    // Also skip shortcut references; a bracketed label is not searched.
+    if (end === undefined) continue;
+    const label = text.slice(i + 1, end - 1);
+    const image = text[i - 1] === '!' && text[i - 2] !== '\\';
     if (text[end] === '(') end = balanced(end, '(', ')');
     else if (text[end] === '[') end = balanced(end, '[', ']');
-    blocked.push([start, end]);
+    else if (!image && !references.has(referenceLabel(label))) continue;
+    if (end === undefined) continue;
+    blocked.push([image ? start - 1 : start, end]);
     i = end - 1;
   }
   const spans = [];
@@ -135,14 +166,17 @@ function marker(row) {
 
 export function indexChapters(chapters, terms) {
   const seen = new Set();
-  return chapters.map((chapter) => {
-    const spans = eligibleSpans(chapter);
+  const prose = chapters.map(protectedProse);
+  const references = new Set(prose.flatMap((chapter) => chapter.references));
+  return chapters.map((chapter, i) => {
+    const { blocked, searchable } = prose[i];
+    const spans = eligibleSpans(searchable, blocked, references);
     const insertions = [];
     for (const row of terms) {
       if ((row.scope === 'first' || row.see) && seen.has(row.term)) continue;
       const pattern = phrasePattern(row.match);
       for (const [a, b] of spans) {
-        const match = pattern.exec(chapter.slice(a, b));
+        const match = pattern.exec(searchable.slice(a, b));
         if (!match) continue;
         insertions.push([a + match.index + match[0].length, marker(row)]);
         seen.add(row.term);
