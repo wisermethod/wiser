@@ -53,7 +53,7 @@ Capture and drive flags:
   --a <path>         First run directory (compare).
   --b <path>         Second run directory (compare).
   --output <path>    New PNG (still), MOV (record), or directory (run), absolute, outside tool.
-check installs nothing and reports both permissions, their settings panes and launching app.
+check installs nothing and reports the launching app and both permissions, with a settings pane on each one not granted.
 windows returns a windows list (including titles) and the main window id. Other receipts omit titles.
 run validates every step first; writes raw/<id>.png and run.json even after a refused step.
 compare counts differing RGBA pixels; box is exclusive [left,top,right,bottom].

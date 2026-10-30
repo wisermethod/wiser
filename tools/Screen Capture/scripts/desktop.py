@@ -219,7 +219,7 @@ def media_has_libx264():
 def check(tool):
     granted = native.permissions()
     app = native.launching_app()
-    return {'ok': True, 'python': sys.version.split()[0], 'packages': package_status(tool),
+    return {'ok': True, 'python': sys.version.split()[0], 'launching_app': app, 'packages': package_status(tool),
             'programs': {**{name: shutil.which(name) is not None
                             for name in ('ffmpeg', 'ffprobe', 'tesseract', 'screencapture')},
                          'ffmpeg_libx264': shutil.which('ffmpeg') is not None and media_has_libx264()},

@@ -3,7 +3,7 @@ name: Screen Capture
 type: tool
 category: media
 description: Captures and drives a macOS app window, redacts PNG stills and recordings, and checks every written frame for email-shaped text and declared terms
-version: 0.1.1
+version: 0.1.2
 gaps:
   - Desktop capture and redaction on Windows and Linux
 ---
@@ -40,9 +40,13 @@ python3 scripts/capture.py help
 python3 scripts/capture.py check
 ```
 
-`help` needs no packages. `check` installs nothing, downloads nothing and prompts for no permission. Read `packages[*].installed`, `programs` and `permissions[*].granted`, not just `ok` or the exit code. When a permission is absent, its object names the launching app and its System Settings pane. **Screen Recording and Accessibility belong to the terminal, editor or app that launched the tool**, not to the app being captured. The person grants them in System Settings > Privacy & Security > Screen Recording and Accessibility; granting them is the person's own step. Load `SETUP.md` when dependencies or permissions are missing.
+`help` needs no packages. `check` installs nothing, downloads nothing and prompts for no permission. Read `packages[*].installed`, `programs` and `permissions[*].granted`, not just `ok` or the exit code. Its top-level `launching_app` always names the launching app, or `unknown` when none is found. When a permission is absent, its object also names that `app` and its System Settings `pane`. **Screen Recording and Accessibility belong to the terminal, editor or app that launched the tool**, not to the app being captured. Granting them is the person's own step. Load `SETUP.md` when dependencies or permissions are missing.
 
-For desktop work, does `check` name a launching app other than `unknown`, and can that app hold Screen Recording and Accessibility? Yes, on a native macOS host: continue with setup. No, because it names no app, names `unknown`, the app cannot hold both permissions, or the host is a sandbox such as Cowork: stop and say this host is untested for this tool.
+For desktop work, apply this host decision in order:
+
+1. Is the host a sandbox such as Cowork, or not macOS? Yes: stop and say this host is untested for this tool. No: read `check`.
+2. Does `check` report both permissions granted? Yes: continue with setup on this native macOS host; name `launching_app` to the person as the app holding them where it helps. No: go to step 3.
+3. Does `check` name a `launching_app` other than `unknown`? Yes: the person grants each missing permission to it as that permission's `pane` says, then re-run `check`; both granted now, continue, and one still missing after that grant, stop and say this host is untested for this tool. No: stop and say this host is untested for this tool.
 
 With that setup complete, capture a raw still, then redact it. Replace the example paths with fresh absolute paths in the owning root, filed per `standards/conventions.md`, and replace the made-up terms with the person's own.
 
@@ -185,7 +189,7 @@ Except for help text, success is one JSON object on stdout and exit 0. Failure i
 
 | Command | Receipt or artifact |
 |---------|---------------------|
-| `check` | `ok`, `python`, package records (`required`, `version`, `installed`), `programs`, permission objects; absent permissions also name `app` and `pane` |
+| `check` | `ok`, `python`, `launching_app` (an app name or `unknown`, present whether or not either permission is granted), package records (`required`, `version`, `installed`), `programs`, permission objects; absent permissions also name `app` and `pane` |
 | `windows` | `ok`, `windows` (id, title, layer, bounds), `main` id or null |
 | `size` | `ok`, actual `bounds` in points |
 | `click`, `move` | `ok`, global `point` actually used |
@@ -201,6 +205,8 @@ A file-processing report has `ok`, `kind`, `frames`, `distinct_frames`, `hits_pe
 ## Troubleshooting
 
 Message fragments below identify the code's stops; variable paths, flags, steps and dependency names fill the indicated placeholders. Shared running behavior is defined in `tools/RUNNING.md`.
+
+`check` skips an interpreter's or helper's `.app` bundle inside a `.framework` and keeps walking to the launching app, naming that inner bundle only when no other app is found above it. Apply Quick Start's host decision to its permissions and `launching_app`.
 
 | Message | Cause | Fix |
 |---------|-------|-----|
@@ -298,7 +304,7 @@ Message fragments below identify the code's stops; variable paths, flags, steps 
 ## Success
 
 - `help` prints complete usage and exits 0 without packages or configuration.
-- `check` exits 0 with one JSON object, creates no cache or permission prompt, and identifies every absent permission's app and pane. Read its booleans to judge readiness.
+- `check` exits 0 with one JSON object, creates no cache or permission prompt, always reports `launching_app`, and identifies every absent permission's app and pane. Read its booleans to judge readiness.
 - A capture writes a nonempty new raw file; a recipe's `run.json` contains the attempted steps and still hashes and geometry described under Recipe JSON, and a refusal records the failed step without running later ones.
 - A compare reports zero differing pixels and null box for identical stills, a pixel count and exclusive box for changed stills, null counts for changed sizes, and missing ids separately.
 - A redaction of a synthetic still or recording containing the supplied address and names writes a new output, exits 0 with parseable JSON, and reports zero hits from both engines on every written frame. A subsequent verify with the same terms also passes.

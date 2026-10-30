@@ -1,6 +1,6 @@
 # Screen Capture Setup
 
-System dependencies are once per macOS machine, packages once per plugin copy (`tools/RUNNING.md`). Run commands from this tool's directory. Before desktop work, apply TOOL.md's Quick Start host decision; a sandbox such as Cowork or an unidentified launching app stops as untested.
+System dependencies are once per macOS machine, packages once per plugin copy (`tools/RUNNING.md`). Run commands from this tool's directory. Before desktop work, apply TOOL.md's Quick Start host decision in its stated order.
 
 ## 1. Interpreter and system programs
 
@@ -11,7 +11,7 @@ python3 scripts/capture.py help
 python3 scripts/capture.py check
 ```
 
-The version command must print 3.9 or newer and exit 0; `python3 -m venv --help` must print usage. Use compatible wheels for that interpreter. The measured copies use Python 3.9.6, 3.11.15 and 3.14.7. `check` surveys the interpreter, required pins in this interpreter's `.venv`, programs on PATH and both permissions, without installing, capturing, driving an app or asking macOS for permission. Its `programs` booleans mean presence on PATH, except `ffmpeg_libx264`, which asks FFmpeg for its encoders.
+The version command must print 3.9 or newer and exit 0; `python3 -m venv --help` must print usage. Use compatible wheels for that interpreter. The measured copies use Python 3.9.6, 3.11.15 and 3.14.7. `check` surveys the interpreter, required pins in this interpreter's `.venv`, programs on PATH and both permissions, without installing, capturing, driving an app or asking macOS for permission. It always reports top-level `launching_app`, including `unknown`. Its `programs` booleans mean presence on PATH, except `ffmpeg_libx264`, which asks FFmpeg for its encoders.
 
 TOOL.md's Dependencies section names the system checks: Python, FFmpeg with ffprobe, Tesseract, and screencapture (which ships with macOS). For redacted video, `ffmpeg -hide_banner -encoders` must list `libx264`; a video redaction refuses without it before installing packages. Tesseract checks stills as well as recordings. FFmpeg decodes recordings; ffprobe reads their encoded colour tags. The tool installs none of these programs.
 
@@ -27,7 +27,7 @@ An install failure names the incomplete `.venv`. Remove that `.venv`, check `pyt
 
 ## 3. macOS permissions
 
-Screen Recording belongs to the app that launched the tool, such as the terminal or editor. Accessibility belongs to that same launching app. They do not belong to the app being captured. When either is missing, `check` returns its `granted:false`, the launching `app` (or `unknown` if it could not identify one), and its `pane`:
+Screen Recording belongs to the app that launched the tool, such as the terminal or editor. Accessibility belongs to that same launching app. They do not belong to the app being captured. `check` names it in `launching_app` even when both permissions are granted. When either is missing, its permission object also returns `granted:false`, that `app` (or `unknown` if it could not identify one), and its `pane`:
 
 - System Settings > Privacy & Security > Screen Recording
 - System Settings > Privacy & Security > Accessibility

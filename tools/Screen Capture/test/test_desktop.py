@@ -80,6 +80,84 @@ class DesktopTests(unittest.TestCase):
         for name in ('window_list', 'activate', 'osascript', 'mouse', 'keyboard', 'capture'):
             self.adapters[name].assert_not_called()
 
+    def test_check_granted_permissions_still_names_launching_app(self):
+        self.stack.enter_context(patch.object(desktop, 'media_has_libx264', return_value=True))
+        code, out, err = self.invoke(['check'])
+        result = json.loads(out)
+        self.assertEqual((code, err), (0, ''))
+        self.assertEqual(result['permissions'], {'screen_recording': {'granted': True},
+                                                'accessibility': {'granted': True}})
+        self.assertEqual(result.get('launching_app'), 'Synthetic Host')
+        install.ensure.assert_not_called()
+        for name in ('parent_process', 'window_list', 'activate', 'osascript', 'mouse', 'keyboard', 'capture'):
+            self.adapters[name].assert_not_called()
+
+    def test_check_missing_permission_keeps_app_pane_and_names_launching_app(self):
+        self.stack.enter_context(patch.object(desktop, 'media_has_libx264', return_value=True))
+        for missing, pane in (('screen_recording', 'Screen Recording'), ('accessibility', 'Accessibility')):
+            with self.subTest(missing=missing):
+                self.stub('permissions', return_value={name: name != missing
+                                                      for name in ('screen_recording', 'accessibility')})
+                code, out, err = self.invoke(['check'])
+                result = json.loads(out)
+                self.assertEqual((code, err), (0, ''))
+                permission = result['permissions'][missing]
+                self.assertEqual(permission, {'granted': False, 'app': 'Synthetic Host',
+                                             'pane': 'System Settings > Privacy & Security > ' + pane})
+                other = 'accessibility' if missing == 'screen_recording' else 'screen_recording'
+                self.assertEqual(result['permissions'][other], {'granted': True})
+                self.assertEqual(result.get('launching_app'), permission['app'])
+        install.ensure.assert_not_called()
+
+    def test_check_unknown_launching_app_is_reported(self):
+        self.stack.enter_context(patch.object(desktop, 'media_has_libx264', return_value=True))
+        self.stub('launching_app', return_value='unknown')
+        for granted in (True, False):
+            with self.subTest(granted=granted):
+                self.stub('permissions', return_value={'screen_recording': granted, 'accessibility': granted})
+                code, out, err = self.invoke(['check'])
+                self.assertEqual((code, err), (0, ''))
+                self.assertEqual(json.loads(out).get('launching_app'), 'unknown')
+
+    def launch_from(self, executables):
+        chain = {700 + i: (path, 701 + i if i + 1 < len(executables) else 0)
+                 for i, path in enumerate(executables)}
+        parent = self.stub('parent_process', side_effect=lambda pid: chain[pid])
+        with patch.object(native.os, 'getppid', return_value=700):
+            result = ORIGINAL_LAUNCHING_APP()
+        parent.assert_any_call(700)
+        self.adapters['permissions'].assert_not_called()
+        return result
+
+    def test_launching_app_skips_framework_interpreter_to_terminal(self):
+        self.assertEqual(self.launch_from([
+            '/bin/zsh', '/usr/local/bin/agent',
+            '/Library/Frameworks/Example.framework/Versions/3.9/Resources/Python.app/Contents/MacOS/Python',
+            '/bin/zsh', '/usr/bin/login', '/Applications/Terminal.app/Contents/MacOS/Terminal',
+        ]), 'Terminal')
+
+    def test_launching_app_with_only_a_framework_bundle_names_it(self):
+        self.assertEqual(self.launch_from([
+            '/usr/bin/python3',
+            '/Library/Frameworks/Example.framework/Resources/Python.app/Contents/MacOS/Python',
+            '/usr/bin/login',
+        ]), 'Python')
+
+    def test_launching_app_keeps_an_app_holding_a_framework_helper(self):
+        self.assertEqual(self.launch_from([
+            '/bin/zsh',
+            '/Applications/Example.app/Contents/Frameworks/Example.framework/Versions/A/Helpers/Helper.app/Contents/MacOS/Helper',
+            '/Applications/Other.app/Contents/MacOS/Other',
+        ]), 'Example')
+
+    def test_launching_app_with_plain_terminal_parent(self):
+        self.assertEqual(self.launch_from([
+            '/bin/zsh', '/Applications/Terminal.app/Contents/MacOS/Terminal',
+        ]), 'Terminal')
+
+    def test_launching_app_without_a_bundle_is_unknown(self):
+        self.assertEqual(self.launch_from(['/bin/zsh', '/usr/bin/login']), 'unknown')
+
     def test_permission_ctypes_probes_and_launch_parent_walk(self):
         # Invoke the real probes only against fake framework handles.
         with patch.object(ctypes, 'CDLL', return_value=Mock()) as load:
