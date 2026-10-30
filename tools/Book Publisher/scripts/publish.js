@@ -211,16 +211,24 @@ function requireTexFiles(config) {
     'amssymb', 'xcolor', 'graphicx', 'float', 'placeins', 'caption',
     'longtable', 'booktabs', 'array', 'calc', 'enumitem', 'needspace',
     'fancyhdr', 'titlesec', 'setspace', 'csquotes', 'listings', 'fancyvrb',
-    'makeidx', 'eso-pic', 'tikz', 'hyperref', 'lmodern'
+    'makeidx', 'eso-pic', 'tikz', 'hyperref'
   ];
-  // The dotted fontfamily variables fall back to lmodern in Pandoc, so the
-  // template loads Latin Modern whatever typography.font_family names; check
-  // only what is loaded. A family's own packages join this list when the
-  // template starts loading that family.
+  // Match the selected template branch, including the Type 1 package loaded
+  // by libertinus under this tool's pdflatex engine.
+  if (config.typography?.font_family === 'libertinus') {
+    packages.push('libertinus', 'libertinus-type1', 'newtxmath',
+      'iftex', 'ifxetex', 'ifluatex', 'xkeyval', 'textcomp', 'fontaxes',
+      'amsmath', 'ifthen', 'etoolbox', 'centernot');
+  } else if (config.typography?.font_family === 'source-serif') {
+    packages.push('sourceserifpro');
+  } else {
+    packages.push('lmodern');
+  }
   const files = ['book.cls', ...packages.map((name) => `${name}.sty`),
     't1enc.def', 'utf8.def', 'english.ldf',
     'T1SourceSansPro-TLF.fd', 'SourceSansPro-Bold-tlf-t1.tfm',
     'SourceSansPro-Bold.pfb', 'a_emkxm5.enc'];
+  if (config.typography?.font_family === 'libertinus') files.push('binhex.tex');
   if (Object.keys(config.boxes ?? {}).length) {
     files.push('mdframed.sty', 'md-frame-0.mdf', 'kvoptions.sty', 'xparse.sty',
       'etoolbox.sty', 'zref-abspage.sty', 'zref-base.sty', 'color.sty',
@@ -918,7 +926,12 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
   }
   if (config.typography?.font_family) {
     pandocArgs.push('--variable', 'fontfamily=true');
-    pandocArgs.push('--variable', `fontfamily.${config.typography.font_family}=true`);
+    // Only the exact strings requireTexFiles checks select a family; any
+    // other value, a list included, keeps the template's Latin Modern.
+    const family = config.typography.font_family;
+    if (family === 'libertinus' || family === 'source-serif') {
+      pandocArgs.push('--variable', `fontfamily-${family}=true`);
+    }
   }
   if (config.typography?.quote_font === 'sans') {
     pandocArgs.push('--variable', 'quote-sans=true');
