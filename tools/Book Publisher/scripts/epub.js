@@ -2,37 +2,52 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { deflateRawSync, inflateRawSync } from 'node:zlib';
 
-// Offset of the first Markdown heading line after the line holding `from`, or the text's
-// length. A heading is an ATX line (up to three spaces, one to six #, then a space, a tab
-// or the line's end) or a setext underline's text line; lines inside fenced code are not.
-function nextHeadingStart(content, from) {
-  const lineEnd = content.indexOf('\n', from);
-  if (lineEnd === -1) return content.length;
-  let fence = null;
-  let offset = lineEnd + 1;
-  let previous = null; // { start, text } of the last line outside a fence
-  for (const line of content.substring(offset).split('\n')) {
-    const opener = /^ {0,3}(`{3,}|~{3,})/.exec(line);
-    if (fence) {
-      if (opener && opener[1][0] === fence[0] && opener[1].length >= fence.length && /^ {0,3}[`~]+[ \t]*$/.test(line)) fence = null;
-      previous = null;
-    } else if (opener) {
-      fence = opener[1];
-      previous = null;
-    } else if (/^ {0,3}#{1,6}(?:[ \t]|$)/.test(line)) {
-      return offset;
-    } else if (previous && previous.text.trim() && /^ {0,3}(?:=+|-+)[ \t]*$/.test(line)
-               && !/^ {0,3}#{1,6}(?:[ \t]|$)/.test(previous.text)) {
-      return previous.start;
-    } else {
-      previous = { start: offset, text: line };
+// End offset of the copyright block that starts on the line holding `from`, as Pandoc's
+// markdown reader reads the text. The block is the copyright page: it ends before the next
+// heading, an ATX line (one to six # at the line's start, then a space, a tab or the line's
+// end) or a setext line (text underlined by = or - at the line's start), each after a blank
+// line as blank_before_header requires; or, earlier, after a line containing " is a trademark".
+// Neither counts inside fenced code, which opens only after a blank line and only when a
+// matching fence closes it.
+function copyrightBlockEnd(content, from) {
+  const firstEnd = content.indexOf('\n', from);
+  if (content.substring(from, firstEnd === -1 ? content.length : firstEnd).includes(' is a trademark')) {
+    return firstEnd === -1 ? content.length : firstEnd + 1;
+  }
+  if (firstEnd === -1) return content.length;
+  const lines = content.substring(firstEnd + 1).split('\n');
+  const starts = [];
+  let offset = firstEnd + 1;
+  for (const line of lines) { starts.push(offset); offset += line.length + 1; }
+  const blank = (s) => s.trim() === '';
+  const atx = /^#{1,6}(?:[ \t]|$)/;
+  const opener = /^ {0,3}(`{3,}|~{3,})/;
+  const closes = (line, fence) => {
+    const m = /^ {0,3}([`~]{3,})[ \t]*$/.exec(line);
+    return Boolean(m) && m[1][0] === fence[0] && m[1].length >= fence.length;
+  };
+  // Whether the line before line i ends a block, so a heading or a fence may start at i.
+  let afterBlock = false; // the line before the first scanned line is copyright text
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const open = afterBlock ? opener.exec(line) : null;
+    if (open) {
+      const close = lines.findIndex((l, k) => k > i && closes(l, open[1]));
+      if (close !== -1) { i = close; afterBlock = true; continue; }
     }
-    offset += line.length + 1;
+    if (line.includes(' is a trademark')) return Math.min(starts[i] + line.length + 1, content.length);
+    if (afterBlock && atx.test(line)) return starts[i];
+    const underline = lines[i + 1] !== undefined && /^(?:=+|-+)[ \t]*$/.test(lines[i + 1]);
+    if (afterBlock && !blank(line) && underline) return starts[i];
+    afterBlock = blank(line);
   }
   return content.length;
 }
 
 export function cleanMarkdownForEpub(content, config) {
+  // Pandoc reads a carriage return as a line end; so does every phase below.
+  content = content.replace(/\r\n?/g, '\n');
+
   // ==========================================================================
   // PHASE 1: Convert line break markers before stripping all comments
   // ==========================================================================
@@ -118,15 +133,9 @@ export function cleanMarkdownForEpub(content, config) {
       : yearPos;
     if (blockStart < 0) blockStart = 0;
 
-    // The copyright page ends at the next heading, so the block never takes in a chapter.
-    // Within that page, the convention " is a trademark" ends it earlier.
-    const pageEnd = nextHeadingStart(content, copyrightPos);
-    const trademark = /[^\n]* is a trademark[^\n]*/.exec(content.substring(copyrightPos, pageEnd));
-    let blockEnd = pageEnd;
-    if (trademark) {
-      blockEnd = content.indexOf('\n', copyrightPos + trademark.index);
-      blockEnd = blockEnd === -1 ? content.length : blockEnd + 1; // include the newline
-    }
+    // The block is the copyright page, so it never takes in a chapter; the convention
+    // " is a trademark" on that page ends it earlier.
+    const blockEnd = copyrightBlockEnd(content, copyrightPos);
 
     const before = content.substring(0, blockStart);
     const copyrightBlock = content.substring(blockStart, blockEnd).trim();
