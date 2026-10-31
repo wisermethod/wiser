@@ -1,4 +1,4 @@
-// Offline viewport evidence for the shared full view and the looks' action buttons.
+// Offline evidence for extra picks, the one-look action and the full-size link.
 import assert from 'node:assert/strict';
 import {existsSync,mkdirSync,readFileSync,realpathSync,statSync,writeFileSync} from 'node:fs';
 import {basename,dirname,isAbsolute,resolve,sep} from 'node:path';
@@ -28,16 +28,16 @@ export async function capture(boardsPath,looksPath,output){
  const {browserKit,onlyFonts}=await import('./boards-harness.js');
  const kit=await browserKit(),record={pageBytes:kit.pageBytes,boardsBytes:Buffer.byteLength(JSON.stringify(boards)),looksBytes:Buffer.byteLength(JSON.stringify(looks)),renders:[]};
  try{
-  for(const name of ['chatgpt','Claude'])for(const theme of ['light','dark'])for(const state of ['third-row-open','looks-0','looks-1','looks-2']){
-   const board=state==='third-row-open',form=board?boards:looks,width=734;
+  for(const name of ['chatgpt','Claude'])for(const theme of ['light','dark'])for(const state of ['boards-4','looks-1','looks-4','tile-row']){
+   const board=state==='boards-4'||state==='tile-row',form=board?boards:looks,width=734;
    const h=await kit.open(form,width,theme,{name,autoSize:true,containerDimensions:name==='Claude'?{maxHeight:5000,width}:undefined});
    try{
     await h.frame.evaluate(()=>{
      window.__scrolls=[];const original=Element.prototype.scrollIntoView;
      Element.prototype.scrollIntoView=function(options){__scrolls.push({bar:this.classList.contains('board-viewer-bar'),block:options?.block});return original.call(this,options);};
     });
-    if(board){await h.f.locator('.boards-tile').nth(5).click();await h.f.locator('.see-board').nth(5).click();}
-    else for(let i=0;i<Number(state.at(-1));i++)await h.f.locator('.looks-tile').nth(i).click();
+    const count=state==='tile-row'?0:Number(state.at(-1));
+    for(let i=0;i<count;i++)await h.f.locator('.boards-tile').nth(i).click();
     await h.frame.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
     const measured=await h.frame.evaluate(()=>({
      height:document.getElementById('root').getBoundingClientRect().height,
@@ -46,20 +46,33 @@ export async function capture(boardsPath,looksPath,output){
      viewerFirst:document.querySelector('.boards-tiles')?.firstElementChild.classList.contains('board-viewer'),
      modes:[...new Set([...document.querySelectorAll('.board-viewer .board-art>*')].filter(n=>n.getClientRects().length).map(n=>n.dataset.mode))],
      actions:[...document.querySelectorAll('.board-actions button')].filter(n=>n.getClientRects().length).map(n=>n.innerText),
+     disabledActions:[...document.querySelectorAll('.board-actions button')].filter(n=>n.getClientRects().length).map(n=>n.disabled),
+     picks:document.querySelectorAll('.tile-input:checked').length,
+     links:[...document.querySelectorAll('.see-board')].map(n=>{
+      const range=document.createRange();range.selectNodeContents(n);
+      return {gap:range.getBoundingClientRect().top-n.previousElementSibling.getBoundingClientRect().bottom,height:n.getBoundingClientRect().height};
+     }),
      minimum:document.querySelector('.board-minimum:not([hidden])')?.textContent??null,
      scrolls:__scrolls
     }));
     assert.ok(measured.scrollWidth<=measured.clientWidth);
+    assert.equal(measured.picks,count);
     if(board){
-     assert.equal(measured.visibleTiles,0);assert.equal(measured.viewerFirst,true);assert.equal(measured.modes.length,1);
-     assert.ok(measured.scrolls.some(s=>s.bar&&s.block==='start'));
-     const bar=await h.f.locator('.board-viewer-bar').first().boundingBox();assert.ok(bar.y>=-1&&bar.y+bar.height<=900,JSON.stringify(bar));
-    }else assert.deepEqual(measured.actions,state==='looks-0'?['None of these work\nShow me different looks']:state==='looks-2'?['Use these\nand make my boards']:[]);
+     assert.equal(measured.visibleTiles,12);assert.ok(measured.links.every(n=>n.gap>=0&&n.gap<=8&&n.height>=44));
+     assert.deepEqual(measured.actions,state==='boards-4'?['Show me more\nYou picked 4 boards. Pick up to three to go on.']:['Show me more\nNone of these work']);
+    }else assert.deepEqual(measured.actions,state==='looks-1'?['Only this one works for me\nand make my boards']:['Use these\nYou picked 4 looks. Pick up to three to go on.']);
+    assert.deepEqual(measured.disabledActions,[count===4]);assert.equal(measured.minimum,null);
     const file=`${name.toLowerCase()}-734-${theme}-${state}.png`;
-    // Capture the outer viewport where the card's scroll request left it.
-    await h.page.screenshot({path:resolve(output,file)});
+    // A whole-card capture shows all four ticks and the action together; the row stays at normal size.
+    await h.page.screenshot({path:resolve(output,file),fullPage:state==='boards-4'});
     assert.ok(onlyFonts(h.requests));assert.deepEqual(h.errors,[]);
     record.renders.push({file,name,theme,state,width,outerScrollY:await h.page.evaluate(()=>scrollY),...measured});
+    if(state==='boards-4'){
+     await h.f.locator('[data-action=more]').evaluate(n=>n.scrollIntoView({block:'end'}));
+     await h.frame.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+     const footer=file.replace('.png','-footer.png');await h.page.screenshot({path:resolve(output,footer)});
+     record.renders.push({file:footer,name,theme,state:'boards-4-footer',width,outerScrollY:await h.page.evaluate(()=>scrollY),...measured});
+    }
    }finally{await h.context.close();}
   }
   writeFileSync(resolve(output,'record.json'),JSON.stringify(record,null,2)+'\n',{flag:'wx'});return record;

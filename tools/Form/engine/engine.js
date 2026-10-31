@@ -13,7 +13,8 @@ const WORDS = Object.freeze({
   next: "Next", back: "Back", progress: " · {n} of {m}",
   sampleDefault: "Aa", sampleSecond: "Abc 123",
   seeBoard:"See it full size", backToBoards:"Close this board", pickBoard:"Pick this one", boardModes:"Light or dark",
-  pickThree:"Pick up to three.", pickCount:"Pick up to {n}.", recommended:"Recommended",
+  tooManyBoards:"You picked {n} boards. Pick up to {pick} to go on.", tooManyLooks:"You picked {n} looks. Pick up to {pick} to go on.",
+  pickOne:"one", pickTwo:"two", pickThree:"three", recommended:"Recommended",
   look:"Look {n}", pickAtLeastOne:"Pick at least one.", pickAtLeastTwo:"Pick at least two.", pickAtLeastThree:"Pick at least three.",
   whatNext:"What next",
   boardNot:"not {word}", light:"Light", dark:"Dark", licence:"Licence"
@@ -156,7 +157,6 @@ function boardQuestion(fieldset,q,id) {
   const look=q.view==="look",single=!look&&q.pick===1&&q.options.length===1;
   const model=boardLib.resolveBoards(state.form.brand,q.options);
   globalThis.WiserBoardView.loadFonts(model,boardLib.FONT_HOSTS);
-  const limit=el("p",{class:"board-limit",role:"status",hidden:true});
   const grid=el("div",{class:`boards-tiles${look?' looks-tiles':''}`});
   const picks=new Map();
   function sync(){
@@ -165,14 +165,9 @@ function boardQuestion(fieldset,q,id) {
     fieldset.dispatchEvent(new Event("boardpicks",{bubbles:true}));
     return count;
   }
-  function pick(input,wanted,bar){
+  function pick(input,wanted){
     if(input.disabled||fieldset.disabled)return;
-    input.checked=false;
-    if(wanted && [...picks.values()].filter(n=>n.checked).length>=q.pick){
-      if(bar)bar.append(limit);
-      limit.textContent=q.pick===3?WORDS.pickThree:WORDS.pickCount.replace("{n}",q.pick);limit.hidden=false;
-      limit.scrollIntoView({block:"nearest"});
-    }else{input.checked=wanted;limit.hidden=true;}
+    input.checked=wanted;
     sync();
   }
   let returnFocus,activeInput;
@@ -205,7 +200,7 @@ function boardQuestion(fieldset,q,id) {
     if(viewer.hidden)return;
     for(const tile of grid.querySelectorAll(":scope>.board-option"))tile.hidden=false;
     viewer.hidden=true;viewer.remove();returnFocus?.setAttribute("aria-expanded","false");
-    scroll.replaceChildren();grid.after(limit);limit.hidden=true;activeInput=undefined;viewerInputs=[];
+    scroll.replaceChildren();activeInput=undefined;viewerInputs=[];
     if(restore){returnFocus.focus({preventScroll:true});bringIntoView(returnFocus.closest(".board-option"),"nearest");}
   };
   back.addEventListener("click",()=>close());backBottom.addEventListener("click",()=>close());
@@ -233,18 +228,18 @@ function boardQuestion(fieldset,q,id) {
       if(!viewer.hidden&&returnFocus===full){close();return;}
       close(false);returnFocus=full;activeInput=input;
       // Neither mirror carries a name or value; only named tile inputs supply answers.
-      const mirrors=[viewerBar,viewerEnd].map(bar=>{
+      const mirrors=[viewerBar,viewerEnd].map(()=>{
         const mirror=el("input",{type:"checkbox","aria-label":WORDS.pickBoard});
         mirror.disabled=input.disabled||fieldset.disabled;
-        mirror.addEventListener("change",()=>{pick(input,mirror.checked,bar);syncViewer();});
+        mirror.addEventListener("change",()=>{pick(input,mirror.checked);syncViewer();});
         viewerInputs.push(mirror);
         return el("label",{class:"choice"},mirror,el("span",{text:WORDS.pickBoard}));
       });
       syncViewer();
       const art=globalThis.WiserBoardView.draw(model,b,{logo:state.form.brand.logo});
-      viewerBar.replaceChildren(back,modeSwitch(art),mirrors[0],limit);
+      viewerBar.replaceChildren(back,modeSwitch(art),mirrors[0]);
       viewerEnd.replaceChildren(backBottom,mirrors[1]);
-      limit.hidden=true;scroll.replaceChildren(el("h2",{class:"locked-name",text:o.label}),art);
+      scroll.replaceChildren(el("h2",{class:"locked-name",text:o.label}),art);
       for(const tile of grid.querySelectorAll(":scope>.board-option"))tile.hidden=true;
       grid.prepend(viewer);viewer.hidden=false;full.setAttribute("aria-expanded","true");
       back.focus({preventScroll:true});
@@ -252,7 +247,7 @@ function boardQuestion(fieldset,q,id) {
     });
     grid.append(el("div",{class:"board-option"},tile,full));
   }
-  if(look||q.pick!==0&&!single)fieldset.append(grid,limit);
+  if(look||q.pick!==0&&!single)fieldset.append(grid);
   if(q.min)fieldset.append(el("p",{class:"board-minimum help",role:"status",text:WORDS[['','pickAtLeastOne','pickAtLeastTwo','pickAtLeastThree'][q.min]]}));
   fieldset.dataset.picks=[...picks.values()].filter(n=>n.checked).length;
 }
@@ -390,18 +385,26 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
   const actionRow=el("div",{class:"board-actions","aria-label":WORDS.whatNext},...actionButtons);
   function pickedCount(){return readAnswers().filter(a=>a.type==="boards").reduce((n,a)=>n+a.value.length,0);}
   const boardQuestion=form.questions.find(q=>q.type==="boards");
-  const canSend=()=>!boardQuestion||pickedCount()>=boardLib.minimumPicks(boardQuestion);
+  const overLimit=()=>boardQuestion&&pickedCount()>boardQuestion.pick;
+  const canSend=()=>!boardQuestion||!overLimit()&&pickedCount()>=boardLib.minimumPicks(boardQuestion);
   function syncActions(){
     const count=pickedCount();
+    const over=overLimit(),warning=over?WORDS[boardQuestion.view==="look"?"tooManyLooks":"tooManyBoards"].replace("{n}",count).replace("{pick}",WORDS[['','pickOne','pickTwo','pickThree'][boardQuestion.pick]]):"";
     actionButtons.forEach((button,i)=>{
-      const a=form.actions[i];button.hidden=!boardLib.actionAllowed(a.needs,count,boardQuestion?.min);button.disabled=state.sending;
-      const note=a.notes?.[count===0?"none":count===1?"one":"several"]??a.note??"";
+      const a=form.actions[i];button.hidden=!boardLib.actionAllowed(a.needs,count,boardQuestion?.min);button.disabled=state.sending||over&&!button.hidden;
+      button.classList.toggle("over-limit",over&&!button.hidden);
+      const note=over&&!button.hidden?warning:a.notes?.[count===0?"none":count===1?"one":"several"]??a.note??"";
       button.querySelector("small").textContent=note;button.querySelector("small").hidden=!note;
     });
-    if(!form.actions)button.disabled=!canSend();
-    const minimum=f.querySelector('.board-minimum');if(minimum)minimum.hidden=count>=boardQuestion.min;
+    if(!form.actions){
+      button.disabled=state.sending||!canSend();button.classList.toggle("over-limit",Boolean(over));
+      sendLimit.textContent=warning;sendLimit.hidden=!over||button.hidden;
+    }
+    const oneAllowed=!actionRow.hidden&&form.actions?.some(a=>a.needs==="one"&&boardLib.actionAllowed(a.needs,count,boardQuestion?.min)&&!over);
+    const minimum=f.querySelector('.board-minimum');if(minimum)minimum.hidden=count>=boardQuestion.min||oneAllowed;
   }
-  const button = el("button",{id:"submit",type:"submit",text: state.sends ? WORDS.buttonSends : WORDS.buttonDrafts});
+  const button = el("button",{id:"submit",type:"submit",text: state.sends ? WORDS.buttonSends : WORDS.buttonDrafts,...(hasBoards?{"aria-describedby":"send-limit"}:{})});
+  const sendLimit=el("small",{id:"send-limit",class:"send-limit help",hidden:true,role:"status"});
   let page = 0, advanceTimer;
   const back = el("button",{id:"back",type:"button",text:WORDS.back});
   const next = el("button",{id:"next",type:"button",text:WORDS.next});
@@ -415,6 +418,7 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
     next.hidden = page === questions.length - 1;
     button.hidden = !next.hidden||Boolean(form.actions)||onlyDisplay;
     actionRow.hidden=!next.hidden;
+    if(hasBoards)syncActions();
     fitSamples();
     if(hasBoards)globalThis.WiserBoardView.fitLooks();
     // Focus follows the member from one question to the next; on opening, nothing looks picked.
@@ -428,7 +432,7 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
     },250);
   }
   if (form.paged) {
-    f.append(el("div",{class:"page-actions"},back,next,button));
+    f.append(el("div",{class:"page-actions"},back,next,button,...(hasBoards?[sendLimit]:[])));
     back.addEventListener("click",() => move(page - 1));
     next.addEventListener("click",() => move(page + 1));
     questions.forEach((q,index) => {
@@ -453,11 +457,11 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
         input.addEventListener("click",() => { if (!arrow) advance(input,index); });
       }
     });
-  } else if(!form.actions&&!onlyDisplay)f.append(button);
+  } else if(!form.actions&&!onlyDisplay)f.append(button,...(hasBoards?[sendLimit]:[]));
   if(form.actions)f.append(actionRow);
   f.addEventListener("submit",async event => {
     event.preventDefault();
-    if(onlyDisplay||state.sending)return;
+    if(onlyDisplay||state.sending||overLimit())return;
     const action=form.actions?.find(a=>a.value===event.submitter?.dataset.action);
     if(form.actions?(!action||!boardLib.actionAllowed(action.needs,pickedCount(),boardQuestion?.min)):button.disabled||!canSend())return;
     state.sending=true;actionButtons.forEach(b=>b.disabled=true);

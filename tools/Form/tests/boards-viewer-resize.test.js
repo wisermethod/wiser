@@ -24,7 +24,7 @@ async function insideViewport(h,control){
 async function capture(h,state){
  if(!process.env.FORM_REVIEW_EVIDENCE)return;
  await h.page.screenshot({path:join(process.env.FORM_REVIEW_EVIDENCE,state+'.png')});
- const frame=await h.frame.evaluate(()=>({height:innerHeight,scrollY,focused:document.activeElement?.outerHTML,limit:document.querySelector('.board-limit:not([hidden])')?.textContent}));
+ const frame=await h.frame.evaluate(()=>({height:innerHeight,scrollY,focused:document.activeElement?.outerHTML,action:document.querySelector('[data-action=more]')?.innerText}));
  const host=await h.page.evaluate(()=>({scrollY,sizes:__log.filter(e=>e.kind==='size')}));
  writeFileSync(join(process.env.FORM_REVIEW_EVIDENCE,state+'.json'),JSON.stringify({frame,host},null,2)+'\n',{flag:'wx'});
 }
@@ -44,7 +44,7 @@ for(const name of ['chatgpt','Claude'])test(`last tile ${name} 390: open and clo
   await capture(h,name.toLowerCase()+'-390-closed');assert.deepEqual(h.errors,[]);
  }finally{await h.context.close();}
 });
-for(const name of ['chatgpt','Claude'])test(`lower mirror ${name} 390: refused fourth pick explains the limit in view; next board starts in its primary mode`,async()=>{
+for(const name of ['chatgpt','Claude'])test(`lower mirror ${name} 390: fourth tick succeeds, only the action warns; next board starts in its primary mode`,async()=>{
  const form=boardForm(),cap=name==='Claude'?5000:Infinity;
  const h=await kit.open(form,390,'light',{name,autoSize:true,containerDimensions:name==='Claude'?{maxHeight:cap,width:390}:undefined});
  try{
@@ -54,22 +54,24 @@ for(const name of ['chatgpt','Claude'])test(`lower mirror ${name} 390: refused f
   const primary=form.questions[0].options[3].board.primaryMode;
   await h.f.locator(`.board-mode-switch[data-mode=${primary==='light'?'dark':'light'}]`).click();
   await settle(h);
-  // The line may fit the existing bar without changing the card height.
   await h.f.locator('.board-viewer-end input').click();await sized(h,0,cap);
-  const limit=h.f.locator('.board-limit');assert.equal(await limit.innerText(),'Pick up to three.');
-  assert.equal(await limit.evaluate(n=>n.parentElement.classList.contains('board-viewer-end')),true);await insideViewport(h,limit);
-  assert.equal(await h.f.locator('.board-viewer input:checked').count(),0);
-  assert.deepEqual(await h.frame.evaluate(()=>WiserForm.readAnswers()[0].value),form.questions[0].options.slice(0,3).map(o=>o.value));
+  assert.equal(await h.f.locator('.board-limit').count(),0);
+  assert.equal(await h.f.locator('[data-action=more]').isDisabled(),true);
+  assert.equal(await h.f.locator('[data-action=more] small').innerText(),'You picked 4 boards. Pick up to three to go on.');
+  assert.equal(await h.f.locator('.board-viewer input:checked').count(),2);
+  assert.deepEqual(await h.frame.evaluate(()=>WiserForm.readAnswers()[0].value),form.questions[0].options.slice(0,4).map(o=>o.value));
   await capture(h,name.toLowerCase()+'-390-lower-limit');
-  // The same status follows the upper mirror when it is the one just used.
+  // The upper mirror unticks the same board and restores the action's own line.
   await h.f.locator('.board-viewer-bar input').first().click();await settle(h);
-  assert.equal(await limit.evaluate(n=>n.parentElement===document.querySelector('.board-viewer-bar')),true);await insideViewport(h,limit);
+  assert.equal(await h.f.locator('.board-viewer input:checked').count(),0);
+  assert.equal(await h.f.locator('[data-action=more]').isDisabled(),false);
+  assert.equal(await h.f.locator('[data-action=more] small').innerText(),'Show me variations of these boards');
   since=await reports(h);await h.f.getByText('Close this board',{exact:true}).first().click();await sized(h,since,cap);
   since=await reports(h);await h.f.locator('.see-board').nth(4).click();await sized(h,since,cap);
   const nextPrimary=form.questions[0].options[4].board.primaryMode;
   assert.equal(await h.f.locator('.board-mode-switch[aria-pressed=true]').getAttribute('data-mode'),nextPrimary);
   assert.deepEqual(await h.frame.evaluate(()=>[...new Set([...document.querySelectorAll('.board-viewer .board-art>*')].filter(n=>n.getClientRects().length).map(n=>n.dataset.mode))]),[nextPrimary]);
-  assert.equal(await limit.isHidden(),true);assert.deepEqual(h.errors,[]);
+  assert.equal(await h.f.locator('.board-limit').count(),0);assert.deepEqual(h.errors,[]);
  }finally{await h.context.close();}
 });
 async function trackScrolls(h){

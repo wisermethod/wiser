@@ -298,15 +298,33 @@ for(const actions of [false,true])test(`local looks minimum is enforced in the w
  }finally{await h.context.close();await stop(s);}
 });
 
-for(const [action,count]of [['none',0],['use',2],['use',3]])test(`local looks journey actions: refuses unmet needs at 0/1/2/3 and accepts ${action} at ${count}`,async()=>{
+for(const [action,count]of [['none',0],['one',1],['use',2],['use',3]])test(`local looks journey actions: refuses unmet needs and over-limit picks, accepts ${action} at ${count}`,async()=>{
  const form=lookForm();form.actions=lookActions();const s=await serve(form);
  const body=(action,count)=>({form:form.title,action,answers:{looks:form.questions[0].options.slice(0,count).map(o=>o.value)},shown:[{id:'looks',question:form.questions[0].label,shown:form.questions[0].options.slice(0,count).map(o=>o.label).join(', ')||'(none)'}]});
  try{
-  for(let count=0;count<=3;count++)for(const action of ['none','use']){
-   const allowed=action==='none'?count===0:count>=2;
+  for(let count=0;count<=4;count++)for(const action of ['none','one','use']){
+   const allowed=count<=3&&(action==='none'?count===0:action==='one'?count===1:count>=2);
    if(!allowed)assert.equal((await http(s,'answers',{method:'POST',body:body(action,count)})).status,400,`${action} at ${count}`);
   }
   assert.equal((await http(s,'answers',{method:'POST',body:body(action,count)})).status,200);
   const result=await wait(s);assert.equal(result.action,action);assert.deepEqual(result.answers,body(action,count).answers);
  }finally{await stop(s);}
+});
+
+for(const actions of [false,true])test(`local boards over pick: listener refuses four, window holds Send/action, actions ${actions}`,async()=>{
+ const form=boardForm();if(!actions)delete form.actions;
+ const s=await serve(form),h=await pageAt(s,734,'#form');
+ const body={form:form.title,answers:{boards:form.questions[0].options.slice(0,4).map(o=>o.value)},...(actions?{action:'more'}:{}),shown:[{id:'boards',question:form.questions[0].label,shown:'Four boards'}]};
+ try{
+  assert.equal((await http(s,'answers',{method:'POST',body})).status,400,'a matching any action cannot bypass pick');
+  for(let i=0;i<4;i++)await h.page.locator('.boards-tile').nth(i).click();
+  const button=h.page.locator(actions?'[data-action=more]':'#submit');assert.equal(await button.isDisabled(),true);
+  assert.equal(await h.page.locator(actions?'[data-action=more] small':'#send-limit').innerText(),'You picked 4 boards. Pick up to three to go on.');
+  let posts=0;h.page.on('request',req=>{if(req.method()==='POST'&&req.url().endsWith('/answers'))posts++;});
+  await button.evaluate(n=>{n.click();n.form.requestSubmit(n);});assert.equal(posts,0);
+  await h.page.locator('.boards-tile').nth(3).click();assert.equal(await button.isDisabled(),false);
+  await button.click();await h.page.locator('#status.ok').waitFor();
+  assert.deepEqual((await wait(s)).answers.boards,form.questions[0].options.slice(0,3).map(o=>o.value));
+  await locked(h.page);assert.deepEqual(h.errors,[]);
+ }finally{await h.context.close();await stop(s);}
 });
