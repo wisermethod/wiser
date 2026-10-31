@@ -165,11 +165,13 @@ function boardQuestion(fieldset,q,id) {
     fieldset.dispatchEvent(new Event("boardpicks",{bubbles:true}));
     return count;
   }
-  function pick(input,wanted){
+  function pick(input,wanted,bar){
     if(input.disabled||fieldset.disabled)return;
     input.checked=false;
     if(wanted && [...picks.values()].filter(n=>n.checked).length>=q.pick){
+      if(bar)bar.append(limit);
       limit.textContent=q.pick===3?WORDS.pickThree:WORDS.pickCount.replace("{n}",q.pick);limit.hidden=false;
+      limit.scrollIntoView({block:"nearest"});
     }else{input.checked=wanted;limit.hidden=true;}
     sync();
   }
@@ -183,12 +185,28 @@ function boardQuestion(fieldset,q,id) {
   const viewerBar=el("div",{class:"board-viewer-bar"},back);
   const viewerEnd=el("div",{class:"board-viewer-bar board-viewer-end"},backBottom);
   const scroll=el("div",{class:"board-viewer-scroll"});
+  let cancelScroll=()=>{};
+  function bringIntoView(node,block){
+    cancelScroll();
+    const height=document.documentElement.clientHeight;
+    const cancel=()=>{window.removeEventListener("resize",repeat);clearTimeout(timer);cancelScroll=()=>{};};
+    const repeat=()=>{
+      if(document.documentElement.clientHeight===height)return;
+      cancel();
+      if(node.isConnected)node.scrollIntoView({block});
+    };
+    // The host applies a size report later. Repeat once against that new viewport.
+    window.addEventListener("resize",repeat);
+    const timer=setTimeout(cancel,1500);cancelScroll=cancel;
+    node.scrollIntoView({block});
+  }
   const close=(restore=true)=>{
+    cancelScroll();
     if(viewer.hidden)return;
     for(const tile of grid.querySelectorAll(":scope>.board-option"))tile.hidden=false;
     viewer.hidden=true;viewer.remove();returnFocus?.setAttribute("aria-expanded","false");
     scroll.replaceChildren();grid.after(limit);limit.hidden=true;activeInput=undefined;viewerInputs=[];
-    if(restore){returnFocus?.focus({preventScroll:true});returnFocus?.closest(".board-option")?.scrollIntoView({block:"nearest"});}
+    if(restore){returnFocus.focus({preventScroll:true});bringIntoView(returnFocus.closest(".board-option"),"nearest");}
   };
   back.addEventListener("click",()=>close());backBottom.addEventListener("click",()=>close());
   viewer.append(viewerBar,scroll,viewerEnd);
@@ -215,10 +233,10 @@ function boardQuestion(fieldset,q,id) {
       if(!viewer.hidden&&returnFocus===full){close();return;}
       close(false);returnFocus=full;activeInput=input;
       // Neither mirror carries a name or value; only named tile inputs supply answers.
-      const mirrors=[viewerBar,viewerEnd].map(()=>{
+      const mirrors=[viewerBar,viewerEnd].map(bar=>{
         const mirror=el("input",{type:"checkbox","aria-label":WORDS.pickBoard});
         mirror.disabled=input.disabled||fieldset.disabled;
-        mirror.addEventListener("change",()=>{pick(input,mirror.checked);syncViewer();});
+        mirror.addEventListener("change",()=>{pick(input,mirror.checked,bar);syncViewer();});
         viewerInputs.push(mirror);
         return el("label",{class:"choice"},mirror,el("span",{text:WORDS.pickBoard}));
       });
@@ -230,7 +248,7 @@ function boardQuestion(fieldset,q,id) {
       for(const tile of grid.querySelectorAll(":scope>.board-option"))tile.hidden=true;
       grid.prepend(viewer);viewer.hidden=false;full.setAttribute("aria-expanded","true");
       back.focus({preventScroll:true});
-      viewerBar.scrollIntoView({block:"start"});
+      bringIntoView(viewerBar,"start");
     });
     grid.append(el("div",{class:"board-option"},tile,full));
   }
