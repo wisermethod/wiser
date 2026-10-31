@@ -219,25 +219,26 @@ export function postProcessEpub(epubPath, config) {
   }
 
   const title = escapeRegex(config.title);
+  // The title wrapper is removed from navigation, the NCX and the first content file only when
+  // the navigation shows one: a first entry, the book's title, holding every other entry in a
+  // nested list. A title entry beside the chapters is left where it is in all three.
+  const navWrapper = new RegExp(`<ol class="toc"><li id="toc-li-1"><a[^>]+>${title}</a>(?=<ol)`);
+  const navClose = /<\/ol><\/li><\/ol>(<\/nav>)/;
   const transforms = new Map([
-    ['EPUB/nav.xhtml', (text) => {
-      const wrapper = new RegExp(`<ol class="toc"><li id="toc-li-1"><a[^>]+>${title}</a>`);
-      if (wrapper.test(text)) {
-        text = text.replace(wrapper, '');
-        text = text.replace(/<\/ol><\/li><\/ol>(<\/nav>)/, '</ol>$1');
-      }
+    ['EPUB/nav.xhtml', (text, wrapped) => {
+      if (wrapped) text = text.replace(navWrapper, '').replace(navClose, '</ol>$1');
       return text.replace(/ id="toc-li-\d+"/g, '')
         .replace(/<h1 id="toc-title">Contents<\/h1>/, '');
     }],
-    ['EPUB/toc.ncx', (text) => {
+    ['EPUB/toc.ncx', (text, wrapped) => {
       const wrapper = new RegExp(`<navPoint[^>]*>\\s*<navLabel>\\s*<text>${title}</text>\\s*</navLabel>\\s*<content[^>]*>`);
-      return wrapper.test(text)
+      return wrapped && wrapper.test(text)
         ? text.replace(wrapper, '').replace(/<\/navPoint>\s*(<\/navMap>)/, '$1')
         : text;
     }],
-    ['EPUB/text/ch001.xhtml', (text) => {
+    ['EPUB/text/ch001.xhtml', (text, wrapped) => {
       const wrapper = new RegExp(`<section id="[^"]+"[^>]*>\\s*<h1[^>]*>${title}</h1>`);
-      if (wrapper.test(text)) {
+      if (wrapped && wrapper.test(text)) {
         text = text.replace(wrapper, '').replace(/<\/section>\s*<\/body>/, '</body>');
       }
       return text.replace(/<figcaption[^>]*>What You Get<\/figcaption>\n?/, '');
@@ -258,21 +259,30 @@ export function postProcessEpub(epubPath, config) {
     if (archive.readUInt32LE(localOffset) !== 0x04034b50) throw new Error('Invalid EPUB ZIP entry');
     const headerLength = 30 + archive.readUInt16LE(localOffset + 26) + archive.readUInt16LE(localOffset + 28);
     const local = Buffer.from(archive.subarray(localOffset, localOffset + headerLength));
-    let compressed = archive.subarray(localOffset + headerLength,
+    const compressed = archive.subarray(localOffset + headerLength,
       localOffset + headerLength + central.readUInt32LE(20));
     const method = central.readUInt16LE(10);
     if ((central.readUInt16LE(8) & 1) || ![0, 8].includes(method)) {
       throw new Error('Unsupported EPUB ZIP compression or encryption');
     }
-    if (transforms.has(name)) {
-      // Only a handful of small text entries need decompression.
-      const original = (method === 0 ? compressed : inflateRawSync(compressed)).toString('utf8');
-      const changed = transforms.get(name)(original);
+    entries.push({ name, central, local, compressed, method });
+    cursor += recordLength;
+  }
+  // Only a handful of small text entries need decompression.
+  const text = (entry) => (entry.method === 0 ? entry.compressed : inflateRawSync(entry.compressed)).toString('utf8');
+  const nav = entries.find((entry) => entry.name === 'EPUB/nav.xhtml');
+  const navText = nav ? text(nav) : '';
+  const wrapped = navWrapper.test(navText) && navClose.test(navText);
+  for (const entry of entries) {
+    const { central, local } = entry;
+    if (transforms.has(entry.name)) {
+      const original = text(entry);
+      const changed = transforms.get(entry.name)(original, wrapped);
       if (changed !== original) {
         const bytes = Buffer.from(changed);
-        compressed = method === 0 ? bytes : deflateRawSync(bytes);
+        entry.compressed = entry.method === 0 ? bytes : deflateRawSync(bytes);
         central.writeUInt32LE(crc32(bytes), 16);
-        central.writeUInt32LE(compressed.length, 20);
+        central.writeUInt32LE(entry.compressed.length, 20);
         central.writeUInt32LE(bytes.length, 24);
       }
     }
@@ -281,8 +291,6 @@ export function postProcessEpub(epubPath, config) {
     central.writeUInt16LE(flags, 8);
     local.writeUInt16LE(flags, 6);
     central.copy(local, 14, 16, 28);
-    entries.push({ name, central, local, compressed });
-    cursor += recordLength;
   }
   if (entries[0]?.name !== 'mimetype' || entries[0].central.readUInt16LE(10) !== 0) {
     throw new Error('EPUB mimetype must be first and uncompressed');
