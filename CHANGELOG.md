@@ -4,6 +4,13 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.31, October 31, 2026
+
+- Wiser can now send email from your Gmail: a new message, or a draft you saved there. It asks you before each one, showing who it goes to and what it says. (c963b83)
+- A Gmail draft or new message can now carry files from your computer, up to about 2 MB in all, when you use the local gateway in a command-line tool such as Claude Code or Codex. Wiser reads each file itself, never one holding your keys, your settings or Wiser's own files, and shows you each file's name, path and size before anything is saved or sent. (c963b83)
+- A Gmail draft or new message can now be a reply in an existing thread. (c963b83)
+- You can let your assistant send Gmail messages without asking each time, for the work of one Playbook, for up to 90 days, from the gateway's own warning, which says it may send to anyone with nobody looking at each message first. It never covers a message with a file attached, or sending a saved draft. Approvals for anything else that sends, deletes, spends, publishes or gives access still last at most 7 days. (c963b83)
+
 ## v2026.10.30.4, October 30, 2026
 
 - Screen Capture no longer stops on a Mac whose Screen Recording and Accessibility are already granted, and names the app that holds them correctly when a launcher runs in between. (9bc30ed, 645860c)
