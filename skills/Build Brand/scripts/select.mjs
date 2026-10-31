@@ -162,11 +162,13 @@ function info(library,palette,pairing,graphicSet,dials,order=0) {
   const parts=partPositions(library,{palette:{id:palette.id},pairing:{id:pairing.id},graphicSet:{id:graphicSet.id}});
   return {palette,pairing,graphicSet,order,positions:positions(parts),partPositions:parts,score:Object.values(parts).reduce((sum,t)=>sum+score(t,dials),0)};
 }
-function candidates(library,state) {
+function candidates(library,state,headingFrom) {
   const result=[]; let order=0;
+  const donor=typeof headingFrom==='string'?part(library,'pairings',headingFrom):null;
   for(const pairing of library.pairings) for(const palette of library.palettes) for(const graphicSet of library.graphics) {
     const n=order++;
-    if(Math.abs(pairing.tags.typeLoudness-palette.paletteLoudness)>1 || (palette.paletteLoudness===3&&(pairing.tags.typeCut!=='contemporary'||pairing.tags.typeLoudness<2))) continue;
+    const heading=donor??pairing;
+    if(Math.abs(heading.tags.typeLoudness-palette.paletteLoudness)>1 || (palette.paletteLoudness===3&&(heading.tags.typeCut!=='contemporary'||heading.tags.typeLoudness<2))) continue;
     const c=info(library,palette,pairing,graphicSet,state.dials,n);
     c.score+=palette.energy==='bright'?state.brightColour:0;
     result.push(c);
@@ -253,6 +255,10 @@ function stable(value) {
 }
 const partKey=(b,field)=>JSON.stringify(stable(b[field]??null));
 const boardKey=b=>JSON.stringify(BOARD_PARTS.map(field=>partKey(b,field)));
+function typeLoudness(board,library) {
+  const donor=board.pairing.headingFrom;
+  return part(library,'pairings',typeof donor==='string'?donor:board.pairing.id).tags.typeLoudness;
+}
 function variationRank(c,seed,steer) {
   let distance=c.changedParts.length;
   for(const [axis,step] of Object.entries(steer)) if(step) {
@@ -263,7 +269,7 @@ function variationRank(c,seed,steer) {
   if(steer.quietBold) {
     const loud=steer.quietBold;
     distance+=Math.abs(c.palette.paletteLoudness-Math.max(1,Math.min(3,seed.palette.paletteLoudness+loud)))*5;
-    distance+=Math.abs(c.pairing.tags.typeLoudness-Math.max(1,Math.min(3,seed.pairing.tags.typeLoudness+loud)))*5;
+    distance+=Math.abs(c.typeLoudness-Math.max(1,Math.min(3,seed.typeLoudness+loud)))*5;
     if(!steer.warmCool&&c.palette.temperature!==seed.palette.temperature) distance+=8;
   }
   return distance;
@@ -327,6 +333,12 @@ export function select(command, answers, {library=load(LIBRARY),data=load(TAPS),
       const total=Object.keys(a.kept??{}).length?11:12;
       const fixedGround=!!a.kept?.palette?.id || ['light','dark'].some(mode=>own(a.kept?.palette?.overrides?.[mode]??{},'ground'));
       const strongest=Object.keys(AXES).filter(k=>Math.abs(state.dials[k])>=2);
+      const pagePool=mode=>pool.map(c=>{
+        const candidate=effective({...c,mode:mode??(c.palette.energy==='dark-first'?'dark':'light')},a,library);
+        candidate.identity=boardKey(makeBoard(a,candidate,1,'angle'));
+        return candidate;
+      });
+      const nativePool=pagePool(),darkPool=state.darkLed?pagePool('dark'):nativePool;
       for(const group of groups) {
         const graphics=new Set();
         for(let slot=0;slot<(group.id==='angle'?total-8:4);slot++) {
@@ -334,15 +346,20 @@ export function select(command, answers, {library=load(LIBRARY),data=load(TAPS),
           // Cover energies that cannot occur on the opposite strong dial
           // before reaching the angle group (for example bright/classic).
           const beforeAngle=8-chosen.length;
-          const angleEnergies=new Set(pool.filter(c=>!strongest.length||!chosen.length||strongest.filter(k=>c.positions[k]!=='either'&&chosen[0].positions[k]!=='either'&&c.positions[k]!==chosen[0].positions[k]).length===1).map(c=>c.palette.energy));
+          const freshNative=nativePool.filter(c=>!seen.has(c.identity));
+          const available=(state.darkLed&&group.id==='close'&&slot<2?darkPool:nativePool).filter(c=>!seen.has(c.identity));
+          const remainingEnergies=new Set([...freshNative,...available].map(c=>c.palette.energy));
+          const exhausted=missing.filter(e=>!remainingEnergies.has(e));
+          if(exhausted.length) fail('round1',`energy ${exhausted.join(', ')} is exhausted: no unshown board remains`);
+          const angleEnergies=new Set(freshNative.filter(c=>!strongest.length||!chosen.length||strongest.filter(k=>c.positions[k]!=='either'&&chosen[0].positions[k]!=='either'&&c.positions[k]!==chosen[0].positions[k]).length===1).map(c=>c.palette.energy));
           const early=missing.filter(e=>!angleEnergies.has(e));
-          const ranked=pool.map(c=>effective({...c,mode:state.darkLed&&group.id==='close'&&slot<2?'dark':c.palette.energy==='dark-first'?'dark':'light'},a,library)).filter(c=>{
+          const ranked=available.filter(c=>{
             if(palettes.has(c.palette.id)||graphics.has(c.graphicSet.id)) return false;
             if(group.id!=='angle'&&early.length>=beforeAngle&&!early.includes(c.palette.energy)) return false;
             if((missing.length>=remaining||(group.id==='angle'&&missing.length))&&!missing.includes(c.palette.energy))return false;
             if(group.id==='close'&&!fixedGround&& (groundFamilies.has(c.ground.family)||darks+Number(c.ground.dark)>2))return false;
             if(group.id==='angle'&&!unsteered&&strongest.length && strongest.filter(k=>c.positions[k]!=='either'&&chosen[0].positions[k]!=='either'&&c.positions[k]!==chosen[0].positions[k]).length!==1)return false;
-            return !seen.size||!seen.has(boardKey(makeBoard(a,c,1,group.id)));
+            return true;
           });
           const preferred=ranked.filter(c=>!pairings.has(c.pairing.id));
           const fallback=ranked.filter(c=>pairings.has(c.pairing.id)&&!chosen.some(x=>x.group===group.id&&x.pairing.id===c.pairing.id));
@@ -350,6 +367,7 @@ export function select(command, answers, {library=load(LIBRARY),data=load(TAPS),
           const next=eligible.find(c=>accept(c,group.id,chosen.length+1));
           if(!next) fail(`round1.${group.id}.${slot+1}`,'no passing board meets the diversity, energy and one-strong-dial constraints');
           finishReplacement(start,next);chosen.push({...next,group:group.id});
+          seen.add(next.identity);
           spares.push(eligible.slice(eligible.indexOf(next)+1,eligible.indexOf(next)+17));
           if(pairings.has(next.pairing.id)) notes.push(`Board ${chosen.length} reuses an earlier pairing to keep colour and graphic variety.`);
           palettes.add(next.palette.id);pairings.add(next.pairing.id);graphics.add(next.graphicSet.id);
@@ -362,10 +380,16 @@ export function select(command, answers, {library=load(LIBRARY),data=load(TAPS),
       groups=a.picks.map((b,i)=>({id:`pick-${i+1}`,label:`Variations of board ${b.number}`}));
       for(const [pickIndex,base] of a.picks.entries()) {
         const seed=info(library,part(library,'palettes',base.palette.id),part(library,'pairings',base.pairing.id),part(library,'graphics',base.graphicSet.id),state.dials);
+        seed.typeLoudness=typeLoudness(base,library);
+        const headingFrom=a.kept?.headingFrom??base.pairing.headingFrom;
+        // A fixed heading is not a new type choice just because the backing
+        // pairing id changes. Keep its pairing, body and donor reference intact.
+        const fixedPairing=a.kept?.pairing??(headingFrom?base.pairing.id:null);
+        const variationPool=headingFrom?candidates(library,state,headingFrom):pool;
         const ranked=[],modes=a.kept?.primaryMode?[a.kept.primaryMode]:['light','dark'];
         const containers=base.markFile||a.kept?.markFile?[undefined]:library.containers.map(c=>c.id);
-        for(const c of pool) {
-          if((a.kept?.pairing&&c.pairing.id!==a.kept.pairing)||(a.kept?.palette?.id&&c.palette.id!==a.kept.palette.id)) continue;
+        for(const c of variationPool) {
+          if((fixedPairing&&c.pairing.id!==fixedPairing)||(a.kept?.palette?.id&&c.palette.id!==a.kept.palette.id)) continue;
           // Prune before cloning full board records. Kept parts cannot move.
           const partChanges=Number((a.kept?.pairing??c.pairing.id)!==base.pairing.id)+Number((a.kept?.palette?.id??c.palette.id)!==base.palette.id)+Number(c.graphicSet.id!==base.graphicSet.id);
           if(partChanges>2) continue;
@@ -380,6 +404,7 @@ export function select(command, answers, {library=load(LIBRARY),data=load(TAPS),
             // Donor and kept positions are the actual board's positions.
             candidate.partPositions=partPositions(library,board);
             candidate.positions=positions(candidate.partPositions);
+            candidate.typeLoudness=typeLoudness(board,library);
             candidate.score=Object.values(candidate.partPositions).reduce((sum,t)=>sum+score(t,state.dials),0)+(candidate.palette.energy==='bright'?state.brightColour:0);
             candidate.distance=variationRank(candidate,seed,a.steer??{});
             ranked.push(candidate);
@@ -393,7 +418,7 @@ export function select(command, answers, {library=load(LIBRARY),data=load(TAPS),
           finishReplacement(start,next);chosen.push({...next,group:groups[pickIndex].id});
           spares.push(eligible.slice(eligible.indexOf(next)+1,eligible.indexOf(next)+17));seen.add(next.identity);
         }
-        if(a.steer?.quietBold===1&&seed.palette.paletteLoudness===3&&seed.pairing.tags.typeLoudness===3) notes.push(`Picked board ${base.number} is already at the loudness ceiling; no louder library step exists.`);
+        if(a.steer?.quietBold===1&&seed.palette.paletteLoudness===3&&seed.typeLoudness===3) notes.push(`Picked board ${base.number} is already at the loudness ceiling; no louder library step exists.`);
       }
     }
     let boards=chosen.map((c,i)=>makeBoard(a,c,i+1,c.group??groups[0].id,c.base));

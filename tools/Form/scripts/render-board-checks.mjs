@@ -19,14 +19,15 @@ export async function run(directory) {
  try{
   for(const [name,get]of Object.entries(tapSets)){
    const answers=get(),round=select('round1',answers,{check:true}).selection;
-   const blend=select('blend',{...answers,picks:round.boards.slice(0,3),steer:{warmCool:0,quietBold:0,softStrong:0,classicContemporary:0}},{check:true}).selection;
+   const variations=select('variations',{...answers,picks:round.boards.slice(0,3),shown:round.boards,steer:{warmCool:0,quietBold:0,softStrong:0,classicContemporary:0}},{check:true}).selection;
    const locked={...round,groups:round.groups.slice(0,1),boards:round.boards.slice(0,1)};
-   const cases={round1:formFromSelection(answers,round),blend:formFromSelection(answers,blend,{pick:1}),lock:formFromSelection(answers,locked,{pick:0,actions:false})};
+   const cases={round1:formFromSelection(answers,round),variations:formFromSelection(answers,variations),lock:formFromSelection(answers,locked,{pick:0,actions:false})};
+   cases.variations.title='Step 5 of 6: your next round';
    record.forms[name]={};
    for(const [kind,form]of Object.entries(cases)){
     const check=checkForm(form);if(!check.ok)throw Error(JSON.stringify(check));
     const path=resolve(directory,`${name}-${kind}.json`);writeFileSync(path,JSON.stringify(form,null,2));record.forms[name][kind]={bytes:Buffer.byteLength(JSON.stringify(form)),boards:form.questions[0].options.length};
-    const selection=structuredClone(kind==='round1'?round:kind==='blend'?blend:locked);
+    const selection=structuredClone(kind==='round1'?round:kind==='variations'?variations:locked);
     for(const b of selection.boards)b.content.closing=null;
     const spec=resolve(directory,`${name}-${kind}-contact.json`),html=resolve(directory,`${name}-${kind}-contact.html`);
     writeFileSync(spec,JSON.stringify(assemble(selection,JSON.parse(readFileSync(new URL('../../../skills/Build Brand/parts/parts.json',import.meta.url))))));
@@ -38,7 +39,7 @@ export async function run(directory) {
      const h=await kit.open(form,width,theme);
      try{
       if(kind==='round1'){await h.f.locator('.boards-tile').nth(0).click();await h.f.locator('.boards-tile').nth(1).click();await h.f.locator('#board-grid-view').evaluate(n=>n.scrollTop=0);}
-      if(kind==='blend')await h.f.locator('.boards-tile').first().click();
+      if(kind==='variations')await h.f.locator('.boards-tile').first().click();
       const save=async(state)=>{const file=`${prefix}-${state}.png`;await h.f.locator('#root').screenshot({path:resolve(directory,file)});record.renders.push(file);};
       await save(kind==='round1'?'tiles-two-picked':kind);
       if(kind==='round1'){
@@ -62,7 +63,7 @@ export async function run(directory) {
        const file=`${prefix}-contact-tiles.png`;await page.locator('.index-page').screenshot({path:resolve(directory,file)});record.renders.push(file);
        await page.evaluate(()=>location.hash='whole-1');
       }
-      if(kind==='blend')await page.evaluate(()=>location.hash='whole-1');
+      if(kind==='variations')await page.evaluate(()=>location.hash='whole-1');
       const file=`${prefix}-contact-${kind==='round1'?'whole':kind}.png`;await page.locator('.whole-view:visible .mode-sheet:visible').first().screenshot({path:resolve(directory,file)});record.renders.push(file);
      }finally{await context.close();}
     }

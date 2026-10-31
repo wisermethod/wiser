@@ -7,7 +7,7 @@ import {tmpdir} from 'node:os';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {select,tapDials,ground,score,run,ENERGIES} from '../scripts/select.mjs';
-import {assemble,LIBRARY,AXES} from '../scripts/assemble.mjs';
+import {assemble,LIBRARY,AXES,partPositions} from '../scripts/assemble.mjs';
 import {runContactSheet} from '../../../tools/Contact Sheet/scripts/contact-sheet.js';
 import {operator,firstStrategy} from './select-fixtures.mjs';
 import {checkForm} from '../../../tools/Form/scripts/format.js';
@@ -176,6 +176,64 @@ test('fresh checked page covers bright before an angle constrained to classic pa
   assert.ok(r.selection.boards.every(b=>!shown.some(old=>designKey(old)===designKey(b))));
   const strong=Object.keys(AXES).filter(k=>Math.abs(r.dials[k])>=2);
   for(const p of r.positions.slice(8))assert.equal(strong.filter(k=>p.positions[k]!=='either'&&r.positions[0].positions[k]!=='either'&&p.positions[k]!==r.positions[0].positions[k]).length,1);
+});
+function energyHistory(a,energy,angleOnly) {
+  const r=select('variations',{...a,picks:[],shown:[]}),base=r.selection.boards[0];
+  const strong=Object.keys(AXES).filter(k=>Math.abs(r.dials[k])>=2),shown=[];
+  const containers={drawn:'drawn-ring',drafting:'drafting-box',marker:'marker-swash',riso:'double-ring',geometric:'filled-square',editorial:'rule-box',stitch:'oval',stamp:'double-ring'};
+  for(const p of library.pairings)for(const c of library.palettes.filter(c=>c.energy===energy))for(const g of library.graphics) {
+    if(Math.abs(p.tags.typeLoudness-c.paletteLoudness)>1||(c.paletteLoudness===3&&(p.tags.typeCut!=='contemporary'||p.tags.typeLoudness<2)))continue;
+    const b={...structuredClone(base),pairing:{id:p.id},palette:{id:c.id},graphicSet:{id:g.id},container:containers[g.id],primaryMode:c.energy==='dark-first'?'dark':'light',handwriting:null,energy};
+    const parts=partPositions(library,b),positions=Object.fromEntries(Object.entries(AXES).map(([axis,[neg,pos]])=>{
+      const n=Object.values(parts).reduce((sum,p)=>sum+(p[axis]===pos?1:p[axis]===neg?-1:0),0);
+      return [axis,n>0?pos:n<0?neg:'either'];
+    }));
+    if(angleOnly) {
+      if(strong.filter(k=>positions[k]!=='either'&&r.positions[0].positions[k]!=='either'&&positions[k]!==r.positions[0].positions[k]).length===1)shown.push(b);
+    } else for(const primaryMode of ['light','dark'])shown.push({...b,primaryMode});
+  }
+  assert.ok(shown.length,'history must exercise the energy guard');
+  return shown;
+}
+test('a fresh page covers quiet in the first eight when every angle-legal quiet board was shown',()=>{
+  const a=operator(),shown=energyHistory(a,'quiet',true);
+  const r=select('variations',{...a,picks:[],shown},{check:true});
+  assert.equal(r.selection.boards.length,12);
+  assert.deepEqual(new Set(r.selection.boards.map(b=>b.energy)),new Set(ENERGIES));
+  assert.ok(r.selection.boards.slice(0,8).some(b=>b.energy==='quiet'));
+  const seen=new Set(shown.map(designKey));assert.ok(r.selection.boards.every(b=>!seen.has(designKey(b))));
+});
+test('a fresh page names the exhausted energy when no unseen board of it remains',()=>{
+  const a=operator(),shown=energyHistory(a,'quiet',false);
+  assert.throws(()=>select('variations',{...a,picks:[],shown}),/quiet.*exhausted|exhausted.*quiet/);
+});
+for(const command of ['round1','variations'])test(`${command} with a kept full palette never repeats an alternative's five-part key`,()=>{
+  const a={...operator(),kept:{palette:{id:'navy-gold'}},taps:{mode:'mode-either',feel:'suit-and-tie',history:'history-unsure',strength:'strong-solid',technology:'kitchenaid',style:'j-crew',posture:'porsche',mood:'restoration-hardware',place:'hotel-lobby'}};
+  const histories=command==='variations'?[[],select('round1',a).selection.boards]:[[]];
+  for(const shown of histories) {
+    const r=select(command,command==='variations'?{...a,picks:[],shown}:a);
+    // Board zero is the kept-assets reference, intentionally sharing board 1's design.
+    const alternatives=r.selection.boards.filter(b=>!b.zero),keys=alternatives.map(designKey);
+    assert.equal(alternatives.length,11);assert.equal(new Set(keys).size,11);
+    assert.ok(alternatives.every(b=>b.palette.id==='navy-gold'));
+    assert.ok(alternatives.every(b=>!shown.some(old=>designKey(old)===designKey(b))));
+  }
+});
+for(const step of [-1,1])for(const kept of [false,true])test(`${step===1?'bolder':'quieter'} variations score the ${kept?'kept':'parent donor'} heading and keep its pairing`,()=>{
+  const a=operator(),base=select('round1',a).selection.boards[0];
+  const donor=step===1?'chunky':'soft-serif';
+  // The hidden base pairing would forbid the palette loudness step in both cases.
+  base.pairing={id:step===1?'quiet-sans':'chunky',headingFrom:donor};
+  base.palette={id:'paper-orange'};base.energy='quiet';
+  if(kept)a.kept={headingFrom:donor};
+  const r=select('variations',{...a,picks:[base],shown:[base],steer:{quietBold:step}},{check:true});
+  assertVariations(r,[base],[base]);
+  for(const [i,b]of r.selection.boards.entries()) {
+    assert.deepEqual(b.pairing,base.pairing);assert.ok(!r.positions[i].changedParts.includes('pairing'));
+    assert.equal(palette(b.palette.id).paletteLoudness,2+step);
+    assert.equal(palette(b.palette.id).temperature,'warm');
+    assert.equal(assemble({...r.selection,boards:[b]},library).boards[0].tags.typeLoudness,step===1?3:1);
+  }
 });
 test('bolder variations seek the next louder same-temperature recipe and report each ceiling',()=>{
   const a=firstStrategy(),shown=select('round1',a).selection.boards,pick=shown[0];
