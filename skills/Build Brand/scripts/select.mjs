@@ -204,10 +204,10 @@ function shownLook(look,library,kept={}) {
   return c;
 }
 function freshLooks(pool,shown,library,kept) {
-  const history=shown.map(look=>shownLook(look,library,kept)),seen=new Set(history.map(key));
+  const history=new Map(shown.map(look=>{const c=shownLook(look,library,kept);return [key(c),c];})),seen=new Set(history.keys());
   const fields=['palette','pairing','graphicSet'];
   const uses=Object.fromEntries(fields.map(field=>[field,new Map()]));
-  for(const c of history) for(const field of fields) uses[field].set(c[field].id,(uses[field].get(c[field].id)??0)+1);
+  for(const c of history.values()) for(const field of fields) uses[field].set(c[field].id,(uses[field].get(c[field].id)??0)+1);
   return pool.filter(c=>!seen.has(key(c))).map(c=>{
     const counts=fields.map(field=>uses[field].get(c[field].id)??0);
     return {c,used:counts.filter(Boolean).length,uses:counts.reduce((a,b)=>a+b,0)};
@@ -236,7 +236,7 @@ function chooseLooks(pool, accept=()=>true, onChoose=()=>{}) {
   }
   return {chosen,spares};
 }
-function chooseFreshLooks(pool,accept) {
+function chooseFreshLooks(pool,accept,replacements) {
   if(pool.length<12) fail('looks',`library exhausted: only ${pool.length} unshown looks remain; twelve are required`);
   const paletteCount=new Set(pool.map(c=>c.palette.id)).size;
   if(paletteCount<12) fail('looks',`library exhausted for a twelve-look page: only ${paletteCount} unshown palette recipes remain; twelve distinct palettes are required`);
@@ -297,7 +297,7 @@ function chooseFreshLooks(pool,accept) {
     return groups.size>needed&&leadersFit(rest,needed,contrastPalettes,patterns,plains);
   }
   function search(chosen,palettes,pairings,graphics,axes,targets,spares,contrasts=[]) {
-    const slot=chosen.length;
+    const slot=chosen.length,refusalStart=replacements.length;
     if(slot===12) return {chosen,spares};
     // Failed states depend on feasibility, not on the order of the prefix.
     const state=JSON.stringify([slot,chosen.length?positionKey(chosen[0]):null,...[palettes,pairings,graphics].map(set=>[...set].sort())]);
@@ -343,6 +343,9 @@ function chooseFreshLooks(pool,accept) {
         [...spares,ranked.slice(index+1,index+17)],nextContrasts);
       if(next) return next;
     }
+    // Keep learned check results, but omit refusals from an abandoned prefix.
+    // Only the winning prefix can name its slot's actual passing replacement.
+    replacements.length=refusalStart;
     failed.add(state);return null;
   }
   const found=search([],new Set(),new Set(),new Set(),new Set(),new Set(),[]);
@@ -464,7 +467,7 @@ export function select(command, answers, {library=load(LIBRARY),data=load(TAPS),
   }
   if(command==='looks'&&(a.looks??[]).length) fail('looks','picks belong to round1, not the initial looks command');
   if(command!=='looks') for(const axis of Object.keys(AXES)) state.dials[axis]+=boosts[axis];
-  if(command==='variations'||command==='looks') for(const [axis,value] of Object.entries(a.steer??{})) state.dials[axis]+=value*3;
+  if(command==='variations'||(command==='looks'&&a.shown?.length)) for(const [axis,value] of Object.entries(a.steer??{})) state.dials[axis]+=value*3;
   pool=candidates(library,state);
   const checker=check?checkFactory(a,library,selectionDir,replacements):null;
   const chosen=[],spares=[],seen=new Set([...(a.shown??[]),...(a.picks??[])].map(boardKey));
@@ -477,7 +480,7 @@ export function select(command, answers, {library=load(LIBRARY),data=load(TAPS),
       groups=[{id:'looks',label:'Whole looks'}];
       const fresh=!!a.shown?.length,lookPool=fresh?freshLooks(pool,a.shown,library,a.kept):pool;
       const checkLook=(c,slot)=>accept(effective(c,a,library),'looks',slot);
-      const found=fresh?chooseFreshLooks(lookPool,checkLook):chooseLooks(lookPool,checkLook,(c,slot)=>{for(const r of replacements.filter(r=>r.slot===slot))r.replacement=summary(c);});
+      const found=fresh?chooseFreshLooks(lookPool,checkLook,replacements):chooseLooks(lookPool,checkLook,(c,slot)=>{for(const r of replacements.filter(r=>r.slot===slot))r.replacement=summary(c);});
       if(fresh) for(const r of replacements) r.replacement=summary(found.chosen[r.slot-1]);
       chosen.push(...found.chosen.map(c=>effective(c,a,library)));spares.push(...found.spares);
     } else if(roundPage) {

@@ -12,11 +12,13 @@ const library=JSON.parse(readFileSync(LIBRARY));
 const data=JSON.parse(readFileSync(new URL('../parts/taps.json',import.meta.url)));
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const identity=c=>`${c.pairing}/${c.palette}/${c.graphicSet}`;
-// Full JSON hashes captured before pagination was added, including ranked spares
-// and checked refusals/replacements, rather than regenerated expected output.
+// Original hashes predate pagination; kept-asset hashes predate the steer fix.
+// Both cover full JSON, including spares and checked refusals/replacements.
 const fixtures=[
-  ['operator',operator,['93197fc7b74344e09018236ae728cb104f662e650a3b88ea73d636cff41ef237','709376501cec216be8a949be7e4634bb4df60dfeddafcccd5b59e310d437dc03']],
-  ['First Strategy',firstStrategy,['97651205c79f7da23b957117293281b903a6af43a4b3ee1f134e569db0fe06a6','599bf8758711b52245f3b4142dbf969ed62f93d5ca98935d750372a0fb3b6d93']]
+  ['operator',operator,['93197fc7b74344e09018236ae728cb104f662e650a3b88ea73d636cff41ef237','709376501cec216be8a949be7e4634bb4df60dfeddafcccd5b59e310d437dc03'],
+    ['10a10abb60c227c5e52f920c9deffe59f5e5a6dc08e705a0026f61854fc5fa6d','1df9d791d532b01adc7f4f2197b6e268f418f21ce178b29e42a6ea056d8addf9']],
+  ['First Strategy',firstStrategy,['97651205c79f7da23b957117293281b903a6af43a4b3ee1f134e569db0fe06a6','599bf8758711b52245f3b4142dbf969ed62f93d5ca98935d750372a0fb3b6d93'],
+    ['cf965863d4e039053ff84ce94eda18a9e7efe9e5e37471c0f5688ddb6af2d4dc','7f6da8a95e96f56014919d318d5b143153b3ed06b5b11fd156a3355a4734d703']]
 ];
 function assertPage(r,a,history=[]) {
   assert.equal(r.looks.length,12);assert.equal(r.options.length,12);
@@ -48,12 +50,29 @@ function assertPage(r,a,history=[]) {
   }
 }
 
-for(const [label,fixture,expected] of fixtures) {
+function assertFirstPage(a,expected) {
+  const steer={warmCool:1,quietBold:-1,softStrong:1,classicContemporary:-1};
+  for(const check of [false,true]) {
+    const first=JSON.stringify(select('looks',a,{check}));
+    assert.equal(hash(first),expected[Number(check)]);
+    for(const history of [{},{shown:[]}]) for(const direction of [{},{steer:{}},{steer}]) {
+      assert.equal(JSON.stringify(select('looks',{...a,...history,...direction},{check})),first,
+        `check=${check}, history=${JSON.stringify(history)}, direction=${JSON.stringify(direction)}`);
+    }
+  }
+}
+for(const [label,fixture,expected,keptExpected] of fixtures) {
   test(`${label}: first looks page stays byte-identical with absent or empty history, checked and unchecked`,()=>{
-    for(const check of [false,true]) {
-      const a=fixture(),first=select('looks',a,{check});
-      assert.equal(hash(JSON.stringify(first)),expected[Number(check)]);
-      assert.equal(JSON.stringify(select('looks',{...a,shown:[],steer:{}},{check})),JSON.stringify(first));
+    assertFirstPage(fixture(),expected);
+  });
+  test(`${label}: kept pairing and palette retain first-page bytes with any steer and no history`,()=>{
+    assertFirstPage({...fixture(),kept:{pairing:'condensed',palette:{id:'navy-gold'}}},keptExpected);
+  });
+  test(`${label}: a single duplicate history look leaves the entire next page unchanged`,()=>{
+    const a=fixture(),one=select('looks',a),expected=JSON.stringify(select('looks',{...a,shown:one.looks}));
+    // Repeat just one item, rather than scaling every part's use count equally.
+    for(const [i,look] of one.looks.entries()) for(const duplicate of [look,one.options[i]]) {
+      assert.equal(JSON.stringify(select('looks',{...a,shown:[...one.looks,duplicate]})),expected,`duplicate look ${i+1}`);
     }
   });
   test(`${label}: three checked looks pages exclude all history, keep the page shape and pass Form unchanged`,()=>{
@@ -108,6 +127,35 @@ test('history options and records exclude the same identities, including a prior
 test('later pages keep six contrasts available when another first look is needed',()=>{
   const a=operator(),shown=[];
   for(let page=0;page<21;page++) {const r=select('looks',{...a,shown});assertPage(r,a,shown);shown.push(...r.looks);}
+});
+test('page 2 checks report only winning-prefix refusals and their exact replacements, including a pattern-only refusal',()=>{
+  const a=operator(),patterned=structuredClone(library),drawn=patterned.graphics.find(g=>g.id==='drawn');
+  drawn.pattern={...drawn.pattern,
+    svg:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 5H10" stroke="{{text}}"/></svg>',
+    strength:{light:1,dark:1}};
+  const one=select('looks',a,{library:patterned,check:true});
+  const two=select('looks',{...a,shown:one.looks},{library:patterned,check:true});
+  assertPage(two,a,one.looks);
+  // These refusals occurred under the winning prefix. Earlier prefixes hit
+  // another 43 refusals before backtracking; none belongs in this report.
+  assert.deepEqual(two.replacements.map(r=>[r.slot,identity(r.refused),identity(r.replacement)]),[
+    ...['newspaper','warm-grotesque','display-serif','soft-serif','humanist'].map(pairing=>
+      [6,`${pairing}/forest-coral/editorial`,'newspaper/plum-peach/geometric']),
+    [9,'humanist/stone-cobalt/stitch','friendly-serif/stone-cobalt/drafting'],
+    [9,'friendly-serif/stone-cobalt/stamp','friendly-serif/stone-cobalt/drafting']
+  ]);
+  assert.ok(two.checks.attempts>12+two.replacements.length,'fixture must explore abandoned prefixes');
+  const shown=new Set(one.looks.map(identity));
+  for(const r of two.replacements) {
+    assert.ok(r.reason);
+    assert.equal(r.group,'looks');
+    assert.ok(!shown.has(identity(r.refused)));
+    assert.ok(!shown.has(identity(r.replacement)));
+    for(const [field,value] of Object.entries(r.replacement)) assert.deepEqual(two.looks[r.slot-1][field],value);
+  }
+  // The graphic that fails with its pattern is still legal in a plain slot.
+  // Do not treat a pattern failure as exhaustion of that graphic in every slot.
+  assert.equal(two.looks[4].graphicSet,'drawn');assert.equal(two.looks[4].plainGround,true);
 });
 
 function allLooks() {
