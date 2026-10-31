@@ -4,6 +4,15 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.10.31.2, October 31, 2026
+
+- Wiser can now typeset a book. Book Publisher turns a folder of Markdown chapters and a settings file into a print interior PDF, a PDF/X-1a print file checked for the things a printer refuses, such as RGB colour, fonts that are not embedded and an odd page count, and an EPUB. A book can have a contents page, Parts, boxed asides styled in both formats, numbered or unnumbered headings, its own margins and typeface, and a back-of-book index built from a list of terms or from markers in the chapters. It does not make a cover, and it does not print images past the page edge; it says so rather than trying. (26dd1ec, dfc35a5, 5a004ef, 9de3207, 0d30940, 0f40004, 6d79ca2, 614f474, cb3f5a2, f694230, a24c164, aa8bea2, 0cd61d1, 4528e04, 69b3ca0, 572f521, e3bdbcc, 997254c, 313e15a)
+- Book Publisher's check never calls a file certified. For a printer that needs PDF/X-1a, Wiser sends you to that printer's own upload check or to Adobe Acrobat Pro's Preflight before you upload. (0d30940, 2886fce)
+- `Set Up Book` settles a book's editions, page size, margins, contents and index before the writing starts, reads the printer's or store's current requirements from their own pages, and records what the book must still provide. It asks rather than guessing when your choices conflict or a decision is yours. (0fcdca5, b90f72e, 2cd2df8, 8fd965e, 4715504)
+- `Publish Book` builds each edition from your finished chapters, writes the index's term list from them, has the prose read by Ghost Writer and the built files judged by the new `Publisher` expert, then hands you the files with anything still owed, such as the printer's own preflight. Nothing is uploaded for you. (2886fce, b90f72e, 2cd2df8, 8fd965e, e3bdbcc, 4715504)
+- The new `Publisher` expert judges whether a book's setup and its built files will be accepted by the printer or store you name, and says which skill fixes each problem it finds. (a831eb0, 57c8ccc, df25fc7)
+- `deck-export` now sends a book, or any long document headed to print or an EPUB, to Book Publisher. (cf92b72)
+
 ## v2026.10.31, October 31, 2026
 
 - Wiser can now send email from your Gmail: a new message, or a draft you saved there. It asks you before each one, showing who it goes to and what it says. (c963b83)
