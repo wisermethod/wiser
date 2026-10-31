@@ -4,12 +4,13 @@ import {BOARD_KEYS} from '../scripts/boards.js';
 export const tapSets={operator,firstStrategy};
 export const lookActions=()=>[
   {value:'none',label:'None of these work',needs:'none',note:'Show me different looks'},
+  {value:'one',label:'Only this one works for me',needs:'one',note:'and make my boards'},
   {value:'use',label:'Use these',needs:'some',note:'and make my boards'}
 ];
 export function lookForm(answers=operator(),result=select('looks',answers,{check:true})) {
   return {title:answers.name==='Sample Organisation'?'Step 4 of 7: how it should look':'Step 3 of 6: how it should look',
     brand:{name:answers.name,initials:result.selection.boards[0].initials,sentence:answers.sentence,body:answers.body??answers.sentence,words:answers.words},
-    questions:[{id:'looks',type:'boards',view:'look',label:'Which of these feel like you? Pick two or three.',pick:3,min:2,options:result.options}]};
+    questions:[{id:'looks',type:'boards',view:'look',label:'Which of these feel like you? Pick up to three.',pick:3,min:2,options:result.options}]};
 }
 export function formFromSelection(answers,selection,{pick=3,actions=true}={}) {
   const options=selection.boards.map(b=>({value:`board-${b.number}`,label:b.name,note:answers.words.map(w=>`${w.word}, not ${w.not}`).join('; '),...(b.recommendation?{recommendation:b.recommendation}:{}),

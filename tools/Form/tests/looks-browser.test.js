@@ -25,8 +25,9 @@ for(const [name,get]of Object.entries(tapSets))for(const width of [390,734])for(
   await h.f.locator('form').evaluate(n=>n.requestSubmit());assert.equal((await h.page.evaluate(()=>window.__log.filter(e=>e.kind==='message'))).length,0);
   await tiles.nth(1).tap();assert.equal(await send.isDisabled(),false);assert.equal(await minimum.isVisible(),false);
   await tiles.nth(2).tap();await tiles.nth(3).tap();
-  assert.deepEqual(await h.frame.evaluate(()=>WiserForm.readAnswers()[0].value),form.questions[0].options.slice(0,3).map(o=>o.value));
-  assert.equal(await h.f.locator('.board-limit').innerText(),'Pick up to three.');
+  assert.deepEqual(await h.frame.evaluate(()=>WiserForm.readAnswers()[0].value),form.questions[0].options.slice(0,4).map(o=>o.value));
+  assert.equal(await send.isDisabled(),true);assert.equal(await h.f.locator('#send-limit').innerText(),'You picked 4 looks. Pick up to three to go on.');
+  await tiles.nth(3).tap();
   await tiles.nth(2).tap();await tiles.nth(1).tap();assert.equal(await send.isDisabled(),true);assert.equal(await minimum.isVisible(),true);
   await tiles.nth(1).tap();await send.tap();await h.f.locator('#status.ok').waitFor();
   const sent=await h.page.evaluate(()=>window.__log.filter(e=>['context','message'].includes(e.kind)));
@@ -34,14 +35,14 @@ for(const [name,get]of Object.entries(tapSets))for(const width of [390,734])for(
   assert.ok(onlyFonts(h.requests));assert.deepEqual(h.errors,[]);
  }finally{await h.context.close();}
 });
-test('look captions default to Look n, retain supplied labels, and keyboard picks respect pick 2',async()=>{
+test('look captions default to Look n, retain supplied labels, and keyboard ticks pass pick 2 while Send holds',async()=>{
  const form=lookForm();form.questions[0].pick=2;delete form.questions[0].options[0].label;form.questions[0].options[1].label='My second look';
  const h=await kit.open(form);try{
   assert.equal(await h.f.locator('.tile-label').first().innerText(),'Look 1');assert.equal(await h.f.locator('.tile-label').nth(1).innerText(),'My second look');
   for(const [i,key]of [[0,'Space'],[1,'Enter'],[2,'Space']]){await h.f.locator('.tile-input').nth(i).focus();await h.page.keyboard.press(key);}
-  assert.equal(await h.f.locator('.board-limit').innerText(),'Pick up to 2.');
-  assert.equal(await h.f.locator('.tile-input:checked').count(),2);
-  assert.equal(await h.frame.evaluate(()=>WiserForm.readAnswers()[0].shown),'Look 1, My second look');
+  assert.equal(await h.f.locator('#send-limit').innerText(),'You picked 3 looks. Pick up to two to go on.');
+  assert.equal(await h.f.locator('#submit').isDisabled(),true);assert.equal(await h.f.locator('.tile-input:checked').count(),3);
+  assert.equal(await h.frame.evaluate(()=>WiserForm.readAnswers()[0].shown),`Look 1, My second look, ${form.questions[0].options[2].label}`);
  }finally{await h.context.close();}
 });
 test('minimum applies to some action while any, none and one keep their meanings',async()=>{
@@ -73,21 +74,21 @@ test('paged looks fit the name when their initially hidden question becomes visi
  }finally{await h.context.close();}
 });
 
-for(const name of ['chatgpt','Claude'])for(const width of [734,390])for(const theme of ['light','dark'])test(`looks actions ${name} ${width} ${theme}: 0/1/2/3 picks, lines, hidden unmet actions and guarded submission`,async()=>{
+for(const name of ['chatgpt','Claude'])for(const width of [734,390])for(const theme of ['light','dark'])test(`looks actions ${name} ${width} ${theme}: 0/1/2/3/4 picks, lines, hidden unmet actions and guarded submission`,async()=>{
  const form=lookForm();form.actions=lookActions();
  const h=await kit.open(form,width,theme,{name,autoSize:true,containerDimensions:name==='Claude'?{maxHeight:5000,width}:undefined});
  try{
   assert.equal(await h.f.locator('#submit').count(),0);
-  for(let count=0;count<=3;count++){
+  for(let count=0;count<=4;count++){
    if(count)await h.f.locator('.looks-tile').nth(count-1).click();
-   assert.equal(await h.f.locator('.board-minimum').isVisible(),count<2);
-   if(count===1)assert.equal(await h.f.locator('.board-minimum').innerText(),'Pick at least two.');
+   assert.equal(await h.f.locator('.board-minimum').isVisible(),count===0);
    for(const action of form.actions){
-    const button=h.f.locator(`[data-action=${action.value}]`),allowed=action.value==='none'?count===0:count>=2;
+    const button=h.f.locator(`[data-action=${action.value}]`),allowed=action.value==='none'?count===0:action.value==='one'?count===1:count>=2;
     assert.equal(await button.isVisible(),allowed);
     if(allowed){
-     assert.equal(await button.locator('span').innerText(),action.label);assert.equal(await button.locator('small').innerText(),action.note);
-     assert.equal(await button.isDisabled(),false);
+     assert.equal(await button.locator('span').innerText(),action.label);assert.equal(await button.locator('small').innerText(),count>3?'You picked 4 looks. Pick up to three to go on.':action.note);
+     assert.equal(await button.isDisabled(),count>3);
+     if(count>3)await button.evaluate(n=>n.form.requestSubmit(n));
     }else{
      assert.equal(await button.evaluate(n=>n.getClientRects().length),0);
      assert.doesNotMatch(await h.f.locator('.board-actions').ariaSnapshot(),new RegExp(action.label));
@@ -99,6 +100,7 @@ for(const name of ['chatgpt','Claude'])for(const width of [734,390])for(const th
    await h.f.locator('#form').evaluate(n=>n.requestSubmit());
    assert.equal((await h.page.evaluate(()=>__log.filter(e=>e.kind==='context'||e.kind==='message'))).length,0);
   }
+  await h.f.locator('.looks-tile').nth(3).click();
   await h.f.locator('[data-action=use]').click();await h.f.locator('#status.ok').waitFor();
   const sent=await h.page.evaluate(()=>__log.filter(e=>e.kind==='context'||e.kind==='message'));
   assert.deepEqual(sent.map(e=>e.kind),['context','message']);
@@ -113,5 +115,16 @@ for(const name of ['chatgpt','Claude'])test(`looks ${name}: None of these work s
   const sent=await h.page.evaluate(()=>__log.filter(e=>e.kind==='context'||e.kind==='message'));
   assert.deepEqual(sent.map(e=>e.kind),['context','message']);assert.equal(sent[0].params.structuredContent.action,'none');
   assert.deepEqual(sent[0].params.structuredContent.answers.looks,[]);assert.match(sent[1].params.content[0].text,/What next: None of these work/);
+ }finally{await h.context.close();}
+});
+for(const name of ['chatgpt','Claude'])test(`looks ${name}: Only this one works for me sends one look despite min two`,async()=>{
+ const form=lookForm();form.actions=lookActions();const h=await kit.open(form,734,'light',{name});
+ try{
+  await h.f.locator('.looks-tile').first().click();assert.equal(await h.f.locator('.board-minimum').isHidden(),true);
+  await h.f.locator('[data-action=one]').click();await h.f.locator('#status.ok').waitFor();
+  const sent=await h.page.evaluate(()=>__log.filter(e=>e.kind==='context'||e.kind==='message'));
+  assert.deepEqual(sent.map(e=>e.kind),['context','message']);assert.equal(sent[0].params.structuredContent.action,'one');
+  assert.deepEqual(sent[0].params.structuredContent.answers.looks,[form.questions[0].options[0].value]);
+  assert.match(sent[1].params.content[0].text,/What next: Only this one works for me/);
  }finally{await h.context.close();}
 });

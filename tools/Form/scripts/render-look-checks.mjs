@@ -38,12 +38,12 @@ export async function run(output) {
     try {
      assert.equal(await h.f.locator('.look-art').count(),12);
      for(const number of plain)assert.equal(await h.f.locator('.look-art').nth(number-1).locator('.look-pattern').getAttribute('opacity'),'0');
-     for(const state of ['none-picked','two-picked','fourth-refused']) {
+     for(const state of ['none-picked','two-picked','four-held']) {
       if(state==='two-picked')for(const i of [0,1])await h.f.locator('.looks-tile').nth(i).tap();
-      if(state==='fourth-refused')for(const i of [2,3])await h.f.locator('.looks-tile').nth(i).tap();
-      assert.equal(await h.f.locator('.tile-input:checked').count(),state==='none-picked'?0:state==='two-picked'?2:3);
-      assert.equal(await h.f.locator('#submit').isDisabled(),state==='none-picked');
-      if(state==='fourth-refused')assert.equal(await h.f.locator('.board-limit').innerText(),'Pick up to three.');
+      if(state==='four-held')for(const i of [2,3])await h.f.locator('.looks-tile').nth(i).tap();
+      assert.equal(await h.f.locator('.tile-input:checked').count(),state==='none-picked'?0:state==='two-picked'?2:4);
+      assert.equal(await h.f.locator('#submit').isDisabled(),state!=='two-picked');
+      if(state==='four-held')assert.equal(await h.f.locator('#send-limit').innerText(),'You picked 4 looks. Pick up to three to go on.');
       await h.f.locator('#board-grid-view').evaluate(n=>n.scrollTop=0);
       const prefix=`${slug}-${width}-${theme}-${state}`,card=prefix+'.png',content=prefix+'-content.png';
       await h.f.locator('#root').screenshot({path:resolve(output,card)});record.renders.push(card);

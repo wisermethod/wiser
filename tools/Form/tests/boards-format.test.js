@@ -101,9 +101,9 @@ for(const [name,notes]of [['unknown',{other:'No'}],['long',{one:'x'.repeat(121)}
  const f=boardForm();f.actions[0].notes=notes;assert.equal(checkForm(f).ok,false);
 });
 
-test('whole looks accept both journey actions unchanged through checkForm and schema',()=>{
+test('whole looks accept all three journey actions unchanged through checkForm and schema',()=>{
  const form=lookForm();form.actions=lookActions();const before=copy(form);
  assert.deepEqual(checkForm(form),{ok:true,problems:[]});assert.deepEqual(form,before);
  assert.equal(z.fromJSONSchema(formJsonSchema()).safeParse(form).success,true);
- assert.deepEqual([0,1,2,3].map(n=>form.actions.filter(a=>actionAllowed(a.needs,n,2)).map(a=>a.value)),[['none'],[],['use'],['use']]);
+ assert.deepEqual([0,1,2,3].map(n=>form.actions.filter(a=>actionAllowed(a.needs,n,2)).map(a=>a.value)),[['none'],['one'],['use'],['use']]);
 });

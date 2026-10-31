@@ -17,8 +17,8 @@ for(const width of [390,734])for(const theme of ['light','dark'])test(`boards ${
   assert.match(await h.f.locator('button[data-action=more]').innerText(),/None of these work/);
   const tiles=h.f.locator('.boards-tile');await tiles.nth(0).tap();assert.deepEqual(await picks(h),['board-1']);
   assert.equal(await h.f.locator('button[data-action=lock]').isDisabled(),false);
-  await tiles.nth(1).tap();await tiles.nth(2).tap();await tiles.nth(3).tap();assert.deepEqual(await picks(h),['board-1','board-2','board-3']);
-  assert.equal(await h.f.locator('.board-limit').innerText(),'Pick up to three.');assert.equal(await h.f.locator('button[data-action=lock]').isHidden(),true);
+  await tiles.nth(1).tap();await tiles.nth(2).tap();await tiles.nth(3).tap();assert.deepEqual(await picks(h),['board-1','board-2','board-3','board-4']);
+  assert.equal(await h.f.locator('.board-limit').count(),0);assert.equal(await h.f.locator('[data-action=more] small').innerText(),'You picked 4 boards. Pick up to three to go on.');assert.equal(await h.f.locator('button[data-action=lock]').isHidden(),true);
   const height=await rootHeight(h),gridHeight=()=>h.f.locator('.boards-tiles').evaluate(n=>n.getBoundingClientRect().height),closed=await gridHeight();
   assert.equal(await ownScroll(h),0,'twelve boards and the actions sit in the card with no scroll of their own');
   assert.ok(height>1500,'the card is as tall as its twelve boards');
@@ -32,7 +32,7 @@ for(const width of [390,734])for(const theme of ['light','dark'])test(`boards ${
   await h.page.waitForFunction(min=>window.__log.filter(e=>e.kind==='size').at(-1)?.params.height>=min,Math.floor(open));
   assert.equal(await h.f.locator('.board-viewer input').first().isChecked(),true);
   await h.f.locator('.board-viewer input').first().uncheck();
-  await h.f.locator('.board-viewer-end').getByText('Close this board',{exact:true}).tap();assert.deepEqual(await picks(h),['board-1','board-3']);
+  await h.f.locator('.board-viewer-end').getByText('Close this board',{exact:true}).tap();assert.deepEqual(await picks(h),['board-1','board-3','board-4']);await tiles.nth(3).tap();
   assert.equal(await h.f.locator('.board-viewer').count(),0);
   assert.equal(await h.f.locator('.see-board').nth(1).getAttribute('aria-expanded'),'false');
   assert.equal(await gridHeight(),closed,'closing gives the grid back its own height');
@@ -72,9 +72,9 @@ test('the open board\'s mirrored pick is never read as an answer, even beside an
   assert.equal(await h.f.locator('button[data-action=lock]').isDisabled(),false,'one real pick: Lock it is open');
  }finally{await h.context.close();}
 });
-test('one-pick round refuses a second pick; sole tuned board starts picked',async()=>{
+test('one-pick round takes extra ticks but holds submission; sole tuned board starts picked',async()=>{
  const form=boardForm();form.questions[0].pick=1;form.questions[0].options.length=3;
- const h=await kit.open(form);try{await h.f.locator('.boards-tile').nth(0).click();await h.f.locator('.boards-tile').nth(1).click();assert.deepEqual(await picks(h),['board-1']);assert.equal(await h.f.locator('.board-limit').innerText(),'Pick up to 1.');}finally{await h.context.close();}
+ const h=await kit.open(form);try{await h.f.locator('.boards-tile').nth(0).click();await h.f.locator('.boards-tile').nth(1).click();assert.deepEqual(await picks(h),['board-1','board-2']);assert.equal(await h.f.locator('[data-action=more]').isDisabled(),true);assert.equal(await h.f.locator('[data-action=more] small').innerText(),'You picked 2 boards. Pick up to one to go on.');}finally{await h.context.close();}
  form.questions[0].options.length=1;const single=await kit.open(form);try{assert.deepEqual(await picks(single),['board-1']);assert.equal(await single.f.locator('legend').isVisible(),false);assert.equal(await single.f.locator('.brand-board').count(),2);assert.equal(await single.f.locator('button[data-action=lock]').isDisabled(),false);}finally{await single.context.close();}
 });
 test('pick 0 is whole and display-only; it sends nothing, including implicit form submit',async()=>{
