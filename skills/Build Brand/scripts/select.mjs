@@ -407,6 +407,18 @@ function alignedWhy(c,a,data) {
 }
 const BOARD_PARTS=['pairing','palette','graphicSet','container','primaryMode'];
 const FORM_COPY=['handwriting','buttonRadius','heroPhrase','content','note','sample','items','closingExamples'];
+// SVG text made single-line by the rules a renderer applies, so the card's
+// mark draws as the file does. Inside a tag, XML turns each newline (a CRLF
+// counting once) or tab in an attribute value into one space. In text under
+// the default xml:space, SVG drops each newline and turns each tab into a
+// space. xml:space="preserve" keeps each as its own space; rather than track
+// its scope, such a mark is not shown in the card.
+export function formLogo(svg) {
+  if(/xml:space\s*=\s*["']preserve["']/.test(svg)) return null;
+  return svg.replace(/(<[^>]*>)|([^<]+)/g,(m,tag,text)=>tag
+    ? tag.replace(/\r\n/g,' ').replace(/[\r\n\t]/g,' ')
+    : text.replace(/\r\n|\r|\n/g,'').replace(/\t/g,' '));
+}
 function boardsForm(a,selection,selectionDir,command) {
   const boards=selection.boards;
   // A disk font has no public reference in Form. Preserve the selection for
@@ -414,9 +426,13 @@ function boardsForm(a,selection,selectionDir,command) {
   if(boards.some(b=>['headingFrom','bodyFrom'].some(role=>b.pairing[role]&&typeof b.pairing[role]==='object')))
     return {form:null,formUnavailable:'Form cannot transmit kept font files; use the unchanged selection with assemble.mjs.'};
   const brand={name:a.name,initials:boards[0].initials??a.name.split(/\s+/).slice(0,2).map(w=>Array.from(w)[0]).join('').toUpperCase(),sentence:a.sentence,body:a.body??a.sentence,words:copy(a.words)};
-  // Keep attribute separators while making SVG text legal in a single-line
-  // form. checkForm below owns the byte cap, remaining controls and SVG check.
-  if(boards[0].markFile) brand.logo=readFileSync(file(resolve(selectionDir,boards[0].markFile)),'utf8').replace(/[\n\r\t]+/g,' ');
+  // A single-line logo that draws as the file does. checkForm below owns the
+  // byte cap, remaining controls and SVG check.
+  if(boards[0].markFile){
+    const logo=formLogo(readFileSync(file(resolve(selectionDir,boards[0].markFile)),'utf8'));
+    if(logo===null) return {form:null,formUnavailable:'Form cannot show a kept mark that sets xml:space="preserve"; use the unchanged selection with assemble.mjs.'};
+    brand.logo=logo;
+  }
   const options=boards.map(b=>({value:`board-${b.number}`,label:b.name,...(b.recommendation?{recommendation:b.recommendation}:{}),
     board:Object.fromEntries([...BOARD_PARTS,...FORM_COPY].filter(k=>own(b,k)).map(k=>[k,k==='content'?Object.fromEntries(Object.entries(b.content).filter(([key])=>!['brandName','sentence','body'].includes(key))):copy(b[k])]))}));
   const boardDefaults={};

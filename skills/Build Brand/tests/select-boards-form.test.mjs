@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {mkdtempSync,readFileSync,writeFileSync,rmSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
-import {select} from '../scripts/select.mjs';
+import {select,formLogo} from '../scripts/select.mjs';
 import {operator,firstStrategy} from './select-fixtures.mjs';
 import {checkForm} from '../../../tools/Form/scripts/format.js';
 import {BOARD_KEYS,resolveBoards} from '../../../tools/Form/scripts/boards.js';
@@ -75,17 +75,17 @@ function formPage(command,a,options={}){
  return select(command,command==='variations'?{...a,picks:[],shown:[],steer:{}}:a,options);
 }
 for(const command of ['round1','variations'])for(const bytes of [8191,8192,8193])test(`${command}: a kept multiline SVG at ${bytes} UTF-8 bytes preserves its selection and obeys Form's logo cap`,()=>{
- const normalized=multilineLogo.replace(/[\n\r\t]+/g,' '),padding=bytes-Buffer.byteLength(normalized)-7;
+ const normalized=formLogo(multilineLogo),padding=bytes-Buffer.byteLength(normalized)-7;
  // Multibyte comment text keeps the character count below the byte cap even
  // in the oversized case. Size is measured after whitespace normalization.
  const svg=multilineLogo.replace('</svg>',`<!--${'é'.repeat(Math.floor(padding/2))}${' '.repeat(padding%2)}--></svg>`);
- assert.equal(Buffer.byteLength(svg.replace(/[\n\r\t]+/g,' ')),bytes);
+ assert.equal(Buffer.byteLength(formLogo(svg)),bytes);
  withLogo(svg,markFile=>{
   const a={...operator(),kept:{markFile}},before=structuredClone(a),r=formPage(command,a,{check:true});
   assert.deepEqual(a,before);assert.ok(r.selection.boards.every(b=>b.markFile===markFile));
   assert.ok(r.selection.boards.every(b=>!Object.hasOwn(b,'container')));
   if(bytes<=8192){
-   assert.ok(r.form);assert.equal(r.form.brand.logo,svg.replace(/[\n\r\t]+/g,' '));
+   assert.ok(r.form);assert.equal(r.form.brand.logo,formLogo(svg));
    assert.doesNotMatch(r.form.brand.logo,/[\n\r\t]/);assert.match(r.form.brand.logo,/<svg xmlns=/);
    assert.deepEqual(checkForm(r.form),{ok:true,problems:[]});
   }else{ assert.equal(r.form,null);assert.match(r.formUnavailable,/brand\.logo.*8192/); }
@@ -145,4 +145,27 @@ for(const type of [undefined,'personal','org','client','department'])test(`${typ
 });
 test('an unknown root type is refused rather than receiving a personal progress line',()=>{
  assert.throws(()=>select('round1',{...operator(),type:'company'}),/type.*personal.*org.*client.*department/);
+});
+
+// The card's mark draws the characters the file draws (review 20261031-165721).
+test('a kept logo keeps its text as SVG renders it: newlines in text dropped, tabs a space, attribute whitespace one space each',()=>{
+ assert.equal(formLogo('<svg><text>\nHello\nWorld\n</text></svg>'),'<svg><text>HelloWorld</text></svg>');
+ assert.equal(formLogo('<svg><text>Hello\r\nWorld\tAgain</text></svg>'),'<svg><text>HelloWorld Again</text></svg>');
+ assert.equal(formLogo('<svg\r\nviewBox="0 0\n20\t20"><g/>\n\t<g/></svg>'),'<svg viewBox="0 0 20 20"><g/> <g/></svg>');
+ assert.equal(formLogo('<svg><text>A&#10;B</text></svg>'),'<svg><text>A&#10;B</text></svg>','character references are left alone');
+});
+for(const command of ['round1','variations'])test(`${command}: a kept mark with xml:space="preserve" makes Form unavailable without losing the mark`,()=>{
+ withLogo('<svg xmlns="http://www.w3.org/2000/svg"><text xml:space="preserve">Hello\n\nWorld</text></svg>',markFile=>{
+  const a={...operator(),kept:{markFile}},r=formPage(command,a);
+  assert.equal(r.form,null);assert.match(r.formUnavailable,/xml:space/);
+  assert.ok(r.selection.boards.every(b=>b.markFile===markFile));
+ });
+});
+for(const command of ['round1','variations'])test(`${command}: a kept mark with a two-line text gives a valid form whose text matches the file`,()=>{
+ withLogo('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20">\n <text x="2" y="14">\n  AF\n </text>\n</svg>\n',markFile=>{
+  // --check, as the skill runs it, replaces a board the card's own checks refuse.
+  const r=formPage(command,{...operator(),kept:{markFile}},{check:true});
+  assert.ok(r.form,r.formUnavailable);assert.match(r.form.brand.logo,/<text x="2" y="14">  AF <\/text>/);
+  assert.deepEqual(checkForm(r.form),{ok:true,problems:[]});
+ });
 });
