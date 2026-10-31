@@ -155,7 +155,7 @@ function modeSwitch(art,initial=art.firstElementChild?.dataset.mode||"light") {
 
 function boardQuestion(fieldset,q,id) {
   const look=q.view==="look",single=!look&&q.pick===1&&q.options.length===1;
-  const model=boardLib.resolveBoards(state.form.brand,q.options);
+  const model=boardLib.resolveBoards(state.form.brand,q.options,state.form.boardDefaults);
   globalThis.WiserBoardView.loadFonts(model,boardLib.FONT_HOSTS);
   const grid=el("div",{class:`boards-tiles${look?' looks-tiles':''}`});
   const picks=new Map();
@@ -207,18 +207,19 @@ function boardQuestion(fieldset,q,id) {
   viewer.append(viewerBar,scroll,viewerEnd);
   for(const [i,o]of q.options.entries()){
     const b=model.boards[i],label=o.label??WORDS.look.replace("{n}",i+1);
+    const note=Object.hasOwn(o,"note")?o.note:look?"":state.form.brand.words.map(w=>`${w.word}, not ${w.not}`).join("; ");
     if(!look&&(q.pick===0||single)){
       if(single){const input=el("input",{type:"checkbox",name:id,value:o.value,hidden:true});input.checked=true;fieldset.append(input);picks.set(o.value,input);}
       fieldset.append(el("h2",{class:"locked-name",text:o.label}),globalThis.WiserBoardView.draw(model,b,{logo:state.form.brand.logo}));
       continue;
     }
     if(look&&q.pick===0){grid.append(el("div",{class:"tile looks-tile"},globalThis.WiserBoardView.look(model,b,{logo:state.form.brand.logo}),el("span",{class:"tile-label",text:label})));continue;}
-    const input=el("input",{type:"checkbox",class:"tile-input",id:`${id}-${i}`,name:id,value:o.value,"aria-describedby":o.note?`${id}-${i}-note`:undefined});
+    const input=el("input",{type:"checkbox",class:"tile-input",id:`${id}-${i}`,name:id,value:o.value,"aria-describedby":note?`${id}-${i}-note`:undefined});
     if(q.pick===1&&q.options.length===1)input.checked=true;
     picks.set(o.value,input);
     input.addEventListener("change",()=>{pick(input,input.checked);if(activeInput===input)syncViewer();});
     input.addEventListener("keydown",event=>{if(event.key==='Enter'){event.preventDefault();if(!event.repeat){pick(input,!input.checked);if(activeInput===input)syncViewer();}}});
-    const caption=el("span",{class:"tile-label"},el("span",{text:label}),el("span",{class:"mark check","aria-hidden":true}),o.note?el("small",{id:`${id}-${i}-note`,text:o.note}):null,
+    const caption=el("span",{class:"tile-label"},el("span",{text:label}),el("span",{class:"mark check","aria-hidden":true}),note?el("small",{id:`${id}-${i}-note`,text:note}):null,
       !look&&o.recommendation?el("small",{class:"board-recommendation"},el("b",{text:WORDS.recommended}),document.createTextNode(" · "+o.recommendation)):null);
     const preview=look?globalThis.WiserBoardView.look(model,b,{logo:state.form.brand.logo}):el("div",{class:"board-crop","aria-hidden":true},globalThis.WiserBoardView.draw(model,b,{compact:true,logo:state.form.brand.logo}));
     const tile=el("label",{class:`tile boards-tile${look?' looks-tile':''}`,for:input.id},input,preview,caption);

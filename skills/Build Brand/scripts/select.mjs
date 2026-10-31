@@ -30,7 +30,8 @@ Options:
   --help, -h        Help before reading files or checking fonts.
 Built-ins only. No network, configuration or installs; --env/--install refused.
 Success: one JSON object with selection, ranked spares, positions, replacements,
-checks and (for looks) ready-to-use Form boards options for view: "look".
+checks, ready-to-use boards form (round1/variations), and whole-look options
+(looks). Disk-only kept fonts report form: null and formUnavailable.
 Failure: JSON on stderr only, exit 1. No existing output is overwritten.
 looks answers: optional shown (all looks records or Form options already shown
 in this sitting), steer and off. Empty/absent shown keeps the first page;
@@ -402,6 +403,27 @@ function alignedWhy(c,a,data) {
   return labels.length?`Your ${labels.slice(0,3).map(s=>'“'+s+'”').join(', ')} ${labels.length===1?'tap points':'taps point'} toward this look.`:null;
 }
 const BOARD_PARTS=['pairing','palette','graphicSet','container','primaryMode'];
+const FORM_COPY=['handwriting','buttonRadius','heroPhrase','content','note','sample','items','closingExamples'];
+function boardsForm(a,selection,selectionDir) {
+  const boards=selection.boards;
+  // A disk font has no public reference in Form. Preserve the selection for
+  // local assembly rather than substituting a different typeface in the card.
+  if(boards.some(b=>['headingFrom','bodyFrom'].some(role=>b.pairing[role]&&typeof b.pairing[role]==='object')))
+    return {form:null,formUnavailable:'Form cannot transmit kept font files; use the unchanged selection with assemble.mjs.'};
+  const brand={name:a.name,initials:boards[0].initials??a.name.split(/\s+/).slice(0,2).map(w=>Array.from(w)[0]).join('').toUpperCase(),sentence:a.sentence,body:a.body??a.sentence,words:copy(a.words)};
+  if(boards[0].markFile) brand.logo=readFileSync(file(resolve(selectionDir,boards[0].markFile)),'utf8');
+  const options=boards.map(b=>({value:`board-${b.number}`,label:b.name,...(b.recommendation?{recommendation:b.recommendation}:{}),
+    board:Object.fromEntries([...BOARD_PARTS,...FORM_COPY].filter(k=>own(b,k)).map(k=>[k,k==='content'?Object.fromEntries(Object.entries(b.content).filter(([key])=>!['brandName','sentence','body'].includes(key))):copy(b[k])]))}));
+  const boardDefaults={};
+  for(const k of FORM_COPY) if(own(options[0].board,k)&&options.every(o=>own(o.board,k)&&partKey(o.board,k)===partKey(options[0].board,k))) {
+    boardDefaults[k]=options[0].board[k];
+    for(const o of options) delete o.board[k];
+  }
+  return {form:{title:'Step 4 of 6: your boards',brand,boardDefaults,
+    questions:[{id:'boards',type:'boards',label:'Select the board(s) that feel most like you',pick:3,options}],
+    actions:[{value:'more',label:'Show me more',needs:'any',notes:{none:'None of these work',one:'Show me variations of this board',several:'Show me variations of these boards'}},{value:'lock',label:'Lock this board in',note:'and finish my brand',needs:'one'}]}};
+}
+
 function stable(value) {
   if(Array.isArray(value)) return value.map(stable);
   return value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(k=>[k,stable(value[k])])):value;
@@ -602,6 +624,7 @@ export function select(command, answers, {library=load(LIBRARY),data=load(TAPS),
       });
       // Associate every rejected look with the actual passing choice for its slot.
     }
+    if(command!=='looks') Object.assign(result,boardsForm(a,selection,selectionDir));
     return result;
   } finally { checker?.close(); }
 }
