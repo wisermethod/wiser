@@ -398,13 +398,17 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
     });
     if(!form.actions){
       button.disabled=state.sending||!canSend();button.classList.toggle("over-limit",Boolean(over));
-      sendLimit.textContent=warning;sendLimit.hidden=!over||button.hidden;
     }
+    const warningOnButton=form.actions&&!actionRow.hidden&&actionButtons.some(button=>!button.hidden);
+    // Keep the action live region present before its first warning, with only one visible copy.
+    sendLimit.classList.toggle("visually-hidden",Boolean(form.actions)&&(!over||warningOnButton));
+    sendLimit.hidden=form.actions?false:!over||button.hidden;
+    if(sendLimit.textContent!==warning)sendLimit.textContent=warning;
     const oneAllowed=!actionRow.hidden&&form.actions?.some(a=>a.needs==="one"&&boardLib.actionAllowed(a.needs,count,boardQuestion?.min)&&!over);
     const minimum=f.querySelector('.board-minimum');if(minimum)minimum.hidden=count>=boardQuestion.min||oneAllowed;
   }
   const button = el("button",{id:"submit",type:"submit",text: state.sends ? WORDS.buttonSends : WORDS.buttonDrafts,...(hasBoards?{"aria-describedby":"send-limit"}:{})});
-  const sendLimit=el("small",{id:"send-limit",class:"send-limit help",hidden:true,role:"status"});
+  const sendLimit=el("small",{id:"send-limit",class:"send-limit help",hidden:!form.actions,role:"status"});
   let page = 0, advanceTimer;
   const back = el("button",{id:"back",type:"button",text:WORDS.back});
   const next = el("button",{id:"next",type:"button",text:WORDS.next});
@@ -458,7 +462,7 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
       }
     });
   } else if(!form.actions&&!onlyDisplay)f.append(button,...(hasBoards?[sendLimit]:[]));
-  if(form.actions)f.append(actionRow);
+  if(form.actions)f.append(actionRow,...(hasBoards&&!form.paged?[sendLimit]:[]));
   f.addEventListener("submit",async event => {
     event.preventDefault();
     if(onlyDisplay||state.sending||overLimit())return;

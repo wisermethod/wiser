@@ -1,7 +1,7 @@
 import '../../lib/tests/isolated-home.js';
 import test,{before,after} from 'node:test';
 import assert from 'node:assert/strict';
-import {boardForm,lookForm} from './board-fixtures.js';
+import {boardForm,lookForm,lookActions} from './board-fixtures.js';
 import {browserKit} from './boards-harness.js';
 let kit;before(async()=>{kit=await browserKit();});after(async()=>{await kit?.browser.close();});
 const deliveries=h=>h.page.evaluate(()=>__log.filter(e=>e.kind==='context'||e.kind==='message'));
@@ -34,7 +34,8 @@ for(const name of ['chatgpt','Claude'])for(const theme of ['light','dark'])for(c
    assert.equal(await h.f.locator('.tile-input:checked').count(),i+1);
    assert.equal(await more.isVisible(),true);assert.equal(await more.isDisabled(),true);
    assert.equal(await more.locator('small').innerText(),`You picked ${i+1} boards. Pick up to three to go on.`);
-   assert.equal(await h.f.getByText(`You picked ${i+1} boards. Pick up to three to go on.`,{exact:true}).count(),1);
+   assert.equal(await h.f.getByText(`You picked ${i+1} boards. Pick up to three to go on.`,{exact:true}).count(),2);
+   assert.equal(await h.f.locator('#send-limit').getAttribute('class'),'send-limit help visually-hidden');
    assert.equal(await lock.isHidden(),true);assert.equal(await h.f.locator('.board-limit').count(),0);
    await cannotSubmit(h,more);
    if(source==='top'||source==='bottom')await h.f.getByText('Close this board',{exact:true}).first().click();
@@ -73,13 +74,20 @@ for(const view of ['board','look'])for(const pick of [1,2,3])test(`Send ${view} 
  }finally{await h.context.close();}
 });
 
-for(const name of ['chatgpt','Claude'])for(const theme of ['light','dark'])test(`full-size link ${name} ${theme}: close text, 44px target, outside picking label`,async()=>{
- const h=await kit.open(boardForm(),734,theme,{name});try{
+for(const name of ['chatgpt','Claude'])for(const theme of ['light','dark'])for(const width of [390,734])test(`full-size link ${name} ${theme} ${width}: close text, 44px target, between its tile and the next row`,async()=>{
+ const h=await kit.open(boardForm(),width,theme,{name});try{
   const links=await h.f.locator('.see-board').evaluateAll(nodes=>nodes.map(n=>{
    const range=document.createRange();range.selectNodeContents(n);
-   return {gap:range.getBoundingClientRect().top-n.previousElementSibling.getBoundingClientRect().bottom,height:n.getBoundingClientRect().height,insideLabel:Boolean(n.closest('label'))};
+   const box=n.getBoundingClientRect(),tile=n.previousElementSibling.getBoundingClientRect(),option=n.parentElement.getBoundingClientRect();
+   const nextRows=[...n.parentElement.parentElement.querySelectorAll('.board-option')].map(row=>row.getBoundingClientRect().top).filter(top=>top>option.top+1);
+   return {gap:range.getBoundingClientRect().top-tile.bottom,top:box.top,bottom:box.bottom,tileBottom:tile.bottom,nextRowTop:nextRows.length?Math.min(...nextRows):null,height:box.height,insideLabel:Boolean(n.closest('label'))};
   }));
-  assert.equal(links.length,12);for(const link of links){assert.ok(link.gap>=0&&link.gap<=8,JSON.stringify(link));assert.ok(link.height>=44);assert.equal(link.insideLabel,false);}
+  assert.equal(links.length,12);assert.ok(links.some(link=>link.nextRowTop!==null));
+  for(const link of links){
+   assert.ok(link.gap>=0&&link.gap<=8,JSON.stringify(link));assert.ok(link.height>=44);assert.equal(link.insideLabel,false);
+   assert.ok(link.top>=link.tileBottom,JSON.stringify(link));
+   if(link.nextRowTop!==null)assert.ok(link.bottom<link.nextRowTop,JSON.stringify(link));
+  }
   await h.f.locator('.see-board').first().click();assert.equal(await h.f.locator('.tile-input:checked').count(),0);assert.deepEqual(h.errors,[]);
  }finally{await h.context.close();}
 });
@@ -115,5 +123,76 @@ test('paged Send shows its limit line only with Send and keeps it through Back',
   await h.f.locator('#back').click();assert.equal(await line.isHidden(),true);
   await h.f.locator('.looks-tile').nth(3).click();await h.f.locator('#next').click();
   assert.equal(await send.isDisabled(),false);assert.equal(await line.isHidden(),true);assert.deepEqual(h.errors,[]);
+ }finally{await h.context.close();}
+});
+
+const noneAndOne=()=>[
+ {value:'none',label:'None fit',needs:'none',note:'Try another set'},
+ {value:'one',label:'Keep this one',needs:'one',note:'Use my pick'}
+];
+for(const name of ['chatgpt','Claude'])for(const view of ['board','look'])for(const pick of [1,3])test(`only none and one ${name} ${view} pick ${pick}: visible limit, refused delivery and restored caller lines`,async()=>{
+ const form=view==='look'?lookForm():boardForm();form.actions=noneAndOne();form.questions[0].pick=pick;delete form.questions[0].min;
+ const h=await kit.open(form,734,'light',{name});try{
+  const line=h.f.locator('#send-limit'),none=h.f.locator('[data-action=none]'),one=h.f.locator('[data-action=one]');
+  for(let i=0;i<=pick;i++)await h.f.locator('.boards-tile').nth(i).click();
+  assert.equal(await h.f.locator('.board-actions button:visible').count(),0);
+  assert.equal(await line.count(),1);assert.equal(await line.isVisible(),true);assert.equal(await line.getAttribute('role'),'status');
+  assert.equal(await line.evaluate(n=>n.classList.contains('visually-hidden')),false);
+  assert.equal(await line.innerText(),`You picked ${pick+1} ${view==='look'?'looks':'boards'}. Pick up to ${pick===1?'one':'three'} to go on.`);
+  assert.equal(await h.f.locator('#submit:visible').count(),0);
+  for(const action of [none,one])await action.evaluate(n=>n.form.requestSubmit(n));
+  await h.f.locator('#form').evaluate(n=>n.requestSubmit());assert.deepEqual(await deliveries(h),[]);
+  await h.f.locator('.boards-tile').nth(pick).click();assert.equal(await line.evaluate(n=>n.classList.contains('visually-hidden')),true);assert.equal(await line.textContent(),'');
+  for(let i=pick-1;i>=1;i--)await h.f.locator('.boards-tile').nth(i).click();
+  assert.equal(await one.isVisible(),true);assert.equal(await one.isDisabled(),false);assert.equal(await one.locator('small').innerText(),'Use my pick');
+  assert.equal(await none.isHidden(),true);
+  await h.f.locator('.boards-tile').first().click();
+  assert.equal(await none.isVisible(),true);assert.equal(await none.isDisabled(),false);assert.equal(await none.locator('small').innerText(),'Try another set');
+  assert.equal(await one.isHidden(),true);assert.deepEqual(await deliveries(h),[]);assert.deepEqual(h.errors,[]);
+ }finally{await h.context.close();}
+});
+
+for(const name of ['chatgpt','Claude'])for(const view of ['board','look'])for(const theme of ['light','dark'])test(`action limit status ${name} ${view} ${theme}: one live update per changed line, visually hidden beside greyed button`,async()=>{
+ const form=view==='look'?lookForm():boardForm();if(view==='look')form.actions=lookActions();
+ const h=await kit.open(form,734,theme,{name});try{
+  const line=h.f.locator('#send-limit');assert.equal(await line.count(),1);assert.equal(await line.getAttribute('hidden'),null);
+  await line.evaluate(n=>{
+   window.__limitUpdates=[];
+   new MutationObserver(records=>records.forEach(()=>__limitUpdates.push(n.textContent))).observe(n,{childList:true,characterData:true,subtree:true});
+  });
+  const warning=count=>`You picked ${count} ${view==='look'?'looks':'boards'}. Pick up to three to go on.`;
+  for(let i=0;i<4;i++)await h.f.locator('.boards-tile').nth(i).click();
+  assert.equal(await line.textContent(),warning(4));assert.equal(await line.getAttribute('role'),'status');
+  assert.equal(await line.getAttribute('hidden'),null);assert.equal(await line.getAttribute('aria-hidden'),null);
+  const style=await line.evaluate(n=>{const s=getComputedStyle(n);return {position:s.position,width:s.width,height:s.height,overflow:s.overflow,clipPath:s.clipPath};});
+  assert.deepEqual(style,{position:'absolute',width:'1px',height:'1px',overflow:'hidden',clipPath:'inset(50%)'});
+  assert.ok((await line.ariaSnapshot()).includes(warning(4)),'the clipped status remains in the accessibility tree');
+  const live=h.f.locator('.board-actions button:visible:disabled');assert.equal(await live.count(),1);
+  assert.equal(await live.locator('small').innerText(),warning(4));
+  assert.equal(await h.f.locator('[role=status]').evaluateAll(nodes=>nodes.filter(n=>n.textContent.startsWith('You picked ')).length),1);
+  await h.f.locator('#form').evaluate(n=>{n.dispatchEvent(new Event('boardpicks'));n.dispatchEvent(new Event('boardpicks'));});
+  assert.deepEqual(await h.frame.evaluate(()=>__limitUpdates),[warning(4)]);
+  await h.f.locator('.boards-tile').nth(4).click();assert.equal(await line.textContent(),warning(5));
+  await h.f.locator('.boards-tile').nth(4).click();assert.equal(await line.textContent(),warning(4));
+  await h.f.locator('.boards-tile').nth(3).click();assert.equal(await line.evaluate(n=>n.classList.contains('visually-hidden')),true);assert.equal(await line.textContent(),'');
+  assert.deepEqual(await h.frame.evaluate(()=>__limitUpdates),[warning(4),warning(5),warning(4),'']);
+  assert.equal(await live.count(),0);assert.deepEqual(await deliveries(h),[]);assert.deepEqual(h.errors,[]);
+ }finally{await h.context.close();}
+});
+
+for(const name of ['chatgpt','Claude'])for(const pick of [1,3])for(const source of ['tile','top','bottom'])test(`over-limit Enter ${name} pick ${pick} ${source}: hidden first none action never delivers`,async()=>{
+ const form=boardForm();form.actions=noneAndOne();form.questions[0].pick=pick;
+ const h=await kit.open(form,734,'light',{name});try{
+  for(let i=0;i<=pick;i++)await h.f.locator('.boards-tile').nth(i).click();
+  const none=h.f.locator('[data-action=none]');assert.equal(await none.isHidden(),true);assert.equal(await none.isDisabled(),false);
+  let input=h.f.locator('.tile-input').nth(pick+1);
+  if(source!=='tile'){
+   await h.f.locator('.see-board').first().click();
+   input=h.f.locator('.board-viewer input').nth(source==='top'?0:1);
+  }
+  await input.focus();assert.equal(await input.evaluate(n=>document.activeElement===n),true);
+  await input.press('Enter');
+  assert.equal(await h.f.locator('.tile-input:checked').count(),pick+(source==='tile'?2:1));
+  assert.deepEqual(await deliveries(h),[]);assert.deepEqual(h.errors,[]);
  }finally{await h.context.close();}
 });
