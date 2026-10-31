@@ -1,6 +1,9 @@
 import '../../../tools/lib/tests/isolated-home.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {mkdtempSync,readFileSync,writeFileSync,rmSync} from 'node:fs';
+import {join} from 'node:path';
+import {tmpdir} from 'node:os';
 import {select} from '../scripts/select.mjs';
 import {operator,firstStrategy} from './select-fixtures.mjs';
 import {checkForm} from '../../../tools/Form/scripts/format.js';
@@ -60,4 +63,86 @@ test('disk-only kept fonts preserve assembly records and explain why Form is una
  const a={...operator(),kept:{headingFrom:{file:'kept.ttf',family:'Kept face',weight:700}}};
  const r=select('round1',a);assert.equal(r.form,null);assert.match(r.formUnavailable,/kept font files/);
  assert.ok(r.selection.boards.every(b=>b.pairing.headingFrom.file==='kept.ttf'));
+});
+
+const multilineLogo='<svg\r\nxmlns="http://www.w3.org/2000/svg"\nviewBox="0 0 20 20">\n\t<circle\ncx="10"\tcy="10"\rr="8" fill="currentColor"/>\n</svg>\n';
+function withLogo(svg,check){
+ const work=mkdtempSync(join(tmpdir(),'brand-form-logo-')),markFile=join(work,'kept.svg');
+ try { writeFileSync(markFile,svg);check(markFile);assert.equal(readFileSync(markFile,'utf8'),svg); }
+ finally { rmSync(work,{recursive:true,force:true}); }
+}
+function formPage(command,a,options={}){
+ return select(command,command==='variations'?{...a,picks:[],shown:[],steer:{}}:a,options);
+}
+for(const command of ['round1','variations'])for(const bytes of [8191,8192,8193])test(`${command}: a kept multiline SVG at ${bytes} UTF-8 bytes preserves its selection and obeys Form's logo cap`,()=>{
+ const normalized=multilineLogo.replace(/[\n\r\t]+/g,' '),padding=bytes-Buffer.byteLength(normalized)-7;
+ // Multibyte comment text keeps the character count below the byte cap even
+ // in the oversized case. Size is measured after whitespace normalization.
+ const svg=multilineLogo.replace('</svg>',`<!--${'é'.repeat(Math.floor(padding/2))}${' '.repeat(padding%2)}--></svg>`);
+ assert.equal(Buffer.byteLength(svg.replace(/[\n\r\t]+/g,' ')),bytes);
+ withLogo(svg,markFile=>{
+  const a={...operator(),kept:{markFile}},before=structuredClone(a),r=formPage(command,a,{check:true});
+  assert.deepEqual(a,before);assert.ok(r.selection.boards.every(b=>b.markFile===markFile));
+  assert.ok(r.selection.boards.every(b=>!Object.hasOwn(b,'container')));
+  if(bytes<=8192){
+   assert.ok(r.form);assert.equal(r.form.brand.logo,svg.replace(/[\n\r\t]+/g,' '));
+   assert.doesNotMatch(r.form.brand.logo,/[\n\r\t]/);assert.match(r.form.brand.logo,/<svg xmlns=/);
+   assert.deepEqual(checkForm(r.form),{ok:true,problems:[]});
+  }else{ assert.equal(r.form,null);assert.match(r.formUnavailable,/brand\.logo.*8192/); }
+ });
+});
+for(const [label,svg,reason] of [
+ ['active SVG','<svg xmlns="http://www.w3.org/2000/svg"><script/></svg>',/brand\.logo.*SVG/],
+ ['external SVG reference','<svg xmlns="http://www.w3.org/2000/svg"><image href="https://example.invalid/logo.png"/></svg>',/brand\.logo.*SVG/],
+ ['malformed SVG','<svg><g></svg>',/brand\.logo.*SVG/],
+ ...['\u0000','\u007f','\u0085','\u2028','\u2029'].map(control=>[`control U+${control.codePointAt(0).toString(16)}`,`<svg><!--${control}--></svg>`,/brand\.logo.*Control/])
+])test(`a kept logo with ${label} makes Form unavailable without losing the mark`,()=>{
+ withLogo(svg,markFile=>{
+  const r=select('round1',{...operator(),kept:{markFile}});
+  assert.equal(r.form,null);assert.match(r.formUnavailable,reason);
+  assert.ok(r.selection.boards.every(b=>b.markFile===markFile));
+ });
+});
+
+for(const command of ['round1','variations'])for(const [label,overrides,reason] of [
+ ['an 81-character name',{name:'N'.repeat(81)},/brand\.name.*80/],
+ ['a 301-character sentence',{sentence:'S'.repeat(301),heroPhrase:'S'},/brand\.sentence.*300/],
+ ['a 501-character body',{body:'B'.repeat(501)},/brand\.body.*500/],
+ ['six word pairs',{words:Array.from({length:6},()=>({word:'Useful',not:'busy'}))},/brand\.words.*5/],
+ ['a 61-character word',{words:[{word:'W'.repeat(61),not:'busy'}]},/brand\.words\[0\]\.word.*60/],
+ ['a 61-character not',{words:[{word:'Useful',not:'N'.repeat(61)}]},/brand\.words\[0\]\.not.*60/]
+])test(`${command}: ${label} makes Form unavailable and preserves all supplied brand text`,()=>{
+ const a={...operator(),...overrides},before=structuredClone(a),r=formPage(command,a);
+ assert.equal(r.form,null);assert.match(r.formUnavailable,reason);assert.deepEqual(a,before);
+ for(const b of r.selection.boards){
+  assert.equal(b.content.brandName,a.name);assert.equal(b.content.sentence,a.sentence);
+  assert.equal(b.content.body,a.body);assert.deepEqual(b.words,a.words);
+ }
+});
+test('Form accepts its exact brand limits measured in code points, including five full word pairs',()=>{
+ const a={...operator(),name:'𠮷'.repeat(80),sentence:'𠮷'.repeat(300),heroPhrase:'𠮷',body:'𠮷'.repeat(500),words:Array.from({length:5},()=>({word:'𠮷'.repeat(60),not:'𠮷'.repeat(60)}))};
+ const r=select('round1',a,{check:true});assert.ok(r.form);assert.deepEqual(checkForm(r.form),{ok:true,problems:[]});
+ assert.equal(r.form.brand.name,a.name);assert.equal(r.form.brand.sentence,a.sentence);
+ assert.equal(r.form.brand.body,a.body);assert.deepEqual(r.form.brand.words,a.words);
+});
+test('the complete form is checked for the 65536-byte limit without truncating the selection',()=>{
+ const a={...operator(),photoRules:'P'.repeat(65536)},r=select('round1',a,{check:true});
+ assert.equal(r.form,null);assert.match(r.formUnavailable,/65536 UTF-8 bytes/);
+ assert.ok(r.selection.boards.every(b=>b.content.photoRules===a.photoRules));
+});
+for(const type of [undefined,'personal','org','client','department'])test(`${type??'default personal'}: Round 1 and both variations paths use their journey progress lines`,()=>{
+ const a={...operator(),...(type?{type}:{})},org=['org','client','department'].includes(type);
+ const r=select('round1',a,{check:true});
+ assert.equal(r.form.title,org?'Step 5 of 7: your boards':'Step 4 of 6: your boards');
+ const before=structuredClone(r.selection);
+ for(const picks of [[r.selection.boards[0]],[]]){
+  const v=select('variations',{...a,picks,shown:r.selection.boards,steer:{}},{check:true});
+  assert.equal(v.form.title,org?'Step 6 of 7: blend and tune':'Step 5 of 6: blend and tune');
+  assert.deepEqual(checkForm(v.form),{ok:true,problems:[]});
+ }
+ assert.deepEqual(r.selection,before);
+ assert.deepEqual(r.selection,select('round1',operator(),{check:true}).selection);
+});
+test('an unknown root type is refused rather than receiving a personal progress line',()=>{
+ assert.throws(()=>select('round1',{...operator(),type:'company'}),/type.*personal.*org.*client.*department/);
 });
