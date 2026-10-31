@@ -138,6 +138,8 @@ The generated contents precedes all manuscript content, has no printed folios, a
 | `makeindex` | `index.enabled: true` (also the default) | Inline index markers or `index.terms_file`; the index needs no marker heading and is placed once after the body |
 | `two-pass` | `index.enabled: false` with an `index.extractor` block | Matching index and glossary headings, in that order; index terms ending in `<!-- br -->`; a `<!-- toc-entry: Index heading -->` matching the configured index heading |
 
+A makeindex index is print-only: it is placed once after the body and listed in the generated contents as a chapter-level `Index` entry at every `contents.depth`, and an EPUB receives no makeindex index.
+
 For two-pass extraction, write the boundary headings as `## Heading` or a bold-only `**Heading**` line. Set the extractor keys above when the book uses different boundaries or front matter. A two-pass print `build` freshly merges chapters, builds a first pass, extracts page numbers from its PDF and LaTeX AUX, injects TOC/index page references into the merged manuscript, and rebuilds in one invocation. Source chapters are unchanged. Single-pass builds may reuse `source.merged`; two-pass always merges fresh. `--draft` skips makeindex, not the two-pass extractor.
 
 `index.terms_file` requires the makeindex strategy. Its file is a nonempty YAML list of mappings. Each entry accepts only these keys:
