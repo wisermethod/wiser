@@ -42,11 +42,14 @@ for(const [label,fixture]of [['operator',operator],['First Strategy',firstStrate
     const spec=path('spec.json'),html=path('page.html');writeFileSync(spec,JSON.stringify(assemble(r.selection,library)));
     assert.equal(runContactSheet(['build','--spec',spec,'--output',html]).itemCount,12);
   });
-  test(`${label} whole looks have four distinct leaders and four exact one-dial contrasts`,()=>{
-    const a=fixture(),r=select('looks',a);assert.equal(r.looks.length,8);assert.equal(r.options.length,8);
-    assert.equal(new Set(r.looks.map(l=>l.palette)).size,8);
-    for(const field of ['pairing','graphicSet'])assert.equal(new Set(r.looks.slice(0,4).map(l=>l[field])).size,4);
-    for(const look of r.looks.slice(4))assert.equal(Object.keys(AXES).filter(k=>look.positions[k]!==r.looks[0].positions[k]).length,1);
+  test(`${label} whole looks have six distinct leaders and six exact one-dial contrasts with four plain grounds`,()=>{
+    const a=fixture(),r=select('looks',a);assert.equal(r.looks.length,12);assert.equal(r.options.length,12);
+    assert.deepEqual(r.looks.map(l=>l.kind),[...Array(6).fill('top'),...Array(6).fill('contrast')]);
+    const plain=r.selection.boards.map((b,i)=>b.graphicSet.pattern?.strength.light===0&&b.graphicSet.pattern?.strength.dark===0?i+1:null).filter(Boolean);
+    assert.deepEqual(plain,[2,5,8,11]);assert.equal(new Set(r.options.map(o=>o.value)).size,12);
+    assert.equal(new Set(r.looks.map(l=>l.palette)).size,12);
+    for(const field of ['pairing','graphicSet'])assert.equal(new Set(r.looks.slice(0,6).map(l=>l[field])).size,6);
+    for(const look of r.looks.slice(6))assert.equal(Object.keys(AXES).filter(k=>look.positions[k]!==r.looks[0].positions[k]).length,1);
     for(const [i,option]of r.options.entries()){assert.equal(option.value,r.looks[i].value);assert.equal(option.label,`Look ${i+1}`);assert.deepEqual(Object.keys(option),['value','label','board']);assert.deepEqual(option.board.pairing,r.selection.boards[i].pairing);assert.deepEqual(option.board.palette,r.selection.boards[i].palette);assert.deepEqual(option.board.graphicSet,r.selection.boards[i].graphicSet);}
     const picked=r.looks.slice(0,2),boosted=select('round1',{...a,looks:picked.map(l=>l.value)});
     for(const [axis,[neg,pos]]of Object.entries(AXES))assert.equal(boosted.dials[axis]-r.dials[axis],picked.reduce((n,l)=>n+(l.positions[axis]===pos?1:l.positions[axis]===neg?-1:0),0));
@@ -103,7 +106,7 @@ test('kept logo and font are absolute in output, fixed on every board, with boar
   assert.equal(JSON.stringify(JSON.parse(readFileSync(output))),JSON.stringify(r.selection));
   const spec=path('kept-spec.json'),html=path('kept-page.html');writeFileSync(spec,JSON.stringify(assemble(r.selection,library)));
   assert.equal(runContactSheet(['build','--spec',spec,'--output',html]).itemCount,12);
-  const tuned=select('tune',{...a,picks:[r.selection.boards[1]],steer:{}},{check:true});assert.equal(tuned.selection.boards.length,1);assert.equal(tuned.selection.boards[0].markFile,mark);
+  const varied=select('variations',{...a,picks:[r.selection.boards[1]],shown:r.selection.boards,steer:{}},{check:true});assert.equal(varied.selection.boards.length,4);assert.ok(varied.selection.boards.every(b=>b.markFile===mark&&b.pairing.headingFrom.family==='Kept face'));
 });
 function isAbsoluteForTest(path){return path.startsWith('/');}
 test('kept colour role remains fixed, while energy labels still describe actual recipes',()=>{
@@ -117,24 +120,68 @@ test('fixed full palette states its unavoidable coverage exception instead of cl
   assert.ok(r.selection.boards.every(b=>b.palette.id==='navy-gold'&&b.energy==='dark-first'));
   assert.ok(r.notes.some(n=>n.includes('takes precedence over five-energy coverage')));
 });
-for(const [label,fixture]of [['operator',operator],['First Strategy',firstStrategy]])test(`${label} blend and tune build, apply steer and return ranked spares`,()=>{
-  const a=fixture(),picks=select('round1',a,{check:true}).selection.boards.slice(0,2);
-  for(const command of ['blend','tune']) {
-    const r=select(command,{...a,picks,steer:{warmCool:-1,quietBold:1,softStrong:1,classicContemporary:1}},{check:true});
-    assert.equal(r.selection.boards.length,command==='tune'?1:3);assert.ok(r.spares.every(s=>s.ranked.length));
-    assert.equal(r.dials.warmCool,tapDials(a,data).dials.warmCool-3);
-    const spec=path('later.json'),html=path('later.html');writeFileSync(spec,JSON.stringify(assemble(r.selection,library)));assert.equal(runContactSheet(['build','--spec',spec,'--output',html]).itemCount,r.selection.boards.length);
+const design=b=>[b.pairing,b.palette,b.graphicSet,b.container??null,b.primaryMode];
+const designKey=b=>JSON.stringify(design(b));
+function assertVariations(r,picks,shown) {
+  assert.equal(r.selection.boards.length,picks.length*4);
+  const seen=new Set([...shown,...picks].map(designKey));
+  for(const [i,b]of r.selection.boards.entries()) {
+    const parent=picks[Math.floor(i/4)];
+    assert.equal(b.group,`pick-${Math.floor(i/4)+1}`);
+    assert.equal(r.positions[i].parent,parent.number);
+    const changes=design(b).filter((part,i)=>JSON.stringify(part)!==JSON.stringify(design(parent)[i])).length;
+    assert.ok(changes===1||changes===2,`${changes} parts moved`);
+    assert.equal(r.positions[i].changedParts.length,changes);
+    assert.ok(!seen.has(designKey(b)),'already shown');seen.add(designKey(b));
+    assert.equal(b.content.sentence,parent.content.sentence);assert.deepEqual(b.words,parent.words);
   }
+}
+for(const [label,fixture]of [['operator',operator],['First Strategy',firstStrategy]])for(const count of [1,2,3])test(`${label} ${count} picks produce ${count*4} distinct checked variations in pick order`,()=>{
+  const a=fixture(),shown=select('round1',a).selection.boards,picks=shown.slice(0,count).reverse();
+  const steer={warmCool:-1,quietBold:1,softStrong:1,classicContemporary:1};
+  const r=select('variations',{...a,picks,shown,steer},{check:true});assertVariations(r,picks,shown);
+  assert.equal(r.dials.warmCool,tapDials(a,data).dials.warmCool-3);assert.ok(r.spares.every(s=>s.ranked.length));
+  for(const refusal of r.replacements){assert.ok(refusal.reason);assert.ok(refusal.replacement);assert.notDeepEqual(refusal.refused,refusal.replacement);}
+  const spec=path('variations.json'),html=path('variations.html');writeFileSync(spec,JSON.stringify(assemble(r.selection,library)));
+  assert.equal(runContactSheet(['build','--spec',spec,'--output',html]).itemCount,count*4);
 });
-test('first unsteered blend carries first palette and graphic set with second pairing',()=>{
-  const a=operator(),picks=select('round1',a).selection.boards.slice(0,2),b=select('blend',{...a,picks}).selection.boards[0];
-  assert.equal(b.palette.id,picks[0].palette.id);assert.equal(b.pairing.id,picks[1].pairing.id);assert.equal(b.graphicSet.id,picks[0].graphicSet.id);
+test('as-it-is variations still move one or two parts and exclude history across rounds',()=>{
+  const a=operator(),shown=select('round1',a).selection.boards,picks=[shown[0]],steer={warmCool:0,quietBold:0,softStrong:0,classicContemporary:0};
+  const first=select('variations',{...a,picks,shown,steer});assertVariations(first,picks,shown);
+  const history=[...shown,...first.selection.boards],next=select('variations',{...a,picks,shown:history,steer});assertVariations(next,picks,history);
+  const parents=first.selection.boards.slice(0,3),third=select('variations',{...a,picks:parents,shown:history,steer});assertVariations(third,parents,history);
+  assert.deepEqual(first,select('variations',{...a,picks,shown,steer}));
 });
-test('bolder tune takes next louder same-temperature palette, and ceiling is named',()=>{
-  const a=firstStrategy(),pick=select('round1',a).selection.boards[0];
-  const r=select('tune',{...a,picks:[pick],steer:{quietBold:1}}),p=palette(r.selection.boards[0].palette.id);
-  assert.equal(p.temperature,palette(pick.palette.id).temperature);assert.equal(p.paletteLoudness,Math.min(3,palette(pick.palette.id).paletteLoudness+1));
-  const loud=select('round1',operator()).selection.boards[0],ceiling=select('tune',{...operator(),picks:[loud],steer:{quietBold:1}});assert.ok(ceiling.notes.some(n=>n.includes('ceiling')));
+test('variations apply off before ranking, and keep explicit steer as the next instruction',()=>{
+  const a=operator(),shown=select('round1',a).selection.boards,picks=[shown[0]],off=['mechanical','quietBold','darkLed'];
+  const r=select('variations',{...a,picks,shown,off,steer:{softStrong:-1}}),expected=tapDials({...a,off},data);
+  assertVariations(r,picks,shown);assert.equal(r.dials.quietBold,0);assert.equal(r.darkLed,0);
+  assert.equal(r.dials.warmCool,expected.dials.warmCool);assert.equal(r.dials.handGeometric,expected.dials.handGeometric);
+  assert.equal(r.dials.softStrong,expected.dials.softStrong-3);
+});
+for(const [label,fixture]of [['operator',operator],['First Strategy',firstStrategy]])test(`${label} nothing picked requests a fresh checked Round 1 page with steer and off`,()=>{
+  const a=fixture(),shown=select('round1',a).selection.boards,off=['darkLed'],steer={warmCool:-1};
+  const r=select('variations',{...a,picks:[],shown,steer,off},{check:true});
+  assert.equal(r.selection.boards.length,12);assert.deepEqual(r.selection.groups.map(g=>g.id),['close','further','angle']);
+  assert.deepEqual(new Set(r.selection.boards.map(b=>b.energy)),new Set(ENERGIES));
+  assert.ok(r.selection.boards.every(b=>!shown.some(old=>designKey(old)===designKey(b))));
+  assert.equal(r.dials.warmCool,tapDials(a,data).dials.warmCool-3);assert.equal(r.darkLed,0);
+});
+test('fresh checked page covers bright before an angle constrained to classic pairings',()=>{
+  const a=firstStrategy(),shown=select('round1',a).selection.boards;
+  const r=select('variations',{...a,picks:[],shown,off:['quietBold'],steer:{warmCool:-1}},{check:true});
+  assert.equal(r.selection.boards.length,12);
+  assert.deepEqual(new Set(r.selection.boards.map(b=>b.energy)),new Set(ENERGIES));
+  assert.ok(r.selection.boards.slice(0,8).some(b=>b.energy==='bright'));
+  assert.ok(r.selection.boards.every(b=>!shown.some(old=>designKey(old)===designKey(b))));
+  const strong=Object.keys(AXES).filter(k=>Math.abs(r.dials[k])>=2);
+  for(const p of r.positions.slice(8))assert.equal(strong.filter(k=>p.positions[k]!=='either'&&r.positions[0].positions[k]!=='either'&&p.positions[k]!==r.positions[0].positions[k]).length,1);
+});
+test('bolder variations seek the next louder same-temperature recipe and report each ceiling',()=>{
+  const a=firstStrategy(),shown=select('round1',a).selection.boards,pick=shown[0];
+  const r=select('variations',{...a,picks:[pick],shown,steer:{quietBold:1}});
+  for(const b of r.selection.boards){const p=palette(b.palette.id);assert.equal(p.temperature,palette(pick.palette.id).temperature);assert.equal(p.paletteLoudness,Math.min(3,palette(pick.palette.id).paletteLoudness+1));}
+  const loud=select('round1',operator()).selection.boards[0],ceiling=select('variations',{...operator(),picks:[loud],shown:[loud],steer:{quietBold:1}});assert.ok(ceiling.notes.some(n=>n.includes('ceiling')));
 });
 test('taps data has all nine closed option sets, neutral options, Mechanical line and complete looks rule',()=>{
   assert.deepEqual(data.questions.map(q=>q.options.length),[3,5,4,4,5,5,5,5,6]);assert.equal(new Set(data.questions.flatMap(q=>q.options.map(o=>o.id))).size,42);
@@ -153,8 +200,12 @@ test('help/import are inert, unknown flags fail with empty stdout before files a
 test('bad option ids, unknown fields, duplicate ids and invalid steers are refused',()=>{
   for(const change of [a=>a.taps.mode='night',a=>a.taps.extra='light',a=>a.extra=true,a=>a.looks=['missing'],a=>a.off=['strong','strong'],a=>a.kept.extra=true]){const a=operator();change(a);assert.throws(()=>select('round1',a));}
   const a=operator(),picks=select('round1',a).selection.boards.slice(0,1);
-  assert.throws(()=>select('tune',{...a,picks,steer:{quietBold:2}}),/quietBold/);
-  assert.throws(()=>select('tune',{...a,picks:[]}),/one to three/);
+  assert.throws(()=>select('variations',{...a,picks,shown:picks,steer:{quietBold:2}}),/quietBold/);
+  assert.throws(()=>select('variations',{...a,picks:[...picks,...picks,...picks,...picks],shown:picks}),/zero to three/);
+  assert.throws(()=>select('variations',{...a,picks}),/shown/);
+  assert.throws(()=>select('variations',{...a,picks,shown:[{...picks[0],typo:true}]}),/typo/);
+  assert.throws(()=>select('variations',{...a,picks,shown:picks,comment:'warmer'}),/comment/);
+  assert.throws(()=>select('variations',{...a,picks,shown:picks},{unsteered:true}),/only applies/);
   assert.throws(()=>select('round1',a,{unsteered:false,library:{...library,pairings:library.pairings.map(p=>({...p,tags:{...p.tags,softStrong:'wrong'}}))}}),/softStrong/);
 });
 test('CLI paths refuse skill destinations, occupied outputs, linked protected sources and missing assets atomically',()=>{
@@ -173,7 +224,35 @@ test('scoring either and zero is neutral; blue grounds share family across navy 
 test('each this-or-that dial moves a neutral seed toward the requested aggregate position',()=>{
   const a=operator(),base=select('round1',a).selection.boards.find(b=>b.palette.id==='stone-cobalt');
   for(const [axis,poles]of Object.entries(AXES).filter(([axis])=>['warmCool','quietBold','softStrong','classicContemporary'].includes(axis)))for(const step of [-1,1]) {
-    const r=select('tune',{...a,picks:[base],steer:{[axis]:step}});
-    assert.equal(r.positions[0].positions[axis],poles[step>0?1:0],`${axis}/${step}`);
+    const r=select('variations',{...a,picks:[base],shown:[base],steer:{[axis]:step}});
+    assert.ok(r.positions.every(p=>p.positions[axis]===poles[step>0?1:0]),`${axis}/${step}`);
   }
+});
+
+test('variations help names the one command, history, empty-pick request and closed steer',()=>{
+  const help=run(['variations','--help']);
+  for(const text of ['looks|round1|variations','shown','picks: []','Four new boards per','classicContemporary','steer/off'])assert.ok(help.includes(text),text);
+  for(const command of ['blend','tune']) {const c=spawnSync(process.execPath,[script,command,'--answers','/absent'],{encoding:'utf8'});assert.equal(c.status,1);assert.equal(c.stdout,'');assert.match(c.stderr,/unknown command/);}
+});
+
+test('variants preserve unmoved custom part references and use full references for history',()=>{
+  const a=operator(),base=select('round1',a).selection.boards[0];
+  base.graphicSet.pattern={angle:12,strength:{light:0,dark:0}};
+  base.palette.overrides={light:{hairline:'#aaaaaa'}};
+  base.pairing.bodyFrom='warm-grotesque';base.buttonRadius=15;
+  const r=select('variations',{...a,picks:[base],shown:[base],steer:{}});assertVariations(r,[base],[base]);
+  for(const [i,b] of r.selection.boards.entries()) {
+    assert.equal(b.buttonRadius,15);
+    for(const field of ['pairing','palette','graphicSet'])if(!r.positions[i].changedParts.includes(field))assert.deepEqual(b[field],base[field]);
+  }
+});
+
+test('variations CLI reads full picks/history and writes an assemblable checked selection',()=>{
+  const a=operator(),shown=select('round1',a).selection.boards,input=path('variation-answers.json'),output=path('variation-selection.json');
+  writeFileSync(input,JSON.stringify({...a,picks:shown.slice(0,2),shown,off:['darkLed'],steer:{softStrong:-1}}));
+  const c=spawnSync(process.execPath,[script,'variations','--answers',input,'--output',output,'--check'],{encoding:'utf8'});
+  assert.equal(c.status,0,c.stderr);assert.equal(c.stderr,'');
+  const r=JSON.parse(c.stdout);assert.equal(r.command,'variations');assert.equal(r.checks.enabled,true);
+  assertVariations(r,shown.slice(0,2),shown);
+  assert.deepEqual(JSON.parse(readFileSync(output)),r.selection);assert.equal(assemble(r.selection,library).boards.length,8);
 });

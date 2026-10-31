@@ -9,9 +9,9 @@
     "softStrong": ["soft", "strong"]
   },
   "wholeLooks": {
-    "count": 8,
-    "leaders": 4,
-    "rule": "Score the three parts on six dials. Ties retain library order, with dark-first promoted on equal scores for dark-led taps. The top four are the highest remaining scores with unused palettes, pairings and graphic sets. The other four each change exactly one aggregate position from look 1, including steps to or from either. Prefer an unrepresented dial, then an unrepresented destination on that dial, then score and library order. Palettes never repeat. Four contrasts need not use four distinct dials: spread over as many available dials and destinations as the library permits. Aggregate positions are the unweighted majority of the three parts; either and missing positions contribute zero. Whole looks appear once. Round 1 adds one tick per picked look's non-either position, so shared positions add more."
+    "count": 12,
+    "leaders": 6,
+    "rule": "Score the three parts on six dials. Ties retain library order, with dark-first promoted on equal scores for dark-led taps. Give twelve looks: the top six are the highest remaining scores with unused palettes, pairings and graphic sets. The other six each change exactly one aggregate position from look 1, including steps to or from either. Prefer an unrepresented dial, then an unrepresented destination on that dial, then score and library order. Palettes never repeat. Six contrasts need not use six distinct dials: spread over as many available dials and destinations as the library permits. Looks 2, 5, 8 and 11 stand on a plain ground with no pattern behind the name, by setting the graphic set pattern strength to 0 in both modes; retain the other drawings. Two plain looks sit among the six leaders and two among the six variants, each distinct from every other look. Aggregate positions are the unweighted majority of the three parts; either and missing positions contribute zero. Whole looks appear once. Round 1 adds one tick per picked look's non-either position, so shared positions add more."
   },
   "questions": [
     {"id":"mode","question":"Do you prefer light mode or dark mode?","options":[
