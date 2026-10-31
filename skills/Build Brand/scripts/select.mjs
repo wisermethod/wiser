@@ -32,6 +32,9 @@ Built-ins only. No network, configuration or installs; --env/--install refused.
 Success: one JSON object with selection, ranked spares, positions, replacements,
 checks and (for looks) ready-to-use Form boards options for view: "look".
 Failure: JSON on stderr only, exit 1. No existing output is overwritten.
+looks answers: optional shown (all looks records or Form options already shown
+in this sitting), steer and off. Empty/absent shown keeps the first page;
+otherwise return twelve unshown looks, preferring less-shown parts.
 variations answers: picks (0 to 3 full board records), shown (all boards already
 shown in this sitting), steer (warmCool, quietBold, softStrong,
 classicContemporary: -1, 0 or 1), and off as for round1. Four new boards per
@@ -110,7 +113,13 @@ export function validateAnswers(a, data, library, command) {
   if(own(kept,'buttonRadius')&&(!Number.isFinite(kept.buttonRadius)||kept.buttonRadius<0||kept.buttonRadius>100)) fail('kept.buttonRadius','use a number from 0 to 100');
   object(a.steer??{},STEER,'steer');
   for(const [axis,value] of Object.entries(a.steer??{})) if(![-1,0,1].includes(value)) fail(`steer.${axis}`,'use -1, 0 or 1');
-  if(command!=='variations' && ['picks','steer','shown'].some(k=>own(a,k))) fail(command,'picks, steer and shown belong to variations');
+  if(command==='round1' && ['picks','steer','shown'].some(k=>own(a,k))) fail(command,'picks, steer and shown belong to looks or variations');
+  if(command==='looks') {
+    if(own(a,'picks')) fail('picks','belongs to variations');
+    const shown=own(a,'shown')?a.shown:[];
+    array(shown,'shown');
+    for(const look of shown) shownLook(look,library,a.kept);
+  }
   if(command==='variations') {
     array(a.picks,'picks'); if(a.picks.length>3) fail('picks','supply zero to three previously picked selection boards');
     unique(a.picks.map(p=>p?.number),'picks.number');
@@ -177,6 +186,34 @@ function candidates(library,state,headingFrom) {
 }
 const key=c=>`${c.pairing.id}/${c.palette.id}/${c.graphicSet.id}`;
 const lookId=c=>'look-'+createHash('sha256').update(key(c)).digest('hex').slice(0,32);
+function shownLook(look,library,kept={}) {
+  const option=own(look??{},'board');
+  object(look,option?['value','label','board']:['value','label','kind','pairing','palette','graphicSet','positions','partPositions','score','libraryOrder','primaryMode','ground','plainGround','container','parent','changedParts','changedDial'],'shown');
+  if(option) object(look.board,['pairing','palette','graphicSet','primaryMode','container','handwriting','buttonRadius'],'shown.board');
+  const refs=option?look.board:look;
+  const c=Object.fromEntries([['pairing','pairings'],['palette','palettes'],['graphicSet','graphics']].map(([field,kind])=>[field,part(library,kind,option?refs[field]?.id:refs[field])]));
+  // Option boards carry fixed assets; their values still identify the backing
+  // library triple. Recover it when a kept pairing or palette replaced an id.
+  if(option&&look.value!==lookId(c)&&(!kept.pairing||c.pairing.id===kept.pairing)&&(!kept.palette?.id||c.palette.id===kept.palette.id)) {
+    for(const pairing of kept.pairing?library.pairings:[c.pairing]) for(const palette of kept.palette?.id?library.palettes:[c.palette]) {
+      const backing={...c,pairing,palette};
+      if(look.value===lookId(backing)) return backing;
+    }
+  }
+  if(look.value!==lookId(c)) fail('shown.value','must match the three library ids from the looks output');
+  return c;
+}
+function freshLooks(pool,shown,library,kept) {
+  const history=shown.map(look=>shownLook(look,library,kept)),seen=new Set(history.map(key));
+  const fields=['palette','pairing','graphicSet'];
+  const uses=Object.fromEntries(fields.map(field=>[field,new Map()]));
+  for(const c of history) for(const field of fields) uses[field].set(c[field].id,(uses[field].get(c[field].id)??0)+1);
+  return pool.filter(c=>!seen.has(key(c))).map(c=>{
+    const counts=fields.map(field=>uses[field].get(c[field].id)??0);
+    return {c,used:counts.filter(Boolean).length,uses:counts.reduce((a,b)=>a+b,0)};
+  }).sort((a,b)=>a.used-b.used||a.uses-b.uses).map(({c})=>c);
+  // Stable sort retains the steered score, dark promotion and library order.
+}
 function chooseLooks(pool, accept=()=>true, onChoose=()=>{}) {
   const chosen=[],palettes=new Set(),pairings=new Set(),graphics=new Set(),axes=new Set(),targets=new Set(),spares=[];
   for(let i=0;i<6;i++) {
@@ -198,6 +235,119 @@ function chooseLooks(pool, accept=()=>true, onChoose=()=>{}) {
     palettes.add(next.palette.id);axes.add(next.changed[0]);targets.add(next.changed[0]+'/'+next.positions[next.changed[0]]);
   }
   return {chosen,spares};
+}
+function chooseFreshLooks(pool,accept) {
+  if(pool.length<12) fail('looks',`library exhausted: only ${pool.length} unshown looks remain; twelve are required`);
+  const paletteCount=new Set(pool.map(c=>c.palette.id)).size;
+  if(paletteCount<12) fail('looks',`library exhausted for a twelve-look page: only ${paletteCount} unshown palette recipes remain; twelve distinct palettes are required`);
+  const failed=new Set(),contrastCache=new Map(),checked=new Map();
+  const positionKey=c=>JSON.stringify(c.positions);
+  const possible=(c,plain)=>checked.get(key(c)+'/'+plain)!==false;
+  function passes(c,slot) {
+    const id=key(c)+'/'+c.plain;
+    if(!checked.has(id)) checked.set(id,accept(c,slot));
+    return checked.get(id);
+  }
+  const plainSlots=(start,end)=>Array.from({length:end-start},(_,i)=>(start+i+1)%3===2).filter(Boolean).length;
+  function contrastsFit(contrasts,patterns,plains) {
+    const patterned=new Set(contrasts.filter(c=>possible(c,false)).map(c=>c.palette.id));
+    const plain=new Set(contrasts.filter(c=>possible(c,true)).map(c=>c.palette.id));
+    return patterned.size>=patterns&&plain.size>=plains&&new Set([...patterned,...plain]).size>=patterns+plains;
+  }
+  function canMatch(candidates,left,right,needed) {
+    const edges=new Map(),matched=new Map();
+    for(const c of candidates) {
+      const id=c[left].id;
+      if(!edges.has(id)) edges.set(id,new Set());
+      edges.get(id).add(c[right].id);
+    }
+    function augment(id,seen) {
+      for(const to of edges.get(id)) if(!seen.has(to)) {
+        seen.add(to);
+        if(!matched.has(to)||augment(matched.get(to),seen)) {matched.set(to,id);return true;}
+      }
+      return false;
+    }
+    let count=0;
+    for(const id of edges.keys()) if(augment(id,new Set())&&++count>=needed) return true;
+    return false;
+  }
+  function leadersFit(candidates,needed,contrastPalettes,patterns,plains) {
+    if(!needed) return true;
+    const groups=new Map();
+    for(const c of candidates) {
+      if(contrastPalettes.size-Number(contrastPalettes.has(c.palette.id))<6) continue;
+      if(!(patterns&&possible(c,false))&&!(plains&&possible(c,true))) continue;
+      if(!groups.has(c.graphicSet.id)) groups.set(c.graphicSet.id,[]);
+      groups.get(c.graphicSet.id).push(c);
+    }
+    if(groups.size<needed) return false;
+    const eligible=[...groups.values()].flat();
+    if(new Set([...contrastPalettes,...eligible.map(c=>c.palette.id)]).size<6+needed||
+      !canMatch(eligible,'graphicSet','pairing',needed)||!canMatch(eligible,'graphicSet','palette',needed)||!canMatch(eligible,'pairing','palette',needed)) return false;
+    // Feasibility need not follow display order. Try the most constrained
+    // graphic first to avoid enumerating permutations of impossible leaders.
+    const [id,choices]=[...groups].sort((a,b)=>a[1].length-b[1].length)[0];
+    const rest=eligible.filter(c=>c.graphicSet.id!==id);
+    for(const c of choices) {
+      const available=rest.filter(p=>p.pairing.id!==c.pairing.id&&p.palette.id!==c.palette.id);
+      const reserved=new Set(contrastPalettes);reserved.delete(c.palette.id);
+      for(const plain of [false,true]) if((plain?plains:patterns)&&possible(c,plain)&&leadersFit(available,needed-1,reserved,patterns-Number(!plain),plains-Number(plain))) return true;
+    }
+    return groups.size>needed&&leadersFit(rest,needed,contrastPalettes,patterns,plains);
+  }
+  function search(chosen,palettes,pairings,graphics,axes,targets,spares,contrasts=[]) {
+    const slot=chosen.length;
+    if(slot===12) return {chosen,spares};
+    // Failed states depend on feasibility, not on the order of the prefix.
+    const state=JSON.stringify([slot,chosen.length?positionKey(chosen[0]):null,...[palettes,pairings,graphics].map(set=>[...set].sort())]);
+    if(failed.has(state)) return null;
+    let ranked;
+    if(slot<6) {
+      ranked=pool.filter(c=>!palettes.has(c.palette.id)&&!pairings.has(c.pairing.id)&&!graphics.has(c.graphicSet.id));
+      const remaining=6-slot;
+      const contrastPalettes=new Set(contrasts.filter(c=>!palettes.has(c.palette.id)).map(c=>c.palette.id));
+      if(slot) ranked=ranked.filter(c=>contrastPalettes.size-Number(contrastPalettes.has(c.palette.id))>=6);
+      if(['palette','pairing','graphicSet'].some(field=>new Set(ranked.map(c=>c[field].id)).size<remaining)) {failed.add(state);return null;}
+    } else {
+      ranked=contrasts.filter(c=>!palettes.has(c.palette.id)).sort((a,b)=>Number(axes.has(a.changed[0]))-Number(axes.has(b.changed[0])) || Number(targets.has(a.changed[0]+'/'+a.positions[a.changed[0]]))-Number(targets.has(b.changed[0]+'/'+b.positions[b.changed[0]])));
+      if(new Set(ranked.map(c=>c.palette.id)).size<12-slot) {failed.add(state);return null;}
+    }
+    ranked=ranked.map(c=>({...c,plain:(slot+1)%3===2}));
+    for(const [index,c] of ranked.entries()) {
+      // Checks learned while exploring a prefix also constrain every remaining
+      // slot. Pattern refusals may still pass in one of the four plain slots.
+      if(slot&&slot<6) {
+        const remaining=6-slot,plains=plainSlots(slot,6);
+        const available=contrasts.filter(p=>!palettes.has(p.palette.id));
+        if(!contrastsFit(available,4,2)||!leadersFit(ranked,remaining,new Set(available.map(p=>p.palette.id)),remaining-plains,plains)) break;
+      } else if(slot>=6) {
+        const plains=plainSlots(slot,12);
+        if(!contrastsFit(ranked,12-slot-plains,plains)) break;
+      }
+      if(!possible(c,c.plain)) continue;
+      const nextPalettes=new Set([...palettes,c.palette.id]);
+      let nextContrasts=contrasts;
+      if(slot===0) {
+        const first=positionKey(c);
+        if(!contrastCache.has(first)) contrastCache.set(first,pool.map(p=>({...p,changed:Object.keys(AXES).filter(axis=>p.positions[axis]!==c.positions[axis])})).filter(p=>p.changed.length===1));
+        nextContrasts=contrastCache.get(first);
+      }
+      // Reserve six contrast palettes before the leaders can consume them.
+      if(slot<6&&!contrastsFit(nextContrasts.filter(p=>!nextPalettes.has(p.palette.id)),4,2)) continue;
+      if(!passes(c,slot+1)) continue;
+      const contrast=slot>=6;
+      const next=search([...chosen,{...c,kind:contrast?'contrast':'top',...(contrast?{changedDial:c.changed[0]}:{})}],nextPalettes,
+        contrast?pairings:new Set([...pairings,c.pairing.id]),contrast?graphics:new Set([...graphics,c.graphicSet.id]),
+        contrast?new Set([...axes,c.changed[0]]):axes,contrast?new Set([...targets,c.changed[0]+'/'+c.positions[c.changed[0]]]):targets,
+        [...spares,ranked.slice(index+1,index+17)],nextContrasts);
+      if(next) return next;
+    }
+    failed.add(state);return null;
+  }
+  const found=search([],new Set(),new Set(),new Set(),new Set(),new Set(),[]);
+  if(!found) fail('looks',`library exhausted for a twelve-look page: ${pool.length} unshown looks cannot supply six passing distinct leaders and six one-dial contrasts`);
+  return found;
 }
 function page(a,boards,groups) {
   return { person:a.name,intro:[`Brands made for ${a.name}. Each one is a whole look: colours, lettering and shapes together.`,'Look for the ones that feel like you.'],groups:copy(groups),footnote:'These initials hold the place of a logo. Ask for a logo any time after you lock a board.',boards };
@@ -305,7 +455,7 @@ export function select(command, answers, {library=load(LIBRARY),data=load(TAPS),
   if(unsteered) Object.assign(state,{dials:blank(),darkLed:0,brightColour:0,labels:[]});
   // Picks are full records: validate all fields through the existing assembler,
   // before any ranking or check. Kept assets remain fixed in later rounds.
-  for(const b of [...(a.picks??[]),...(a.shown??[])]) assemble(page(a,[b],[{id:b.group,label:b.group}]),library,{selectionDir});
+  if(command==='variations') for(const b of [...a.picks,...a.shown]) assemble(page(a,[b],[{id:b.group,label:b.group}]),library,{selectionDir});
   let pool=candidates(library,state);
   const boosts=blank();
   for(const id of a.looks??[]) {
@@ -314,7 +464,7 @@ export function select(command, answers, {library=load(LIBRARY),data=load(TAPS),
   }
   if(command==='looks'&&(a.looks??[]).length) fail('looks','picks belong to round1, not the initial looks command');
   if(command!=='looks') for(const axis of Object.keys(AXES)) state.dials[axis]+=boosts[axis];
-  if(command==='variations') for(const [axis,value] of Object.entries(a.steer??{})) state.dials[axis]+=value*3;
+  if(command==='variations'||command==='looks') for(const [axis,value] of Object.entries(a.steer??{})) state.dials[axis]+=value*3;
   pool=candidates(library,state);
   const checker=check?checkFactory(a,library,selectionDir,replacements):null;
   const chosen=[],spares=[],seen=new Set([...(a.shown??[]),...(a.picks??[])].map(boardKey));
@@ -325,7 +475,10 @@ export function select(command, answers, {library=load(LIBRARY),data=load(TAPS),
   try {
     if(command==='looks') {
       groups=[{id:'looks',label:'Whole looks'}];
-      const found=chooseLooks(pool,(c,slot)=>accept(effective(c,a,library),'looks',slot),(c,slot)=>{for(const r of replacements.filter(r=>r.slot===slot))r.replacement=summary(c);});
+      const fresh=!!a.shown?.length,lookPool=fresh?freshLooks(pool,a.shown,library,a.kept):pool;
+      const checkLook=(c,slot)=>accept(effective(c,a,library),'looks',slot);
+      const found=fresh?chooseFreshLooks(lookPool,checkLook):chooseLooks(lookPool,checkLook,(c,slot)=>{for(const r of replacements.filter(r=>r.slot===slot))r.replacement=summary(c);});
+      if(fresh) for(const r of replacements) r.replacement=summary(found.chosen[r.slot-1]);
       chosen.push(...found.chosen.map(c=>effective(c,a,library)));spares.push(...found.spares);
     } else if(roundPage) {
       if(unsteered) groups.forEach((g,i)=>g.label=['First set','Second set','Third set'][i]);
