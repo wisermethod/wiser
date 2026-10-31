@@ -401,7 +401,7 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
     }
     const warningOnButton=form.actions&&!actionRow.hidden&&actionButtons.some(button=>!button.hidden);
     // Keep the action live region present before its first warning, with only one visible copy.
-    sendLimit.classList.toggle("visually-hidden",Boolean(form.actions)&&(!over||warningOnButton));
+    sendLimit.classList.toggle("visually-hidden",Boolean(form.actions)&&(!over||warningOnButton||actionRow.hidden));
     sendLimit.hidden=form.actions?false:!over||button.hidden;
     if(sendLimit.textContent!==warning)sendLimit.textContent=warning;
     const oneAllowed=!actionRow.hidden&&form.actions?.some(a=>a.needs==="one"&&boardLib.actionAllowed(a.needs,count,boardQuestion?.min)&&!over);
@@ -436,7 +436,7 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
     },250);
   }
   if (form.paged) {
-    f.append(el("div",{class:"page-actions"},back,next,button,...(hasBoards?[sendLimit]:[])));
+    f.append(el("div",{class:"page-actions"},back,next,button,...(hasBoards&&!form.actions?[sendLimit]:[])));
     back.addEventListener("click",() => move(page - 1));
     next.addEventListener("click",() => move(page + 1));
     questions.forEach((q,index) => {
@@ -462,7 +462,7 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
       }
     });
   } else if(!form.actions&&!onlyDisplay)f.append(button,...(hasBoards?[sendLimit]:[]));
-  if(form.actions)f.append(actionRow,...(hasBoards&&!form.paged?[sendLimit]:[]));
+  if(form.actions)f.append(actionRow,...(hasBoards?[sendLimit]:[]));
   f.addEventListener("submit",async event => {
     event.preventDefault();
     if(onlyDisplay||state.sending||overLimit())return;
