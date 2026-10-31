@@ -62,7 +62,7 @@ Only `ask` accepts `--install`; no command accepts `--env`. Unknown flags are re
 
 `scripts/format.js` imports only portable files inside this tool and works unchanged in Node, a browser or a Cloudflare Worker. It exports `FORM_LIMITS`, `FONT_HOSTS`, `SAMPLE_FORM`, `checkForm(value)`, `checkTemplate(value)`, `fillTemplate(template, values)` and `formJsonSchema()`.
 
-Checks return `{ ok, problems }`, with every problem found, each `{ path, message }`. `ok` is true exactly when the list is empty. `checkForm` and `checkTemplate` never throw, even for non-JSON input. Lengths count Unicode code points. No string or key may contain control characters (U+0000 to U+001F or U+007F to U+009F) or the line and paragraph separators U+2028 and U+2029, which break a line as a newline does. A form is at most 65,536 UTF-8 bytes as `JSON.stringify` writes it. Unknown keys, wrong types and missing required keys are problems at their own paths. Checks do not coerce, trim, fill defaults or discard keys.
+Checks return `{ ok, problems }`, with every problem found, each `{ path, message }`. `ok` is true exactly when the list is empty. `checkForm` and `checkTemplate` never throw, even for non-JSON input. Lengths count Unicode code points. No string or key may contain control characters (U+0000 to U+001F or U+007F to U+009F) or the line and paragraph separators U+2028 and U+2029, which break a line as a newline does. A form is at most 65,536 UTF-8 bytes as `JSON.stringify` writes it. Unknown keys, wrong types and missing required keys are problems at their own paths. Checks do not coerce, trim or discard keys. Board checks read the shared `boardDefaults` overlaid by the option board without changing the supplied form.
 
 A form takes exactly these keys:
 
@@ -74,6 +74,7 @@ A form takes exactly these keys:
 | `paged` | Optional boolean, default false; refused on a one-question form, even when false |
 | `fonts` | Optional array, 1 to 6 font objects |
 | `brand` | Shared board identity and words; required with boards, otherwise refused |
+| `boardDefaults` | Optional shared board copy and settings, overlaid by each board; board view only |
 | `actions` | Optional two or three action buttons replacing Send |
 | `questions` | Required array, 1 to 12 question objects |
 
@@ -123,11 +124,15 @@ Use one `boards` question per form. Both the chat card and local window draw it 
 
 `brand` has exactly required `name` (1 to 80 code points), `initials` (1 to 12), `sentence` (1 to 300), `body` (1 to 500), and `words` (0 to 5 `{word, not}` objects, each field 1 to 60). Optional `logo` is kept SVG text, at most 8192 UTF-8 bytes, checked by Contact Sheet's standalone static SVG validator, including local references and refusal of active or external content. The format's no-controls rule applies: send SVG on one line. A kept logo replaces the container on every board. Shared fields are sent once.
 
-Each option has required `value` (the usual value grammar), `label` (the board's name, 1 to 120), `board`, optional `note` (up to 300, the member's this/not-that words) and `recommendation` (1 to 200, one line, at most two boards). With `view: "look"`, `label` is optional, defaulting to "Look 1", "Look 2", and so on, and `recommendation` is refused. Other option types retain their existing label and note limits.
+Each option has required `value` (the usual value grammar), `label` (the board's name, 1 to 120), `board`, optional `note` (up to 300, the member's this/not-that words) and `recommendation` (1 to 200, one line, at most two boards). With `view: "look"`, `label` is optional, defaulting to "Look 1", "Look 2", and so on, and `recommendation` is refused. In board view, an absent option `note` draws `brand.words` as each "{word}, not {not}", joined with "; ". An explicit note wins, including an empty string that hides the line. Look view keeps its existing captions. Other option types retain their existing label and note limits.
 
 `board` takes references exactly as `select.mjs` names them: required `pairing: {id, headingFrom?, bodyFrom?}`, `palette: {id, overrides?}`, `graphicSet: {id, pattern?, texture?}`, `primaryMode: "light" | "dark"`, and a `container` id without a kept logo. Every id and donor id must exist in the bundled library. Optional `handwriting` is an offered public note family or null (default null); `buttonRadius` defaults to 4. Supplied font-file objects and mark-file paths cannot travel in a form. Palette overrides, pattern angle/strength and texture strength retain Assembly's closed fields and limits.
 
 Optional board copy uses Assembly's `heroPhrase`, `note: {text, direction}`, `sample`, `items`, and `closingExamples` shapes. Optional `content` takes only `smallPrint`, `photoRules`, `never`, `markCaption` and nullable `closing`; shared brand fields are refused there. Absent copy uses the member's shared words; heroPhrase defaults to the sentence. Contact Sheet checks matching, both colour modes, SVG and public font-weight coverage on the assembled result. Only file-byte checks stay in disk assembly. Checks never silently change a colour or part.
+
+Form-level `boardDefaults` takes any `board` field except `pairing`, `palette`, `graphicSet`, `container` and `primaryMode`. Write shared copy and settings once there. Each option's own fields win in a shallow overlay before validation and drawing; a supplied nested object replaces the whole default object. Every existing per-board check applies to that merged board. The supplied form is unchanged. Defaults without a boards question, and defaults on `view: "look"` (which draws none of these fields), are refused. `formJsonSchema()` publishes the same closed field set, describing each value by its corresponding board field. Shared values stay broad in the schema because an option can replace them completely before the board checks apply.
+
+`select.mjs round1` and `variations` return a ready-to-use `form` with these defaults and slim options. Pass it unchanged; `selection` and the `--output` file remain Assembly input.
 
 `pick` is the most that may be sent, never a limit on ticking. One tap on the tile or its caption checkbox picks; another unpicks. Tiles, their boxes and either full-size “Pick this one” checkbox tick and untick freely, including a fourth or fifth pick. Both full-size checkboxes mirror the tile. `pick: 3` allows zero through three picks to be sent. `pick: 1` requires one for normal Send; extra picks remain ticked until the member unticks them. A sole board in a one-pick round shows whole without a question and starts selected, so an action needing one pick applies to that board. Board answers are arrays of option values in option order.
 

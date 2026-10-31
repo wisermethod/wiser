@@ -1,5 +1,5 @@
 // Portable form contract: no DOM, Node globals or package runtime.
-import { BOARD_LIMITS as B, BOARD_KEYS, resolveBoards, checkLogo, displayOnly } from "./boards.js";
+import { BOARD_LIMITS as B, BOARD_KEYS, BOARD_DEFAULT_KEYS, resolveBoards, checkLogo, displayOnly } from "./boards.js";
 export const FORM_LIMITS = Object.freeze({
   idMax: 40, titleMin: 1, titleMax: 80, introMax: 300,
   fontsMin: 1, fontsMax: 6, familyMax: 40, fontSrcMax: 300,
@@ -126,7 +126,7 @@ function validate(value, template = false) {
     return true;
   }
   function number(v, p) { if (typeof v !== "number" || !Number.isFinite(v)) { add(p, "Expected a finite number."); return false; } return true; }
-  if (!object(value, "", ["id", "title", "intro", "paged", "fonts", "brand", "actions", "questions", ...(template ? ["slots"] : [])], ["title", "questions", ...(template ? ["slots"] : [])])) return { ok: false, problems };
+  if (!object(value, "", ["id", "title", "intro", "paged", "fonts", "brand", "boardDefaults", "actions", "questions", ...(template ? ["slots"] : [])], ["title", "questions", ...(template ? ["slots"] : [])])) return { ok: false, problems };
   strings(value, "", [["id",1,L.idMax,ID],["title",1,L.titleMax],["intro",0,L.introMax]]);
   if (own(value, "paged")) {
     if (typeof value.paged !== "boolean") add("paged", "Expected a boolean.");
@@ -169,6 +169,7 @@ function validate(value, template = false) {
     });
     if(own(value.brand,"logo")) try { checkLogo(value.brand.logo); } catch(e) { add("brand.logo",e.message); }
   }
+  if(own(value,"boardDefaults")) object(value.boardDefaults,"boardDefaults",BOARD_DEFAULT_KEYS);
   if(own(value,"actions") && array(value.actions,"actions",2,3)) {
     const values=new Set();value.actions.forEach((a,i)=>{
       const p=`actions[${i}]`;if(!object(a,p,["value","label","note","notes","needs"],["value","label","needs"]))return;
@@ -216,11 +217,13 @@ function validate(value, template = false) {
           if(values.has(o.value))add(`${op}.value`,"Option value must be unique.");values.add(o.value);
           if(own(o,"recommendation") && ++recommended>2)add(`${op}.recommendation`,"At most two recommendations.");
           if(q.view==="look" && own(o,"recommendation"))add(`${op}.recommendation`,"Looks carry no recommendation.");
-          if(!object(o.board,`${op}.board`,BOARD_KEYS,["pairing","palette","graphicSet","primaryMode"]))return;
+          if(!record(o.board)) { add(`${op}.board`,"Expected an object."); return; }
+          const merged={...(record(value.boardDefaults)?value.boardDefaults:{}),...o.board};
+          if(!object(merged,`${op}.board`,BOARD_KEYS,["pairing","palette","graphicSet","primaryMode"]))return;
           // Validate each option to locate independent failures; then validate the page too.
-          try { resolveBoards(value.brand,[o]); } catch(e) { add(`${op}.board`,e.message); }
+          try { resolveBoards(value.brand,[o],value.boardDefaults); } catch(e) { add(`${op}.board`,e.message); }
         });
-        if(problems.length===0) try { resolveBoards(value.brand,q.options); } catch(e) { add(`${p}.options`,e.message); }
+        if(problems.length===0) try { resolveBoards(value.brand,q.options,value.boardDefaults); } catch(e) { add(`${p}.options`,e.message); }
       }
     }
     if (q.type === "slider") {
@@ -245,6 +248,7 @@ function validate(value, template = false) {
   });
   const boardQuestions=Array.isArray(value.questions)?value.questions.filter(q=>q?.type==="boards"):[];
   if(own(value,"brand") && !boardQuestions.length)add("brand","Brand is only used by boards.");
+  if(own(value,"boardDefaults") && (!boardQuestions.length || boardQuestions.some(q=>q.view==="look")))add("boardDefaults","Board defaults require a board view; they are not drawn by looks.");
   if(boardQuestions.length>1)add("questions","Use one boards question per form.");
   if(own(value,"actions") && (!boardQuestions.length || !Array.isArray(value.actions)))add("actions","Actions need a boards question and an array.");
   if(boardQuestions.some(q=>q.pick===0) && !(value.questions.length===1 && !own(value,"actions")))add("questions","Pick 0 is a display-only form: one boards question and no actions.");
@@ -320,7 +324,7 @@ export function formJsonSchema() {
   },["pairing","palette","graphicSet","primaryMode"],"Board library references exactly as select.mjs names them. All ids must exist. Container required without brand.logo, refused with it. Contact Sheet checks both modes, SVG, type matching and font weight coverage. Supplied font files are not transmissible.");
   const option = obj({
     value: str(L.optionValueMax,"Unique option value: 1 to 40 lowercase letters, digits or hyphens, starting with a letter or digit.",1,VALUE.source),
-    label: str(B.label,"Option label: boards up to 120 code points, other types up to 60.",1), note: str(B.note,"Optional note: boards up to 300 code points, others up to 80."),
+    label: str(B.label,"Option label: boards up to 120 code points, other types up to 60.",1), note: str(B.note,"Optional note: boards up to 300 code points, others up to 80. In board view, absent note draws brand.words as {word}, not {not}, joined with semicolon and space; an explicit note, including empty, wins."),
     board, recommendation:str(B.recommendation,"Boards only; at most two recommended options, one line each.",1),
     picture: str(L.fontSrcMax,"Optional on image types; at least two options in an image question must have a picture. An option without one is a word choice drawn after the tiles. Other question types refuse it. palette:#hex,#hex,... has 1 to 8 colours, each #rgb or #rrggbb. motif:<name>[:#fg,#bg] uses dots, grid, waves, arcs, stripes, rings, triangles or blob and either no colours or exactly two. type:<family>[+<family>][:#fg,#bg] uses one or two declared font families or serif, sans-serif, monospace, system-ui, and either no colours or exactly two. Nothing is fetched for pictures.",1),
     sample: str(L.sampleMax,"Only with a type: picture, refused without a picture; at most 24 code points. Both type families draw this sample when supplied; otherwise the first draws Aa and the second Abc 123.")
@@ -344,6 +348,7 @@ export function formJsonSchema() {
     fonts:arr(obj({family:str(L.familyMax,"Font family name, 1 to 40 characters: ASCII letters and digits, starting with a letter, words separated by single spaces; unique ignoring case; never a CSS keyword: serif, sans-serif, monospace, system-ui, cursive, fantasy, emoji, math, fangsong, inherit, initial, unset, revert, default.",1,FAMILY.source),
       src:str(L.fontSrcMax,"HTTPS font URL, at most 300 code points, origin https://fonts.gstatic.com or https://cdn.jsdelivr.net, no query, fragment or credentials, path ending .woff2, .woff, .ttf or .otf.",1)},["family","src"],"Declared font; no generic family names."),L.fontsMin,L.fontsMax,"Optional 1 to 6 declared fonts."),
     brand:obj({name:line(B.name),initials:line(B.initials),sentence:line(B.sentence),body:line(B.body),words:arr(obj({word:line(B.word),not:line(B.word)},["word","not"]),0,B.words),logo:str(B.logoBytes,"Optional kept SVG text, at most 8192 UTF-8 bytes, checked by Contact Sheet's standalone static SVG rules.",1)},["name","initials","sentence","body","words"],"Shared once by every board. Required for boards, otherwise refused."),
+    boardDefaults:obj(Object.fromEntries(BOARD_DEFAULT_KEYS.map(k=>[k,{description:`Shared ${k}, with the same shape as options[].board.${k}. Each option replaces this entire field before validation; unused defaults need not pass board checks. ${board.properties[k].description??""}`} ])),[],"Optional shared board fields, shallowly overlaid by each option board before validation and drawing. Library references pairing, palette, graphicSet, container and primaryMode are refused. Requires a boards question in board view; refused on look view because these fields are not drawn there."),
     actions:arr(obj({value:str(L.optionValueMax,"Unique action value.",1,VALUE.source),label:line(60),note:str(120,"Optional line beneath the label whenever the action shows."),notes:obj(Object.fromEntries(["none","one","several"].map(k=>[k,str(120,"Optional line replacing note for this count: none 0, one 1, several 2 or more picks. Above pick the engine replaces this line with its limit warning.")])),[],"Count-specific action lines; missing keys fall back to note."),needs:{type:"string",enum:["one","some","any","none"],description:"one exactly 1 pick; some at least the boards min (default 1); any any count; none zero picks. Unmet actions are hidden, take no space and cannot receive focus. Above pick, matching actions stay visible but grey and disabled with an engine-owned warning."}},["value","label","needs"]),2,3,"Boards only. Replaces Send in array order; chosen action is payload.action. Refused on a pick 0 display-only form."),
     questions:arr(question,L.questionsMin,L.questionsMax,"Required 1 to 12 questions; ids must be unique.")
   },["title","questions"],"Wiser form, JSON Schema draft 2020-12 vocabulary. At most 65536 UTF-8 bytes as JSON.stringify writes it. Lengths count code points; no control characters anywhere. Unknown keys, including submitLabel, are refused. checkForm enforces the conditional and cross-field rules described here.");

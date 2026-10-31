@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Built-ins and this skill only. standards/script-contract.md governs the CLI.
+// Built-ins and local skill/Form modules only; no packages. standards/script-contract.md governs the CLI.
 import { readFileSync, writeFileSync, realpathSync, statSync, lstatSync, mkdtempSync, rmSync } from 'node:fs';
 import { dirname, basename, resolve, join, isAbsolute, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { assemble, canonical, LIBRARY, AXES, partPositions } from './assemble.mjs';
+import { checkForm } from '../../../tools/Form/scripts/format.js';
 
 const SKILL = realpathSync(resolve(dirname(fileURLToPath(import.meta.url)), '..'));
 const TAPS = join(SKILL, 'parts/taps.json');
@@ -30,7 +31,9 @@ Options:
   --help, -h        Help before reading files or checking fonts.
 Built-ins only. No network, configuration or installs; --env/--install refused.
 Success: one JSON object with selection, ranked spares, positions, replacements,
-checks and (for looks) ready-to-use Form boards options for view: "look".
+checks, ready-to-use boards form (round1/variations), and whole-look options
+(looks). Disk-only kept fonts or boards outside Form's contract report
+form: null and formUnavailable; selection is preserved for local assembly.
 Failure: JSON on stderr only, exit 1. No existing output is overwritten.
 looks answers: optional shown (all looks records or Form options already shown
 in this sitting), steer and off. Empty/absent shown keeps the first page;
@@ -75,7 +78,8 @@ function part(library, kind, id) {
   return found[0];
 }
 export function validateAnswers(a, data, library, command) {
-  object(a,['name','sentence','words','taps','off','looks','kept','body','photoRules','heroPhrase','picks','steer','shown'],'answers');
+  object(a,['type','name','sentence','words','taps','off','looks','kept','body','photoRules','heroPhrase','picks','steer','shown'],'answers');
+  if(own(a,'type')&&!['personal','org','client','department'].includes(a.type)) fail('type','use personal, org, client or department');
   text(a.name,'name'); text(a.sentence,'sentence');
   array(a.words,'words');
   for(const w of a.words) { object(w,['word','not'],'words'); text(w.word,'words.word');text(w.not,'words.not'); }
@@ -402,6 +406,52 @@ function alignedWhy(c,a,data) {
   return labels.length?`Your ${labels.slice(0,3).map(s=>'“'+s+'”').join(', ')} ${labels.length===1?'tap points':'taps point'} toward this look.`:null;
 }
 const BOARD_PARTS=['pairing','palette','graphicSet','container','primaryMode'];
+const FORM_COPY=['handwriting','buttonRadius','heroPhrase','content','note','sample','items','closingExamples'];
+// SVG text made single-line by the rules a renderer applies, so the card's
+// mark draws as the file does. Inside a tag, XML turns each newline (a CRLF
+// counting once) or tab in an attribute value into one space. In text under
+// the default xml:space, SVG drops each newline and turns each tab into a
+// space. xml:space="preserve" keeps each as its own space; rather than track
+// its scope, such a mark is not shown in the card.
+export function formLogo(svg) {
+  if(/xml:space\s*=\s*["']preserve["']/.test(svg)) return null;
+  return svg.replace(/(<[^>]*>)|([^<]+)/g,(m,tag,text)=>tag
+    ? tag.replace(/\r\n/g,' ').replace(/[\r\n\t]/g,' ')
+    : text.replace(/\r\n|\r|\n/g,'').replace(/\t/g,' '));
+}
+function boardsForm(a,selection,selectionDir,command) {
+  const boards=selection.boards;
+  // A disk font has no public reference in Form. Preserve the selection for
+  // local assembly rather than substituting a different typeface in the card.
+  if(boards.some(b=>['headingFrom','bodyFrom'].some(role=>b.pairing[role]&&typeof b.pairing[role]==='object')))
+    return {form:null,formUnavailable:'Form cannot transmit kept font files; use the unchanged selection with assemble.mjs.'};
+  const brand={name:a.name,initials:boards[0].initials??a.name.split(/\s+/).slice(0,2).map(w=>Array.from(w)[0]).join('').toUpperCase(),sentence:a.sentence,body:a.body??a.sentence,words:copy(a.words)};
+  // A single-line logo that draws as the file does. checkForm below owns the
+  // byte cap, remaining controls and SVG check.
+  if(boards[0].markFile){
+    const logo=formLogo(readFileSync(file(resolve(selectionDir,boards[0].markFile)),'utf8'));
+    if(logo===null) return {form:null,formUnavailable:'Form cannot show a kept mark that sets xml:space="preserve"; use the unchanged selection with assemble.mjs.'};
+    brand.logo=logo;
+  }
+  const options=boards.map(b=>({value:`board-${b.number}`,label:b.name,...(b.recommendation?{recommendation:b.recommendation}:{}),
+    board:Object.fromEntries([...BOARD_PARTS,...FORM_COPY].filter(k=>own(b,k)).map(k=>[k,k==='content'?Object.fromEntries(Object.entries(b.content).filter(([key])=>!['brandName','sentence','body'].includes(key))):copy(b[k])]))}));
+  const boardDefaults={};
+  for(const k of FORM_COPY) if(own(options[0].board,k)&&options.every(o=>own(o.board,k)&&partKey(o.board,k)===partKey(options[0].board,k))) {
+    boardDefaults[k]=options[0].board[k];
+    for(const o of options) delete o.board[k];
+  }
+  const variation=command==='variations',extra=['org','client','department'].includes(a.type)?1:0;
+  const form={title:`Step ${(variation?5:4)+extra} of ${6+extra}: ${variation?'blend and tune':'your boards'}`,brand,boardDefaults,
+    questions:[{id:'boards',type:'boards',label:'Select the board(s) that feel most like you',pick:3,options}],
+    actions:[{value:'more',label:'Show me more',needs:'any',notes:{none:'None of these work',one:'Show me variations of this board',several:'Show me variations of these boards'}},{value:'lock',label:'Lock this board in',note:'and finish my brand',needs:'one'}]};
+  const checked=checkForm(form);
+  if(!checked.ok) {
+    const {path,message}=checked.problems[0];
+    return {form:null,formUnavailable:`Form cannot display ${path||'these boards'}: ${message} Use the unchanged selection with assemble.mjs.`};
+  }
+  return {form};
+}
+
 function stable(value) {
   if(Array.isArray(value)) return value.map(stable);
   return value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(k=>[k,stable(value[k])])):value;
@@ -602,6 +652,7 @@ export function select(command, answers, {library=load(LIBRARY),data=load(TAPS),
       });
       // Associate every rejected look with the actual passing choice for its slot.
     }
+    if(command!=='looks') Object.assign(result,boardsForm(a,selection,selectionDir,command));
     return result;
   } finally { checker?.close(); }
 }

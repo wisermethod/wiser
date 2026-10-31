@@ -11,10 +11,14 @@ export function checkLogo(logo) {
   checkSvg(new TextEncoder().encode(logo));
 }
 export const BOARD_KEYS = ['pairing','palette','graphicSet','container','primaryMode','handwriting','buttonRadius','heroPhrase','content','note','sample','items','closingExamples'];
-export function resolveBoards(brand,options) {
+export const BOARD_DEFAULT_KEYS = BOARD_KEYS.filter(k=>!['pairing','palette','graphicSet','container','primaryMode'].includes(k));
+export function resolveBoards(brand,options,boardDefaults={}) {
+  if(!boardDefaults || typeof boardDefaults !== 'object' || Array.isArray(boardDefaults)) throw Error('boardDefaults must be an object.');
+  for(const k of Object.keys(boardDefaults)) if(!BOARD_DEFAULT_KEYS.includes(k)) throw Error(`Unknown boardDefaults field ${k}.`);
   const boards=options.map((o,i) => {
-    const v=o.board;
-    if(!v || typeof v !== 'object' || Array.isArray(v)) throw Error('board must be an object.');
+    const supplied=o.board;
+    if(!supplied || typeof supplied !== 'object' || Array.isArray(supplied)) throw Error('board must be an object.');
+    const v={...boardDefaults,...supplied};
     for(const k of Object.keys(v)) if(!BOARD_KEYS.includes(k)) throw Error(`Unknown board field ${k}.`);
     for(const k of ['pairing','palette','graphicSet','primaryMode']) if(!Object.hasOwn(v,k)) throw Error(`Missing board field ${k}.`);
     if(brand.logo) { if(Object.hasOwn(v,'container')) throw Error('A kept logo replaces the container.'); }
