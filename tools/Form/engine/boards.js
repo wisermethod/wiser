@@ -136,8 +136,12 @@ function fitLooks() {
     const name=n.querySelector('.look-name'),lines=[...name.children],height=Number(name.dataset.lineHeight);
     name.style.fontSize='90px';
     const widest=Math.max(...lines.map(t=>t.getComputedTextLength()),1);
-    const size=Math.min(90*294/widest,190/(height*lines.length));
+    let size=Math.min(90,90*294/widest,190/(height*lines.length));
     name.style.fontSize=`${size}px`;
+    lines.forEach((t,i)=>t.setAttribute('y',i*size*height));
+    // Advance width and line height do not bound the ink of every offered face.
+    const ink=name.getBBox(),scale=Math.min(1,294/Math.max(1,ink.width),190/Math.max(1,ink.height));
+    size*=scale;name.style.fontSize=`${size}px`;
     lines.forEach((t,i)=>t.setAttribute('y',i*size*height));
     const box=name.getBBox();name.setAttribute('transform',`translate(42 ${57+(210-box.height)/2-box.y})`);
     const initials=n.querySelector('.look-initials');

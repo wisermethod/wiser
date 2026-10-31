@@ -7,7 +7,10 @@ window.startHost=async (html,args,result,options={})=>{
  bridge.onmessage=async params=>{window.__log.push({kind:'message',params});if(options.messageThrows)throw Error('test message refusal');return options.messageFails?{isError:true}:{};};
  bridge.onupdatemodelcontext=async params=>{window.__log.push({kind:'context',params});if(options.contextFails)throw Error('test context refusal');return {};};
  bridge.onrequestdisplaymode=async params=>{window.__log.push({kind:'display-mode',params});return {mode:'inline'};};
- bridge.onsizechange=params=>window.__log.push({kind:'size',params});
+ bridge.onsizechange=params=>{
+  window.__log.push({kind:'size',params});
+  if(options.autoSize)frame.style.height=`${Math.min(params.height,options.containerDimensions?.maxHeight??Infinity)}px`;
+ };
  bridge.oninitialized=()=>{
   window.__log.push({kind:'initialized'});
   if(options.hold)return;

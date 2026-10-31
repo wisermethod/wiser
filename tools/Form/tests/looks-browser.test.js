@@ -8,7 +8,7 @@ for(const [name,get]of Object.entries(tapSets))for(const width of [390,734])for(
  const form=lookForm(get()),h=await kit.open(form,width,theme,{touch:true});
  try{
   const tiles=h.f.locator('.looks-tile'),send=h.f.locator('#submit'),minimum=h.f.locator('.board-minimum');
-  assert.equal(await tiles.count(),8);assert.equal(await h.f.locator('h1.progress').innerText(),form.title);
+  assert.equal(await tiles.count(),form.questions[0].options.length);assert.equal(await h.f.locator('h1.progress').innerText(),form.title);
   assert.equal(await h.f.locator('.see-board,.board-recommendation,.board-viewer,.brand-board').count(),0);
   assert.equal(await send.isDisabled(),true);assert.equal(await minimum.innerText(),'Pick at least two.');
   const geometry=await h.frame.evaluate(()=>({
@@ -48,9 +48,9 @@ test('minimum applies to some action while any, none and one keep their meanings
  const form=lookForm();form.actions=[{value:'use',label:'Use these',needs:'some'},{value:'stop',label:'Stop for now',needs:'any'},{value:'empty',label:'Start again',needs:'none'}];
  const h=await kit.open(form);try{
   const use=h.f.locator('[data-action=use]'),stop=h.f.locator('[data-action=stop]'),empty=h.f.locator('[data-action=empty]');
-  assert.equal(await use.isDisabled(),true);assert.equal(await stop.isDisabled(),false);assert.equal(await empty.isDisabled(),false);
-  await h.f.locator('.looks-tile').nth(0).click();assert.equal(await use.isDisabled(),true);assert.equal(await empty.isDisabled(),true);
-  await h.f.locator('.looks-tile').nth(1).click();assert.equal(await use.isDisabled(),false);
+  assert.equal(await use.isHidden(),true);assert.equal(await stop.isDisabled(),false);assert.equal(await empty.isDisabled(),false);
+  await h.f.locator('.looks-tile').nth(0).click();assert.equal(await use.isHidden(),true);assert.equal(await empty.isHidden(),true);
+  await h.f.locator('.looks-tile').nth(1).click();assert.equal(await use.isVisible(),true);
   await use.click();await h.f.locator('#status.ok').waitFor();
  }finally{await h.context.close();}
 });

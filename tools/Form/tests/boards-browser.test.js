@@ -13,12 +13,12 @@ const reported=h=>h.page.evaluate(()=>window.__log.filter(e=>e.kind==='size').at
 for(const width of [390,734])for(const theme of ['light','dark'])test(`boards ${width} ${theme}: tap, cap, action, in-place viewer, one scroll, picks and transport`,async()=>{
  const form=boardForm(),h=await kit.open(form,width,theme,{touch:true});
  try{
-  assert.equal(await h.f.locator('button[data-action=lock]').isDisabled(),true);
-  assert.match(await h.f.locator('button[data-action=round]').innerText(),/None of these: try another angle/);
+  assert.equal(await h.f.locator('button[data-action=lock]').isHidden(),true);
+  assert.match(await h.f.locator('button[data-action=more]').innerText(),/None of these work/);
   const tiles=h.f.locator('.boards-tile');await tiles.nth(0).tap();assert.deepEqual(await picks(h),['board-1']);
   assert.equal(await h.f.locator('button[data-action=lock]').isDisabled(),false);
   await tiles.nth(1).tap();await tiles.nth(2).tap();await tiles.nth(3).tap();assert.deepEqual(await picks(h),['board-1','board-2','board-3']);
-  assert.equal(await h.f.locator('.board-limit').innerText(),'Pick up to three.');assert.equal(await h.f.locator('button[data-action=lock]').isDisabled(),true);
+  assert.equal(await h.f.locator('.board-limit').innerText(),'Pick up to three.');assert.equal(await h.f.locator('button[data-action=lock]').isHidden(),true);
   const height=await rootHeight(h),gridHeight=()=>h.f.locator('.boards-tiles').evaluate(n=>n.getBoundingClientRect().height),closed=await gridHeight();
   assert.equal(await ownScroll(h),0,'twelve boards and the actions sit in the card with no scroll of their own');
   assert.ok(height>1500,'the card is as tall as its twelve boards');
@@ -26,9 +26,8 @@ for(const width of [390,734])for(const theme of ['light','dark'])test(`boards ${
   await h.f.locator('.see-board').nth(1).tap();
   assert.equal(await h.f.locator('.board-viewer').isVisible(),true);
   assert.equal(await h.f.locator('.see-board').nth(1).getAttribute('aria-expanded'),'true');
-  assert.equal(await h.f.locator('.board-viewer').evaluate(n=>[...n.parentElement.children].indexOf(n)),2,'opens under the clicked row');
-  assert.equal(await h.f.locator('.boards-tile').nth(0).isVisible(),true,'the other boards stay');
-  const open=await rootHeight(h);assert.ok(open>height+500,'the card grows with the open board');
+  assert.equal(await h.f.locator('.boards-tile').nth(1).isHidden(),true,'the clicked row steps aside');
+  const open=await rootHeight(h);assert.ok(open>500,'the open board determines card height');
   assert.equal(await ownScroll(h),0,'the open board has no scroll of its own');
   await h.page.waitForFunction(min=>window.__log.filter(e=>e.kind==='size').at(-1)?.params.height>=min,Math.floor(open));
   assert.equal(await h.f.locator('.board-viewer input').isChecked(),true);
@@ -37,18 +36,10 @@ for(const width of [390,734])for(const theme of ['light','dark'])test(`boards ${
   assert.equal(await h.f.locator('.board-viewer').count(),0);
   assert.equal(await h.f.locator('.see-board').nth(1).getAttribute('aria-expanded'),'false');
   assert.equal(await gridHeight(),closed,'closing gives the grid back its own height');
-  if(width===734){
-   await h.f.locator('.see-board').nth(2).tap();
-   assert.equal(await h.f.locator('.board-viewer').evaluate(n=>[...n.parentElement.children].indexOf(n)),4,'a left-hand board opens after its row partner');
-   await h.f.locator('.see-board').nth(5).tap();
-   assert.equal(await h.f.locator('.board-viewer').count(),1,'one board open at a time');
-   assert.equal(await h.f.locator('.board-viewer').evaluate(n=>[...n.parentElement.children].indexOf(n)),6);
-   await h.f.locator('.see-board').nth(5).tap();assert.equal(await h.f.locator('.board-viewer').count(),0,'its own button closes it');
-  }
   await tiles.nth(2).tap();assert.equal(await h.f.locator('button[data-action=lock]').isDisabled(),false);
   await h.f.locator('button[data-action=lock]').tap();await h.f.locator('#status.ok').waitFor();
   const log=await h.page.evaluate(()=>window.__log),sent=log.filter(e=>['context','message'].includes(e.kind));
-  assert.deepEqual(sent.map(e=>e.kind),['context','message']);assert.deepEqual(sent[0].params.structuredContent.answers,{boards:['board-1']});assert.equal(sent[0].params.structuredContent.action,'lock');assert.match(sent[1].params.content[0].text,/What next: Lock it/);
+  assert.deepEqual(sent.map(e=>e.kind),['context','message']);assert.deepEqual(sent[0].params.structuredContent.answers,{boards:['board-1']});assert.equal(sent[0].params.structuredContent.action,'lock');assert.match(sent[1].params.content[0].text,/What next: Lock this board in/);
   assert.ok(onlyFonts(h.requests));assert.ok(h.requests.length);assert.deepEqual(h.errors,[]);
   assert.equal(log.some(e=>e.kind.toLowerCase().includes('display')),false);
  }finally{await h.context.close();}

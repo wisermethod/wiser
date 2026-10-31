@@ -52,7 +52,7 @@ test('action needs are exact and published; empty picks allow another angle and 
 });
 for(const [name,get]of Object.entries(tapSets))test(`${name} looks options pass unchanged through form and schema`,()=>{
  const a=get(),r=select('looks',a,{check:true}),f=lookForm(a,r),before=copy(r.options);
- assert.equal(f.questions[0].options,r.options);assert.equal(r.options.length,8);
+ assert.equal(f.questions[0].options,r.options);assert.equal(f.questions[0].options.length,r.selection.boards.length);
  assert.deepEqual(checkForm(f),{ok:true,problems:[]});assert.deepEqual(r.options,before);
  assert.equal(z.fromJSONSchema(formJsonSchema()).safeParse(f).success,true);
  for(const option of r.options){assert.deepEqual(Object.keys(option),['value','label','board']);assert.match(option.value,/^[a-z0-9][a-z0-9-]{0,39}$/);}
@@ -87,4 +87,16 @@ test('min is refused above the number of boards',()=>{
  f.questions[0].options=f.questions[0].options.slice(0,1);f.questions[0].pick=3;f.questions[0].min=3;
  const result=checkForm(f);assert.equal(result.ok,false);
  assert.ok(result.problems.some(p=>p.path==='questions[0].min'&&/number of boards/.test(p.message)),JSON.stringify(result.problems));
+});
+
+test('action notes admit every subset, code-point limits and empty lines through checker and schema',()=>{
+ const keys=['none','one','several'];
+ for(let mask=0;mask<8;mask++){
+  const f=boardForm();f.actions[0].notes=Object.fromEntries(keys.filter((_,i)=>mask&(1<<i)).map(k=>[k,'😀'.repeat(120)]));
+  assert.deepEqual(checkForm(f),{ok:true,problems:[]});assert.equal(z.fromJSONSchema(formJsonSchema()).safeParse(f).success,true);
+ }
+ const f=boardForm();f.actions[0].notes={none:''};assert.equal(checkForm(f).ok,true);
+});
+for(const [name,notes]of [['unknown',{other:'No'}],['long',{one:'x'.repeat(121)}],['control',{several:'bad\nline'}],['separator',{none:'bad\u2028line'}],['number',{one:1}],['null',null],['array',[]]])test(`action notes refusal: ${name}`,()=>{
+ const f=boardForm();f.actions[0].notes=notes;assert.equal(checkForm(f).ok,false);
 });

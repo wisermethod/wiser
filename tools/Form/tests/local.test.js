@@ -276,7 +276,7 @@ test('local window uses the same boards engine and accepts picks plus action; li
  try{
   const page=await context.newPage();await page.goto(s.url);await page.locator('#form').waitFor();
   const body={form:form.title,answers:{boards:[]},action:'lock',shown:[{id:'boards',question:form.questions[0].label,shown:'(none)'}]};
-  assert.equal((await http(s,'answers',{method:'POST',body})).status,400);
+  for(const count of [0,2,3]){body.answers.boards=form.questions[0].options.slice(0,count).map(o=>o.value);assert.equal((await http(s,'answers',{method:'POST',body})).status,400);}
   await page.locator('.boards-tile').first().click();await page.locator('button[data-action=lock]').click();await page.locator('#status.ok').waitFor();
   const result=await wait(s);assert.deepEqual(result.answers,{boards:['board-1']});assert.equal(result.action,'lock');
   assert.ok(requests.every(url=>url.startsWith(s.url)||onlyFonts([url])));
@@ -284,14 +284,14 @@ test('local window uses the same boards engine and accepts picks plus action; li
 });
 for(const actions of [false,true])test(`local looks minimum is enforced in the window and listener, actions ${actions}`,async()=>{
  const form=lookForm();if(actions)form.actions=[{value:'use',label:'Use these',needs:'some'},{value:'stop',label:'Stop for now',needs:'any'}];
- const s=await serve(form),h=await pageAt(s,390,actions?'[data-action=use]':'#submit');
+ const s=await serve(form),h=await pageAt(s,390,actions?'#form':'#submit');
  const options=form.questions[0].options;
  const body=count=>({form:form.title,answers:{looks:options.slice(0,count).map(o=>o.value)},...(actions?{action:'use'}:{}),shown:[{id:'looks',question:form.questions[0].label,shown:options.slice(0,count).map(o=>o.label).join(', ')}]});
  try{
   const button=h.page.locator(actions?'[data-action=use]':'#submit');
-  assert.equal(await button.isDisabled(),true);assert.equal(await h.page.locator('h1.progress').innerText(),form.title);
+  assert.equal(await (actions?button.isHidden():button.isDisabled()),true);assert.equal(await h.page.locator('h1.progress').innerText(),form.title);
   for(const count of [0,1,4])assert.equal((await http(s,'answers',{method:'POST',body:body(count)})).status,400);
-  await h.page.locator('.looks-tile').nth(0).click();assert.equal(await button.isDisabled(),true);
+  await h.page.locator('.looks-tile').nth(0).click();assert.equal(await (actions?button.isHidden():button.isDisabled()),true);
   await h.page.locator('.looks-tile').nth(1).click();assert.equal(await button.isDisabled(),false);
   await button.click();await h.page.locator('#status.ok').waitFor();
   assert.deepEqual((await wait(s)).answers,body(2).answers);await locked(h.page);assert.deepEqual(h.errors,[]);

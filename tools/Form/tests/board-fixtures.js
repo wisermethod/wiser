@@ -12,8 +12,8 @@ export function formFromSelection(answers,selection,{pick=3,actions=true}={}) {
     board:Object.fromEntries(BOARD_KEYS.filter(k=>Object.hasOwn(b,k)).map(k=>[k,k==='content'?Object.fromEntries(Object.entries(b.content).filter(([key])=>!['brandName','sentence','body'].includes(key))):b[k]]))}));
   return {title:pick===0?'Step 6 of 6: locked':pick===3?'Step 4 of 6: your boards':'Step 5 of 6: blend and tune',
     brand:{name:answers.name,initials:selection.boards[0].initials,sentence:answers.sentence,body:answers.body,words:answers.words},
-    questions:[{id:'boards',type:'boards',label:pick===0?'Locked. This is your brand.':pick===3?'Which feel most like you? Pick one to three.':'Which is closest?',pick,options}],
-    ...(actions&&pick!==0?{actions:[{value:'round',label:'One more round',needs:'any'},{value:'lock',label:'Lock it',note:'Pick just one to lock it',needs:'one'},{value:'stop',label:'Stop for now',needs:'any'}]}:{})};
+    questions:[{id:'boards',type:'boards',label:pick===0?'Locked. This is your brand.':pick===3?'Select the board(s) that feel most like you':'Which is closest?',pick,options}],
+    ...(actions&&pick!==0?{actions:[{value:'more',label:'Show me more',needs:'any',notes:{none:'None of these work',one:'Show me variations of this board',several:'Show me variations of these boards'}},{value:'lock',label:'Lock this board in',note:'and finish my brand',needs:'one'}]}:{})};
 }
 let cached;
 export function boardForm() {

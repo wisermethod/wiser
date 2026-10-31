@@ -6,6 +6,8 @@
 [hidden]{display:none!important}
 .page-actions{display:flex;flex-wrap:wrap;gap:8px}
 html,body{margin:0;padding:0}
+/* The host sizes the card to its content, so nothing scrolls sideways; a host whose frame narrows it shows no sideways bar. */
+html{overflow-x:hidden}
 body{font:16px/1.45 ui-sans-serif,system-ui,-apple-system,sans-serif;color:var(--fg);background:var(--bg)}
 #root{max-width:720px;margin:0 auto;padding:16px}
 h1{font-size:18px;line-height:1.2;margin:0 0 4px}
@@ -96,10 +98,10 @@ button:disabled{opacity:.6;cursor:progress}
 .see-board{display:block;min-height:44px;margin-top:4px;padding:8px 4px;background:transparent;color:var(--accent);text-align:left;text-decoration:underline;text-underline-offset:3px}
 @media(hover:hover){.see-board:hover:not(:disabled):not(:active){background:transparent;color:var(--fg)}}
 .board-limit{color:var(--bad);margin:8px 0}
-.board-actions{display:flex;flex-wrap:wrap;gap:8px}
-.board-actions button{flex:1 1 180px;text-align:left}
-.board-actions small{display:block;font-weight:400;font-size:14px;margin-top:4px;line-height:1.4}
-.board-actions button:disabled{opacity:1;background:var(--card);color:var(--muted);box-shadow:inset 0 0 0 1px var(--line);cursor:default}
+.board-actions{display:flex;flex-wrap:wrap;gap:12px}
+.board-actions button{flex:1 1 0;min-width:0;min-height:80px;padding:16px 20px;text-align:left;font-size:18px}
+.board-actions small{display:block;font-weight:400;font-size:14px;margin-top:5px;line-height:1.4;color:var(--on-accent)}
+@media(max-width:559px){.board-actions button{flex-basis:100%}}
 .locked-name,.board-mode{padding:12px 16px;margin:0;font-size:18px;color:var(--fg)}
 .board-art .brand-board{border:0;border-radius:0;cursor:default}
 .board-art p,.board-art h1,.board-art h2,.board-art h3{margin:0}

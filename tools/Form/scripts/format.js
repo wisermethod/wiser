@@ -171,8 +171,9 @@ function validate(value, template = false) {
   }
   if(own(value,"actions") && array(value.actions,"actions",2,3)) {
     const values=new Set();value.actions.forEach((a,i)=>{
-      const p=`actions[${i}]`;if(!object(a,p,["value","label","note","needs"],["value","label","needs"]))return;
+      const p=`actions[${i}]`;if(!object(a,p,["value","label","note","notes","needs"],["value","label","needs"]))return;
       strings(a,p,[["value",1,L.optionValueMax,VALUE],["label",1,60],["note",0,120]]);
+      if(own(a,"notes") && object(a.notes,`${p}.notes`,["none","one","several"]))strings(a.notes,`${p}.notes`,[["none",0,120],["one",0,120],["several",0,120]]);
       if(values.has(a.value)) add(`${p}.value`,"Action value must be unique.");values.add(a.value);
       if(!["one","some","any","none"].includes(a.needs))add(`${p}.needs`,"Expected one, some, any or none.");
     });
@@ -343,7 +344,7 @@ export function formJsonSchema() {
     fonts:arr(obj({family:str(L.familyMax,"Font family name, 1 to 40 characters: ASCII letters and digits, starting with a letter, words separated by single spaces; unique ignoring case; never a CSS keyword: serif, sans-serif, monospace, system-ui, cursive, fantasy, emoji, math, fangsong, inherit, initial, unset, revert, default.",1,FAMILY.source),
       src:str(L.fontSrcMax,"HTTPS font URL, at most 300 code points, origin https://fonts.gstatic.com or https://cdn.jsdelivr.net, no query, fragment or credentials, path ending .woff2, .woff, .ttf or .otf.",1)},["family","src"],"Declared font; no generic family names."),L.fontsMin,L.fontsMax,"Optional 1 to 6 declared fonts."),
     brand:obj({name:line(B.name),initials:line(B.initials),sentence:line(B.sentence),body:line(B.body),words:arr(obj({word:line(B.word),not:line(B.word)},["word","not"]),0,B.words),logo:str(B.logoBytes,"Optional kept SVG text, at most 8192 UTF-8 bytes, checked by Contact Sheet's standalone static SVG rules.",1)},["name","initials","sentence","body","words"],"Shared once by every board. Required for boards, otherwise refused."),
-    actions:arr(obj({value:str(L.optionValueMax,"Unique action value.",1,VALUE.source),label:line(60),note:str(120,"Optional action note."),needs:{type:"string",enum:["one","some","any","none"],description:"one exactly 1 pick; some at least the boards min (default 1); any any count; none zero picks. Unmet actions are disabled with their note shown."}},["value","label","needs"]),2,3,"Boards only. Replaces Send; chosen action is payload.action. Refused on a pick 0 display-only form."),
+    actions:arr(obj({value:str(L.optionValueMax,"Unique action value.",1,VALUE.source),label:line(60),note:str(120,"Optional line beneath the label whenever the action shows."),notes:obj(Object.fromEntries(["none","one","several"].map(k=>[k,str(120,"Optional line replacing note for this count: none 0, one 1, several 2 or 3 picks.")])),[],"Count-specific action lines; missing keys fall back to note."),needs:{type:"string",enum:["one","some","any","none"],description:"one exactly 1 pick; some at least the boards min (default 1); any any count; none zero picks. Unmet actions are hidden, take no space and cannot receive focus."}},["value","label","needs"]),2,3,"Boards only. Replaces Send in array order; chosen action is payload.action. Refused on a pick 0 display-only form."),
     questions:arr(question,L.questionsMin,L.questionsMax,"Required 1 to 12 questions; ids must be unique.")
   },["title","questions"],"Wiser form, JSON Schema draft 2020-12 vocabulary. At most 65536 UTF-8 bytes as JSON.stringify writes it. Lengths count code points; no control characters anywhere. Unknown keys, including submitLabel, are refused. checkForm enforces the conditional and cross-field rules described here.");
 }

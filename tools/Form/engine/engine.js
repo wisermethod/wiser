@@ -15,8 +15,7 @@ const WORDS = Object.freeze({
   seeBoard:"See it full size", backToBoards:"Close this board", pickBoard:"Pick this one", boardModes:"Light or dark",
   pickThree:"Pick up to three.", pickCount:"Pick up to {n}.", recommended:"Recommended",
   look:"Look {n}", pickAtLeastOne:"Pick at least one.", pickAtLeastTwo:"Pick at least two.", pickAtLeastThree:"Pick at least three.",
-  whatNext:"What next", moreRound:"One more round", blendPicks:"Blend the ones I picked",
-  anotherAngle:"None of these: try another angle", lock:"Lock it", lockNote:"Pick just one to lock it",
+  whatNext:"What next",
   boardNot:"not {word}", light:"Light", dark:"Dark", licence:"Licence"
 });
 const boardLib=globalThis.WiserBoards;
@@ -175,7 +174,7 @@ function boardQuestion(fieldset,q,id) {
     sync();
   }
   let returnFocus,viewerInput,activeInput;
-  // A board opens in place under its row, so the card grows with it and the chat is the only scroll.
+  // A board replaces its row and the rows below; earlier rows keep their place.
   const viewer=el("section",{class:"board-viewer",hidden:true});
   const back=el("button",{type:"button",text:WORDS.backToBoards});
   const backBottom=el("button",{type:"button",text:WORDS.backToBoards});
@@ -184,6 +183,7 @@ function boardQuestion(fieldset,q,id) {
   const close=(restore=true)=>{
     if(viewer.hidden)return;
     grid.classList.remove("board-focus");
+    for(const tile of grid.querySelectorAll(":scope>.board-option"))tile.hidden=false;
     viewer.hidden=true;viewer.remove();returnFocus?.setAttribute("aria-expanded","false");
     scroll.replaceChildren();grid.after(limit);limit.hidden=true;activeInput=undefined;
     if(restore){returnFocus?.focus({preventScroll:true});returnFocus?.closest(".board-option")?.scrollIntoView({block:"nearest"});}
@@ -218,14 +218,16 @@ function boardQuestion(fieldset,q,id) {
       viewerInput.addEventListener("change",()=>{pick(input,viewerInput.checked);viewerInput.checked=input.checked;});
       viewerBar.replaceChildren(back,el("label",{class:"choice"},viewerInput,el("span",{text:WORDS.pickBoard})),limit);
       limit.hidden=true;scroll.replaceChildren(el("h2",{class:"locked-name",text:o.label}),globalThis.WiserBoardView.draw(model,b,{logo:state.form.brand.logo}));
-      // After the last tile on the clicked tile's row, whatever the column count.
-      const option=full.closest(".board-option"),row=[...grid.children];let end=option;
-      for(const n of row.slice(row.indexOf(option)+1)){if(n.offsetTop!==option.offsetTop)break;end=n;}
-      end.after(viewer);viewer.hidden=false;full.setAttribute("aria-expanded","true");
+      // Measure before hiding: both columns of the clicked row step aside together.
+      const option=full.closest(".board-option"),tiles=[...grid.children],top=option.offsetTop;
+      const start=tiles.findIndex(n=>n.offsetTop===top);
+      tiles[start].before(viewer);
+      for(const tile of tiles.slice(start))tile.hidden=true;
+      viewer.hidden=false;full.setAttribute("aria-expanded","true");
       // Where the host caps the card's height and the open board in place would pass it, the other boards step aside and one mode shows at a time.
       const focused=overCap();
       if(focused){grid.classList.add("board-focus");viewerBar.insertBefore(modeSwitch(scroll.querySelector(".board-art")),viewerBar.children[1]);}
-      back.focus({preventScroll:true});viewerBar.scrollIntoView({block:focused?"start":"nearest"});
+      back.focus({preventScroll:true});
     });
     grid.append(el("div",{class:"board-option"},tile,full));
   }
@@ -371,8 +373,8 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
   function syncActions(){
     const count=pickedCount();
     actionButtons.forEach((button,i)=>{
-      const a=form.actions[i];button.disabled=!boardLib.actionAllowed(a.needs,count,boardQuestion?.min);
-      const note=a.label===WORDS.moreRound?(count?WORDS.blendPicks:WORDS.anotherAngle):a.label===WORDS.lock&&count!==1?WORDS.lockNote:a.note||"";
+      const a=form.actions[i];button.hidden=!boardLib.actionAllowed(a.needs,count,boardQuestion?.min);button.disabled=state.sending;
+      const note=a.notes?.[count===0?"none":count===1?"one":"several"]??a.note??"";
       button.querySelector("small").textContent=note;button.querySelector("small").hidden=!note;
     });
     if(!form.actions)button.disabled=!canSend();
