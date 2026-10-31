@@ -1,0 +1,537 @@
+% Book Publisher LaTeX Template
+% Configurable trim size and typography, optimized for print-on-demand interiors
+
+% openany allows chapters to start on any page (no forced blank pages)
+\documentclass[$if(fontsize)$$fontsize$$else$12pt$endif$,twoside,openany]{book}
+
+%% =============================================================================
+%% GEOMETRY
+%% =============================================================================
+\usepackage[
+  paperwidth=$if(paperwidth)$$paperwidth$$else$8in$endif$,
+  paperheight=$if(paperheight)$$paperheight$$else$10in$endif$,
+  top=$if(margin-top)$$margin-top$$else$0.85in$endif$,
+  bottom=$if(margin-bottom)$$margin-bottom$$else$0.85in$endif$,
+  outer=$if(margin-outer)$$margin-outer$$else$0.85in$endif$,
+  inner=$if(margin-inner)$$margin-inner$$else$1.1in$endif$,
+  footskip=$layout-footskip$,
+  headheight=$layout-headheight$,
+  headsep=$layout-headsep$
+]{geometry}
+
+%% =============================================================================
+%% FONTS
+%% =============================================================================
+\usepackage[T1]{fontenc}
+\usepackage[normalem]{ulem}  % For underlined headers (normalem keeps \emph as italic)
+
+$if(fontfamily)$
+$if(fontfamily-libertinus)$
+\usepackage{libertinus}
+\usepackage{amssymb}  % before newtxmath, which replaces its symbols with its own
+\usepackage[libertinus]{newtxmath}
+$elseif(fontfamily-source-serif)$
+\usepackage{sourceserifpro}
+$else$
+\usepackage{lmodern}
+$endif$
+$else$
+\usepackage{lmodern}
+$endif$
+
+$if(quote-sans)$
+\usepackage{sourcesanspro}
+$else$
+% Preserve the existing sans family used by thumb tabs, without loading the
+% sourcesanspro package's unused LY1 encoding. NFSS loads the T1 font on use.
+\renewcommand{\sfdefault}{SourceSansPro-TLF}
+$endif$
+\usepackage{microtype}
+
+%% =============================================================================
+%% LANGUAGE
+%% =============================================================================
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+
+%% =============================================================================
+%% MATH SYMBOLS (for checkboxes etc.)
+%% =============================================================================
+\usepackage{amssymb}
+
+%% =============================================================================
+%% COLORS
+%% =============================================================================
+\usepackage[cmyk]{xcolor}
+
+%% =============================================================================
+%% GRAPHICS - Completely disable floating for figures and tables
+%% =============================================================================
+\usepackage{graphicx}
+
+$if(boxed-divs)$
+% Only opted-in books load the page-breakable box package and its environment.
+\usepackage[framemethod=default]{mdframed}
+\newsavebox{\bookpublisherimage}
+\let\bookpublisherincludegraphics\includegraphics
+\newenvironment{bookpublisherbox}[4]{%
+  \begingroup
+  \definecolor{bookpublisherboxbg}{gray}{#1}%
+  \definecolor{bookpublisherboxline}{gray}{#2}%
+  \begin{mdframed}[backgroundcolor=bookpublisherboxbg,linecolor=bookpublisherboxline,
+    linewidth=#3pt,innerleftmargin=#4pt,innerrightmargin=#4pt,
+    innertopmargin=#4pt,innerbottommargin=#4pt,
+    skipabove=\baselineskip,skipbelow=\baselineskip]%
+  % The existing image filter uses the page's content width. Cap those images
+  % (including explicit widths) at this box's narrower line width, locally.
+  \RenewDocumentCommand{\includegraphics}{s O{} m}{%
+    \sbox{\bookpublisherimage}{%
+      \IfBooleanTF{##1}{\bookpublisherincludegraphics*[##2]{##3}}%
+        {\bookpublisherincludegraphics[##2]{##3}}}%
+    \ifdim\wd\bookpublisherimage>\linewidth
+      \resizebox{\linewidth}{!}{\usebox{\bookpublisherimage}}%
+    \else
+      \usebox{\bookpublisherimage}%
+    \fi
+  }%
+}{%
+  \end{mdframed}%
+  \endgroup
+}
+$endif$
+
+\usepackage{float}
+\usepackage{placeins}
+\usepackage{caption}
+\graphicspath{{./assets/}{./}}
+
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+
+% Force ALL floats to stay exactly where defined (no floating at all)
+\floatplacement{figure}{H}
+\floatplacement{table}{H}
+
+% Override default float placement to always use H
+\makeatletter
+\renewcommand{\fps@figure}{H}
+\renewcommand{\fps@table}{H}
+\makeatother
+
+% Disable float movement entirely
+\renewcommand{\topfraction}{1.0}
+\renewcommand{\bottomfraction}{1.0}
+\renewcommand{\textfraction}{0.0}
+\renewcommand{\floatpagefraction}{1.0}
+
+% DISABLE FIGURE CAPTIONS AND NUMBERING
+% No "Figure X:" labels or captions under images
+\captionsetup[figure]{labelformat=empty, textformat=empty, skip=0pt}
+\renewcommand{\figurename}{}
+
+%% =============================================================================
+%% TABLES
+%% =============================================================================
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{calc}  % For \real in Pandoc table column widths
+
+%% =============================================================================
+%% LISTS
+%% =============================================================================
+\usepackage{enumitem}
+% nosep: compact spacing; leftmargin=*: align with text
+% before: require space before list to keep first item with preceding text
+\setlist{
+  nosep,
+  leftmargin=*,
+  before=\needspace{4\baselineskip}
+}
+
+%% =============================================================================
+%% NEEDSPACE - Prevent orphaned headers
+%% =============================================================================
+\usepackage{needspace}
+
+%% =============================================================================
+%% HEADERS AND FOOTERS
+%% =============================================================================
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE]{\small\itshape\leftmark}
+\fancyhead[RO]{\small\itshape\rightmark}
+% Only show page numbers after page 3 (skip title, copyright, TOC)
+\fancyfoot[C]{\ifnum\value{page}>3 \thepage\fi}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\fancypagestyle{plain}{
+  \fancyhf{}
+  % Only show page numbers after page 3
+  \fancyfoot[C]{\ifnum\value{page}>3 \thepage\fi}
+  \renewcommand{\headrulewidth}{0pt}
+}
+
+%% =============================================================================
+%% CHAPTER AND SECTION FORMATTING - NO NUMBERS, PROPER PAGE BREAKS
+%% =============================================================================
+\usepackage{titlesec}
+
+$if(print-contents)$
+% The old in-format chapter break discarded titlesec's starred before-skip
+% and its non-discardable spacer. Omit that spacer rather than breaking after
+% the chapter's contents locator has already been written by book.cls.
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd{\ttl@mkchap@i}{\vspace*{\@tempskipa}}{}{}{
+  \PackageError{Book Publisher}{Cannot remove titlesec chapter before-skip}{}
+}
+\makeatother
+$endif$
+
+% Chapter format (# in markdown) - title page style, new page
+% \raggedright prevents hyphenation in headings
+% With contents, chapter already breaks before writing its locator; a second
+% break inside the title format would move the title away from that locator.
+\titleformat{\chapter}[display]
+  {$if(print-contents)$$else$\clearpage$endif$\normalfont\Huge\bfseries\raggedright}
+  {}
+  {0pt}
+  {}
+\titlespacing*{\chapter}{0pt}{50pt}{30pt}
+
+% Section format (## in markdown) - Part headings and Appendices
+% cleardoublepage forces start on odd (recto) page for print layout
+\titleformat{\section}[display]
+  {$if(print-contents)$$else$\cleardoublepage$endif$\normalfont\huge\bfseries\raggedright}
+  {}
+  {0pt}
+  {}
+\titlespacing*{\section}{0pt}{50pt}{30pt}
+
+% Subsection format (### in markdown) - Chapter titles
+% cleardoublepage forces start on odd (recto) page for print layout
+\titleformat{\subsection}[display]
+  {$if(print-contents)$$else$\cleardoublepage$endif$\normalfont\LARGE\bfseries\raggedright}
+  {}
+  {0pt}
+  {}
+\titlespacing*{\subsection}{0pt}{40pt}{20pt}
+
+% Subsubsection format (#### in markdown) - Section within chapter
+% needspace: require 6 lines before heading to keep it with following content
+\titleformat{\subsubsection}
+  {\needspace{6\baselineskip}\normalfont\Large\bfseries\raggedright}
+  {}
+  {0pt}
+  {}
+\titlespacing*{\subsubsection}{0pt}{2.5ex plus 1ex minus .2ex}{1.5ex plus .2ex}
+
+% Paragraph format (##### in markdown) - Subsection within chapter
+% Underlined, needspace: require 5 lines before heading
+\titleformat{\paragraph}
+  {\needspace{5\baselineskip}\normalfont\large\bfseries\raggedright}
+  {}
+  {0pt}
+  {\uline}
+\titlespacing*{\paragraph}{0pt}{2ex plus .5ex minus .2ex}{1ex plus .2ex}
+
+% Prefix the finished titlesec commands without consuming their star or arguments.
+% Installing these after titlesec preserves normal, starred and short-title forms.
+\let\oldsection\section
+\renewcommand{\section}{\FloatBarrier$if(print-contents)$\cleardoublepage$endif$\oldsection}
+\let\oldsubsection\subsection
+\renewcommand{\subsection}{\FloatBarrier$if(print-contents)$\cleardoublepage$endif$\oldsubsection}
+\let\oldsubsubsection\subsubsection
+\renewcommand{\subsubsection}{\FloatBarrier\oldsubsubsection}
+
+%% =============================================================================
+%% LINE SPACING
+%% =============================================================================
+\usepackage{setspace}
+$if(linespacing)$
+\setstretch{$linespacing$}
+$else$
+\setstretch{1.15}
+$endif$
+
+%% =============================================================================
+%% PARAGRAPH FORMATTING
+%% =============================================================================
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.5\baselineskip plus 2pt minus 1pt}
+
+% Prevent widows (single lines at top of page) and orphans (single lines at bottom)
+\widowpenalty=10000
+\clubpenalty=10000
+
+%% =============================================================================
+%% HYPHENATION QUALITY
+%% =============================================================================
+% Professional typography standards for hyphenation control
+% microtype (loaded above) provides font expansion to reduce hyphenation needs
+
+% Discourage hyphenation slightly (default 50)
+\hyphenpenalty=200
+\exhyphenpenalty=100
+
+% Strongly penalize consecutive hyphenated lines ("ladders")
+% Default is 10000; professional typography uses 100000+
+% Maximum 2 consecutive hyphenated lines
+\doublehyphendemerits=100000
+
+% Penalize hyphenating second-to-last line (creates hyphen before short last line)
+% Default is 5000
+\finalhyphendemerits=50000
+
+% Discourage page breaks before/after displayed content (equations, figures)
+\predisplaypenalty=10000
+\postdisplaypenalty=1000
+
+% Discourage page breaks at start/end of lists
+\makeatletter
+\@beginparpenalty=10000
+\@endparpenalty=1000
+\makeatother
+
+% Allow pages to end naturally (don't stretch to fill)
+\raggedbottom
+
+%% =============================================================================
+%% THEMATIC BREAKS - Custom command for consistent spacing
+%% =============================================================================
+\newcommand{\thematicbreak}{%
+  \par\vspace{0.8\baselineskip}%
+  \noindent\makebox[\linewidth]{\rule{0.3\linewidth}{0.4pt}}%
+  \par\vspace{0.8\baselineskip}%
+}
+
+%% =============================================================================
+%% BLOCK QUOTES - Body face by default, grey, indented both sides
+%% =============================================================================
+\usepackage{csquotes}
+
+% Define quote color
+\definecolor{quotetext}{cmyk}{0,0,0,0.70}
+
+% Styled blockquote: optional sans face, dark grey, indented both sides, tighter spacing
+\renewenvironment{quote}{%
+  \par\vspace{\baselineskip}%
+  \begin{list}{}{%
+    \setlength{\leftmargin}{0.625in}%
+    \setlength{\rightmargin}{0.625in}%
+    \setlength{\topsep}{0pt}%
+    \setlength{\partopsep}{0pt}%
+    \setlength{\parsep}{0.3\baselineskip}%
+    \setlength{\itemsep}{0pt}%
+  }%
+  \item\relax%
+$if(quote-sans)$
+  \sffamily%
+$endif$
+  \color{quotetext}\setstretch{1.0}%
+}{%
+  \end{list}%
+  \par\vspace{\baselineskip}%
+}
+
+%% =============================================================================
+%% CODE
+%% =============================================================================
+\usepackage{listings}
+\lstset{
+  basicstyle=\small\ttfamily,
+  breaklines=true,
+  breakatwhitespace=true,
+  frame=single,
+  framesep=3pt,
+  xleftmargin=3pt,
+  xrightmargin=3pt
+}
+
+\usepackage{fancyvrb}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\},fontsize=\small}
+
+%% =============================================================================
+%% INDEX
+%% =============================================================================
+\usepackage{makeidx}
+\makeindex
+
+%% =============================================================================
+%% THUMB TABS - Edge markers for easy navigation
+%% =============================================================================
+\usepackage{eso-pic}
+\usepackage{tikz}
+
+% Thumb tab configuration
+\newlength{\thumbtabwidth}
+\setlength{\thumbtabwidth}{$layout-thumbtabwidth$}
+\newlength{\thumbtabheight}
+\setlength{\thumbtabheight}{1.0in}
+\newlength{\thumbtabpadding}
+\setlength{\thumbtabpadding}{0.125in}
+\newlength{\thumbtaboffset}
+
+% Track active thumb tab (0 = none, 1-8 = slot position)
+\newcounter{activethumbtab}
+\setcounter{activethumbtab}{0}
+\newcommand{\thumbtablabel}{}
+
+% Set thumb tab offset based on slot (1=top, 8=bottom)
+% For 10" page: slot 8 should be near bottom
+\newcommand{\setthumboffset}{%
+  \ifcase\value{activethumbtab}%
+    \setlength{\thumbtaboffset}{0in}%      slot 0 (none)
+  \or\setlength{\thumbtaboffset}{0.5in}%   slot 1 (top)
+  \or\setlength{\thumbtaboffset}{1.5in}%   slot 2
+  \or\setlength{\thumbtaboffset}{2.5in}%   slot 3
+  \or\setlength{\thumbtaboffset}{3.5in}%   slot 4
+  \or\setlength{\thumbtaboffset}{4.5in}%   slot 5
+  \or\setlength{\thumbtaboffset}{5.5in}%   slot 6
+  \or\setlength{\thumbtaboffset}{6.5in}%   slot 7
+  \or\setlength{\thumbtaboffset}{7.8in}%   slot 8 (bottom, leaving room for tab height)
+  \fi%
+}
+
+% Store current thumb tab slot for persistent drawing
+\newcommand{\currentthumbslot}{0}
+\newcommand{\currentthumblabel}{}
+
+% Draw thumb tab on current page (called via hook)
+\newcommand{\drawcurrentthumbtab}{%
+  \ifnum\value{activethumbtab}>0
+    \setthumboffset%
+    \begin{tikzpicture}[remember picture, overlay]
+      % Determine which side based on odd/even page
+      \ifodd\value{page}
+        % Odd page (recto): right edge
+        \fill[black] 
+          ([xshift=-\thumbtabwidth, yshift=-\thumbtaboffset]current page.north east) 
+          rectangle 
+          ([yshift=-\thumbtaboffset-\thumbtabheight]current page.north east);
+        % Label (rotated) - centered in tab, safely inside trim zone (0.35" from outer edge)
+        \node[rotate=270, white, font=\scriptsize\bfseries\sffamily] 
+          at ([xshift=-0.35in, yshift=-\thumbtaboffset-0.5\thumbtabheight]current page.north east) 
+          {\thumbtablabel};
+      \else
+        % Even page (verso): left edge
+        \fill[black] 
+          ([yshift=-\thumbtaboffset]current page.north west) 
+          rectangle 
+          ([xshift=\thumbtabwidth, yshift=-\thumbtaboffset-\thumbtabheight]current page.north west);
+        % Label (rotated) - centered in tab, safely inside trim zone (0.35" from outer edge)
+        \node[rotate=90, white, font=\scriptsize\bfseries\sffamily] 
+          at ([xshift=0.35in, yshift=-\thumbtaboffset-0.5\thumbtabheight]current page.north west) 
+          {\thumbtablabel};
+      \fi
+    \end{tikzpicture}%
+  \fi
+}
+
+% Start thumb tab for a section
+\newcommand{\thumbtabstart}[2]{%
+  \ClearShipoutPicture% Clear any previous thumb tab hook first
+  \setcounter{activethumbtab}{#1}%
+  \renewcommand{\thumbtablabel}{#2}%
+  \AddToShipoutPictureBG{\drawcurrentthumbtab}%
+}
+
+% End thumb tab
+\newcommand{\thumbtabend}{%
+  \ClearShipoutPicture%
+  \setcounter{activethumbtab}{0}%
+  \renewcommand{\thumbtablabel}{}%
+}
+
+%% =============================================================================
+%% HYPERLINKS
+%% =============================================================================
+\usepackage[
+  draft,  % Disables all links for PDF/X-1a print compliance
+  pdftitle={$if(title)$$title$$else$Book$endif$},
+  pdfauthor={$if(author)$$for(author)$$author$$sep$, $endfor$$endif$}
+]{hyperref}
+
+%% =============================================================================
+%% PANDOC COMPATIBILITY
+%% =============================================================================
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+% Pandoc 3.x uses pandocbounded for constrained image sizing
+\providecommand{\pandocbounded}[1]{#1}
+
+$if(highlighting-macros)$
+$highlighting-macros$
+$endif$
+
+%% =============================================================================
+%% ENSURE EVEN PAGE COUNT (for print requirements)
+%% =============================================================================
+% Ensures the document ends on an even page count (required for print)
+% After \clearpage, \value{page} is the NEXT page number (not pages output)
+% So if counter is EVEN after clearpage, we've output an ODD number of pages
+\newcommand{\ensureevenpages}{%
+  \clearpage% Flush all pending content first
+  \ifodd\value{page}%
+    % Counter is odd = even pages output = we're good
+  \else
+    % Counter is even = odd pages output = need one more blank page
+    \thispagestyle{empty}%
+    \null
+    \clearpage
+  \fi
+}
+
+%% =============================================================================
+%% DOCUMENT
+%% =============================================================================
+$if(unnumbered-headings)$
+\setcounter{secnumdepth}{-2}
+$endif$
+\begin{document}
+
+\pagestyle{plain}
+
+$if(print-contents)$
+% Keep generated front matter separate from manuscript folios and recto/verso.
+\pagenumbering{roman}
+\begingroup
+\makeatletter
+\let\ps@plain\ps@empty
+\makeatother
+\pagestyle{empty}
+% The template's heading pages have no automatic labels, at any numbering depth.
+\renewcommand{\numberline}[1]{}
+\setcounter{tocdepth}{$print-contents-depth$}
+\tableofcontents
+\cleardoublepage
+\endgroup
+% An internal AUX label records the physical offset for two-pass extraction.
+\makeatletter
+\immediate\write\@auxout{\string\newlabel{bookpublisher-contents-pages}{{}{\number\numexpr\value{page}-1\relax}}}
+\makeatother
+\pagenumbering{arabic}
+\pagestyle{plain}
+$endif$
+
+$body$
+
+$if(include-index)$
+\clearpage
+\phantomsection
+\addcontentsline{toc}{chapter}{Index}
+\printindex
+$endif$
+
+% Ensure even page count for print (adds blank page if odd)
+\ensureevenpages
+
+\end{document}
