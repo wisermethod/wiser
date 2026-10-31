@@ -136,13 +136,17 @@ function fitLooks() {
     const name=n.querySelector('.look-name'),lines=[...name.children],height=Number(name.dataset.lineHeight);
     name.style.fontSize='90px';
     const widest=Math.max(...lines.map(t=>t.getComputedTextLength()),1);
-    let size=Math.min(90,90*294/widest,190/(height*lines.length));
+    let size=Math.min(90*294/widest,190/(height*lines.length));
     name.style.fontSize=`${size}px`;
     lines.forEach((t,i)=>t.setAttribute('y',i*size*height));
     // Advance width and line height do not bound the ink of every offered face.
-    const ink=name.getBBox(),scale=Math.min(1,294/Math.max(1,ink.width),190/Math.max(1,ink.height));
-    size*=scale;name.style.fontSize=`${size}px`;
-    lines.forEach((t,i)=>t.setAttribute('y',i*size*height));
+    // Small SVG tiles can round glyph metrics at each size; remeasure the ink after shrinking.
+    for(let pass=0;pass<4;pass++){
+      const ink=name.getBBox(),scale=Math.min(1,294/Math.max(1,ink.width),190/Math.max(1,ink.height));
+      if(scale===1)break;
+      size*=scale*.99;name.style.fontSize=`${size}px`;
+      lines.forEach((t,i)=>t.setAttribute('y',i*size*height));
+    }
     const box=name.getBBox();name.setAttribute('transform',`translate(42 ${57+(210-box.height)/2-box.y})`);
     const initials=n.querySelector('.look-initials');
     if(initials){initials.style.fontSize=`${Math.min(36,size*.6)}px`;const width=initials.getComputedTextLength();if(width>100)initials.style.fontSize=`${parseFloat(initials.style.fontSize)*100/width}px`;}
@@ -171,6 +175,7 @@ function look(model,b,{logo}={}) {
   return n;
 }
 document.fonts.addEventListener('loadingdone',fitLooks);
+window.addEventListener('resize',fitLooks);
 function loadFonts(model,hosts) {
   const used=new Set();
   for(const b of model.boards)for(const face of Object.values(b.type))for(const f of lib.PUBLIC_FONT_FILES[face.family]||[]) {
