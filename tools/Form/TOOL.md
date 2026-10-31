@@ -263,13 +263,13 @@ Paged fixtures and format tests cover the optional boolean, wrong types, one-que
 
 Board tests cover every new format field, library membership, public-map validation, generated-file freshness and both recorded twelve-board tap sets under 65,536 bytes. Browser cases exercise pointer/touch and keyboard picks, cap refusal, action visibility and count-specific lines, mirrored whole-view selection, equal card heights, Back, structured action delivery in both transports, display-only non-submission, font success/failure and intercepted requests. The host records display-mode requests to prove none are made.
 
-Whole-look cases pass both recorded tap sets' `select.mjs looks` options unchanged through the validator and schema, then check 600 by 360 structure, numbered and supplied captions, the progress class, two/four columns, minimum enablement, refused fourth picks, keyboard picks with `pick: 2`, and listener rejection below the minimum or above the cap. An offline render command saves both sets at 390 and 734 in light and dark, with zero, two and refused-fourth picks, plus all-content captures and prototype comparisons:
+Whole-look cases pass both recorded tap sets' `select.mjs looks` options unchanged through the validator and schema, then check 600 by 360 structure, numbered and supplied captions, the progress class, two/four columns, minimum enablement, refused fourth picks, keyboard picks with `pick: 2`, and listener rejection below the minimum or above the cap. An offline render command saves both sets at 390 and 734 in light and dark, with zero, two and refused-fourth picks, plus all-content captures and each of the twelve looks, the plain grounds of looks 2, 5, 8 and 11 checked:
 
 ```sh
-PLAYWRIGHT_BROWSERS_PATH="$HOME/Library/Caches/ms-playwright" node scripts/render-look-checks.mjs --output /absolute/new/render-directory --prototype /absolute/prototype-directory
+PLAYWRIGHT_BROWSERS_PATH="$HOME/Library/Caches/ms-playwright" node scripts/render-look-checks.mjs --output /absolute/new/render-directory
 ```
 
-The prototype directory holds `looks/looks.json` and its named PNGs. All fonts come from the installed local pack through intercepted public-map requests; no external service is contacted and nothing is installed.
+An older `--prototype` argument is accepted and not read. All fonts come from the installed local pack through intercepted public-map requests; no external service is contacted and nothing is installed.
 
 For boards actions and full view, the offline maintainer capture command takes an existing checked form and a new output directory:
 
@@ -285,7 +285,7 @@ To regenerate offline visual evidence with installed development packages, brows
 PLAYWRIGHT_BROWSERS_PATH="$HOME/Library/Caches/ms-playwright" node scripts/render-board-checks.mjs --output /absolute/new/render-directory
 ```
 
-This maintainer command requires a new absolute directory outside private paths. `--help` needs no configuration; unknown flags are refused. It writes forms, assembled Contact Sheet references/pages, card/reference PNGs at 390 and 734 in both themes, and `record.json` with measured sizes and intercepted font addresses. Font requests are fulfilled with local pack bytes at the public-map addresses; no external service is contacted. Inspect every tile (scroll captures include all rows), whole view, four-board blend and display-only lock against Contact Sheet. Reference fonts embed the local pack; public provider bytes may differ and are not reverified offline.
+This maintainer command requires a new absolute directory outside private paths. `--help` needs no configuration; unknown flags are refused. It writes forms, assembled Contact Sheet references/pages, card/reference PNGs at 390 and 734 in both themes, and `record.json` with measured sizes and intercepted font addresses. Font requests are fulfilled with local pack bytes at the public-map addresses; no external service is contacted. Inspect every tile (scroll captures include all rows), whole view, twelve-board variations page and display-only lock against Contact Sheet. Reference fonts embed the local pack; public provider bytes may differ and are not reverified offline.
 
 ## Troubleshooting
 
