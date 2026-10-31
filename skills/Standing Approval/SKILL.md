@@ -3,7 +3,7 @@ name: Standing Approval
 type: skill
 category: system
 description: Grant, list or revoke a person's standing approval for a scoped set of connector actions, so calls inside that scope run without a stop each time, made only on their own yes to the gateway's warning, and used, reported and ended as the gateway records it
-version: 0.1.2
+version: 0.1.3
 ---
 
 # Standing Approval
@@ -51,7 +51,7 @@ An assistant who asks for the narrowest grant that covers the work, shows the wa
    - **The root:** the owning root, stated to the person.
    - **A Playbook:** name one when the work belongs to it. A grant naming a Playbook ends when that Playbook closes.
    - **Field limits:** where the work touches only some kinds of record, such as deals and contacts, recommend limiting the grant to those values.
-   - **How long:** 90 days unless they say otherwise, at most 365. The gateway holds a grant covering deleting, sending, paying, publishing or giving access to 7 days.
+   - **How long:** Ordinary grants last 90 days unless they say otherwise, at most 365. The gateway holds a grant covering deleting, sending, paying, publishing or giving access to 7 days, except that a grant which only sends and names a Playbook defaults to 90 days and may last up to 90. For a heightened grant, ask for more than 7 days only when it only sends and names a Playbook.
 3. **What does a proposal answer?** Call `standing_approvals` with `mode: "propose"` and the scope. Take the first matching outcome:
    - `standing_approval_proposed`: step 4.
    - `invalid_arguments` with reason `not_eligible`: say that action cannot be pre-approved and will keep asking each time; offer the scope without it, or stop.

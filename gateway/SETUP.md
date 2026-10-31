@@ -20,7 +20,7 @@ An app that installs this plugin and reads its `.mcp.json` attaches the endpoint
 - **The ChatGPT desktop app, with this plugin installed:** open Plugins, find Wiser, and when ChatGPT asks, sign in with your Wiser account and choose Allow. If Wiser is not in Plugins, choose Add there, add Wiser's marketplace `wisermethod/wiser`, and install Wiser with its plus button first. Do not add the address as a custom server: that is chatgpt.com's route, where this plugin's skills do not run. Then start a new chat.
 - **Any other app**, such as Claude on the web or desktop, ChatGPT on the web, Codex, Grok or Cursor: add the address from `.mcp.json` in the app's connector or MCP server settings as a remote server, and sign in when the app asks.
 
-You sign in with Google or with a link sent to your email. There is no Wiser password, no key of yours goes into the conversation, and this plugin keeps nothing for the endpoint on your machine; your app keeps its own sign-in. Signed in, the app's tool list carries `whoami`, which says which Wiser account the app is using, beside the gateway's own seven tools named in section 2; `list_connections` lists the grants your account holds, and connecting one is section 4.
+You sign in with Google or with a link sent to your email. There is no Wiser password, no key of yours goes into the conversation, and this plugin keeps nothing for the endpoint on your machine; your app keeps its own sign-in. Signed in, the app's tool list carries `whoami`, which says which Wiser account the app is using, beside the gateway's own eight tools named in section 2; `list_connections` lists the grants your account holds, and connecting one is section 4.
 
 The endpoint serves the connectors this plugin ships. One it does not run, such as a connector that reads a key file on your own machine, answers `needs_provider_capability` with a `message` saying so, and its route is the local gateway. Connectors from a working folder or another plugin load only on the local gateway, through `--connectors`.
 
@@ -112,7 +112,7 @@ Any other harness that reads an `mcpServers` JSON block uses the same shape, wit
 
 `--home` is screened before anything opens it: refused inside this plugin, beside a credential file, or on a symbolic link.
 
-Restart the harness. Its tool list now carries `execute`, `start_connect`, `connect_status`, `disconnect`, `list_connections`, `search_actions` and `describe_action`. Actions that need the provider answer `needs_provider` until step 3. `list_connections` fills local metadata from ACTIVE grants this user id already has at the provider; it does not reconnect.
+Restart the harness. Its tool list now carries `execute`, `start_connect`, `connect_status`, `disconnect`, `standing_approvals`, `list_connections`, `search_actions` and `describe_action`. Actions that need the provider answer `needs_provider` until step 3. `list_connections` fills local metadata from ACTIVE grants this user id already has at the provider; it does not reconnect.
 
 ## 3. Give it a provider credential
 

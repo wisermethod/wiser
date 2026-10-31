@@ -15,7 +15,7 @@ Use a Google account allowed to access the relevant sites, analytics properties,
 
 ## Per-module notes
 
-**Every module's grant can write**, whatever its actions do. The provider's sign-in for each Google toolkit asks for the scopes listed below, and they are the whole grant. Privilege describes the grant, so all eight modules are write privilege. Five of them ship write actions, each confirmed every time; the other three ship only reads.
+**Every module's grant can write**, whatever its actions do. The provider's sign-in for each Google toolkit asks for the scopes listed below, and they are the whole grant. Privilege describes the grant, so all eight modules are write privilege. Five of them ship write actions, each confirmed every time except a new Gmail message with no attachment that a standing approval covers; the other three ship only reads.
 
 **The write actions need no new connect.** Connecting a module again asks Google for the same scopes, so it changes nothing. If a write answers `vendor_error` with HTTP 403 on a file or calendar you can edit in Google, that module's consent may be older than its scopes. Reconnect that module alone through `skills/Connect Account/`, asking to rotate it, because that skill does not reconnect an ACTIVE grant otherwise.
 
@@ -25,7 +25,7 @@ Each scope below is `https://www.googleapis.com/auth/<name>` unless it is writte
 - `analytics`: separate connect, write privilege: `analytics`, which can edit, plus `analytics.readonly`. This connector only reads.
 - `drive`: separate connect, write privilege: `drive`, full access to every file in the account. This connector reads, creates, uploads, renames and moves, and never deletes or trashes.
 - `calendar`: separate connect, write privilege: `calendar` and `calendar.events`. This connector reads, creates and updates events, and never deletes one.
-- `gmail`: separate connect, write privilege: `https://mail.google.com/`, which can read, send and permanently delete all mail, plus read-only profile and contacts scopes. This connector reads and saves drafts, and never sends or deletes. **No Google scope enforces never send**: saving a draft needs a scope that can also send, so what keeps a draft unsent is that this connector ships no send action.
+- `gmail`: separate connect, write privilege: `https://mail.google.com/`, which can read, send and permanently delete all mail, plus read-only profile and contacts scopes. This connector reads, saves drafts and sends mail, and never deletes, forwards or changes labels. **No Google scope limits sending**: saving a draft needs a scope that can also send, so what stands between the grant and a sent message is the stop each send makes first, or a standing approval the person granted for `send_message`, which never covers a message with a file attached and never covers `send_draft`.
 - `sheets`: separate connect, write privilege: `spreadsheets` and `drive`. This connector reads, writes and appends values.
 - `docs`: separate connect, write privilege: `documents` and `drive`. This connector reads, creates and edits documents.
 - `slides`: separate connect, write privilege: `presentations` and `drive`. This connector only reads.

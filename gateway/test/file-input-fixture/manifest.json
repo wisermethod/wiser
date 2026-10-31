@@ -1,0 +1,182 @@
+{
+  "id": "file-input-fixture",
+  "service": "file-input-fixture",
+  "modules": {
+    "mail": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "FAKE_MAIL",
+        "scheme": "OAUTH2",
+        "privilege": "write"
+      },
+      "actions": {
+        "create_draft": {
+          "description": "Use invented local files only.",
+          "risk": "medium",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "attachments": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 10,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4096,
+                  "pattern": "^(?:/|[A-Za-z]:[\\\\/]|\\\\\\\\)[^\\u0000]*$"
+                }
+              },
+              "subject": {
+                "type": "string",
+                "maxLength": 200000
+              }
+            },
+            "additionalProperties": false
+          },
+          "input_files": {
+            "field": "attachments",
+            "max_bytes": 2097152
+          }
+        },
+        "send_message": {
+          "description": "Use invented local files only.",
+          "risk": "medium",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "attachments": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 10,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4096,
+                  "pattern": "^(?:/|[A-Za-z]:[\\\\/]|\\\\\\\\)[^\\u0000]*$"
+                }
+              },
+              "subject": {
+                "type": "string",
+                "maxLength": 200000
+              }
+            },
+            "additionalProperties": false
+          },
+          "input_files": {
+            "field": "attachments",
+            "max_bytes": 2097152
+          },
+          "standing_approval": {
+            "kind": "send",
+            "summary": "send invented messages",
+            "caution": "Local attachments always require confirmation."
+          }
+        },
+        "once": {
+          "description": "Use invented local files only.",
+          "risk": "low",
+          "confirmation": "once",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "attachments": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 10,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4096,
+                  "pattern": "^(?:/|[A-Za-z]:[\\\\/]|\\\\\\\\)[^\\u0000]*$"
+                }
+              },
+              "subject": {
+                "type": "string",
+                "maxLength": 200000
+              }
+            },
+            "additionalProperties": false
+          },
+          "input_files": {
+            "field": "attachments",
+            "max_bytes": 2097152
+          }
+        },
+        "none": {
+          "description": "Use invented local files only.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "attachments": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 10,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4096,
+                  "pattern": "^(?:/|[A-Za-z]:[\\\\/]|\\\\\\\\)[^\\u0000]*$"
+                }
+              },
+              "subject": {
+                "type": "string",
+                "maxLength": 200000
+              }
+            },
+            "additionalProperties": false
+          },
+          "input_files": {
+            "field": "attachments",
+            "max_bytes": 2097152
+          }
+        },
+        "undeclared": {
+          "description": "Use invented local files only.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "attachments": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 10,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4096,
+                  "pattern": "^(?:/|[A-Za-z]:[\\\\/]|\\\\\\\\)[^\\u0000]*$"
+                }
+              },
+              "subject": {
+                "type": "string",
+                "maxLength": 200000
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    }
+  }
+}

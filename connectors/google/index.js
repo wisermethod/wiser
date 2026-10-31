@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 async function viaCatalog(input, ctx) {
   return ctx.catalog(`${ctx.service}.${ctx.module}.${ctx.action}`, input);
@@ -231,6 +231,10 @@ const DATETIME_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?(Z|
 // The published patterns for an address and for header text, applied here as well because a
 // nested item and a header are the module's to check before it builds a message.
 const ADDRESS = /^[^\s@\u0000]+@[^\s@\u0000]+$/;
+const MAILBOX = /^[^\s@\u0000,;:<>()\[\]"\\]+@[^\s@\u0000,;:<>()\[\]"\\]+$/;
+const GMAIL_ID = /^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}$/;
+const MESSAGE_ID = /^<[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*>$/;
+const ATTACHMENT_PATH = /^(?:\/|[A-Za-z]:[\\/]|\\\\)[^\u0000]*$/;
 const HEADER_TEXT = /^[^\r\n\u0000]*$/;
 const CALENDAR_CHANGES = ['summary', 'description', 'location', 'start', 'end', 'attendees'];
 
@@ -510,10 +514,10 @@ async function write_values(input, ctx, append) {
 // mailbox can be; a character count alone admits four times that in emoji.
 const ADDRESS_BYTES = 254;
 
-function readAddresses(value, field, min, max) {
+function readAddresses(value, field, min, max, pattern = ADDRESS) {
   if (!Array.isArray(value) || value.length < min || value.length > max) return invalidArguments(field);
   for (const item of value) {
-    if (typeof item !== 'string' || codePoints(item) > ADDRESS_BYTES || !ADDRESS.test(item)) return invalidArguments(field);
+    if (typeof item !== 'string' || codePoints(item) > ADDRESS_BYTES || !pattern.test(item)) return invalidArguments(field);
     if (Buffer.byteLength(item, 'utf8') > ADDRESS_BYTES) return invalidArguments(field);
   }
   return null;
@@ -563,14 +567,73 @@ function addressHeader(name, list) {
   return `${name}: ${list.join(',\r\n ')}`;
 }
 
-function draftRaw(input) {
+// RFC 2231 continuations split only between complete UTF-8 code points. Encoding
+// every byte also keeps punctuation from acquiring parameter syntax.
+function attachmentDisposition(name, index) {
+  const quoted = name.replace(/[\\"]/g, '\\$&');
+  if (/^[\x20-\x7e]+$/.test(name) && quoted.length <= 60) {
+    return `Content-Disposition: attachment;\r\n filename="${quoted}"`;
+  }
+  const segments = [];
+  let segment = '';
+  for (const ch of name) {
+    const encoded = [...Buffer.from(ch, 'utf8')].map((byte) => `%${byte.toString(16).toUpperCase().padStart(2, '0')}`).join('');
+    if (segment.length + encoded.length > 48) {
+      segments.push(segment);
+      segment = '';
+    }
+    segment += encoded;
+  }
+  if (segment) segments.push(segment);
+  const parameters = segments.length === 1
+    ? [`filename*=UTF-8''${segments[0]}`]
+    : segments.map((part, i) => `filename*${i}*=${i === 0 ? "UTF-8''" : ''}${part}`);
+  return [`Content-Disposition: attachment;`, ` filename="attachment-${index}";`,
+    ...parameters.map((part, i) => ` ${part}${i < parameters.length - 1 ? ';' : ''}`)].join('\r\n');
+}
+
+function mimeBoundary(serialized) {
+  let boundary;
+  do { boundary = `wiser-${randomUUID()}`; } while (serialized.includes(boundary));
+  return boundary;
+}
+
+function textPart(type, value) {
+  return `Content-Type: text/${type}; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${wrapBase64(Buffer.from(value, 'utf8'))}`;
+}
+
+function multipartBody(boundary, parts) {
+  return `${parts.map((part) => `--${boundary}\r\n${part}\r\n`).join('')}--${boundary}--\r\n`;
+}
+
+function draftRaw(input, files) {
   const headers = [addressHeader('To', input.to)];
   if (Array.isArray(input.cc) && input.cc.length) headers.push(addressHeader('Cc', input.cc));
   if (Array.isArray(input.bcc) && input.bcc.length) headers.push(addressHeader('Bcc', input.bcc));
   headers.push(subjectHeader(input.subject));
+  if (Object.hasOwn(input, 'thread_id')) {
+    headers.push(`In-Reply-To: ${input.in_reply_to}`);
+    headers.push(`References: ${input.references.join('\r\n ')}`);
+  }
   headers.push('MIME-Version: 1.0');
   let body;
-  if (Object.hasOwn(input, 'body_html')) {
+  if (files.length) {
+    const attachments = files.map((file, i) => {
+      const type = `Content-Type: ${file.media_type}`;
+      return [type.length <= 78 ? type : `Content-Type:\r\n ${file.media_type}`,
+        attachmentDisposition(file.name, i + 1), 'Content-Transfer-Encoding: base64', '', wrapBase64(file.data)].join('\r\n');
+    });
+    let first = textPart('plain', input.body);
+    if (Object.hasOwn(input, 'body_html')) {
+      const parts = [first, textPart('html', input.body_html)];
+      const alternative = mimeBoundary([...headers, ...parts, ...attachments].join('\r\n'));
+      first = `Content-Type: multipart/alternative;\r\n boundary=${alternative}\r\n\r\n${multipartBody(alternative, parts)}`;
+    }
+    const parts = [first, ...attachments];
+    const mixed = mimeBoundary([...headers, ...parts].join('\r\n'));
+    headers.push(`Content-Type: multipart/mixed;\r\n boundary=${mixed}`);
+    body = multipartBody(mixed, parts);
+  } else if (Object.hasOwn(input, 'body_html')) {
     const text = wrapBase64(Buffer.from(input.body, 'utf8'));
     const html = wrapBase64(Buffer.from(input.body_html, 'utf8'));
     let boundary;
@@ -601,15 +664,32 @@ function draftRaw(input) {
   return Buffer.from(message, 'utf8').toString('base64url').replace(/=+$/, '');
 }
 
-async function create_draft(input, ctx) {
-  const to = readAddresses(input.to, 'to', 1, 50);
+const COMPOSE_FIELDS = ['to', 'cc', 'bcc', 'subject', 'body', 'body_html', 'attachments', 'thread_id', 'in_reply_to', 'references'];
+const REPLY_FIELDS = ['thread_id', 'in_reply_to', 'references'];
+
+function replyError(input) {
+  const present = REPLY_FIELDS.filter((field) => Object.hasOwn(input, field));
+  if (!present.length) return null;
+  if (present.length !== REPLY_FIELDS.length) return invalidArguments(REPLY_FIELDS.find((field) => !Object.hasOwn(input, field)));
+  if (stringBound(input.thread_id, 'thread_id', 100, 1) || !GMAIL_ID.test(input.thread_id)) return invalidArguments('thread_id');
+  if (stringBound(input.in_reply_to, 'in_reply_to', 254, 5) || !MESSAGE_ID.test(input.in_reply_to)) return invalidArguments('in_reply_to');
+  if (!Array.isArray(input.references) || input.references.length < 1 || input.references.length > 20 ||
+      input.references.some((id) => stringBound(id, 'references', 254, 5) || !MESSAGE_ID.test(id)) ||
+      input.references.at(-1) !== input.in_reply_to) return invalidArguments('references');
+  return null;
+}
+
+function composeError(input) {
+  const extra = extraKey(input, COMPOSE_FIELDS);
+  if (extra) return extra;
+  const to = readAddresses(input.to, 'to', 1, 50, MAILBOX);
   if (to) return to;
   if (Object.hasOwn(input, 'cc')) {
-    const cc = readAddresses(input.cc, 'cc', 0, 50);
+    const cc = readAddresses(input.cc, 'cc', 0, 50, MAILBOX);
     if (cc) return cc;
   }
   if (Object.hasOwn(input, 'bcc')) {
-    const bcc = readAddresses(input.bcc, 'bcc', 0, 50);
+    const bcc = readAddresses(input.bcc, 'bcc', 0, 50, MAILBOX);
     if (bcc) return bcc;
   }
   const subject = stringBound(input.subject, 'subject', 998, 0);
@@ -621,11 +701,68 @@ async function create_draft(input, ctx) {
     const html = stringBound(input.body_html, 'body_html', 200000, 0);
     if (html) return html;
   }
-  return proxyData(ctx, {
-    endpoint: `${GMAIL}/users/me/drafts`,
-    method: 'POST',
-    body: { message: { raw: draftRaw(input) } },
+  return replyError(input);
+}
+
+function attachmentFiles(input, ctx) {
+  if (!Object.hasOwn(input, 'attachments')) return [];
+  const paths = input.attachments;
+  if (!Array.isArray(paths) || paths.length < 1 || paths.length > 10 || paths.some((path) =>
+    stringBound(path, 'attachments', 4096, 1) || !ATTACHMENT_PATH.test(path))) return invalidArguments('attachments');
+  try {
+    const files = ctx.inputFiles('attachments');
+    if (!Array.isArray(files) || files.length !== paths.length || files.some((file) =>
+      !file || !Buffer.isBuffer(file.data) || file.size !== file.data.length ||
+      typeof file.name !== 'string' || !file.name.length || file.name === '.' || file.name === '..' ||
+      file.name.includes('/') || LONE_SURROGATE.test(file.name) ||
+      typeof file.media_type !== 'string' || !/^[A-Za-z0-9!#$%&'*+.^_`|~-]+\/[A-Za-z0-9!#$%&'*+.^_`|~-]+$/.test(file.media_type) ||
+      typeof file.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(file.sha256) ||
+      createHash('sha256').update(file.data).digest('hex') !== file.sha256)) return invalidArguments('attachments');
+    return files;
+  } catch {
+    return invalidArguments('attachments');
+  }
+}
+
+function selectedMessage(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value) || typeof value.id !== 'string' || !value.id.length ||
+      (Object.hasOwn(value, 'threadId') && typeof value.threadId !== 'string') ||
+      (Object.hasOwn(value, 'labelIds') && (!Array.isArray(value.labelIds) || value.labelIds.some((id) => typeof id !== 'string')))) return null;
+  return { id: value.id, ...(Object.hasOwn(value, 'threadId') ? { threadId: value.threadId } : {}),
+    ...(Object.hasOwn(value, 'labelIds') ? { labelIds: value.labelIds } : {}) };
+}
+
+async function gmailResource(ctx, path, body, draft = false) {
+  const result = await proxyData(ctx, {
+    endpoint: `${GMAIL}/users/me/${path}`, method: 'POST', body,
+    parameters: [{ name: 'fields', type: 'query', value: draft ? 'id,message(id,threadId,labelIds)' : 'id,threadId,labelIds' }],
   });
+  if (isStatusObject(result)) return result;
+  const message = selectedMessage(draft ? result?.message : result);
+  if (!message || (draft && (typeof result.id !== 'string' || !result.id.length))) {
+    return { status: 'vendor_error', reason: 'unexpected_response' };
+  }
+  return draft ? { id: result.id, message } : message;
+}
+
+async function compose(input, ctx, draft) {
+  const error = composeError(input);
+  if (error) return error;
+  const files = attachmentFiles(input, ctx);
+  if (isStatusObject(files)) return files;
+  const message = { raw: draftRaw(input, files) };
+  if (Object.hasOwn(input, 'thread_id')) message.threadId = input.thread_id;
+  return gmailResource(ctx, draft ? 'drafts' : 'messages/send', draft ? { message } : message, draft);
+}
+
+async function create_draft(input, ctx) { return compose(input, ctx, true); }
+async function send_message(input, ctx) { return compose(input, ctx, false); }
+
+async function send_draft(input, ctx) {
+  const extra = extraKey(input, ['draft_id']);
+  if (extra) return extra;
+  if (stringBound(input.draft_id, 'draft_id', 100, 1) || !GMAIL_ID.test(input.draft_id)) return invalidArguments('draft_id');
+  return gmailResource(ctx, 'drafts/send', { id: input.draft_id });
 }
 
 function validYmd(year, month, day) {
@@ -868,6 +1005,8 @@ export const modules = {
     list_messages: viaCatalog,
     get_message: viaCatalog,
     create_draft: wellFormed(create_draft),
+    send_draft: wellFormed(send_draft),
+    send_message: wellFormed(send_message),
   },
   'sheets': {
     search: viaCatalog,

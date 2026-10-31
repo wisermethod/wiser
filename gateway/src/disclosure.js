@@ -447,6 +447,16 @@ export function discloseInput(action, input) {
   };
 }
 
+/** Render file display metadata through the same capped, escaped value renderer. */
+export function discloseAttachmentFiles(descriptors) {
+  const display = (raw) => {
+    const rendered = renderValue(raw);
+    return { value: rendered.text, truncated: rendered.truncated,
+      ...(rendered.truncated ? { full: rendered.full } : {}) };
+  };
+  return descriptors.map(({ name, path, size }) => ({ name: display(name), path: display(path), size }));
+}
+
 /**
  * Compose the summary a person reads. Values land here and not only in a
  * structured field: of the shipped set, 43 files mention `needs_confirmation` and
@@ -510,7 +520,7 @@ function fit(clauses, budget, more, join = '') {
   return { kept, dropped, text: kept.join(join) + (dropped ? more(dropped) : '') };
 }
 
-export function composeSummary({ action, service, module, risk, description, disclosure }) {
+export function composeSummary({ action, service, module, risk, description, disclosure, attachmentFiles = [] }) {
   // Every part of the summary is escaped and budgeted, including the parts that come
   // from the manifest rather than from the caller. A field NAME reaching the output
   // raw is the same defect as a field value reaching it raw, one layer up: the
@@ -521,8 +531,11 @@ export function composeSummary({ action, service, module, risk, description, dis
   // Warning clauses carry what is NOT being shown, and where a shortened value's
   // full text went, so they are budgeted before values and before the description,
   // and an overflow is itself announced rather than cut. The shortening clause is
-  // first so the fit keeps it.
+  // reserved before values; attachment-list directions go first when present.
   const warningTexts = [];
+  if (attachmentFiles.length) {
+    warningTexts.push('; every attachment name, path and size is in attachment_files, with full text for shortened values');
+  }
   const shortened = disclosure.shown.filter((f) => f.truncated);
   if (shortened.length) {
     const verb = shortened.length === 1 ? 'is' : 'are';
@@ -547,7 +560,10 @@ export function composeSummary({ action, service, module, risk, description, dis
   const warnings = fit(warningTexts, WARNING_BUDGET, moreWarnings);
 
   // Values, as many whole ones as fit. A field that does not fit is counted, not cut.
-  const rendered = disclosure.shown.map((f) => `${esc(f.name)}=${f.text}`);
+  const rendered = [
+    ...disclosure.shown.map((f) => `${esc(f.name)}=${f.text}`),
+    ...attachmentFiles.map((file) => `attachment ${file.name.value} at ${file.path.value}, ${file.size} bytes`),
+  ];
   const moreValues = (n) => `; ${n} more field${n === 1 ? '' : 's'} not shown, because the summary reached its length limit`;
 
   const spent = head.length + warnings.text.length + riskClause.length;
