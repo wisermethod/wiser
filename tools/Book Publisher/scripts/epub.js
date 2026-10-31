@@ -2,6 +2,36 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { deflateRawSync, inflateRawSync } from 'node:zlib';
 
+// Offset of the first Markdown heading line after the line holding `from`, or the text's
+// length. A heading is an ATX line (up to three spaces, one to six #, then a space, a tab
+// or the line's end) or a setext underline's text line; lines inside fenced code are not.
+function nextHeadingStart(content, from) {
+  const lineEnd = content.indexOf('\n', from);
+  if (lineEnd === -1) return content.length;
+  let fence = null;
+  let offset = lineEnd + 1;
+  let previous = null; // { start, text } of the last line outside a fence
+  for (const line of content.substring(offset).split('\n')) {
+    const opener = /^ {0,3}(`{3,}|~{3,})/.exec(line);
+    if (fence) {
+      if (opener && opener[1][0] === fence[0] && opener[1].length >= fence.length && /^ {0,3}[`~]+[ \t]*$/.test(line)) fence = null;
+      previous = null;
+    } else if (opener) {
+      fence = opener[1];
+      previous = null;
+    } else if (/^ {0,3}#{1,6}(?:[ \t]|$)/.test(line)) {
+      return offset;
+    } else if (previous && previous.text.trim() && /^ {0,3}(?:=+|-+)[ \t]*$/.test(line)
+               && !/^ {0,3}#{1,6}(?:[ \t]|$)/.test(previous.text)) {
+      return previous.start;
+    } else {
+      previous = { start: offset, text: line };
+    }
+    offset += line.length + 1;
+  }
+  return content.length;
+}
+
 export function cleanMarkdownForEpub(content, config) {
   // ==========================================================================
   // PHASE 1: Convert line break markers before stripping all comments
@@ -88,18 +118,14 @@ export function cleanMarkdownForEpub(content, config) {
       : yearPos;
     if (blockStart < 0) blockStart = 0;
 
-    // End at a line containing the convention " is a trademark"
-    const trademark = /[^\n]* is a trademark[^\n]*/.exec(content.substring(copyrightPos));
-    const trademarkPos = trademark ? copyrightPos + trademark.index : -1;
-    let blockEnd;
-    if (trademarkPos !== -1) {
-      blockEnd = content.indexOf('\n', trademarkPos);
-      if (blockEnd === -1) blockEnd = content.length;
-      blockEnd += 1; // include the newline
-    } else {
-      // Fallback: end at the next heading of any level, so the block never takes in a chapter
-      const nextHeading = /\n#{1,6}[ \t]/.exec(content.substring(copyrightPos));
-      blockEnd = nextHeading ? copyrightPos + nextHeading.index : content.length;
+    // The copyright page ends at the next heading, so the block never takes in a chapter.
+    // Within that page, the convention " is a trademark" ends it earlier.
+    const pageEnd = nextHeadingStart(content, copyrightPos);
+    const trademark = /[^\n]* is a trademark[^\n]*/.exec(content.substring(copyrightPos, pageEnd));
+    let blockEnd = pageEnd;
+    if (trademark) {
+      blockEnd = content.indexOf('\n', copyrightPos + trademark.index);
+      blockEnd = blockEnd === -1 ? content.length : blockEnd + 1; // include the newline
     }
 
     const before = content.substring(0, blockStart);
