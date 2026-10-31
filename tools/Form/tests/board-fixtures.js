@@ -2,6 +2,10 @@ import {select} from '../../../skills/Build Brand/scripts/select.mjs';
 import {operator,firstStrategy} from '../../../skills/Build Brand/tests/select-fixtures.mjs';
 import {BOARD_KEYS} from '../scripts/boards.js';
 export const tapSets={operator,firstStrategy};
+export const lookActions=()=>[
+  {value:'none',label:'None of these work',needs:'none',note:'Show me different looks'},
+  {value:'use',label:'Use these',needs:'some',note:'and make my boards'}
+];
 export function lookForm(answers=operator(),result=select('looks',answers,{check:true})) {
   return {title:answers.name==='Sample Organisation'?'Step 4 of 7: how it should look':'Step 3 of 6: how it should look',
     brand:{name:answers.name,initials:result.selection.boards[0].initials,sentence:answers.sentence,body:answers.body??answers.sentence,words:answers.words},

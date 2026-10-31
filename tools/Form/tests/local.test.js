@@ -7,7 +7,7 @@ import {join} from 'node:path';
 import {launch} from '../../lib/browser-runtime/browser-runtime.js';
 import {SAMPLE_FORM,FONT_HOSTS} from '../scripts/format.js';
 import {mixedPictures} from './cases.js';
-import {boardForm,lookForm} from './board-fixtures.js';
+import {boardForm,lookForm,lookActions} from './board-fixtures.js';
 import {onlyFonts} from './boards-harness.js';
 import {form,payload,serve,wait,stop,http,cli,dest,equal,delay,sentinel,listeners,cleanupAndScan} from './local-harness.js';
 
@@ -296,4 +296,17 @@ for(const actions of [false,true])test(`local looks minimum is enforced in the w
   await button.click();await h.page.locator('#status.ok').waitFor();
   assert.deepEqual((await wait(s)).answers,body(2).answers);await locked(h.page);assert.deepEqual(h.errors,[]);
  }finally{await h.context.close();await stop(s);}
+});
+
+for(const [action,count]of [['none',0],['use',2],['use',3]])test(`local looks journey actions: refuses unmet needs at 0/1/2/3 and accepts ${action} at ${count}`,async()=>{
+ const form=lookForm();form.actions=lookActions();const s=await serve(form);
+ const body=(action,count)=>({form:form.title,action,answers:{looks:form.questions[0].options.slice(0,count).map(o=>o.value)},shown:[{id:'looks',question:form.questions[0].label,shown:form.questions[0].options.slice(0,count).map(o=>o.label).join(', ')||'(none)'}]});
+ try{
+  for(let count=0;count<=3;count++)for(const action of ['none','use']){
+   const allowed=action==='none'?count===0:count>=2;
+   if(!allowed)assert.equal((await http(s,'answers',{method:'POST',body:body(action,count)})).status,400,`${action} at ${count}`);
+  }
+  assert.equal((await http(s,'answers',{method:'POST',body:body(action,count)})).status,200);
+  const result=await wait(s);assert.equal(result.action,action);assert.deepEqual(result.answers,body(action,count).answers);
+ }finally{await stop(s);}
 });

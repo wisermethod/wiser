@@ -19,7 +19,7 @@ const WORDS = Object.freeze({
   boardNot:"not {word}", light:"Light", dark:"Dark", licence:"Licence"
 });
 const boardLib=globalThis.WiserBoards;
-const state = { form: null, host: "unknown", sends: false, submitted: false, boardViews: [] };
+const state = { form: null, host: "unknown", sends: false, submitted: false };
 function textColour(fg,bg) {
   const luminance = hex => {
     let s = hex.slice(1); if (s.length === 3) s = [...s].map(c => c+c).join("");
@@ -135,9 +135,6 @@ function fitSamples() {
   }
 }
 document.fonts.addEventListener("loadingdone", fitSamples);
-const refreshBoardViews=options=>state.boardViews.forEach(refresh=>refresh(options));
-window.addEventListener("resize",()=>refreshBoardViews());
-document.fonts.addEventListener("loadingdone",()=>refreshBoardViews());
 
 function choice(o, type, id, index) {
   const input = el("input", { type, name: id, value: o.value, id: `${id}-${index}` });
@@ -147,7 +144,7 @@ function choice(o, type, id, index) {
 
 // Whether the card passes the height the host says it can hold, where it says one.
 const overCap=()=>state.maxHeight>0&&Math.ceil(document.getElementById("root").getBoundingClientRect().bottom+window.scrollY)>state.maxHeight;
-// One mode at a time, primary first, for a whole board the host's cap cannot hold in both.
+// One mode at a time, primary first, for full views and whole boards that pass a host's cap.
 function modeSwitch(art,initial=art.firstElementChild?.dataset.mode||"light") {
   const show=mode=>{for(const part of art.children)part.hidden=part.dataset.mode!==mode;buttons.forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.mode===mode)));};
   const buttons=["light","dark"].map(mode=>{const b=el("button",{type:"button",class:"board-mode-switch","data-mode":mode,"aria-pressed":"false",text:WORDS[mode]});b.addEventListener("click",()=>show(mode));return b;});
@@ -176,49 +173,25 @@ function boardQuestion(fieldset,q,id) {
     }else{input.checked=wanted;limit.hidden=true;}
     sync();
   }
-  let returnFocus,viewerInput,activeInput,activeOption;
-  // A board replaces its row and the rows below; earlier rows keep their place.
+  let returnFocus,activeInput;
+  let viewerInputs=[];
+  const syncViewer=()=>viewerInputs.forEach(n=>n.checked=activeInput.checked);
+  // The whole board always replaces every tile, at the start of the grid.
   const viewer=el("section",{class:"board-viewer",hidden:true});
   const back=el("button",{type:"button",text:WORDS.backToBoards});
   const backBottom=el("button",{type:"button",text:WORDS.backToBoards});
   const viewerBar=el("div",{class:"board-viewer-bar"},back);
+  const viewerEnd=el("div",{class:"board-viewer-bar board-viewer-end"},backBottom);
   const scroll=el("div",{class:"board-viewer-scroll"});
   const close=(restore=true)=>{
     if(viewer.hidden)return;
-    grid.classList.remove("board-focus");
     for(const tile of grid.querySelectorAll(":scope>.board-option"))tile.hidden=false;
     viewer.hidden=true;viewer.remove();returnFocus?.setAttribute("aria-expanded","false");
-    scroll.replaceChildren();grid.after(limit);limit.hidden=true;activeInput=activeOption=undefined;
+    scroll.replaceChildren();grid.after(limit);limit.hidden=true;activeInput=undefined;viewerInputs=[];
     if(restore){returnFocus?.focus({preventScroll:true});returnFocus?.closest(".board-option")?.scrollIntoView({block:"nearest"});}
   };
   back.addEventListener("click",()=>close());backBottom.addEventListener("click",()=>close());
-  viewer.append(viewerBar,scroll,el("div",{class:"board-viewer-bar board-viewer-end"},backBottom));
-  function refreshViewer({recheckFallback=false}={}){
-    if(viewer.hidden||!activeOption||!drawn(grid))return;
-    const focused=grid.classList.contains("board-focus");
-    if(focused&&!recheckFallback)return;
-    const control=viewer.contains(document.activeElement)?document.activeElement:undefined;
-    const switches=viewerBar.querySelector(".board-mode-switches"),mode=switches?.querySelector('[aria-pressed="true"]')?.dataset.mode;
-    switches?.remove();grid.classList.remove("board-focus");
-    const art=scroll.querySelector(".board-art");
-    for(const part of art.children)part.hidden=false;
-    // Measure the current grid without the viewer or hidden tiles changing its rows.
-    viewer.hidden=true;
-    const tiles=[...grid.querySelectorAll(":scope>.board-option")];
-    for(const tile of tiles)tile.hidden=false;
-    const top=activeOption.offsetTop,start=tiles.findIndex(tile=>tile.offsetTop===top);
-    if(viewer.nextElementSibling!==tiles[start])tiles[start].before(viewer);
-    for(const tile of tiles.slice(start))tile.hidden=true;
-    viewer.hidden=false;
-    if(overCap()){
-      grid.classList.add("board-focus");
-      viewerBar.insertBefore(modeSwitch(art,mode),viewerBar.children[1]);
-      // Removing the earlier rows moves the viewer to the top; Chromium hosts honour this scroll.
-      if(!focused)viewerBar.scrollIntoView({block:"start"});
-    }
-    if(control&&document.activeElement!==control)control.focus({preventScroll:true});
-  }
-  state.boardViews.push(refreshViewer);
+  viewer.append(viewerBar,scroll,viewerEnd);
   for(const [i,o]of q.options.entries()){
     const b=model.boards[i],label=o.label??WORDS.look.replace("{n}",i+1);
     if(!look&&(q.pick===0||single)){
@@ -230,8 +203,8 @@ function boardQuestion(fieldset,q,id) {
     const input=el("input",{type:"checkbox",class:"tile-input",id:`${id}-${i}`,name:id,value:o.value,"aria-describedby":o.note?`${id}-${i}-note`:undefined});
     if(q.pick===1&&q.options.length===1)input.checked=true;
     picks.set(o.value,input);
-    input.addEventListener("change",()=>{pick(input,input.checked);if(activeInput===input)viewerInput.checked=input.checked;});
-    input.addEventListener("keydown",event=>{if(event.key==='Enter'){event.preventDefault();if(!event.repeat){pick(input,!input.checked);if(activeInput===input)viewerInput.checked=input.checked;}}});
+    input.addEventListener("change",()=>{pick(input,input.checked);if(activeInput===input)syncViewer();});
+    input.addEventListener("keydown",event=>{if(event.key==='Enter'){event.preventDefault();if(!event.repeat){pick(input,!input.checked);if(activeInput===input)syncViewer();}}});
     const caption=el("span",{class:"tile-label"},el("span",{text:label}),el("span",{class:"mark check","aria-hidden":true}),o.note?el("small",{id:`${id}-${i}-note`,text:o.note}):null,
       !look&&o.recommendation?el("small",{class:"board-recommendation"},el("b",{text:WORDS.recommended}),document.createTextNode(" · "+o.recommendation)):null);
     const preview=look?globalThis.WiserBoardView.look(model,b,{logo:state.form.brand.logo}):el("div",{class:"board-crop","aria-hidden":true},globalThis.WiserBoardView.draw(model,b,{compact:true,logo:state.form.brand.logo}));
@@ -240,16 +213,24 @@ function boardQuestion(fieldset,q,id) {
     const full=el("button",{class:"see-board",type:"button",text:WORDS.seeBoard,"aria-expanded":"false"});
     full.addEventListener("click",()=>{
       if(!viewer.hidden&&returnFocus===full){close();return;}
-      close(false);returnFocus=full;activeInput=input;activeOption=full.closest(".board-option");
-      // The mirror carries no name or value, so the answers never read it.
-      viewerInput=el("input",{type:"checkbox",value:"","aria-label":WORDS.pickBoard});viewerInput.checked=input.checked;
-      viewerInput.disabled=input.disabled||fieldset.disabled;
-      viewerInput.addEventListener("change",()=>{pick(input,viewerInput.checked);viewerInput.checked=input.checked;});
-      viewerBar.replaceChildren(back,el("label",{class:"choice"},viewerInput,el("span",{text:WORDS.pickBoard})),limit);
-      limit.hidden=true;scroll.replaceChildren(el("h2",{class:"locked-name",text:o.label}),globalThis.WiserBoardView.draw(model,b,{logo:state.form.brand.logo}));
-      grid.append(viewer);viewer.hidden=false;full.setAttribute("aria-expanded","true");
-      refreshViewer();
+      close(false);returnFocus=full;activeInput=input;
+      // Neither mirror carries a name or value; only named tile inputs supply answers.
+      const mirrors=[viewerBar,viewerEnd].map(()=>{
+        const mirror=el("input",{type:"checkbox","aria-label":WORDS.pickBoard});
+        mirror.disabled=input.disabled||fieldset.disabled;
+        mirror.addEventListener("change",()=>{pick(input,mirror.checked);syncViewer();});
+        viewerInputs.push(mirror);
+        return el("label",{class:"choice"},mirror,el("span",{text:WORDS.pickBoard}));
+      });
+      syncViewer();
+      const art=globalThis.WiserBoardView.draw(model,b,{logo:state.form.brand.logo});
+      viewerBar.replaceChildren(back,modeSwitch(art),mirrors[0],limit);
+      viewerEnd.replaceChildren(backBottom,mirrors[1]);
+      limit.hidden=true;scroll.replaceChildren(el("h2",{class:"locked-name",text:o.label}),art);
+      for(const tile of grid.querySelectorAll(":scope>.board-option"))tile.hidden=true;
+      grid.prepend(viewer);viewer.hidden=false;full.setAttribute("aria-expanded","true");
       back.focus({preventScroll:true});
+      viewerBar.scrollIntoView({block:"start"});
     });
     grid.append(el("div",{class:"board-option"},tile,full));
   }
@@ -321,7 +302,7 @@ function readAnswers() {
     if (q.type === "slider") value = Number(box.querySelector("input[type=range]").value);
     else if (q.type === "text") value = [...box.querySelector("textarea").value].slice(0, 1000).join("").trim();
     else {
-      const checked = new Set([...box.querySelectorAll("input:checked")].map(n => n.value));
+      const checked = new Set([...box.querySelectorAll("input[name]:checked")].map(n => n.value));
       // Drawing puts words after pictures; answers keep the format's original option order.
       const picked = opts.filter(o => checked.has(o.value)).map(o => o.value);
       value = q.type === "radio" || q.type === "image-radio" ? (picked[0] ?? null) : picked;
@@ -348,25 +329,21 @@ function metadata({host,source,delivery} = {}) {
   }
 }
 function setHost({host,sends,maxHeight}) {
-  const previousCap=state.maxHeight;
   state.sends = sends; state.host = host; state.maxHeight = maxHeight > 0 ? maxHeight : undefined;
   metadata({host});
   const button = document.getElementById("submit");
   if (button && !state.submitted) button.textContent = sends ? WORDS.buttonSends : WORDS.buttonDrafts;
-  refreshBoardViews({recheckFallback:previousCap!==state.maxHeight});
 }
 function setTheme(theme) {
   if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
   else delete document.documentElement.dataset.theme;
 }
 function showEmpty(refused = false) {
-  state.boardViews=[];
   const root = document.getElementById("root"); root.textContent = "";
   root.append(el("h1",{text: refused ? WORDS.refusedTitle : WORDS.noFormTitle}),
     el("p",{class:"intro",text: refused ? WORDS.refusedBody : WORDS.noFormBody}));
 }
 function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {}) {
-  state.boardViews=[];
   state.form = form; state.host = host; state.sends = sends; state.submitted = false;state.sending=false;
   for (const font of form.fonts || []) {
     try {
@@ -422,7 +399,6 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
     actionRow.hidden=!next.hidden;
     fitSamples();
     if(hasBoards)globalThis.WiserBoardView.fitLooks();
-    if(hasBoards)refreshBoardViews({recheckFallback:true});
     // Focus follows the member from one question to the next; on opening, nothing looks picked.
     if (focus) questions[page].querySelector("input,textarea,select,button")?.focus({preventScroll:true});
   }

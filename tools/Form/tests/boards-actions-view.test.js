@@ -38,51 +38,39 @@ for(const name of ['chatgpt','Claude'])for(const width of [734,390])for(const th
   assert.deepEqual(h.errors,[]);
  }finally{await h.context.close();}
 });
-test('the cap calculation includes the rows above the replaced row',async()=>{
- const form=boardForm();for(const option of form.questions[0].options){option.board=structuredClone(form.questions[0].options[0].board);option.label='Board';}
- const h=await kit.open(form,734,'light',{containerDimensions:{maxHeight:20000,width:734}});
+for(const name of ['chatgpt','Claude'])for(const width of [734,390])for(const capped of [false,true])for(const row of [0,2])test(`viewer ${name} ${width} cap ${capped} row ${row+1}: all tiles step aside, one mode, scroll, mirrored picks and close`,async()=>{
+ const form=boardForm(),h=await kit.open(form,width,capped?'dark':'light',{name,autoSize:true,containerDimensions:capped?{maxHeight:5000,width}:undefined});
  try{
-  await h.f.locator('.see-board').first().click();
-  const firstHeight=await h.f.locator('#root').evaluate(n=>Math.ceil(n.getBoundingClientRect().height));
-  await h.f.getByText('Close this board',{exact:true}).first().click();
-  await h.frame.evaluate(maxHeight=>WiserForm.setHost({host:'Claude',sends:false,maxHeight}),firstHeight+1);
-  await h.f.locator('.see-board').nth(4).click();
-  assert.equal(await h.f.locator('.board-focus').count(),1,'same board height plus earlier rows passes the cap');
- }finally{await h.context.close();}
-});
-for(const name of ['chatgpt','Claude'])for(const width of [734,390])for(const row of [0,2])test(`viewer ${name} ${width} row ${row+1}: replaces row and later tiles, restores picks and focus`,async()=>{
- const h=await kit.open(boardForm(),width,'light',{name,autoSize:true,containerDimensions:{maxHeight:20000,width}});
- try{
+  await h.frame.evaluate(()=>{
+   window.__scrolls=[];const original=Element.prototype.scrollIntoView;
+   Element.prototype.scrollIntoView=function(options){__scrolls.push({bar:this.classList.contains('board-viewer-bar'),tile:[...document.querySelectorAll('.board-option')].indexOf(this),options});return original.call(this,options);};
+  });
   const index=row*(width>=560?2:1),full=h.f.locator('.see-board').nth(index),options=h.f.locator('.board-option');
-  await h.f.locator('.boards-tile').nth(index).click();
-  const before=await options.nth(index).evaluate(n=>n.getBoundingClientRect().top+scrollY);
-  await full.click();
-  const top=await h.f.locator('.board-viewer').evaluate(n=>n.getBoundingClientRect().top+scrollY);
-  assert.ok(Math.abs(top-before)<1,`${top} equals original row top ${before}`);
-  for(let i=0;i<12;i++)assert.equal(await options.nth(i).isVisible(),i<index);
-  assert.equal(await h.f.locator('.board-viewer').count(),1);assert.equal(await h.f.locator('.board-focus').count(),0);
-  assert.equal(await h.f.locator('.board-viewer input').isChecked(),true);
-  const open=await h.f.locator('#root').evaluate(n=>Math.ceil(n.getBoundingClientRect().height));
-  await h.page.waitForFunction(height=>window.__log.filter(e=>e.kind==='size').at(-1)?.params.height===height,open);
-  await h.f.locator('.board-viewer input').uncheck();await h.f.locator('.board-viewer input').check();
-  await h.f.getByText('Close this board',{exact:true}).last().click();
-  assert.equal(await h.f.locator('.board-option:visible').count(),12);
-  assert.equal(await full.evaluate(n=>document.activeElement===n),true);
+  await h.f.locator('.boards-tile').nth(index).click();await full.click();
+  assert.equal(await h.f.locator('.boards-tiles').evaluate(n=>n.firstElementChild.classList.contains('board-viewer')),true);
+  assert.equal(await options.count(),12);assert.equal(await h.f.locator('.board-option:visible').count(),0);
+  assert.equal(await options.evaluateAll(nodes=>nodes.every(n=>n.hidden)),true);
+  assert.equal(await full.getAttribute('aria-expanded'),'true');
+  assert.equal(await h.f.locator('.board-mode-switches').count(),1);
+  const primary=form.questions[0].options[index].board.primaryMode,other=primary==='light'?'dark':'light';
+  const shown=()=>h.frame.evaluate(()=>[...new Set([...document.querySelectorAll('.board-viewer .board-art>*')].filter(n=>n.getClientRects().length).map(n=>n.dataset.mode))]);
+  assert.deepEqual(await shown(),[primary]);
+  assert.equal(await h.f.locator('.board-mode-switch[aria-pressed=true]').getAttribute('data-mode'),primary);
+  assert.ok((await h.frame.evaluate(()=>__scrolls)).some(s=>s.bar&&s.options.block==='start'));
+  const top=await h.f.getByText('Close this board',{exact:true}).first().boundingBox();assert.ok(top.y>=0&&top.y+top.height<=900,JSON.stringify(top));
+  await h.f.locator(`.board-mode-switch[data-mode=${other}]`).click();assert.deepEqual(await shown(),[other]);
+  const mirrors=h.f.locator('.board-viewer input');assert.equal(await mirrors.count(),2);
+  assert.equal(await mirrors.evaluateAll(nodes=>nodes.every(n=>n.checked&&!n.hasAttribute('name')&&!n.hasAttribute('value'))),true);
+  await mirrors.first().uncheck();assert.equal(await mirrors.last().isChecked(),false);assert.equal(await h.f.locator('.tile-input').nth(index).isChecked(),false);
+  await mirrors.last().check();assert.equal(await mirrors.first().isChecked(),true);
+  assert.deepEqual(await h.frame.evaluate(()=>WiserForm.readAnswers()[0].value),[form.questions[0].options[index].value]);
+  await h.f.getByText('Close this board',{exact:true})[row?'last':'first']().click();
+  assert.equal(await h.f.locator('.board-viewer').count(),0);assert.equal(await h.f.locator('.board-option:visible').count(),12);
+  assert.equal(await full.getAttribute('aria-expanded'),'false');assert.equal(await full.evaluate(n=>document.activeElement===n),true);
   assert.equal(await h.f.locator('.tile-input').nth(index).isChecked(),true);
- }finally{await h.context.close();}
-});
-for(const width of [734,390])test(`Claude cap ${width}: row three counts toward cap, fallback and both switches`,async()=>{
- const h=await kit.open(boardForm(),width,'dark',{name:'Claude',autoSize:true,containerDimensions:{maxHeight:5000,width}});
- try{
-  await h.f.locator('.see-board').nth(width>=560?4:2).click();
-  assert.equal(await h.f.locator('.board-focus').count(),1);assert.equal(await h.f.locator('.board-option:visible').count(),0);
-  for(const mode of ['light','dark']){
-   await h.f.locator(`.board-mode-switch[data-mode=${mode}]`).click();
-   if(width===734)assert.ok(await h.f.locator('#root').evaluate(n=>n.getBoundingClientRect().height<=5000));
-   assert.equal(await h.f.locator('.board-mode-switch[aria-pressed=true]').getAttribute('data-mode'),mode);
-   const g=await geometry(h);assert.ok(g.scroll<=g.client,JSON.stringify(g));
-  }
-  await h.f.getByText('Close this board',{exact:true}).first().click();assert.equal(await h.f.locator('.board-option:visible').count(),12);
+  assert.ok((await h.frame.evaluate(()=>__scrolls)).some(s=>s.tile===index&&s.options.block==='nearest'));
+  const tile=await options.nth(index).boundingBox();assert.ok(tile.y>=-1&&tile.y+tile.height<=901,JSON.stringify(tile));
+  assert.deepEqual(h.errors,[]);
  }finally{await h.context.close();}
 });
 for(const name of ['chatgpt','Claude'])for(const width of [734,390])for(const theme of ['light','dark'])test(`sideways ${name} ${width} ${theme}: tiles, picks, viewer, modes, unguarded live resizing`,async()=>{

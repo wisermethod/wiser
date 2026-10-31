@@ -10,7 +10,7 @@ const picks=h=>h.frame.evaluate(()=>WiserForm.readAnswers()[0].value);
 const ownScroll=h=>h.frame.evaluate(()=>[...document.querySelectorAll('#root,#root *')].filter(n=>/auto|scroll/.test(getComputedStyle(n).overflowY)&&n.scrollHeight>n.clientHeight+1).length);
 const rootHeight=h=>h.f.locator('#root').evaluate(n=>n.getBoundingClientRect().height);
 const reported=h=>h.page.evaluate(()=>window.__log.filter(e=>e.kind==='size').at(-1)?.params.height);
-for(const width of [390,734])for(const theme of ['light','dark'])test(`boards ${width} ${theme}: tap, cap, action, in-place viewer, one scroll, picks and transport`,async()=>{
+for(const width of [390,734])for(const theme of ['light','dark'])test(`boards ${width} ${theme}: tap, cap, action, full viewer, one scroll, picks and transport`,async()=>{
  const form=boardForm(),h=await kit.open(form,width,theme,{touch:true});
  try{
   assert.equal(await h.f.locator('button[data-action=lock]').isHidden(),true);
@@ -26,12 +26,12 @@ for(const width of [390,734])for(const theme of ['light','dark'])test(`boards ${
   await h.f.locator('.see-board').nth(1).tap();
   assert.equal(await h.f.locator('.board-viewer').isVisible(),true);
   assert.equal(await h.f.locator('.see-board').nth(1).getAttribute('aria-expanded'),'true');
-  assert.equal(await h.f.locator('.boards-tile').nth(1).isHidden(),true,'the clicked row steps aside');
+  assert.equal(await h.f.locator('.boards-tile').nth(1).isHidden(),true,'every tile steps aside');
   const open=await rootHeight(h);assert.ok(open>500,'the open board determines card height');
   assert.equal(await ownScroll(h),0,'the open board has no scroll of its own');
   await h.page.waitForFunction(min=>window.__log.filter(e=>e.kind==='size').at(-1)?.params.height>=min,Math.floor(open));
-  assert.equal(await h.f.locator('.board-viewer input').isChecked(),true);
-  await h.f.locator('.board-viewer input').uncheck();
+  assert.equal(await h.f.locator('.board-viewer input').first().isChecked(),true);
+  await h.f.locator('.board-viewer input').first().uncheck();
   await h.f.locator('.board-viewer-end').getByText('Close this board',{exact:true}).tap();assert.deepEqual(await picks(h),['board-1','board-3']);
   assert.equal(await h.f.locator('.board-viewer').count(),0);
   assert.equal(await h.f.locator('.see-board').nth(1).getAttribute('aria-expanded'),'false');
@@ -43,35 +43,6 @@ for(const width of [390,734])for(const theme of ['light','dark'])test(`boards ${
   assert.ok(onlyFonts(h.requests));assert.ok(h.requests.length);assert.deepEqual(h.errors,[]);
   assert.equal(log.some(e=>e.kind.toLowerCase().includes('display')),false);
  }finally{await h.context.close();}
-});
-test('a host height cap: an open board that would pass it sets the others aside and shows one mode at a time',async()=>{
- const form=boardForm(),capped=await kit.open(form,734,'light',{touch:true,containerDimensions:{maxHeight:5000,width:734}});
- try{
-  const height=await rootHeight(capped),grid=await capped.f.locator('.boards-tiles').evaluate(n=>n.getBoundingClientRect().height);assert.ok(height<5000,'twelve boards fit under the cap');
-  await capped.f.locator('.see-board').nth(1).tap();
-  assert.equal(await capped.f.locator('.board-focus').count(),1);
-  assert.equal(await capped.f.locator('.board-option').first().isVisible(),false,'the other boards step aside');
-  assert.ok(await rootHeight(capped)<=5000,'the open board fits under the cap');
-  assert.equal(await ownScroll(capped),0);
-  const primary=await capped.f.locator('.board-mode-switch[aria-pressed=true]').getAttribute('data-mode');
-  assert.ok(['light','dark'].includes(primary));const other=primary==='light'?'dark':'light';
-  const shown=()=>capped.frame.evaluate(()=>[...document.querySelectorAll('.board-viewer .board-art>*')].filter(n=>n.getClientRects().length).map(n=>n.dataset.mode));
-  assert.deepEqual([...new Set(await shown())],[primary]);
-  await capped.f.locator(`.board-mode-switch[data-mode=${other}]`).tap();
-  assert.deepEqual([...new Set(await shown())],[other]);assert.ok(await rootHeight(capped)<=5000);
-  assert.equal(await capped.f.locator(`.board-mode-switch[data-mode=${other}]`).getAttribute('aria-pressed'),'true');
-  await capped.f.locator('.board-viewer input').check();assert.deepEqual(await picks(capped),['board-2']);
-  await capped.f.getByText('Close this board',{exact:true}).first().tap();
-  assert.equal(await capped.f.locator('.board-focus,.board-mode-switches').count(),0);
-  assert.equal(await capped.f.locator('.board-option').first().isVisible(),true);assert.equal(await capped.f.locator('.boards-tiles').evaluate(n=>n.getBoundingClientRect().height),grid);
-  assert.deepEqual(capped.errors,[]);
- }finally{await capped.context.close();}
- const roomy=await kit.open(form,734,'light',{touch:true,containerDimensions:{maxHeight:20000,width:734}});
- try{
-  await roomy.f.locator('.see-board').nth(1).tap();
-  assert.equal(await roomy.f.locator('.board-focus,.board-mode-switches').count(),0,'room for it: in place, both modes');
-  assert.deepEqual([...new Set(await roomy.frame.evaluate(()=>[...document.querySelectorAll('.board-viewer .board-art>*')].filter(n=>n.getClientRects().length).map(n=>n.dataset.mode)))].length,2);
- }finally{await roomy.context.close();}
 });
 test('a whole board under a host height cap shows one mode at a time; without one, both and no controls',async()=>{
  for(const shape of ['display','single']){
@@ -96,7 +67,7 @@ test('the open board\'s mirrored pick is never read as an answer, even beside an
  const h=await kit.open(form,734,'light',{touch:true});
  try{
   await h.f.locator('.boards-tile').nth(0).tap();await h.f.locator('.see-board').nth(0).tap();
-  assert.equal(await h.f.locator('.board-viewer input').isChecked(),true);
+  assert.equal(await h.f.locator('.board-viewer input').first().isChecked(),true);
   assert.deepEqual(await picks(h),['board-1']);
   assert.equal(await h.f.locator('button[data-action=lock]').isDisabled(),false,'one real pick: Lock it is open');
  }finally{await h.context.close();}

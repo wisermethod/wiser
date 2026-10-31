@@ -1,7 +1,7 @@
 import '../../lib/tests/isolated-home.js';
 import test,{before,after} from 'node:test';
 import assert from 'node:assert/strict';
-import {lookForm,boardForm,tapSets} from './board-fixtures.js';
+import {lookForm,lookActions,boardForm,tapSets} from './board-fixtures.js';
 import {browserKit,onlyFonts} from './boards-harness.js';
 let kit;before(async()=>{kit=await browserKit();});after(async()=>{await kit?.browser.close();});
 for(const [name,get]of Object.entries(tapSets))for(const width of [390,734])for(const theme of ['light','dark'])test(`looks ${name} ${width} ${theme}: structure, minimum, cap and delivery`,async()=>{
@@ -70,5 +70,48 @@ test('paged looks fit the name when their initially hidden question becomes visi
   // The prototype's name field is 300px wide; glyph ink can extend beyond its 294px advance width.
   assert.ok(names.every(n=>n.size>10&&n.width>0&&n.width<=300&&n.height<=210));
   assert.match(await h.f.locator('h1.progress').innerText(),/2 of 2$/);assert.deepEqual(h.errors,[]);
+ }finally{await h.context.close();}
+});
+
+for(const name of ['chatgpt','Claude'])for(const width of [734,390])for(const theme of ['light','dark'])test(`looks actions ${name} ${width} ${theme}: 0/1/2/3 picks, lines, hidden unmet actions and guarded submission`,async()=>{
+ const form=lookForm();form.actions=lookActions();
+ const h=await kit.open(form,width,theme,{name,autoSize:true,containerDimensions:name==='Claude'?{maxHeight:5000,width}:undefined});
+ try{
+  assert.equal(await h.f.locator('#submit').count(),0);
+  for(let count=0;count<=3;count++){
+   if(count)await h.f.locator('.looks-tile').nth(count-1).click();
+   assert.equal(await h.f.locator('.board-minimum').isVisible(),count<2);
+   if(count===1)assert.equal(await h.f.locator('.board-minimum').innerText(),'Pick at least two.');
+   for(const action of form.actions){
+    const button=h.f.locator(`[data-action=${action.value}]`),allowed=action.value==='none'?count===0:count>=2;
+    assert.equal(await button.isVisible(),allowed);
+    if(allowed){
+     assert.equal(await button.locator('span').innerText(),action.label);assert.equal(await button.locator('small').innerText(),action.note);
+     assert.equal(await button.isDisabled(),false);
+    }else{
+     assert.equal(await button.evaluate(n=>n.getClientRects().length),0);
+     assert.doesNotMatch(await h.f.locator('.board-actions').ariaSnapshot(),new RegExp(action.label));
+     await h.f.locator('.tile-input').last().focus();await h.page.keyboard.press('Tab');
+     assert.equal(await button.evaluate(n=>document.activeElement===n),false);
+     await button.evaluate(n=>n.form.requestSubmit(n));
+    }
+   }
+   await h.f.locator('#form').evaluate(n=>n.requestSubmit());
+   assert.equal((await h.page.evaluate(()=>__log.filter(e=>e.kind==='context'||e.kind==='message'))).length,0);
+  }
+  await h.f.locator('[data-action=use]').click();await h.f.locator('#status.ok').waitFor();
+  const sent=await h.page.evaluate(()=>__log.filter(e=>e.kind==='context'||e.kind==='message'));
+  assert.deepEqual(sent.map(e=>e.kind),['context','message']);
+  assert.equal(sent[0].params.structuredContent.action,'use');assert.deepEqual(sent[0].params.structuredContent.answers.looks,form.questions[0].options.slice(0,3).map(o=>o.value));
+  assert.match(sent[1].params.content[0].text,/What next: Use these/);assert.deepEqual(h.errors,[]);
+ }finally{await h.context.close();}
+});
+for(const name of ['chatgpt','Claude'])test(`looks ${name}: None of these work sends the action with no picks`,async()=>{
+ const form=lookForm();form.actions=lookActions();const h=await kit.open(form,734,'light',{name});
+ try{
+  await h.f.locator('[data-action=none]').click();await h.f.locator('#status.ok').waitFor();
+  const sent=await h.page.evaluate(()=>__log.filter(e=>e.kind==='context'||e.kind==='message'));
+  assert.deepEqual(sent.map(e=>e.kind),['context','message']);assert.equal(sent[0].params.structuredContent.action,'none');
+  assert.deepEqual(sent[0].params.structuredContent.answers.looks,[]);assert.match(sent[1].params.content[0].text,/What next: None of these work/);
  }finally{await h.context.close();}
 });

@@ -7,7 +7,7 @@ import {z} from 'zod';
 import {checkForm,fillTemplate,formJsonSchema} from '../scripts/format.js';
 import {actionAllowed,resolveBoards} from '../scripts/boards.js';
 import {generateBoardsLibrary} from '../scripts/bundle-boards.mjs';
-import {boardForm,formFromSelection,lookForm,tapSets} from './board-fixtures.js';
+import {boardForm,formFromSelection,lookForm,lookActions,tapSets} from './board-fixtures.js';
 import {select} from '../../../skills/Build Brand/scripts/select.mjs';
 const copy=structuredClone;
 test('generated board library is current and portable without Node, DOM or imports',()=>{
@@ -99,4 +99,11 @@ test('action notes admit every subset, code-point limits and empty lines through
 });
 for(const [name,notes]of [['unknown',{other:'No'}],['long',{one:'x'.repeat(121)}],['control',{several:'bad\nline'}],['separator',{none:'bad\u2028line'}],['number',{one:1}],['null',null],['array',[]]])test(`action notes refusal: ${name}`,()=>{
  const f=boardForm();f.actions[0].notes=notes;assert.equal(checkForm(f).ok,false);
+});
+
+test('whole looks accept both journey actions unchanged through checkForm and schema',()=>{
+ const form=lookForm();form.actions=lookActions();const before=copy(form);
+ assert.deepEqual(checkForm(form),{ok:true,problems:[]});assert.deepEqual(form,before);
+ assert.equal(z.fromJSONSchema(formJsonSchema()).safeParse(form).success,true);
+ assert.deepEqual([0,1,2,3].map(n=>form.actions.filter(a=>actionAllowed(a.needs,n,2)).map(a=>a.value)),[['none'],[],['use'],['use']]);
 });
