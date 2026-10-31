@@ -97,9 +97,9 @@ export function cleanMarkdownForEpub(content, config) {
       if (blockEnd === -1) blockEnd = content.length;
       blockEnd += 1; // include the newline
     } else {
-      // Fallback: end at the next ## heading
-      blockEnd = content.indexOf('\n## ', copyrightPos);
-      if (blockEnd === -1) blockEnd = content.length;
+      // Fallback: end at the next heading of any level, so the block never takes in a chapter
+      const nextHeading = /\n#{1,6}[ \t]/.exec(content.substring(copyrightPos));
+      blockEnd = nextHeading ? copyrightPos + nextHeading.index : content.length;
     }
 
     const before = content.substring(0, blockStart);
