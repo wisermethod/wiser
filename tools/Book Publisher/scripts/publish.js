@@ -219,7 +219,7 @@ function requireTexFiles(config) {
     'amssymb', 'xcolor', 'graphicx', 'float', 'placeins', 'caption',
     'longtable', 'booktabs', 'array', 'calc', 'enumitem', 'needspace',
     'fancyhdr', 'titlesec', 'setspace', 'csquotes', 'listings', 'fancyvrb',
-    'makeidx', 'eso-pic', 'tikz', 'hyperref'
+    'makeidx', 'eso-pic', 'tikz', 'hyperref', 'url'
   ];
   // Match the selected template branch, including the Type 1 package loaded
   // by libertinus under this tool's pdflatex engine.
@@ -243,6 +243,11 @@ function requireTexFiles(config) {
       'etoolbox.sty', 'zref-abspage.sty', 'zref-base.sty', 'color.sty',
       'keyval.sty', 'ltxcmds.sty', 'kvsetkeys.sty', 'infwarerr.sty',
       'kvdefinekeys.sty', 'pdftexcmds.sty', 'etexcmds.sty', 'auxhook.sty', 'expl3.sty');
+  }
+  if (config.typography?.url_font === 'sans') {
+    for (const shape of ['Regular', 'It', 'BoldIt']) {
+      files.push(`SourceSansPro-${shape}-tlf-t1.tfm`, `SourceSansPro-${shape}.pfb`);
+    }
   }
   if (config.typography?.quote_font === 'sans') {
     files.push('sourcesanspro.sty', 'ly1enc.def', 'ot1enc.def',
@@ -624,6 +629,9 @@ function validateConfig(config) {
   if (config.typography?.quote_font !== undefined && !['body', 'sans'].includes(config.typography.quote_font)) {
     errors.push('typography.quote_font must be body or sans');
   }
+  if (config.typography?.url_font !== undefined && !['mono', 'body', 'sans'].includes(config.typography.url_font)) {
+    errors.push('typography.url_font must be mono, body or sans');
+  }
   if (config.index?.terms_file !== undefined) {
     if (typeof config.index.terms_file !== 'string' || !config.index.terms_file.trim()) {
       errors.push('index.terms_file must be a nonempty file path');
@@ -968,6 +976,7 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
       pandocArgs.push('--variable', `fontfamily-${family}=true`);
     }
   }
+  pandocArgs.push('--variable', `url-font=${({ mono: 'tt', body: 'same', sans: 'sf' })[config.typography?.url_font ?? 'mono']}`);
   if (config.typography?.quote_font === 'sans') {
     pandocArgs.push('--variable', 'quote-sans=true');
   }
