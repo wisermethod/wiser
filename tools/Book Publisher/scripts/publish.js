@@ -636,8 +636,9 @@ function validateConfig(config) {
     errors.push('typography.quote_font must be body or sans');
   }
   if (config.typography?.emergency_stretch !== undefined &&
-      (!Number.isFinite(config.typography.emergency_stretch) || config.typography.emergency_stretch < 0)) {
-    errors.push('typography.emergency_stretch must be a finite nonnegative number in em');
+      (!Number.isFinite(config.typography.emergency_stretch) || config.typography.emergency_stretch < 0 ||
+       config.typography.emergency_stretch > 100)) {
+    errors.push('typography.emergency_stretch must be a finite number from 0 to 100 em');
   }
   if (config.typography?.tolerance !== undefined &&
       (!Number.isInteger(config.typography.tolerance) || config.typography.tolerance < 0 || config.typography.tolerance > 10000)) {

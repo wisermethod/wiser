@@ -95,7 +95,7 @@ Pass `--config` as an absolute path. Paths inside YAML resolve relative to that 
 | `typography.quote_font` | Print quotation face: `body` inherits the surrounding body face; `sans` selects Source Sans Pro. Thumb-tab labels retain Source Sans Pro Bold in either case | `body` |
 | `typography.url_font` | Print URL face: `mono` uses the existing monospaced face; `body` inherits surrounding text; `sans` uses the template's sans family. URLs can break inside long letter/digit segments in every face | `mono` (the existing URL face) |
 | `typography.font_size` | Print base size in points | `12` |
-| `typography.emergency_stretch` | Print fallback line-breaking stretch in em, a finite nonnegative number; used only when normal line breaking fails, including in narrow index columns; `0` disables this fallback | `3` |
+| `typography.emergency_stretch` | Print fallback line-breaking stretch in em, a finite number from 0 to 100 inclusive; used only when normal line breaking fails, including in narrow index columns; `0` disables this fallback | `3` |
 | `typography.tolerance` | Print line-breaking badness tolerance, an integer from 0 to 10000; higher permits looser spacing before the fallback pass | `200`, as TeX sets it |
 | `typography.line_spacing` | Print line stretch | `1.15` |
 | `contents.enabled` | Generate a print contents page before the manuscript; EPUB keeps its own navigation | `false` |
