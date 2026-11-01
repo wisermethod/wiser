@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.01.3, November 1, 2026
+
+- The classifier now suggests a skill or expert only when that file says it may, and never a tool. Seven skills say so today: Animated Explainer, Build Brand, Bio Sketch, Generate Ideas, Prior Art Check, Classifier Trial and Profile Page. Every other skill and expert, Knowledge Recall now among them, still opens the usual way, only without a suggestion. Nothing changes where no classifier is attached. (ea6cd07)
+- For people writing skills: Play Author now says when to declare a routing seam, so the classifier may suggest the skill, and that it needs the classifier seam's run both ways first; a skill that declares none, or nothing, is not suggested. (ea6cd07)
+
 ## v2026.11.01.2, November 1, 2026
 
 - Book Publisher now sets a narrow book cleanly with nothing added to its chapters. A long web address breaks where it must instead of running off the page, a numbered list that passes 9, or counts in letters or Roman numerals, keeps its labels inside the text, a line that cannot otherwise fit takes a little more spacing instead of running into the margin, and a table without a caption no longer logs an error. (149f5a9, c041876, 3c86892, e4bbfcf, 0a9e334, 5682809)
