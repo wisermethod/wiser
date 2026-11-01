@@ -83,7 +83,7 @@ Options:
   --draft          Skip the back-of-book index (a faster print build)
   --force-merge    Re-merge chapters even when source.merged already exists
   --cleanup        Remove build temp files after success (kept by default)
-  --verbose, -v    Stream pandoc, LaTeX, and Ghostscript output to stderr
+  --verbose, -v    Stream pandoc, LaTeX, and Ghostscript output to stderr as UTF-8
   --install        ${INSTALL_HELP}
   --help, -h       Print this message
 
@@ -219,7 +219,7 @@ function requireTexFiles(config) {
     'amssymb', 'xcolor', 'graphicx', 'float', 'placeins', 'caption',
     'longtable', 'booktabs', 'array', 'calc', 'enumitem', 'needspace',
     'fancyhdr', 'titlesec', 'setspace', 'csquotes', 'listings', 'fancyvrb',
-    'makeidx', 'eso-pic', 'tikz', 'hyperref'
+    'makeidx', 'eso-pic', 'tikz', 'hyperref', 'url'
   ];
   // Match the selected template branch, including the Type 1 package loaded
   // by libertinus under this tool's pdflatex engine.
@@ -243,6 +243,11 @@ function requireTexFiles(config) {
       'etoolbox.sty', 'zref-abspage.sty', 'zref-base.sty', 'color.sty',
       'keyval.sty', 'ltxcmds.sty', 'kvsetkeys.sty', 'infwarerr.sty',
       'kvdefinekeys.sty', 'pdftexcmds.sty', 'etexcmds.sty', 'auxhook.sty', 'expl3.sty');
+  }
+  if (config.typography?.url_font === 'sans') {
+    for (const shape of ['Regular', 'It', 'BoldIt']) {
+      files.push(`SourceSansPro-${shape}-tlf-t1.tfm`, `SourceSansPro-${shape}.pfb`);
+    }
   }
   if (config.typography?.quote_font === 'sans') {
     files.push('sourcesanspro.sty', 'ly1enc.def', 'ot1enc.def',
@@ -532,6 +537,16 @@ try {
     copyFileSync(built.path, standardPdf);
     outputs.print_pdf = standardPdf;
     outputs.pages = built.pages;
+    try {
+      const { auditPrintFonts } = await import('./font-audit.js');
+      outputs.print_fonts = await auditPrintFonts(standardPdf, config,
+        readFileSync(join(printTempDir, `${slug}.log`), 'utf8'), log);
+    } catch (error) {
+      // Even loading the audit or reading its log must not gate a print build.
+      const message = String(error.message ?? error).replace(/[\r\n]+/g, ' ');
+      outputs.print_fonts = { error: message };
+      log(`  Warning: print font audit failed: ${message}`);
+    }
 
     const pdfxPdf = join(config.output._printPath, `${slug}-interior-pdfx.pdf`);
     await convertToPdfX(built.path, pdfxPdf, printTempDir);
@@ -619,6 +634,18 @@ function validateConfig(config) {
   }
   if (config.typography?.quote_font !== undefined && !['body', 'sans'].includes(config.typography.quote_font)) {
     errors.push('typography.quote_font must be body or sans');
+  }
+  if (config.typography?.emergency_stretch !== undefined &&
+      (!Number.isFinite(config.typography.emergency_stretch) || config.typography.emergency_stretch < 0 ||
+       config.typography.emergency_stretch > 100)) {
+    errors.push('typography.emergency_stretch must be a finite number from 0 to 100 em');
+  }
+  if (config.typography?.tolerance !== undefined &&
+      (!Number.isInteger(config.typography.tolerance) || config.typography.tolerance < 0 || config.typography.tolerance > 10000)) {
+    errors.push('typography.tolerance must be an integer from 0 to 10000');
+  }
+  if (config.typography?.url_font !== undefined && !['mono', 'body', 'sans'].includes(config.typography.url_font)) {
+    errors.push('typography.url_font must be mono, body or sans');
   }
   if (config.index?.terms_file !== undefined) {
     if (typeof config.index.terms_file !== 'string' || !config.index.terms_file.trim()) {
@@ -877,11 +904,16 @@ function runCommand(cmd, args, cwd, allowNonZero = false) {
   return new Promise((resolveP, rejectP) => {
     // Child output is captured, never inherited: inheriting would let LaTeX write
     // to our stdout and break the one-JSON-object rule. Under --verbose it is
-    // forwarded to our stderr instead.
+    // forwarded to our stderr instead, decoded per stream: LaTeX echoes typeset
+    // text in its font encoding, so a byte that is not UTF-8 becomes U+FFFD.
     const proc = spawn(cmd, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
-    const forward = (data) => { if (verbose) process.stderr.write(data); };
-    proc.stdout.on('data', forward);
-    proc.stderr.on('data', forward);
+    const forward = (stream) => {
+      const text = new TextDecoder();
+      stream.on('data', (data) => { if (verbose) process.stderr.write(text.decode(data, { stream: true })); });
+      stream.on('end', () => { if (verbose) process.stderr.write(text.decode()); });
+    };
+    forward(proc.stdout);
+    forward(proc.stderr);
     proc.on('close', (code) => {
       if (code === 0 || allowNonZero) resolveP(code);
       else rejectP(new Error(`${cmd} exited with code ${code}`));
@@ -931,6 +963,7 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
     '--template', templateFile,
     '--lua-filter', formatFilter,
     '--lua-filter', indexFilter,
+    '--lua-filter', join(FILTERS_DIR, 'list-width-filter.lua'),
     '--from', 'markdown+smart+autolink_bare_uris-implicit_figures',
     '--to', 'latex',
     '--top-level-division=chapter',
@@ -963,9 +996,12 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
       pandocArgs.push('--variable', `fontfamily-${family}=true`);
     }
   }
+  pandocArgs.push('--variable', `url-font=${({ mono: 'tt', body: 'same', sans: 'sf' })[config.typography?.url_font ?? 'mono']}`);
   if (config.typography?.quote_font === 'sans') {
     pandocArgs.push('--variable', 'quote-sans=true');
   }
+  pandocArgs.push('--variable', `emergency-stretch=${config.typography?.emergency_stretch ?? 3}em`,
+    '--variable', `line-tolerance=${config.typography?.tolerance ?? 200}`);
   if (config.typography?.line_spacing) {
     pandocArgs.push('--variable', `linespacing=${config.typography.line_spacing}`);
   }
