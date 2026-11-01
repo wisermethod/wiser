@@ -83,7 +83,7 @@ Options:
   --draft          Skip the back-of-book index (a faster print build)
   --force-merge    Re-merge chapters even when source.merged already exists
   --cleanup        Remove build temp files after success (kept by default)
-  --verbose, -v    Stream pandoc, LaTeX, and Ghostscript output to stderr
+  --verbose, -v    Stream pandoc, LaTeX, and Ghostscript output to stderr as UTF-8
   --install        ${INSTALL_HELP}
   --help, -h       Print this message
 
@@ -897,11 +897,16 @@ function runCommand(cmd, args, cwd, allowNonZero = false) {
   return new Promise((resolveP, rejectP) => {
     // Child output is captured, never inherited: inheriting would let LaTeX write
     // to our stdout and break the one-JSON-object rule. Under --verbose it is
-    // forwarded to our stderr instead.
+    // forwarded to our stderr instead, decoded per stream: LaTeX echoes typeset
+    // text in its font encoding, so a byte that is not UTF-8 becomes U+FFFD.
     const proc = spawn(cmd, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
-    const forward = (data) => { if (verbose) process.stderr.write(data); };
-    proc.stdout.on('data', forward);
-    proc.stderr.on('data', forward);
+    const forward = (stream) => {
+      const text = new TextDecoder();
+      stream.on('data', (data) => { if (verbose) process.stderr.write(text.decode(data, { stream: true })); });
+      stream.on('end', () => { if (verbose) process.stderr.write(text.decode()); });
+    };
+    forward(proc.stdout);
+    forward(proc.stderr);
     proc.on('close', (code) => {
       if (code === 0 || allowNonZero) resolveP(code);
       else rejectP(new Error(`${cmd} exited with code ${code}`));

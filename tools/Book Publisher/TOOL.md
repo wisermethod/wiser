@@ -244,7 +244,7 @@ A book may follow these optional EPUB front-matter conventions: a copyright bloc
 | `--draft` | Skip makeindex; off by default |
 | `--force-merge` | Re-merge rather than reuse a persistent manuscript; off by default |
 | `--cleanup` | Remove build temp directories after success; intermediates are retained by default and always retained on failure |
-| `--verbose`, `-v` | Stream engine output to stderr; off by default |
+| `--verbose`, `-v` | Stream engine output to stderr as UTF-8 text; LaTeX echoes typeset text in its font encoding, so a byte that is not UTF-8 is written as U+FFFD; off by default |
 | `--install` | Authorize packages under the Script Contract; `WISER_ALLOW_INSTALL=1` is its unattended equivalent |
 | `--help`, `-h` | Print help before dependencies and configuration |
 
