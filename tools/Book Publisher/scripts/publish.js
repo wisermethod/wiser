@@ -935,6 +935,7 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
     '--template', templateFile,
     '--lua-filter', formatFilter,
     '--lua-filter', indexFilter,
+    '--lua-filter', join(FILTERS_DIR, 'list-width-filter.lua'),
     '--from', 'markdown+smart+autolink_bare_uris-implicit_figures',
     '--to', 'latex',
     '--top-level-division=chapter',
