@@ -419,6 +419,7 @@ if (command === 'validate' || command === 'check') {
 const buildPrint = !epubOnly;
 const buildEpub = !printOnly;
 const includeIndex = !draft && config.index?.enabled !== false;
+if (buildPrint) ensureDependencies(['yaml', 'pdfjs-dist']);
 const twoPass = buildPrint && config.index?.enabled === false && config.index?.extractor != null;
 if (buildPrint && !config.output._printPath) fail('Error: print builds require output.print.');
 if (buildEpub && !config.output._epubPath) fail('Error: EPUB builds require output.epub.');
@@ -532,6 +533,9 @@ try {
     copyFileSync(built.path, standardPdf);
     outputs.print_pdf = standardPdf;
     outputs.pages = built.pages;
+    const { auditPrintFonts } = await import('./font-audit.js');
+    outputs.print_fonts = await auditPrintFonts(standardPdf, config,
+      readFileSync(join(printTempDir, `${slug}.log`), 'utf8'), log);
 
     const pdfxPdf = join(config.output._printPath, `${slug}-interior-pdfx.pdf`);
     await convertToPdfX(built.path, pdfxPdf, printTempDir);
