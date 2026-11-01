@@ -191,6 +191,26 @@ function escapeRegex(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+// Locate a matching close in Pandoc's XML without reserializing the document.
+// Counting nested elements keeps a title's front-matter branch separate from
+// later Parts and retains the existing bytes everywhere outside the wrapper.
+function elementBounds(text, start, name) {
+  const tags = new RegExp(`<(/?)${name}(?=[\\s/>])(?:[^"'>]|"[^"]*"|'[^']*')*>`, 'g');
+  tags.lastIndex = start;
+  let depth = 0;
+  let openEnd;
+  for (let tag; (tag = tags.exec(text));) {
+    if (openEnd === undefined) {
+      if (tag.index !== start || tag[1]) return null;
+      openEnd = tags.lastIndex;
+    }
+    if (tag[1]) depth -= 1;
+    else if (!tag[0].endsWith('/>')) depth += 1;
+    if (depth === 0) return { start, openEnd, closeStart: tag.index, end: tags.lastIndex };
+  }
+  return null;
+}
+
 // Pandoc writes an ordinary (non-ZIP64) EPUB ZIP. Retain every entry's metadata
 // and compressed bytes unless its text changes, and rebuild offsets and CRCs.
 // This needs only Node built-ins, with no zip/unzip runtime or new package.
@@ -218,28 +238,37 @@ export function postProcessEpub(epubPath, config) {
     throw new Error('EPUB post-processing requires a single-volume, non-ZIP64 archive');
   }
 
-  const title = escapeRegex(config.title);
-  // The title wrapper is removed from navigation, the NCX and the first content file only when
-  // the navigation shows one: a first entry, the book's title, holding every other entry in a
-  // nested list. A title entry beside the chapters is left where it is in all three.
+  const title = escapeRegex(config.title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'));
+  // A first title wrapping the whole navigation is removed. Pandoc's synthetic
+  // title can also wrap just front matter, including an authored title sharing
+  // its target. Unwrap that duplicate at its own matching boundaries, too.
   const navWrapper = new RegExp(`<ol class="toc"><li id="toc-li-1"><a[^>]+>${title}</a>(?=<ol)`);
-  const navClose = /<\/ol><\/li><\/ol>(<\/nav>)/;
+  let wrapped = false;
+  let keepTitleTarget = false;
+  let navigation;
   const transforms = new Map([
-    ['EPUB/nav.xhtml', (text, wrapped) => {
-      if (wrapped) text = text.replace(navWrapper, '').replace(navClose, '</ol>$1');
-      return text.replace(/ id="toc-li-\d+"/g, '')
+    ['EPUB/nav.xhtml', () => {
+      return navigation.replace(/ id="toc-li-\d+"/g, '')
         .replace(/<h1 id="toc-title">Contents<\/h1>/, '');
     }],
     ['EPUB/toc.ncx', (text, wrapped) => {
       const wrapper = new RegExp(`<navPoint[^>]*>\\s*<navLabel>\\s*<text>${title}</text>\\s*</navLabel>\\s*<content[^>]*>`);
-      return wrapped && wrapper.test(text)
-        ? text.replace(wrapper, '').replace(/<\/navPoint>\s*(<\/navMap>)/, '$1')
+      const match = wrapped ? wrapper.exec(text) : null;
+      const map = /<navMap>\s*/.exec(text);
+      const point = match && map && match.index === map.index + map[0].length
+        ? elementBounds(text, match.index, 'navPoint') : null;
+      return point
+        ? text.slice(0, match.index) + text.slice(match.index + match[0].length, point.closeStart)
+          + text.slice(point.end).replace(/^\s*/, '')
         : text;
     }],
     ['EPUB/text/ch001.xhtml', (text, wrapped) => {
       const wrapper = new RegExp(`<section id="[^"]+"[^>]*>\\s*<h1[^>]*>${title}</h1>`);
-      if (wrapped && wrapper.test(text)) {
-        text = text.replace(wrapper, '').replace(/<\/section>\s*<\/body>/, '</body>');
+      const match = wrapped && !keepTitleTarget ? wrapper.exec(text) : null;
+      const section = match ? elementBounds(text, match.index, 'section') : null;
+      if (section) {
+        text = text.slice(0, match.index) + text.slice(match.index + match[0].length, section.closeStart)
+          + text.slice(section.end).replace(/^\s*(?=<\/body>)/, '');
       }
       return text.replace(/<figcaption[^>]*>What You Get<\/figcaption>\n?/, '');
     }],
@@ -272,7 +301,22 @@ export function postProcessEpub(epubPath, config) {
   const text = (entry) => (entry.method === 0 ? entry.compressed : inflateRawSync(entry.compressed)).toString('utf8');
   const nav = entries.find((entry) => entry.name === 'EPUB/nav.xhtml');
   const navText = nav ? text(nav) : '';
-  const wrapped = navWrapper.test(navText) && navClose.test(navText);
+  navigation = navText;
+  const match = navWrapper.exec(navText);
+  if (match) {
+    const root = elementBounds(navText, match.index, 'ol');
+    const item = elementBounds(navText, match.index + match[0].indexOf('<li'), 'li');
+    const list = elementBounds(navText, match.index + match[0].length, 'ol');
+    if (root && item && list && /^\s*$/.test(navText.slice(list.end, item.closeStart))) {
+      const unwrapped = navText.slice(0, item.start) + navText.slice(list.openEnd, list.closeStart) + navText.slice(item.end);
+      // Pandoc can give an authored lower-level title the synthetic title's
+      // target. Keep that opening heading when a surviving entry still uses it.
+      const target = /href="([^"]+)"/.exec(match[0])?.[1];
+      keepTitleTarget = target !== undefined && new RegExp(`<a\\b[^>]*href="${escapeRegex(target)}"`).test(unwrapped);
+      wrapped = keepTitleTarget || /^\s*$/.test(navText.slice(item.end, root.closeStart));
+      if (wrapped) navigation = unwrapped;
+    }
+  }
   for (const entry of entries) {
     const { central, local } = entry;
     if (transforms.has(entry.name)) {
