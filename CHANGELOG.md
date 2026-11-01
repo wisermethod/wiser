@@ -4,6 +4,14 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.01.2, November 1, 2026
+
+- Book Publisher now sets a narrow book cleanly with nothing added to its chapters. A long web address breaks where it must instead of running off the page, a numbered list that passes 9, or counts in letters or Roman numerals, keeps its labels inside the text, a line that cannot otherwise fit takes a little more spacing instead of running into the margin, and a table without a caption no longer logs an error. (149f5a9, c041876, 3c86892, e4bbfcf, 0a9e334, 5682809)
+- Book Publisher has three new print settings: `typography.url_font` chooses the face web addresses print in, `mono` as before, `body` or `sans`; `typography.emergency_stretch` and `typography.tolerance` adjust how a narrow page breaks its lines. (0a9e334, 5682809, 20c08fe)
+- A book that keeps its own title page, with its title and subtitle as headings, now gets an EPUB whose navigation files are valid. Before, a store's check would refuse the file. (9dad0b2)
+- A character the book's typeface lacks is no longer printed quietly in another typeface. Libertinus's arrows now come from its own companion font, and each print build names any other typeface or missing character it finds, with its pages, without ever stopping the build. (128cf43, 7c99b58, e4bbfcf)
+- `build --verbose` now writes readable text throughout, so a script reading its log no longer stops on an accented name. (24f7a2b)
+
 ## v2026.11.01, November 1, 2026
 
 - A file you attach to a Gmail draft or message now arrives under its own name when the name is long or not plain English letters, instead of as `attachment-1`. (5db9d7d)
