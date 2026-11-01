@@ -136,6 +136,8 @@ $endif$
 %% TABLES
 %% =============================================================================
 \usepackage{longtable}
+% Pandoc 3 uses this counter for longtables without a caption.
+\newcounter{none}
 \usepackage{booktabs}
 \usepackage{array}
 \usepackage{calc}  % For \real in Pandoc table column widths
