@@ -3,7 +3,7 @@ name: Connect Account
 type: skill
 category: system
 description: Connect one service module, asked by name or in plain words such as connect GitHub, in its own human turn through start_connect then connect_status, on the Wiser endpoint or the local gateway, never taking a key in the conversation
-version: 0.8.0
+version: 0.8.1
 ---
 
 # Connect Account
@@ -36,7 +36,7 @@ A steward of the human grant who prefers a hosted grant the person can use acros
    - `{ status: "file", path, variables, next: "connectStatus" }`: name the returned path and variable names, never values. The person writes the file.
    - `needs_provider`: stop and name Set Up Connectors as the next human turn. This is not a connect; never ask for a key in chat.
    - `needs_connector`: name the missing module and stop. Do not invent a connector.
-   - `needs_provider_capability` from the Wiser endpoint: this connector does not run there, and the answer's `message` says why. Give the person that message and stop; where it names the local gateway, that route is Set Up Connectors on request in a command-line harness, never a key in this conversation.
+   - `needs_provider_capability` from the Wiser endpoint: the endpoint will not connect this connector for this account, and the answer's `message` says why. Give the person that message and stop. **Is the message about the account's plan?** Yes: the plans it points to are the whole next step; name no other route. No: the connector does not run there, and the route is the one the message names or, where it names none, the one `auth.md` names; where that is the local gateway, it is Set Up Connectors on request in a command-line harness, never a key in this conversation.
    - `denied`: name the rule and stop. Do not work around policy.
    - `vendor_error`: report `http_status` and `endpoint` only, never the body. The first one, not called stuck, stops there. Stuck, or the same `vendor_error` already reported this turn, routes to Connection Troubleshooter.
    - Any other result: report the `status` received and use Connection Troubleshooter.
