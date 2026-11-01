@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.01, November 1, 2026
+
+- A file you attach to a Gmail draft or message now arrives under its own name when the name is long or not plain English letters, instead of as `attachment-1`. (5db9d7d)
+
 ## v2026.10.31.2, October 31, 2026
 
 - Wiser can now typeset a book. Book Publisher turns a folder of Markdown chapters and a settings file into a print interior PDF, a PDF/X-1a print file checked for the things a printer refuses, such as RGB colour, fonts that are not embedded and an odd page count, and an EPUB. A book can have a contents page, Parts, boxed asides styled in both formats, numbered or unnumbered headings, its own margins and typeface, and a back-of-book index built from a list of terms or from markers in the chapters. It does not make a cover, and it does not print images past the page edge; it says so rather than trying. (26dd1ec, dfc35a5, 5a004ef, 9de3207, 0d30940, 0f40004, 6d79ca2, 614f474, cb3f5a2, f694230, a24c164, aa8bea2, 0cd61d1, 4528e04, 69b3ca0, 572f521, e3bdbcc, 997254c, 313e15a)
