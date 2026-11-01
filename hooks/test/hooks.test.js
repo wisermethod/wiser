@@ -29,7 +29,7 @@ const SCRIPTS = {
   SessionStart: fileURLToPath(new URL('../session.mjs', import.meta.url)),
   UserPromptSubmit: fileURLToPath(new URL('../route.mjs', import.meta.url)),
 };
-const SKILL = join(pluginRoot, 'skills', 'Deep Research', 'SKILL.md');
+const SKILL = join(pluginRoot, 'skills', 'Build Brand', 'SKILL.md');
 
 function tempHome() {
   return mkdtempSync(join(tmpdir(), 'wiser-hooks-'));
@@ -129,21 +129,23 @@ test('presence is absent, stale, attached, or refused by frontmatter', async () 
   assert.equal(isRefused(join(home, 'empty-walk')), false);
 });
 
-test('roster rows come from the three family indexes', () => {
+const ROUTED_SKILLS = [
+  'Animated Explainer', 'Build Brand', 'Bio Sketch', 'Generate Ideas',
+  'Prior Art Check', 'Classifier Trial', 'Profile Page',
+];
+
+test('roster rows come from the skills and experts indexes with routing opt-in', () => {
   const rows = buildRoster(pluginRoot);
-  const families = new Set(rows.map((row) => row.family));
-  assert.deepEqual([...families].sort(), ['expert', 'skill', 'tool']);
-  assert.ok(rows.length >= 60, `row count ${rows.length}`);
+  assert.deepEqual(rows.map(({ family, name }) => ({ family, name })),
+    ROUTED_SKILLS.map((name) => ({ family: 'skill', name })));
   for (const row of rows) {
+    assert.deepEqual(Object.keys(row), ['family', 'name', 'description', 'body']);
     assert.equal(typeof row.name, 'string');
     assert.equal(typeof row.description, 'string');
     assert.equal(row.description.length > 0, true, row.name);
     assert.equal(row.body.length > 0, true, row.name);
     assert.equal(row.body.includes('\n') || row.body.length > 20, true, row.name);
   }
-  assert.ok(rows.some((row) => row.family === 'skill' && row.name === 'Deep Research'));
-  assert.ok(rows.some((row) => row.family === 'expert' && row.name.length > 0 && !row.name.includes('/')));
-  assert.ok(rows.some((row) => row.family === 'tool' && row.name.length > 0 && !row.name.includes('/')));
 });
 
 // Take the program and the four controls from the gate itself, without
@@ -173,102 +175,143 @@ function seamGate(home) {
 const rosterFamilies = [
   ['skill', 'skills', 'SKILL.md'],
   ['expert', 'experts', 'EXPERT.md'],
-  ['tool', 'tools', 'TOOL.md'],
 ];
 
-test('roster excludes only the seam gate\'s clean none, sharing P1, P2, N1 and N2 verbatim', async (t) => {
+// The gate owns well-formedness. This independent oracle only adds the routing
+// requirement: the first word after the prefix, before an unquoted Else.
+function gateRoutes(verdict, body) {
+  if (!verdict.startsWith('FORM seam\n') || verdict.includes('\nERR ')) return false;
+  const declaration = body.split('\n').find((line) => line.startsWith('Classifier seam: ')).slice(17);
+  let quoted = false;
+  for (let i = 0; i < declaration.length; i++) {
+    if (declaration[i] === '`') quoted = !quoted;
+    if (!quoted && declaration.startsWith('Else: ', i)) return /^routing\b/.test(declaration.slice(0, i));
+  }
+  return false;
+}
+
+const routing = 'Classifier seam: routing by `hooks/route.mjs`. Else: the routing table.';
+const context = (text) => `# Fixture\n## Context\n${text}\n## Steps\n`;
+
+test('roster keeps only the seam gate\'s clean routing seam, sharing P1, P2, N1 and N2 verbatim', async (t) => {
   const home = tempHome();
   const gate = seamGate(home);
-  const none = 'Classifier seam: none.';
-  const context = (text) => `# Fixture\n## Context\n${text}\n## Steps\n`;
   const cases = [
-    ...gate.controls.map((control) => ({ ...control, omit: control.form === 'none' && control.clean })),
+    ...gate.controls.map((control) => ({ ...control, keep: control.name === 'N2' })),
     ...[
-      ['CRLF none', context(none).replace(/\n/g, '\r\n'), true],
-      ['no final newline', `## Context\n${none}`, true],
-      ['expert none', context(none), true, 'expert'],
-      ['tool none', context(none), true, 'tool'],
-      ['no Context', none],
-      ['doubled declaration', context(`${none}\n${none}`)],
-      ['none followed by a seam', context(`${none}\nClassifier seam: routing by \`hooks/route.mjs\`. Else: table.`)],
-      ['missing period', context('Classifier seam: none')],
-      ['CRLF missing period', context('Classifier seam: none').replace(/\n/g, '\r\n')],
-      ['two spaces', context('Classifier seam:  none.')],
-      ['space and tab', context('Classifier seam: \tnone.')],
-      ['tab after colon', context('Classifier seam:\tnone.')],
-      ['capital None', context('Classifier seam: None.')],
-      ['lowercase keyword', context('classifier seam: none.')],
-      ['trailing space', context(`${none} `)],
-      ['trailing tab', context(`${none}\t`)],
-      ['leading space', context(` ${none}`)],
-      ['leading tab', context(`\t${none}`)],
-      ['four-space indentation', context(`    ${none}`)],
-      ['HTML comment', context(`<!-- ${none} -->`)],
-      ['multiline HTML comment', context(`<!--\n${none}\n-->`)],
-      ['comment before declaration', context(`<!-- note -->${none}`)],
-      ['comment after declaration', context(`${none} <!-- note -->`)],
-      ['keyword joined across comment bodies', context(`${none}\n<!-- Classifier--><!--seam: -->`)],
-      ['hidden keyword after clean none', context(`${none}\n<!-- ${none} -->`)],
-      ['backtick fence', context(`\`\`\`md\n${none}\n\`\`\``)],
-      ['tilde fence', context(`~~~md\n${none}\n~~~`)],
-      ['three-space fence', context(`   ~~~\n${none}\n   ~~~`)],
-      ['shorter close is not a close', context(`\`\`\`\`\n\`\`\`\n${none}\n\`\`\`\``)],
-      ['different fence character', context(`~~~\n\`\`\`\n${none}\n~~~`)],
-      ['text after closing fence', context(`~~~\n~~~ text\n${none}\n~~~`)],
-      ['keyword on fence opener', context(`~~~ ${none}\n~~~`)],
-      ['keyword on fence closer', context(`~~~\n~~~ ${none}\n~~~`)],
-      ['inline backticks', context(`\`${none}\``)],
-      ['before Context', `${none}\n${context('Use this fixture.')}`],
-      ['after Context', `${context('Use this fixture.')}\n${none}\n`],
-      ['keyword on heading', `## Context ${none}\n`],
-      ['keyword on later heading', context(`${none}\n## ${none}`)],
-      ['two keywords in a line', context(`${none} ${none}`)],
-      ['indented Context', ` ## Context\n${none}\n`],
-      ['setext Context', `Context\n-------\n${none}\n`],
-      ['fenced Context', `~~~\n## Context\n~~~\n${none}\n`],
-      ['commented Context', `<!--\n## Context\n-->\n${none}\n`],
-      ['Context trailing comment', `## Context <!-- note -->\n${none}\n`, true],
-      ['keyword on Context comment', `## Context <!-- ${none} -->\n${none}\n`],
-      ['Context closing hashes and blanks', `## Context ### \t\n${none}\n`, true],
-      ['subheading stays in Context', context(`### Detail\n${none}`), true],
-      ['longer fence close', context(`~~~\ntext\n~~~~ \t\n${none}`), true],
-      ['backtick span is not a fence', context(`\`\`\`text\`\`\`\n${none}`), true],
-      ['fence info does not open a comment', context(`~~~ <!--\ntext\n~~~\n${none}`), true],
-      ['commented fence does not open a fence', context(`<!--\n~~~\n-->\n${none}`), true],
-      ['commented heading does not end Context', context(`<!--\n## Steps\n-->\n${none}`), true],
-      ['four-space fence is not a fence', context(`    ~~~\n${none}`), true],
-      ['unclosed fence after none has no gate error', context(`${none}\n~~~\ntext`), true],
-      ['later keyword outside Context', `${context(none)}\n${none}\n`],
-    ].map(([name, text, omit = false, kind = 'skill']) => ({ name, text, omit, kind })),
+      ['skill routing', context(routing), true],
+      ['expert routing', context(routing), true, 'expert'],
+      ['CRLF routing', context(routing).replace(/\n/g, '\r\n'), true],
+      ['no final newline', `## Context\n${routing}`, true],
+      ['non-routing tool judgment', context('Classifier seam: judgment by `tools/x/run.mjs`. Else: the local check.')],
+      ['expert non-routing judgment', context('Classifier seam: judgment by `gateway/x.mjs`. Else: the local check.'), false, 'expert'],
+      ['routing named second', context('Classifier seam: judgment by `tools/x/run.mjs`; routing by `hooks/route.mjs`. Else: the local check and table.')],
+      ['routing in backticks', context('Classifier seam: `routing` by `hooks/route.mjs`. Else: the table.')],
+      ['routings is not routing', context(routing.replace('routing by', 'routings by'))],
+      ['routing underscore is not a word boundary', context(routing.replace('routing by', 'routing_by'))],
+      ['capital Routing', context(routing.replace('routing by', 'Routing by'))],
+      ['none', context('Classifier seam: none.')],
+      ['expert none', context('Classifier seam: none.'), false, 'expert'],
+      ['no declaration', context('Use this fixture.')],
+      ['no Context', routing],
+      ['doubled declaration', context(`${routing}\n${routing}`)],
+      ['none followed by routing', context(`Classifier seam: none.\n${routing}`)],
+      ['routing followed by none', context(`${routing}\nClassifier seam: none.`)],
+      ['missing period', context(routing.slice(0, -1))],
+      ['CRLF missing period', context(routing.slice(0, -1)).replace(/\n/g, '\r\n')],
+      ['two spaces', context(routing.replace(': routing', ':  routing'))],
+      ['space and tab', context(routing.replace(': routing', ': \trouting'))],
+      ['tab after colon', context(routing.replace(': routing', ':\trouting'))],
+      ['lowercase keyword', context(routing.replace('Classifier', 'classifier'))],
+      ['trailing space', context(`${routing} `)],
+      ['trailing tab', context(`${routing}\t`)],
+      ['leading space', context(` ${routing}`)],
+      ['leading tab', context(`\t${routing}`)],
+      ['four-space indentation', context(`    ${routing}`)],
+      ['no Else', context('Classifier seam: routing by `hooks/route.mjs`.')],
+      ['Else twice', context(`${routing} Else: another table.`)],
+      ['Else without space', context(routing.replace('Else: ', 'Else:'))],
+      ['Else lowercase', context(routing.replace('Else:', 'else:'))],
+      ['Else in backticks only', context('Classifier seam: routing by `hooks/route.mjs` with `Else: table`.')],
+      ['quoted Else before real Else', context('Classifier seam: routing by `hooks/route.mjs` with `Else: example`. Else: the table.'), true],
+      ['quoted Else after real Else', context('Classifier seam: routing by `hooks/route.mjs`. Else: the table with `Else: example`.'), true],
+      ['empty Else', context('Classifier seam: routing by `hooks/route.mjs`. Else: .')],
+      ['blank Else', context('Classifier seam: routing by `hooks/route.mjs`. Else: \t .')],
+      ['no code span', context('Classifier seam: routing by hooks/route.mjs. Else: the table.')],
+      ['empty code span', context('Classifier seam: routing by ``. Else: the table.')],
+      ['code only after Else', context('Classifier seam: routing. Else: `hooks/route.mjs`.')],
+      ['own step code', context('Classifier seam: routing by `skills/x/SKILL.md`. Else: the table.')],
+      ['expert own step code', context('Classifier seam: routing by `experts/x/EXPERT.md`. Else: the table.'), false, 'expert'],
+      ['code prefix embedded', context('Classifier seam: routing by `x/hooks/route.mjs`. Else: the table.')],
+      ['tool code', context('Classifier seam: routing by `tools/x/run.mjs`. Else: the table.'), true],
+      ['gateway code', context('Classifier seam: routing by `gateway/x.mjs`. Else: the table.'), true, 'expert'],
+      ['HTML comment', context(`<!-- ${routing} -->`)],
+      ['multiline HTML comment', context(`<!--\n${routing}\n-->`)],
+      ['comment before declaration', context(`<!-- note -->${routing}`)],
+      ['comment after declaration', context(`${routing} <!-- note -->`)],
+      ['keyword joined across comment bodies', context(`${routing}\n<!-- Classifier--><!--seam: -->`)],
+      ['hidden keyword after routing', context(`${routing}\n<!-- ${routing} -->`)],
+      ['backtick fence', context(`\`\`\`md\n${routing}\n\`\`\``)],
+      ['tilde fence', context(`~~~md\n${routing}\n~~~`)],
+      ['three-space fence', context(`   ~~~\n${routing}\n   ~~~`)],
+      ['shorter close is not a close', context(`\`\`\`\`\n\`\`\`\n${routing}\n\`\`\`\``)],
+      ['different fence character', context(`~~~\n\`\`\`\n${routing}\n~~~`)],
+      ['text after closing fence', context(`~~~\n~~~ text\n${routing}\n~~~`)],
+      ['keyword on fence opener', context(`~~~ ${routing}\n~~~`)],
+      ['keyword on fence closer', context(`~~~\n~~~ ${routing}\n~~~`)],
+      ['inline backticks', context(`\`${routing}\``)],
+      ['before Context', `${routing}\n${context('Use this fixture.')}`],
+      ['after Context', `${context('Use this fixture.')}\n${routing}\n`],
+      ['keyword on heading', `## Context ${routing}\n`],
+      ['keyword on later heading', context(`${routing}\n## ${routing}`)],
+      ['two keywords in a line', context(`${routing} ${routing}`)],
+      ['indented Context', ` ## Context\n${routing}\n`],
+      ['setext Context', `Context\n-------\n${routing}\n`],
+      ['fenced Context', `~~~\n## Context\n~~~\n${routing}\n`],
+      ['commented Context', `<!--\n## Context\n-->\n${routing}\n`],
+      ['Context trailing comment', `## Context <!-- note -->\n${routing}\n`, true],
+      ['keyword on Context comment', `## Context <!-- ${routing} -->\n${routing}\n`],
+      ['Context closing hashes and blanks', `## Context ### \t\n${routing}\n`, true],
+      ['subheading stays in Context', context(`### Detail\n${routing}`), true],
+      ['longer fence close', context(`~~~\ntext\n~~~~ \t\n${routing}`), true],
+      ['backtick span is not a fence', context(`\`\`\`text\`\`\`\n${routing}`), true],
+      ['fence info does not open a comment', context(`~~~ <!--\ntext\n~~~\n${routing}`), true],
+      ['commented fence does not open a fence', context(`<!--\n~~~\n-->\n${routing}`), true],
+      ['commented heading does not end Context', context(`<!--\n## Steps\n-->\n${routing}`), true],
+      ['four-space fence is not a fence', context(`    ~~~\n${routing}`), true],
+      ['unclosed fence after routing has no gate error', context(`${routing}\n~~~\ntext`), true],
+      ['later keyword outside Context', `${context(routing)}\n${routing}\n`],
+    ].map(([name, text, keep = false, kind = 'skill']) => ({ name, text, keep, kind })),
   ];
-  const expected = [];
   for (const [family, dir, typed] of rosterFamilies) {
     mkdirSync(join(home, dir));
     const index = ['| Primitive | Description |', '|-----------|-------------|'];
     for (const fixture of cases.filter((item) => item.kind === family)) {
-      const name = fixture.name;
-      const description = `Fixture ${name}`;
-      const file = join(home, dir, name, typed);
+      const file = join(home, dir, fixture.name, typed);
       mkdirSync(dirname(file));
       writeFileSync(file, fixture.text);
-      index.push(`| \`${name}/${typed}\` | ${description} |`);
-      await t.test(name, () => {
-        const verdict = gate.check(file, family);
-        if (fixture.form) {
-          assert.equal(verdict.split('\n')[0], `FORM ${fixture.form}`);
-          assert.equal(!verdict.includes('\nERR '), fixture.clean);
-        }
-        assert.equal(verdict === 'FORM none\n', fixture.omit, verdict);
-      });
-      if (!fixture.omit) expected.push({ family, name, description, body: fixture.text });
+      fixture.file = file;
+      index.push(`| \`${fixture.name}/${typed}\` | Fixture ${fixture.name} |`);
     }
     writeFileSync(join(home, dir, 'AGENTS.md'), `${index.join('\n')}\n`);
   }
-  // Full row equality checks order and every byte of the retained bodies,
-  // including the malformed CRLF file, rather than checking names alone.
   const rows = buildRoster(home);
-  assert.equal(rows.length, expected.length);
-  for (const [i, row] of rows.entries()) assert.deepEqual(row, expected[i]);
+  for (const fixture of cases) {
+    await t.test(fixture.name, () => {
+      const verdict = gate.check(fixture.file, fixture.kind);
+      if (fixture.form) {
+        assert.equal(verdict.split('\n')[0], `FORM ${fixture.form}`);
+        assert.equal(!verdict.includes('\nERR '), fixture.clean);
+      }
+      assert.equal(gateRoutes(verdict, fixture.text), fixture.keep, verdict);
+      assert.equal(rows.some((row) => row.family === fixture.kind && row.name === fixture.name), fixture.keep, verdict);
+    });
+  }
+  // Full equality checks index order, row shape and every retained body byte.
+  const expected = rosterFamilies.flatMap(([family]) => cases
+    .filter((fixture) => fixture.kind === family && fixture.keep)
+    .map(({ name, text }) => ({ family, name, description: `Fixture ${name}`, body: text })));
+  assert.deepEqual(rows, expected);
 });
 
 function rosterHome(rows) {
@@ -281,7 +324,7 @@ function rosterHome(rows) {
   return home;
 }
 
-test('roster throws on a typed file it cannot read, as before the exclusion, so nothing is routed without it', () => {
+test('roster throws before reading a missing, non-regular or broken typed file', () => {
   const missing = rosterHome([['Missing', 'missing file']]);
   mkdirSync(join(missing, 'skills', 'Missing'));
   assert.throws(() => buildRoster(missing));
@@ -303,53 +346,65 @@ test('roster throws on a typed file it cannot read, as before the exclusion, so 
   assert.throws(() => buildRoster(fifo), /not a regular file/);
 });
 
-test('roster keeps offered what the seam gate cannot see or reads as doubtful', () => {
-  const none = '## Context\nClassifier seam: none.\n';
+test('roster leaves out what the seam gate cannot see or reads as doubtful', () => {
+  const body = context(routing);
   const home = rosterHome([
-    ['Symlink', 'a typed-file symlink, which the gate refuses'],
-    ['LinkedDir', 'a symlinked primitive directory, which the gate lists as one path'],
-    ['Nul', 'a NUL byte, at which the gate ends a line'],
-    ['Clean', 'a clean none, which leaves'],
+    ['Symlink', 'a typed-file symlink'],
+    ['LinkedDir', 'a symlinked primitive directory'],
+    ['NulByte', 'a NUL byte anywhere in the body'],
+    ['Clean', 'a clean routing seam'],
   ]);
   const skill = join(home, 'skills');
   mkdirSync(join(skill, 'Symlink'));
-  writeFileSync(join(home, 'target.md'), none);
+  writeFileSync(join(home, 'target.md'), body);
   symlinkSync(join(home, 'target.md'), join(skill, 'Symlink', 'SKILL.md'));
   mkdirSync(join(home, 'elsewhere'));
-  writeFileSync(join(home, 'elsewhere', 'SKILL.md'), none);
+  writeFileSync(join(home, 'elsewhere', 'SKILL.md'), body);
   symlinkSync(join(home, 'elsewhere'), join(skill, 'LinkedDir'));
-  const nul = '## Context\n```\0`\nClassifier seam: none.\n';
-  mkdirSync(join(skill, 'Nul'));
-  writeFileSync(join(skill, 'Nul', 'SKILL.md'), nul);
+  mkdirSync(join(skill, 'NulByte'));
+  const nulFile = join(skill, 'NulByte', 'SKILL.md');
+  writeFileSync(nulFile, `${body}\0`);
   mkdirSync(join(skill, 'Clean'));
-  writeFileSync(join(skill, 'Clean', 'SKILL.md'), none);
+  writeFileSync(join(skill, 'Clean', 'SKILL.md'), body);
+  const gate = seamGate(home);
+  assert.equal(gate.check(join(home, 'target.md'), 'skill'), 'FORM seam\n');
+  assert.equal(gate.check(join(home, 'elsewhere', 'SKILL.md'), 'skill'), 'FORM seam\n');
+  assert.equal(gate.check(nulFile, 'skill'), 'FORM seam\n');
+  assert.equal(gate.check(join(skill, 'Clean', 'SKILL.md'), 'skill'), 'FORM seam\n');
   assert.deepEqual(buildRoster(home), [
-    { family: 'skill', name: 'Symlink', description: 'a typed-file symlink, which the gate refuses', body: none },
-    { family: 'skill', name: 'LinkedDir', description: 'a symlinked primitive directory, which the gate lists as one path', body: none },
-    { family: 'skill', name: 'Nul', description: 'a NUL byte, at which the gate ends a line', body: nul },
+    { family: 'skill', name: 'Clean', description: 'a clean routing seam', body },
   ]);
 
-  // A symlinked family directory: the file below it is a regular file, but the
-  // gate reads the family directory as a link and never sees it.
+  // The gate sees a family symlink as a link, never as the files below it.
   const linked = tempHome();
-  for (const [, dir] of rosterFamilies) {
-    if (dir === 'skills') continue;
-    mkdirSync(join(linked, dir));
-    writeFileSync(join(linked, dir, 'AGENTS.md'), '');
-  }
-  mkdirSync(join(linked, 'real-skills', 'Clean'), { recursive: true });
-  writeFileSync(join(linked, 'real-skills', 'Clean', 'SKILL.md'), none);
-  writeFileSync(join(linked, 'real-skills', 'AGENTS.md'), '| `Clean/SKILL.md` | a clean none below a symlinked family directory |');
-  symlinkSync(join(linked, 'real-skills'), join(linked, 'skills'));
-  assert.deepEqual(buildRoster(linked), [
-    { family: 'skill', name: 'Clean', description: 'a clean none below a symlinked family directory', body: none },
-  ]);
+  mkdirSync(join(linked, 'skills'));
+  writeFileSync(join(linked, 'skills', 'AGENTS.md'), '');
+  mkdirSync(join(linked, 'real-experts', 'Clean'), { recursive: true });
+  const expert = join(linked, 'real-experts', 'Clean', 'EXPERT.md');
+  writeFileSync(expert, body);
+  writeFileSync(join(linked, 'real-experts', 'AGENTS.md'), '| `Clean/EXPERT.md` | a routing seam under a linked family |');
+  symlinkSync(join(linked, 'real-experts'), join(linked, 'experts'));
+  assert.equal(gate.check(expert, 'expert'), 'FORM seam\n');
+  assert.deepEqual(buildRoster(linked), []);
 });
 
-test('the tree excludes twenty-four primitives on their own clean none declarations', () => {
+test('roster never reads the tools index or its typed files', () => {
+  const home = rosterHome([]);
+  // Even an invalid tools index cannot affect the roster.
+  mkdirSync(join(home, 'tools', 'AGENTS.md'), { recursive: true });
+  assert.deepEqual(buildRoster(home), []);
+  const indexed = rosterHome([]);
+  mkdirSync(join(indexed, 'tools'));
+  writeFileSync(join(indexed, 'tools', 'AGENTS.md'), '| `Missing/TOOL.md` | must never be read |');
+  assert.deepEqual(buildRoster(indexed), []);
+});
+
+test('the tree routes exactly the seven skills that declare routing', (t) => {
   const gate = seamGate(tempHome());
-  const omitted = [];
+  const rows = buildRoster(pluginRoot);
   const expected = [];
+  let compared = 0;
+  const disagreements = [];
   for (const [family, dir, typed] of rosterFamilies) {
     const index = readFileSync(join(pluginRoot, dir, 'AGENTS.md'), 'utf8');
     for (const line of index.split('\n')) {
@@ -358,39 +413,20 @@ test('the tree excludes twenty-four primitives on their own clean none declarati
       const name = row[1];
       const file = join(pluginRoot, dir, name, typed);
       const body = readFileSync(file, 'utf8');
-      if (gate.check(file, family) === 'FORM none\n') omitted.push(`${dir}/${name}/${typed}`);
-      else expected.push({ family, name, description: row[3].trim(), body });
+      const verdict = gate.check(file, family);
+      const keep = gateRoutes(verdict, body);
+      const offered = rows.some((item) => item.family === family && item.name === name);
+      compared++;
+      if (offered !== keep) disagreements.push({ file: `${dir}/${name}/${typed}`, offered, keep, verdict });
+      if (keep) expected.push({ family, name, description: row[3].trim(), body });
     }
   }
-  assert.deepEqual(omitted, [
-    'skills/Illustrator/SKILL.md',
-    'skills/Cloudflare Setup/SKILL.md',
-    'skills/Ask in a Form/SKILL.md',
-    'skills/Set Up Wiser/SKILL.md',
-    'skills/Commit and Release/SKILL.md',
-    'skills/Delegate Build/SKILL.md',
-    'skills/Prove Change/SKILL.md',
-    'skills/Save Preference/SKILL.md',
-    'skills/Standing Approval/SKILL.md',
-    'tools/Browser Control/TOOL.md',
-    'tools/Form/TOOL.md',
-    'tools/Subagent Runner/TOOL.md',
-    'tools/data/TOOL.md',
-    'tools/copy-check/TOOL.md',
-    'tools/knowledge-memory/TOOL.md',
-    'tools/Chatterbox/TOOL.md',
-    'tools/Contact Sheet/TOOL.md',
-    'tools/icon-set/TOOL.md',
-    'tools/Screen Capture/TOOL.md',
-    'tools/Speech Preparation/TOOL.md',
-    'tools/Transcribe Audio/TOOL.md',
-    'tools/video-render/TOOL.md',
-    'tools/video-edit/TOOL.md',
-    'tools/pages-functions/TOOL.md',
-  ]);
-  const rows = buildRoster(pluginRoot);
-  assert.equal(rows.length, expected.length);
-  for (const [i, row] of rows.entries()) assert.deepEqual(row, expected[i]);
+  assert.ok(compared > 0, 'the differential must compare indexed typed files');
+  t.diagnostic(`ROSTER_DIFFERENTIAL compared=${compared} disagreements=${disagreements.length}`);
+  assert.deepEqual(disagreements, []);
+  assert.deepEqual(rows, expected);
+  assert.deepEqual(rows.map(({ family, name }) => ({ family, name })),
+    ROUTED_SKILLS.map((name) => ({ family: 'skill', name })));
 });
 
 test('hooks.json registers SessionStart and the route hook', () => {
@@ -499,7 +535,7 @@ test('route prints one line for a confident answer and nothing otherwise', () =>
   const log = join(home, 'calls.log');
   writeFileSync(stub, `${JSON.stringify({
     'wiser.route.roster': { roster_sha256: 'digest-1', accepted: 1, rejected: 0 },
-    'wiser.route.ask': { family: 'skill', target: 'Deep Research', confidence: 0.91, pass: true },
+    'wiser.route.ask': { family: 'skill', target: 'Build Brand', confidence: 0.91, pass: true },
   })}\n`);
   writeStatus(home, { attached: true, classifier_dirs: [join(home, 'classifier')], pid: process.pid, started_at: '2026-09-22T00:00:00.000Z' });
 
@@ -509,11 +545,11 @@ test('route prints one line for a confident answer and nothing otherwise', () =>
   assert.equal(doc.hookSpecificOutput.hookEventName, 'UserPromptSubmit');
   assert.equal(
     doc.hookSpecificOutput.additionalContext,
-    'WISER routing (classifier): skills/Deep Research/SKILL.md, p=0.91. Load that file unless the request names another, or names an output that file does not yield.',
+    'WISER routing (classifier): skills/Build Brand/SKILL.md, p=0.91. Load that file unless the request names another, or names an output that file does not yield.',
   );
   const calls = readFileSync(log, 'utf8').trim().split('\n');
   assert.match(calls[0], /^wiser\.route\.roster \d+$/);
-  assert.ok(Number(calls[0].split(' ')[1]) >= 60);
+  assert.equal(Number(calls[0].split(' ')[1]), 7);
   assert.equal(calls[1], 'wiser.route.ask');
 
   const log2 = join(home, 'calls-2.log');
@@ -530,7 +566,7 @@ test('route prints one line for a confident answer and nothing otherwise', () =>
 
   writeFileSync(stub, `${JSON.stringify({
     'wiser.route.roster': { roster_sha256: 'digest-2', accepted: 1, rejected: 0 },
-    'wiser.route.ask': { status: 'below_threshold', target: 'Deep Research', p: 0.1 },
+    'wiser.route.ask': { status: 'below_threshold', target: 'Build Brand', p: 0.1 },
   })}\n`);
   const quietLog = join(home, 'quiet.log');
   const quiet = runHook(SCRIPTS.UserPromptSubmit, { cwd, prompt: 'something new' }, {
@@ -623,7 +659,7 @@ export function createClassifier() {
       }
       if (actionId === 'wiser.route.ask') {
         if (!stored.has(args.roster_sha256)) return { status: 'roster_unknown' };
-        return { family: 'skill', target: 'Deep Research', confidence: 1, pass: true };
+        return { family: 'skill', target: 'Build Brand', confidence: 1, pass: true };
       }
       return { status: 'unavailable', reason: 'unknown action id' };
     },
@@ -639,7 +675,7 @@ export function createClassifier() {
   const doc = JSON.parse(r.stdout);
   assert.equal(
     doc.hookSpecificOutput.additionalContext,
-    'WISER routing (classifier): skills/Deep Research/SKILL.md, p=1. Load that file unless the request names another, or names an output that file does not yield.',
+    'WISER routing (classifier): skills/Build Brand/SKILL.md, p=1. Load that file unless the request names another, or names an output that file does not yield.',
   );
   const audit = readFileSync(join(gatewayDir(home), 'audit.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
   assert.deepEqual(audit.map((line) => line.action), ['wiser.route.roster', 'wiser.route.ask']);
@@ -650,10 +686,10 @@ export function createClassifier() {
 
 test('formatRoute keeps a target without a status and drops a refusal', () => {
   assert.equal(
-    formatRoute({ family: 'skill', target: 'Deep Research', confidence: 0.91, pass: true }),
-    'WISER routing (classifier): skills/Deep Research/SKILL.md, p=0.91. Load that file unless the request names another, or names an output that file does not yield.',
+    formatRoute({ family: 'skill', target: 'Build Brand', confidence: 0.91, pass: true }),
+    'WISER routing (classifier): skills/Build Brand/SKILL.md, p=0.91. Load that file unless the request names another, or names an output that file does not yield.',
   );
-  assert.equal(formatRoute({ status: 'below_threshold', target: 'Deep Research', confidence: 0.1 }), null);
+  assert.equal(formatRoute({ status: 'below_threshold', target: 'Build Brand', confidence: 0.1 }), null);
   assert.equal(formatRoute({ target: null, confidence: null, pass: false }), null);
   assert.equal(formatRoute({ status: 'needs_subscription' }), null);
 });
@@ -679,7 +715,7 @@ test('route sends nothing from a parent workspace, where the owning root is unkn
   const log = join(home, 'calls.log');
   writeFileSync(stub, `${JSON.stringify({
     'wiser.route.roster': { roster_sha256: 'd', accepted: 1, rejected: 0 },
-    'wiser.route.ask': { family: 'skill', target: 'Deep Research', confidence: 0.91, pass: true },
+    'wiser.route.ask': { family: 'skill', target: 'Build Brand', confidence: 0.91, pass: true },
   })}\n`);
   writeStatus(home, { attached: true, classifier_dirs: [join(home, 'classifier')], pid: process.pid, started_at: '2026-09-23T00:00:00.000Z' });
   const r = runHook(SCRIPTS.UserPromptSubmit, { cwd: ws, prompt: 'draft a research brief for refusing-root' }, { home, cwd: ws, stub, log });
@@ -689,13 +725,27 @@ test('route sends nothing from a parent workspace, where the owning root is unkn
 });
 
 test('formatRoute drops an answer that is not a confident, roster-valid route', () => {
-  const rows = [{ family: 'skill', name: 'Deep Research' }];
-  assert.match(formatRoute({ family: 'skill', target: 'Deep Research', confidence: 0.91, pass: true }, rows), /Deep Research/);
-  assert.equal(formatRoute({ family: 'skill', target: 'Deep Research', confidence: 0.91, pass: false }, rows), null);
-  assert.equal(formatRoute({ family: 'skill', target: 'Deep Research', confidence: 0.91 }, rows), null);
-  assert.equal(formatRoute({ family: 'skill', target: 'Deep Research', confidence: 0, pass: true }, rows), null);
+  const rows = [{ family: 'skill', name: 'Build Brand' }];
+  assert.match(formatRoute({ family: 'skill', target: 'Build Brand', confidence: 0.91, pass: true }, rows), /Build Brand/);
+  assert.equal(formatRoute({ family: 'skill', target: 'Build Brand', confidence: 0.91, pass: false }, rows), null);
+  assert.equal(formatRoute({ family: 'skill', target: 'Build Brand', confidence: 0.91 }, rows), null);
+  assert.equal(formatRoute({ family: 'skill', target: 'Build Brand', confidence: 0, pass: true }, rows), null);
   assert.equal(formatRoute({ family: 'skill', target: 'Not A Skill', confidence: 0.91, pass: true }, rows), null);
-  assert.equal(formatRoute({ family: 'widget', target: 'Deep Research', confidence: 0.91, pass: true }), null);
+  assert.equal(formatRoute({ family: 'widget', target: 'Build Brand', confidence: 0.91, pass: true }), null);
+});
+
+
+test('formatRoute leaves a tool or a primitive off the actual roster as no route', () => {
+  const rows = buildRoster(pluginRoot);
+  for (const [family, target] of [
+    ['tool', 'Browser Control'], ['skill', 'Deep Research'],
+    ['skill', 'Knowledge Recall'], ['expert', 'System Expert'],
+  ]) {
+    assert.equal(formatRoute({ family, target, confidence: 1, pass: true }, rows), null);
+  }
+  // A tool still cannot become a route even if a caller supplies it in rows.
+  assert.equal(formatRoute({ family: 'tool', target: 'Browser Control', confidence: 1, pass: true },
+    [{ family: 'tool', name: 'Browser Control' }]), null);
 });
 
 test('round 2: a container declaring root:, a symlink to a refusing root, a blank type, and the plugin itself own nothing or refuse', () => {
@@ -711,7 +761,7 @@ test('round 2: a container declaring root:, a symlink to a refusing root, a blan
   const stub = join(home, 'stub.json');
   writeFileSync(stub, `${JSON.stringify({
     'wiser.route.roster': { roster_sha256: 'd', accepted: 1, rejected: 0 },
-    'wiser.route.ask': { family: 'skill', target: 'Deep Research', confidence: 0.91, pass: true },
+    'wiser.route.ask': { family: 'skill', target: 'Build Brand', confidence: 0.91, pass: true },
   })}\n`);
   writeStatus(home, { attached: true, classifier_dirs: [join(home, 'classifier')], pid: process.pid, started_at: '2026-09-23T00:00:00.000Z' });
   for (const cwd of [ws, link]) {
@@ -860,7 +910,7 @@ test('a refusing descendant two levels down refuses the binding, and a dot direc
   writeStatus(home, attachedDoc(home));
   const stub = join(home, 'stub.json');
   const log = join(home, 'calls.log');
-  writeFileSync(stub, '{"wiser.route.ask":{"family":"skill","target":"Deep Research","confidence":1,"pass":true}}\n');
+  writeFileSync(stub, '{"wiser.route.ask":{"family":"skill","target":"Build Brand","confidence":1,"pass":true}}\n');
   writeFileSync(log, '');
   const r = runHook(SCRIPTS.UserPromptSubmit, { cwd: root, prompt: 'draft a research brief', session_id: 'session-descendant' }, {
     home, cwd: root, stub, log,
@@ -894,7 +944,7 @@ test('a refusal added below the root between two prompts stops the second', () =
   const stub = join(home, 'stub.json');
   writeFileSync(stub, `${JSON.stringify({
     'wiser.route.roster': { roster_sha256: 'd', accepted: 1, rejected: 0 },
-    'wiser.route.ask': { family: 'skill', target: 'Deep Research', confidence: 0.91, pass: true },
+    'wiser.route.ask': { family: 'skill', target: 'Build Brand', confidence: 0.91, pass: true },
   })}\n`);
   writeStatus(home, attachedDoc(home));
   const firstLog = join(home, 'first.log');
@@ -902,7 +952,7 @@ test('a refusal added below the root between two prompts stops the second', () =
     cwd, prompt: 'draft a research brief', session_id: 'session-rescan01',
   }, { home, cwd, stub, log: firstLog });
   assert.equal(first.status, 0, first.stderr);
-  assert.match(first.stdout, /Deep Research/);
+  assert.match(first.stdout, /Build Brand/);
   mkdirSync(join(cwd, 'client'));
   writeFileSync(join(cwd, 'client', 'AGENTS.md'), '---\nclassifier_refusal: yes\n---\n');
   const secondLog = join(home, 'second.log');

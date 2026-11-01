@@ -4,7 +4,6 @@ import { isAbsolute, join, relative, resolve } from 'node:path';
 const FAMILIES = [
   { family: 'skill', index: ['skills', 'AGENTS.md'], dir: 'skills', typed: 'SKILL.md' },
   { family: 'expert', index: ['experts', 'AGENTS.md'], dir: 'experts', typed: 'EXPERT.md' },
-  { family: 'tool', index: ['tools', 'AGENTS.md'], dir: 'tools', typed: 'TOOL.md' },
 ];
 
 /**
@@ -28,15 +27,14 @@ function inside(parent, child) {
 }
 
 /**
- * The `FORM none` with no `ERR` subset of system/gates/classifier-seam.sh's
- * check.awk. Its controls and checker are shared by hooks.test.js. Any other
- * form or any error keeps the primitive offered; this decides nothing else.
+ * The `FORM seam` with no `ERR` rules of system/gates/classifier-seam.sh's
+ * check.awk, followed by the routing opt-in. Its controls and checker are
+ * shared by hooks.test.js. Any doubtful read leaves the primitive out.
  * @param {string} body
  * @returns {boolean}
  */
-function declaresNoClassifierSeam(body) {
-  // The gate's awk ends a line at a NUL byte and this reader would not, so a
-  // file carrying one is a doubtful read and stays offered.
+function declaresRouting(body) {
+  // The gate's awk and JavaScript can read past a NUL differently. Reject it.
   if (body.includes('\0')) return false;
   const keywords = (text) => (text.match(/classifier seam:/gi) || []).length;
   const trim = (text) => text.replace(/^[ \t]+|[ \t]+$/g, '');
@@ -50,6 +48,7 @@ function declaresNoClassifierSeam(body) {
   let fenceLength = 0;
   let inContext = false;
   let declarations = 0;
+  let declaration = '';
   for (const line of body.split('\n')) {
     const raw = line.replace(/\r$/, '');
     const kraw = keywords(raw);
@@ -105,19 +104,41 @@ function declaresNoClassifierSeam(body) {
       continue;
     }
     if (kraw > 0) {
-      if (!inContext || raw !== 'Classifier seam: none.' || ++declarations > 1) return false;
+      if (!inContext || !raw.startsWith('Classifier seam: ') || kraw !== 1 || ++declarations > 1) return false;
+      declaration = raw.slice(17);
+      if (/^[ \t]/.test(declaration) || !raw.endsWith('.')) return false;
     }
   }
-  return declarations === 1;
+  if (declarations !== 1) return false;
+  const value = trim(declaration);
+  if (value.slice(0, 4).toLowerCase() === 'none' || !value.endsWith('.')) return false;
+  // The checker counts Else outside paired backticks, then locates it by
+  // backtick parity. Preserve both checks; a doubtful delimiter is rejected.
+  const outside = value.replace(/`[^`]*`/g, '');
+  if (outside.split('Else: ').length !== 2) return false;
+  let backticks = 0;
+  let elseAt = -1;
+  for (let i = 0; i < value.length; i++) {
+    if (value[i] === '`') backticks++;
+    if (backticks % 2 === 0 && value.startsWith('Else: ', i)) { elseAt = i; break; }
+  }
+  if (elseAt < 0) return false;
+  const pre = value.slice(0, elseAt);
+  const post = trim(value.slice(elseAt + 6)).replace(/\.$/, '');
+  if (trim(post) === '') return false;
+  // Both routable families must name hooks/, tools/ or gateway/ code in a
+  // nonempty backtick span before Else, just as -v kind=skill|expert requires.
+  const code = [...pre.matchAll(/`([^`]+)`/g)].some((span) => /^(hooks|tools|gateway)\//.test(span[1]));
+  return code && /^routing\b/.test(pre);
 }
 
 /**
- * Index rows from the three family AGENTS.md files. `body` is the primitive's
- * full text. A row whose file sits outside its family is skipped, as is a
- * regular file declaring none by the seam gate's rule, reached through no
- * symlink below `root`. A typed file that is missing, not a regular file, or unreadable
- * throws, as it did before the exclusion, so the hook routes nothing for that
- * ask rather than routing without that primitive.
+ * Index rows from skills/AGENTS.md, then experts/AGENTS.md. `body` is the
+ * primitive's full text. Only a regular file declaring a clean routing seam
+ * by the seam gate's rule, with no NUL or symlink below `root`, is kept.
+ * A row outside its family is skipped. Tools are never read or offered.
+ * A typed file that is missing, not regular, or unreadable throws, so the
+ * hook routes nothing for that ask rather than using an incomplete roster.
  * @param {string} root
  * @returns {{ family: string, name: string, description: string, body: string }[]}
  */
@@ -141,10 +162,10 @@ export function buildRoster(root) {
       // Checked before reading, so a FIFO or a directory is never opened.
       if (!statSync(file).isFile()) throw new Error(`typed file is not a regular file: ${name}`);
       const body = readFileSync(file, 'utf8');
-      // Only a file reached through no symlink below the root may leave the
-      // roster: the gate reads a symlink as a link, never as the file.
+      // Only a file reached through no symlink below the root may be offered:
+      // the gate reads a symlink as a link, never as the file.
       const direct = realpathSync(file) === join(rootReal, relative(root, file));
-      if (direct && declaresNoClassifierSeam(body)) continue;
+      if (!direct || !declaresRouting(body)) continue;
       // The classifier registers a primitive by its bare name, the directory,
       // and answers with that name; the index cell carries the typed file too.
       rows.push({ family: family.family, name: name.slice(0, -suffix.length), description, body });
