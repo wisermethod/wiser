@@ -9,7 +9,7 @@ import {spawnSync} from 'node:child_process';
 import {select,tapDials,ground,score,run,ENERGIES} from '../scripts/select.mjs';
 import {assemble,LIBRARY,AXES,partPositions} from '../scripts/assemble.mjs';
 import {runContactSheet} from '../../../tools/Contact Sheet/scripts/contact-sheet.js';
-import {operator,firstStrategy} from './select-fixtures.mjs';
+import {operator,firstStrategy,lookActions} from './select-fixtures.mjs';
 import {checkForm} from '../../../tools/Form/scripts/format.js';
 const library=JSON.parse(readFileSync(LIBRARY)),data=JSON.parse(readFileSync(new URL('../parts/taps.json',import.meta.url)));
 const work=mkdtempSync(join(tmpdir(),'brand-selection-tests-'));
@@ -57,7 +57,7 @@ for(const [label,fixture]of [['operator',operator],['First Strategy',firstStrate
   test(`${label} looks CLI output is an unchanged valid boards option list`,()=>{
     const a=fixture(),input=path('looks-answers.json');writeFileSync(input,JSON.stringify(a));
     const r=run(['looks','--answers',input,'--check']),before=structuredClone(r.options);
-    const form={title:'Step 3: how it should look',brand:{name:a.name,initials:r.selection.boards[0].initials,sentence:a.sentence,body:a.body,words:a.words},questions:[{id:'looks',type:'boards',view:'look',label:'Which of these feel like you? Pick two or three.',pick:3,min:2,options:r.options}]};
+    const form={title:'Step 3: how it should look',brand:{name:a.name,initials:r.selection.boards[0].initials,sentence:a.sentence,body:a.body,words:a.words},questions:[{id:'looks',type:'boards',view:'look',label:'Which of these feel like you? Pick up to three.',pick:3,min:2,options:r.options}],actions:lookActions()};
     assert.deepEqual(checkForm(form),{ok:true,problems:[]});assert.deepEqual(r.options,before);
   });
 }

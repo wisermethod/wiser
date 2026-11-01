@@ -10,3 +10,11 @@ export const firstStrategy = () => ({...operator(),name:'Sample Organisation',
   words:[{word:'Practical',not:'theoretical'},{word:'Calm',not:'hyped'},{word:'Useful',not:'decorative'}],
   taps:{mode:'dark',feel:'suit-and-tie',history:'established-current',strength:'balanced',technology:'apple',style:'lululemon',posture:'tesla',mood:'restoration-hardware',place:'design-studio'}
 });
+
+// The one-pick action is allowed below min: 2; the other actions cover zero
+// and two/three picks, exactly as the sitting's looks card does.
+export const lookActions = () => [
+  {value:'none',label:'None of these work',needs:'none',note:'Show me different looks'},
+  {value:'one',label:'Only this one works for me',needs:'one',note:'and make my boards'},
+  {value:'use',label:'Use these',needs:'some',note:'and make my boards'}
+];

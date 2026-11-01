@@ -1,18 +1,404 @@
-# Questions for a design file
+# Build Brand's question bank
 
-This bank gathers your answers for a brief design file or a brand built over several sessions. Its version, which every answers row carries, is `Build Brand` with the version `SKILL.md` states, such as `Build Brand 0.1.0`. Every question offers a default you can take. Save each answer under its question number in the run's answers record, cite that number wherever the result is used in `design.md`, and never repeat a question already answered, except in the board rounds below and once before Round 1, as The brand boards says.
+Read by section. Member copy below is fixed: preserve every word, option order, progress and why line, filling brackets only from the member's material. Section headings, answer numbers, feeds and instructions are never shown. `SKILL.md` supplies the bank version, `Build Brand 0.3.0`; `records.md` supplies the C14 record. Retained brief-path sections at the end still govern that path alone.
 
-| Field | What it carries |
-|-------|-----------------|
-| Number | B0 for the path choice, B1 to B7 for the brief path, B8 for read-back confirmation on either path, B9 for the existing mark on either path, B10 for a brief board-round extension offer, B11 for its pick and B12 for its photo sentence, P1 to P5 for the five visual questions, F1 onward for the full path; S1 to S3 for the simple path's choices made for the person, the palette, the type pairing and the graphic set, each with its part's id; R0 for the person's ask that opened the run, and R1 onward for anything they say unasked, each saved in their own words with what was shown left as the words they replied to, or empty. Each P question has one form, in words, used on both paths. |
-| Ask | The words said to you, one question at a time. |
-| Default | An offered answer you may explicitly take; silence does not accept it. |
-| Fills | The `design.md` heading that uses the answer, or a named item in the answers record when it is preparation for a later stage. |
-| Choices | The available answers for a pick; otherwise a free answer. |
+## Answer numbers
 
-Read the supplied material and the answered parts of `about.md`, `voice.md`, and the current `design.md` first. Already answered: save the answer with its source under the applicable number and do not ask it. Not answered: offer its question and, where helpful, its default. Was it skipped or was the offered default accepted? Skipped: save an empty answer with status skipped; write `[Not available: not yet supplied]` only in `design.md`, where its heading is empty. Default accepted: save status answered, with answer text saying it was the offered default and naming the material it uses; any field it leaves open is labelled only in `design.md`. An explicit "neither" records no preference on that axis, rather than a missing answer. Save later corrections against the same number without losing the earlier answer. `design.md` holds the resulting rules and citations, not a copy of the interview.
+B0 is the path. R0 is the original ask; R1 onward are unasked comments, kept verbatim. For the sitting: J1 what to keep; J1a folder; O1 audience, O2 promise, O3 final say; J2a thin-record sentence, J2b drafted sentence and pairs, J2c each redraft with its pass; T1 to T9 the nine taste taps; J3a read-back, J3b off parts, J3c pull; L1 onward each page of whole looks and action; L<n>-S1 to S5 its steer and comment where none works; C1 onward each boards page, picks and action, C<n>-S1 to S5 its steer and comment; K1 the lock; K2 the optional voice note; K3 any checked wording correction. Keep earlier answers on correction. Each page and each pick have their own numbered row within their round; save their unchanged full records with the work for selection and resume. Feed citations identify the question, page and pick, never just the current screen.
 
-The heading names below retain Color, Typography, Layout Habits, Source Assets and Templates, and Prohibitions; Foundation, Words, Visual Personality, Brand Board, Mark, Imagery and Illustration, and Icons and Graphic Elements are optional additions. Personality stays in `about.md`; Visual Personality cites that read and the numbered answers about its appearance. Brand Board holds the locked board's palette, faces, graphic language and photo rules, citing the lock at F18; a brief-path pick cites B11 and stays working.
+## Opening
+
+> Let's build your brand: a few quick taps, then brands made for you. About 12 minutes.
+
+For an organisation:
+
+> Let's build [org]'s brand: a few quick taps, then brands made for [org]. About 12 minutes.
+
+Say it as one message, then step 1 immediately. No additional introduction.
+
+## Step 1: What to keep
+
+Progress: "Step 1 of 6: what to keep". Why: "So I can start from the right place."
+
+> Do you have anything you'd like to keep?
+
+- Starting fresh
+- Keeping a logo, colours or fonts: I'll put them on every board
+- I have a look, but want something new: I'll start fresh and leave the old one out
+- I have a brand I'm happy with: I'll just record it, about 5 minutes
+
+Organisation question:
+
+> Does [org] have anything you'd like to keep?
+
+### Folder
+
+Where a folder can open:
+
+> I've opened a folder called "brand" for your logo, colours and fonts. Put them there, or drop them here in the chat, then tap Done.
+
+Where it cannot:
+
+> I've made a folder called "brand" for your logo, colours and fonts. It's inside the "sources" folder in your [folder name] folder.
+
+Use the same second sentence: "Put them there, or drop them here in the chat, then tap Done." Say "Or drop them here in the chat" only where dropped files can be saved. Organisation ownership phrase: "[org]'s logo, colours and fonts".
+
+- Done
+- Skip this: build without them
+
+Done while empty:
+
+> The folder's still empty. Put them in, or tap Skip.
+
+Keep the same two options. Logo replaces initials everywhere; supplied values hold every board; board zero first. Feeds Source Assets and Templates, Color, Typography and Mark.
+
+## Organisation: Who it's for
+
+Progress: "Step 2 of 7: who it's for". Why: "So the boards speak to the right people."
+
+First card, one question at a time, drafts from the organisation's about:
+
+> [org] serves: [drafted audience, one line]. Is that right?
+
+- That's it
+- Close: nearly, show me a small change
+- Not quite: show me a different take
+
+> [org] promises them: [drafted promise, one line]. Is that right?
+
+- That's it
+- Close: nearly, show me a small change
+- Not quite: show me a different take
+
+Close or Not quite: "Which is closer?", two redrafts, and "Neither: I'll say it in a sentence" last. Feeds Foundation and the brief.
+
+Second card's own why: "So I know who should see it."
+
+> Who has the final say on [org]'s look?
+
+- Me
+- Me, and others should see it: I'll make a page to share
+- Someone else: you'll still finish it now, and I'll make a page to show them
+
+The person setting it up locks it whatever the answer. Others to see it or decide makes the share page the first offer after the lock.
+
+## Organisation: Progress and substitutions
+
+The organisation, client or department uses these complete lines:
+
+- Step 1 of 7: what to keep
+- Step 2 of 7: who it's for
+- Step 3 of 7: what your brand says
+- Step 4 of 7: how it should look
+- Step 5 of 7: your boards
+- Step 6 of 7: blend and tune
+- Step 7 of 7: locked
+
+The step 1 and opening variants are above. For the thin record: "In a sentence, what does [org] do?" For the sentence screen: "When someone asks what [org] does, you could say:" and "Is that [org]?" For places: "Where would [org]'s clients feel most at home?" Paged counts follow the same pattern, with the step one higher, of 7.
+
+## Step 2: What your brand says
+
+Progress: "Step 2 of 6: what your brand says". Why: "Your words come first. The look is built to carry them."
+
+Only when the answered record is too thin to draft:
+
+> In a sentence, what do you do? For example: "I help small bakeries sell online."
+
+Then the form question, the sentence largest, three to five pairs, the count filled:
+
+> When someone asks what you do, you could say:
+>
+> **[sentence]**
+>
+> And [three] words for your brand, each with what it isn't:
+> [word], not [boundary]
+> [word], not [boundary]
+> [word], not [boundary]
+>
+> Is that you?
+
+- That's it
+- Close: nearly, show me a small change
+- Not quite: show me a different take
+
+Close or Not quite brings this screen, each pair on its own line:
+
+> Which is closer?
+>
+> **A**
+> [sentence]
+> [word], not [boundary] (each on its own line)
+>
+> **B**
+> [sentence]
+> [word], not [boundary] (each on its own line)
+
+- A
+- B
+- Neither: I'll say it in a sentence
+
+A second Close gives one more pair; afterwards the options are:
+
+- A
+- B
+- Keep the first one
+- I'll say it in a sentence
+
+Typing is offered, never needed. The sentence and pairs fill Words; boundaries fill Prohibitions and Never. Promise and the picture rule, "When a photograph is used", are drafted, not asked; the picture rule appears on every board and is adopted with the lock. Ghost Writer checks once at the lock, not these offers.
+
+## Step 3: Nine taps
+
+Progress on every screen: "Step 3 of 6: how it should look". First screen's why only: "Quick taps about taste you already have. There are no wrong answers."
+
+Paged progress example: "Step 3 of 6: how it should look · 4 of 9". The form engine appends the current count to the base progress, with Back preserving answers. Use ids and nudges from `parts/taps.json`; no nudges are shown. The question and options below are the opening taps the journey incorporates. Not sure, Either, Balanced and None of these add nothing. Preserve their recorded option order.
+
+### T1
+
+> Do you prefer light mode or dark mode?
+
+- Light
+- Dark
+- Either
+
+### T2
+
+> Which feels closest to how your brand should feel?
+
+- Mechanical: Precise and engineered
+- Natural
+- Suit and tie
+- Playful and creative
+- Not sure
+
+### T3
+
+> How much history should your brand feel like it has?
+
+- Rooted, like it's been trusted for generations
+- Established, but current
+- Of the moment, like it arrived this year
+- Not sure
+
+### T4
+
+> Should your brand feel soft and graceful, or strong and solid?
+
+- Soft and graceful
+- Balanced
+- Strong and solid
+- Not sure
+
+### T5
+
+> Choose the one brand that most reflects the direction you're going for.
+
+- Apple
+- Bose
+- KitchenAid
+- Craftsman
+- None of these
+
+### T6
+
+> Choose the one brand that most reflects the direction you're going for.
+
+- Patagonia
+- Lululemon
+- J Crew
+- Brooks Brothers
+- None of these
+
+### T7
+
+> Choose the one brand that most reflects the direction you're going for.
+
+- Tesla
+- Porsche
+- Ford
+- Subaru
+- None of these
+
+### T8
+
+> Choose the one brand that most reflects the direction you're going for.
+
+- Restoration Hardware
+- Anthropologie
+- Ikea
+- Ethan Allen
+- None of these
+
+### T9
+
+> Where would your clients feel most at home with you?
+
+- A calm spa
+- A nice hotel lobby
+- A coffee shop
+- A buzzing design studio
+- A workshop with tools on the wall
+- None of these
+
+## Step 3: Reveal and pull
+
+Read-back, using actual picked option words, at most one everyday pole word supported by at least two taps and at most two picked brands:
+
+> Here's what I heard: you're drawn to [natural], [established but current] and [warm], like [Patagonia] and [Subaru].
+>
+> Is that you?
+
+- That's it
+- Not quite
+
+Not quite brings "Which part is off?", with the line's parts as a pick-any list. Drop marked parts from the boards' contributions; no second read-back. At most one real pull against answered about Personality or voice How They Write follows on its own screen:
+
+> Your writing reads [playful], and you picked [Suit and tie]. Which should the look lead with?
+
+- [Playful]
+- [Suit and tie]
+- Both: [suit and tie] with a [playful] touch
+
+No real source rule, no pull question. Feeds the selection, Visual Personality and the optional note at lock.
+
+## Step 3: Whole looks
+
+> Which of these feel like you? Pick up to three.
+
+Twelve tiles from `select.mjs looks`, its options unchanged, four on a plain ground. The three actions, in order, have the following exact labels and lines. Conditions and `needs` are engine data, never shown as explanation.
+
+| Picks | Label | Line | Needs |
+|-------|-------|------|-------|
+| None | None of these work | Show me different looks | none |
+| One | Only this one works for me | and make my boards | one |
+| Two or three | Use these | and make my boards | some |
+
+`pick: 3`, `min: 2`: one picked is allowed by its own action. Any number may be ticked. Above three the Use these button stays grey with "You picked [n] looks. Pick up to three to go on." Other unmet actions hide.
+
+None of these work uses Steering a round below with "What's missing from these?", progress example "Step 3 of 6: how it should look · 2 of 5", then twelve unshown looks with the same buttons. Append every shown look unchanged to history. No wrong-look question.
+
+## Making the boards
+
+> Making your boards now. A minute or two.
+
+Only where the computer needs one-time setup instead:
+
+> Making your boards now. The first time takes a few minutes while I get set up.
+
+## Step 4: The boards
+
+Progress: "Step 4 of 6: your boards".
+
+> Select the board(s) that feel most like you
+
+Tile: picture, name, tick beside the caption, word/boundary pairs, and at most two recommendations with their reason. "See it full size" replaces all tiles with the whole board inside the same card. "Close this board" above and below it, with "Pick this one" tick; Light and Dark switch, primary mode first. Close keeps picks and returns to that tile. Any number may be ticked; only sending is held at three. No stop button.
+
+What next, at most two buttons:
+
+| Button | Exact line by picks | Needs |
+|--------|---------------------|-------|
+| Show me more | None: None of these work; one: Show me variations of this board; two or three: Show me variations of these boards | any |
+| Lock this board in | and finish my brand | one |
+
+Above three, Show me more stays grey with "You picked [n] boards. Pick up to three to go on." The warning is on the button alone; every other unmet action hides.
+
+### Board copy
+
+The initials caption:
+
+> These initials hold the place of a logo. Ask for a logo any time after you lock a board.
+
+No closing question on a board. Never show Share of a typical page, the contrast note or the colours' role names Action fill, Reading ink, Inset field. Colours are swatches with everyday names; checks still run. Word/boundary pairs appear on each tile.
+
+## Step 5: Blend and tune
+
+Progress every round: "Step 5 of 6: blend and tune". Why once on the first round: "A few tweaks, and it's yours."
+
+Each round: four new boards per picked board, one pick four, two eight, three twelve; no picks a fresh page from another angle. Review before showing every page. Same card question:
+
+> Select the board(s) that feel most like you
+
+The same buttons as Step 4. There is no cap on rounds and no dark-pattern question.
+
+## Steering a round
+
+One five-page card after Show me more; progress example "Step 5 of 6: blend and tune · 2 of 5". The looks retry uses step 3's progress instead.
+
+> Warmer or cooler?
+
+- Warmer
+- As it is
+- Cooler
+
+> Quieter or bolder?
+
+- Quieter
+- As it is
+- Bolder
+
+> Softer or stronger?
+
+- Softer
+- As it is
+- Stronger
+
+> More classic or more current?
+
+- More classic
+- As it is
+- More current
+
+> Anything you'd change about the ones you picked?
+
+An empty box, optional; sending with it empty is allowed. With nothing picked:
+
+> What's missing from these?
+
+Keep raw comments in the answers record; the session reads them into steer/off for selection.
+
+## Leaving early
+
+No stop button. Save picks, steer and comment as sent and provisional design after each page, no plan. If they say in chat they will stop:
+
+> Saved. Say "build my brand" any time and we'll pick up at your boards.
+
+## Step 6: Lock and close
+
+Progress: "Step 6 of 6: locked".
+
+> Locked. This is your brand.
+
+The locked board whole, card and banner in light and dark, no question, tick or answer awaited.
+
+Only with a real voice, silent on what these taps add and with no contradiction, the separate note screen:
+
+> I'd also add this short note to how you write, so your words match the look:
+>
+> [at most three lines, each ending with the taps it rests on, in the member's terms, such as "(from your picks: Suit and tie, Brooks Brothers)"]
+
+- Keep it
+- Drop it
+
+Then one status line:
+
+> Setting up your colours and lettering for everything I make for you.
+
+Ghost Writer checks the kept sentence and words once here. Where it changes a word, before Done:
+
+> I tightened your sentence: [new sentence]
+
+Then:
+
+> Done. Your brand is set, and everything I make for you will use it.
+>
+> When you want one of these, just ask: a logo, a one-page guide, or your brand on your website or slides.
+
+For an organisation with other viewers or a different final decider, the offers lead with "a page to share with the people who should see it". The journey supplies that phrase, not a full alternate offer sentence. Every offer runs only on ask; no offer spans a session.
+
+## Words never said
+
+To the member, anywhere in the sitting: palette, type pairing, typeface pairing, face, graphic language, colour energy, foundation, token, register, design system, mood board, monogram, mark, hex, contrast ratio, WCAG, APCA, nudge, dial, steer, parts, assemble, render, review, Creative Director, Playbook, answers record, provisional, root, and every question code (B0, F18, P1).
+
+Say colours, lettering, fonts, shapes, logo, look, brand, boards; a folder by its own name, such as "sources", in quotation marks. The retained brief bank below is for that path only.
 
 ## The brief path
 
@@ -149,86 +535,35 @@ This sets whether shapes and lettering use hand-drawn or measured forms.
 
 **Feeds:** Visual Personality expresses the `about.md` description through a rule about irregular or measured construction. Color Palette Design receives brand personality in `<design_context>` with that rule for applications, with no hue or chroma implied by construction. Typography Design receives the same context for Font Archetypes characteristics, such as open counters and rounded terminals under Humanist, approachable or even spacing and clean geometry under Geometric, precise; hand-shaped does not require script lettering. The mark stage receives only a form constraint, never a claim that a mark has been made.
 
-## The full path's questions
 
-Use these stages across sessions, after the full path has established its Playbook. Each numbered question is asked once, except in the board rounds below; answers are free unless choices are stated, and every skipped row has an empty answer and status skipped, with missing labels only in `design.md`. Carry existing answers into their destinations by citation rather than asking them again. On an existing brand, use B1 to B3 and B9 first, only where unanswered, so the foundation starts with supplied assets, what must remain recognisable and the choice for the mark.
+## Retained brief voice comparison
 
-### The foundation
-
-You decide the audience, promise, place beside alternatives, and agreed sign of success; you are shown a short sourced summary and a comparison of supplied alternatives, rather than asked to design anything.
+Only `writing.md` Voice check reads this section; it does not run in the full sitting.
 
 | Number | Ask | Default | Fills |
 |--------|-----|---------|-------|
-| F1 | Who is your brand for? | Keep the audience explicitly stated in `about.md` or your supplied brief; otherwise leave it open. | Foundation: audience. |
-| F2 | What does your brand promise those people? | Keep a promise you have already stated; otherwise leave it open. | Foundation: promise. |
-| F3 | Which other choices do those people consider alongside your brand? | Keep the confirmed alternatives already supplied or bound as `competitors`; with no confirmed set, leave it open. | Foundation: alternatives; answers-record item F3: supplied set and sources. |
-| F4 | What do those other choices leave undone that your brand can offer? | Keep an opening you have explicitly identified; with none evidenced, leave it open. | Foundation: opening among the alternatives; answers-record item F4: evidence or an unverified proposal. |
-| F5 | What would let you say, a year from now, that this brand work had succeeded? | Keep a measure you have already agreed for this work; otherwise leave success open and pause making things until you agree it. | Foundation: agreed success measure; answers-record item F5: agreement, confirmation date, and dated one-year target. |
-
-Agree F5 before any design is made. An offered measure is a proposal until you accept it. An unconfirmed set at F3 or unsupported opening at F4 stays labelled; neither is filled from the maker's general knowledge.
-
-### The words
-
-You decide which words and boundaries matter and the sentence that holds them together; you are shown your earlier wording gathered into a short list and any specific disagreement with the writing rules, rather than asked for a new personality description.
-
-| Number | Ask | Default | Fills |
-|--------|-----|---------|-------|
-| F6 | Which up to ten words describe the foundation you have just agreed? | Use up to ten words you already used in F1 to F5, shown for your acceptance; with none available, leave the list open. | Words: starting list; answers-record item F6: the full list. |
-| F7 | Which three to five of those words matter most, each paired with what your brand is not, in the shape "[your word], not [your boundary word]"? | Keep any pairs already answered at B5; otherwise leave the selection open. | Words: core words and their boundaries. |
-| F8 | What one sentence brings those choices together to describe your brand? | Keep the sentence already answered at B4 if it still fits the agreed foundation; otherwise leave it open. | Words: direction sentence. |
 | F9 | Your chosen words ask for [the stated requirement], while your writing rules require [the conflicting requirement]; which should guide this visual work? | Keep the approved writing rule for language and leave the disputed visual requirement open until reconciled. | Words: resolved boundary; answers-record item F9: both source passages, decision, and any unresolved difference. |
 
 F7 reuses B5 and F8 reuses B4 wherever those were already asked or answered; save the cross-reference, not another interview. If the foundation has since changed, mark what needs updating and record your corrections against the original number without asking the question again. Ask F9 only where the read of an answered `voice.md` finds an actual incompatible requirement for the same use, filling its brackets with the two sourced requirements. Different words, or a difference between writing and appearance the person has already chosen, are not themselves a disagreement. A chosen word that names what the voice forbids in writing, such as "loud" beside a voice that bans loud or hype words, is a disagreement to ask, even where the word may be meant for the look: only the person settles which governs. No disagreement: record "no disagreement found" at F9 without asking it. No answered voice or no governing rule: save an empty F9 answer with status skipped and record why the comparison was unavailable; without answered voice, say that voice did not inform it. `voice.md` is read, never changed here.
 
 Which F9 outcome does the person choose? Keep the writing rule: retain it for language and leave the disputed visual requirement out of `design.md` until reconciled. Change the brand words: revise them and save the correction, using only the revised words as the rule. Retain a named difference between writing and appearance: record the agreed visual rule with F9's citation in `design.md`. Unresolved or no answer: leave the disputed words unconfirmed, hold their full-path stage open, or on the brief path label Words only if empty within its budget. Step 6 uses only these outcomes.
 
-### The drawable subjects
 
-You contribute concrete subjects and decide the shortlist together with the maker; you are shown a broad collection of your contributions and clearly marked suggestions, then a grouped shortlist, rather than asked to invent or draw a logo.
+## Source notes, never screens
 
-| Number | Ask | Default | Fills |
-|--------|-----|---------|-------|
-| F10 | What concrete things could you draw with a pencil that connect to your brand's people, promise, or story? | Keep concrete subjects you have already supplied; otherwise leave the list open. | Answers-record item F10: broad subject collection, with each item's origin. |
-| F11 | Which of these subjects should stay in the shared shortlist of roughly ten to twenty-five things to draw from? | Keep a shortlist you have already approved; with none approved, leave the shortlist open. | Answers-record item F11: approved shortlist for the mark stage; Mark: reference to F11, not a finished mark. |
+The journey also quotes the operator's decisions and retired copy. Keep these for the source-wording check; none is a member screen or an offered option:
 
-Gather widely before F11. Objects, places, creatures, and tools count; qualities such as a feeling or a virtue do not, because a pencil needs a visible subject. Show suggestions as suggestions, never as your answers, and narrow the collection together to roughly ten to twenty-five supported subjects. Fewer genuinely fitting subjects: keep that smaller set and record the shortfall, rather than padding it with qualities. Save both the broad collection and the kept set for the mark stage.
+- "maybe we should have 12 options here as well? More variety - some with our without backgrounds?"
+- "Taps, then 12 new looks"
+- "should allow for only one - the button wold say 'only this one works for me'"
+- "And one that's wrong for you?"
+- "We should allow the user to choose more than 3, just not allow them to submit it"
+- "the test is still awkward"
+- "maybe the button needs to go grey and say 'you have n boards, you want to only pick three'"
+- "the boards would look better a little wider"
+- "The monogram is a placeholder, not a logo. The real mark is drawn after a board is locked."
+- "this, not that"
+- "one, or two?"
+- "reduce the next round to 4 variants per selected board"
 
-Each suggestion is concrete enough to draw with a pencil but carries an idea from your own record as a visual metaphor, a pictured way to carry that idea, such as a joint, a mark or a path. Avoid the obvious objects of your trade and what your field already draws; a list of your own tools and objects reads as overdone.
-
-Next ask P1 to P5 **in words**, from [The five questions](#the-five-questions), with their recorded numbers, defaults and lines saying what each sets. You decide how your brand should look through the same questions used on the brief path. An axis already answered on that path is reused without asking it again.
-
-### The brand boards
-
-You decide which boards you like, what to keep and change, the blends, the tuning and when to lock; you are shown whole brand boards in light and dark, never asked to assemble one. Each is one whole brand on a page, with its colours, paired lettering styles and shapes, patterns and textures varying together on real items. You see ten to twelve boards first, then three or four blends of what you liked, then one tuned board. Boards carry no photographs; the photo rules are stated in words.
-
-| Number | Ask | Default | Fills | Choices |
-|--------|-----|---------|-------|---------|
-| F12 | What one sentence should decide whether a photograph belongs to your brand? | A draft from your F8 sentence and your answers at P1 to P5, made as `SKILL.md` Sentences the person adopts says: through `skills/Content Author/` where a voice is available, otherwise your own words or a working draft marked as not in your voice, for you to accept or change. | Imagery and Illustration: the photo rules. | Free answer. |
-| F13 | What must your brand never feel like? | The boundaries at F7 and any prohibition at B7, shown as a list for you to accept or change; with none supplied, leave it open. | Prohibitions; Imagery and Illustration; shown again on each full board as its Never panel. | Free answer. |
-| F14 | What do you like, what don't you, and where should we take it? | None; nothing is selected for you. | Answers-record item F14: reactions per board. | Free answer; show these examples with the question: "the colours of 3 with the type of 5", "more like 8, but quieter", "none of these yet, try something bolder". |
-| F15 | Which blend is closest, and what would you change? | None. | Answers-record item F15: blend choice and changes. | Free answer. |
-| F16 | What would you change on this board: warmer, more contrast, another heading face, or something else? | None. | Answers-record item F16: tuning changes. | Free answer; a heading face means the lettering style for headings. |
-| F17 | Can you see each pattern and texture on this board in dark mode, on your own screen? | None; strengthen any hard-to-see pattern or texture until you say yes. | Brand Board: each pattern's and texture's strength in dark. | Yes; which one is hard to see. |
-| F18 | Is this the board? Say so and I'll lock it. | None; silence never locks. | Brand Board; Color; Typography, marked working until a mark exists. | Lock it; keep going. |
-
-Each round is a loop. F14 to F16 can be asked again as often as you want, each answer saved against the same number with its round, never losing earlier rounds. Any round can be run again, and nothing is locked until F18.
-
-Are F8, F12 and F13 saved, answered and non-empty, and F7 at least one core word with its "not" word? Yes: Round 1 may start under `SKILL.md` stage 4. No: before Round 1, ask each one that is open or skipped again, once, and for an F7 with no "not" word ask for the boundary of each core word, once, saving the new answer against the same number; this is the one repeat this bank allows outside the board rounds. Still open after that: Round 1 does not start, and the stage stays open until they answer.
-
-Read each reaction for the need behind it, and say back what will change before the next round.
-
-At most two boards on a page are marked recommended, each with one line of why tied to your own words or answers. Nothing is pre-selected, and the field's default is never recommended.
-
-Every face shown has its licence named on the full board; use free or clearly licensed faces only.
-
-The placeholder monogram on each board is your initials set in that board's type, not a logo; the real mark is drawn after the lock. Where you keep or improve your own mark at B9, it replaces the placeholder.
-
-Where you keep existing colours, faces or a mark, board zero, your brand as it is today on the same layout, is shown first.
-
-### The icon and graphic rules
-
-Ask at stage 6, after the mark outcome. The choice fills rules in words, never a drawn icon family.
-
-| Number | Ask | Default | Fills |
-|--------|-----|---------|-------|
-| F19 | What icon style, shape language and graphic elements should govern your brand? | Keep the locked board's shapes and graphic elements, fitted to the mark where one exists, for you to accept or change. | Icons and Graphic Elements: icon style, shape language and graphic elements. |
+The optional voice section is "From your brand"; it is a file heading, not an extra question.

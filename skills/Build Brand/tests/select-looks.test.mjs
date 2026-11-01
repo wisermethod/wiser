@@ -6,7 +6,7 @@ import {createHash} from 'node:crypto';
 import {select,tapDials,run} from '../scripts/select.mjs';
 import {LIBRARY,AXES} from '../scripts/assemble.mjs';
 import {checkForm} from '../../../tools/Form/scripts/format.js';
-import {operator,firstStrategy} from './select-fixtures.mjs';
+import {operator,firstStrategy,lookActions} from './select-fixtures.mjs';
 
 const library=JSON.parse(readFileSync(LIBRARY));
 const data=JSON.parse(readFileSync(new URL('../parts/taps.json',import.meta.url)));
@@ -44,7 +44,7 @@ function assertPage(r,a,history=[]) {
   }
   if(r.checks.enabled) {
     const before=JSON.stringify(r.options);
-    const form={title:'Step 3: how it should look',brand:{name:a.name,initials:r.selection.boards[0].initials,sentence:a.sentence,body:a.body,words:a.words},questions:[{id:'looks',type:'boards',view:'look',label:'Which of these feel like you? Pick two or three.',pick:3,min:2,options:r.options}]};
+    const form={title:'Step 3: how it should look',brand:{name:a.name,initials:r.selection.boards[0].initials,sentence:a.sentence,body:a.body,words:a.words},questions:[{id:'looks',type:'boards',view:'look',label:'Which of these feel like you? Pick up to three.',pick:3,min:2,options:r.options}],actions:lookActions()};
     assert.deepEqual(checkForm(form),{ok:true,problems:[]});
     assert.equal(JSON.stringify(r.options),before);
   }
