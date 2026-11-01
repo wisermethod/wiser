@@ -2,6 +2,7 @@
 -- count: a surrounding bullet list does not consume an enumerate counter.
 local counters = {
   Decimal = '\\arabic*', DefaultStyle = '\\arabic*',
+  Example = '\\arabic*',
   LowerAlpha = '\\alph*', UpperAlpha = '\\Alph*',
   LowerRoman = '\\roman*', UpperRoman = '\\Roman*'
 }
@@ -17,6 +18,13 @@ local function roman_length(value)
   return length
 end
 
+-- Letters from widest to narrowest, so an alphabetic list is measured by the
+-- widest letter in its range rather than its last, which may be a narrow i or l.
+local letter_rank = {
+  LowerAlpha = 'mwodbpqhnukxvygaeczsrtfjil',
+  UpperAlpha = 'MWQOGDHNUCAVKXBRYEZTPLFSJI'
+}
+
 local function size_lists(blocks, depth)
   return pandoc.Blocks(blocks):walk({
     traverse = 'topdown',
@@ -28,15 +36,23 @@ local function size_lists(blocks, depth)
       local last = list.start + #list.content - 1
       local style = list.style
       local counter = counters[style]
-      -- Preserve the existing indent for decimal lists ending at 9 or below.
+      -- Preserve the existing indent for decimal and example lists ending at 9 or below.
       if not counter or #list.content == 0 or
-          ((style == 'Decimal' or style == 'DefaultStyle') and last <= 9) then
+          ((style == 'Decimal' or style == 'DefaultStyle' or style == 'Example') and last <= 9) then
         return list, false
       end
       local widest = last
       if style == 'LowerRoman' or style == 'UpperRoman' then
         for value = list.start, last do
           if roman_length(value) > roman_length(widest) then widest = value end
+        end
+      elseif letter_rank[style] then
+        local rank = function(value)
+          return letter_rank[style]:find(string.char(96 + value), 1, true) or
+            letter_rank[style]:find(string.char(64 + value), 1, true) or 27
+        end
+        for value = list.start, math.min(last, 26) do
+          if rank(value) < rank(widest) then widest = value end
         end
       end
       local label = counter .. '.'

@@ -17,8 +17,8 @@ async function inspectPrintFonts(pdf, config, latexLog, log) {
   const task = getDocument({ data: new Uint8Array(readFileSync(pdf)), disableFontFace: true, fontExtraProperties: true, verbosity: 0 });
   const family = config.typography?.font_family;
   const expected = family === 'libertinus'
-    ? /^(?:Libertinus|NewTX|ntx|txsy|txex)/i
-    : family === 'source-serif' ? /^(?:SourceSerifPro|CMMI|CMMIB|CMSY|CMBSY|CMEX|CMTT|SFTT)/i : /^(?:LMRoman|LMSans|LMMono|LMMath|LatinModern)/i;
+    ? /^(?:Libertinus|LibertineMath|NewTX|ntx|tx)/i
+    : family === 'source-serif' ? /^(?:SourceSerifPro|CMMI|CMMIB|CMSY|CMBSY|CMEX|CMR|CMBX|CMTI|CMSS|CMTT|SFTT)/i : /^(?:LMRoman|LMSans|LMMono|LMMath|LatinModern)/i;
   const faces = new Set();
   const unexpected = new Map();
   try {
