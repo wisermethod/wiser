@@ -305,7 +305,8 @@ async function findDomain(input, ctx) {
     || (reply.info?.total_pages !== undefined && reply.info.total_pages !== 1 && reply.info.total_pages !== 0)) return { error: vendor(req) };
   if (!reply.result.length) return { domain: null };
   const domain = reply.result[0];
-  if (!object(domain) || !string(domain.id, /^(?:[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/)
+  // Cloudflare's live ids are 40 hex characters (read 2026-11-01); its documented example is 32.
+  if (!object(domain) || !string(domain.id, /^(?:[0-9a-f]{40}|[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/)
     || typeof domain.hostname !== 'string' || domain.hostname.toLowerCase() !== input.hostname.toLowerCase()
     || typeof domain.service !== 'string') return { error: vendor(req) };
   return { domain };
