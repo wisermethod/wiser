@@ -1,31 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync, existsSync} from 'node:fs';
-import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
-import {resolve} from 'node:path';
+import {resolve, dirname} from 'node:path';
+import {compareJourneyCopy} from './journey-copy.mjs';
 
 const skill=fileURLToPath(new URL('../',import.meta.url));
 const read=path=>readFileSync(resolve(skill,path),'utf8');
 const router=read('SKILL.md'), bank=read('questions.md'), sitting=read('paths/sitting.md'), lock=read('lock.md');
 const paths=['brief','sitting','organisation','simple','record-my-look'];
-const corpus=[bank,...paths.map(path=>read(`paths/${path}.md`))].join('\n');
 const section=(text,name,next)=>text.split(`## ${name}\n`)[1]?.split(`## ${next}\n`)[0];
-const hash=text=>createHash('sha256').update(text).digest('hex');
 
 // Deliberately read the living spec, not a checked-in copy of its phrases. A
 // moved/installed skill can name that file with BUILD_BRAND_JOURNEY. A missing
 // source is a failure, so this check cannot silently pass without its spec.
 const journeyPath=process.env.BUILD_BRAND_JOURNEY||fileURLToPath(new URL('../../../../journey.md',import.meta.url));
-function sourceLines(source){
-  const start=source.indexOf('## Step 1:'), end=source.indexOf('## What the lock writes');
-  assert.ok(start>=0&&end>start,'journey must contain the whole step 1 to lock range');
-  const steps=source.slice(start,end);
-  const lines=[...steps.matchAll(/"([^"\n]+)"/g)].map(match=>match[1]);
-  for(const line of steps.split('\n'))if(line.startsWith('> ')&&line.slice(2).trim())lines.push(line.slice(2));
-  return [...new Set(lines)];
-}
-function missing(lines,target){return lines.filter(line=>!target.includes(line));}
+const journey=readFileSync(journeyPath,'utf8');
+const openingTaps=readFileSync(resolve(dirname(journeyPath),'2026-10-28-opening-taps.md'),'utf8');
 
 test('router preserves identity and declares the one-sitting format change',()=>{
   assert.match(router,/^name: Build Brand$/m);assert.match(router,/^type: skill$/m);assert.match(router,/^category: onboarding$/m);
@@ -43,35 +34,71 @@ test('router names every carved path and all path files exist',()=>{
   assert.match(router,/Not now: write nothing/);
 });
 
-test('every quoted phrase and every screen line in the living journey steps is verbatim',()=>{
-  const lines=sourceLines(readFileSync(journeyPath,'utf8'));
-  assert.ok(lines.length>80,'an unexpectedly empty source range must fail');
-  assert.deepEqual(missing(lines,corpus),[]);
+test('whole member lines and options match both ways from Opening through Each app',()=>{
+  assert.ok(compareJourneyCopy(journey,bank,openingTaps).length>150);
 });
 
-test('wording check detects drift on either side, including a multi-line screen',()=>{
-  const lines=sourceLines(readFileSync(journeyPath,'utf8'));
-  const literal='Setting up your colours and lettering for everything I make for you.';
-  assert.ok(lines.includes(literal));
-  assert.deepEqual(missing([literal],corpus.replaceAll(literal,'Different status.')),[literal]);
-  const changed=readFileSync(journeyPath,'utf8').replace(literal,'A changed lock status.');
-  assert.ok(missing(sourceLines(changed),corpus).includes('A changed lock status.'));
-  assert.ok(lines.includes('And [three] words for your brand, each with what it isn\'t:'));
+for(const [name,literal] of [
+  ['opening', "Let's build your brand: a few quick taps, then brands made for you. About 12 minutes."],
+  ['option','Starting fresh'],
+  ['nested quotes', 'In a sentence, what do you do? For example: "I help small bakeries sell online."'],
+  ['brand-folder receipt', 'Saved in your "brand" folder.'],
+  ['board control', 'Close this board'],
+  ['lock status','Setting up your colours and lettering for everything I make for you.']
+])test(`copy gate rejects a one-character ${name} edit on either side`,()=>{
+  assert.doesNotThrow(()=>compareJourneyCopy(journey,bank,openingTaps));
+  const changed=literal.slice(0,-1)+'!';
+  assert.throws(()=>compareJourneyCopy(journey,bank.replace(literal,changed),openingTaps));
+  assert.throws(()=>compareJourneyCopy(journey.replace(literal,changed),bank,openingTaps));
 });
 
-test('brief bank stays byte-for-byte unchanged',()=>{
-  const retained='## The brief path\n'+section(bank,'The brief path','The five questions');
-  assert.equal(hash(retained),'b2aa484db1ac61efa683b6357285e3894a6ca827bf8f10621490e8f01fb321c7');
+test('old copy in source notes or unrelated path prose cannot satisfy a changed screen',()=>{
+  const literal="Let's build your brand: a few quick taps, then brands made for you. About 12 minutes.";
+  const changed=bank.replace(literal,'Changed opening.');
+  assert.throws(()=>compareJourneyCopy(journey,changed+`\n## Source notes\n> ${literal}\n`,openingTaps));
+  assert.throws(()=>compareJourneyCopy(journey,changed+'\nUnrelated path prose: '+literal,openingTaps));
+  assert.throws(()=>compareJourneyCopy(journey,bank.replace('- Starting fresh','- Starting fresh!')+'\nSource notes: Starting fresh',openingTaps));
+  const control=bank.replace('Close this board','Close this board!').replace('### Board copy','Source notes: \"Close this board\"\n\n### Board copy');
+  assert.throws(()=>compareJourneyCopy(journey,control,openingTaps));
 });
 
-test('nine taps retain incorporated wording and option order, without chat-only suffixes',()=>{
+test('copy gate rejects an extra option or screen on either side',()=>{
+  assert.throws(()=>compareJourneyCopy(journey,bank.replace('- Starting fresh','- Starting fresh\n- An invented option'),openingTaps));
+  assert.throws(()=>compareJourneyCopy(journey.replace('- Starting fresh','- Starting fresh\n- A new source option'),bank,openingTaps));
+  assert.throws(()=>compareJourneyCopy(journey.replace('## Each app','> A new source screen.\n\n## Each app'),bank,openingTaps));
+});
+
+test('four brand-set questions supply distinct question-tool copy beside paged copy',()=>{
   const taps=JSON.parse(read('parts/taps.json'));
-  for(const [index,question] of taps.questions.entries()){
-    const chunk=bank.split(`### T${index+1}\n`)[1]?.split(/\n##/)[0];assert.ok(chunk,question.id);
-    assert.ok(chunk.includes(question.question.replace(/ \([1-4] of 4\)$/,'')),question.id);
-    let last=-1;for(const option of question.options){const at=chunk.indexOf(`- ${option.label}`);assert.ok(at>last,option.id);last=at;if(option.description)assert.ok(chunk.includes(option.description));}
-  }
+  const turn=taps.questions.slice(4,8).map((question,index)=>{
+    const chunk=bank.split(`### T${index+5}\n`)[1]?.split(/\n##/)[0];
+    const lines=chunk.split('\n').filter(line=>line.startsWith('> ')).map(line=>line.slice(2));
+    assert.equal(lines.length,2);assert.match(chunk,/Paged card:/);assert.match(chunk,/Chat buttons and the question tool:/);
+    assert.equal(lines[1],`Choose the one brand that most reflects the direction you're going for (${index+1} of 4).`);
+    return lines[1];
+  });
+  assert.equal(new Set(turn).size,4,'one question-tool turn has four unique questions');
   for(const word of ['palette','Playbook','provisional','root','Creative Director'])assert.ok(section(bank,'Words never said','The brief path').includes(word));
+});
+
+test('brand-folder path records received material, live gaps, read-back and complete write',()=>{
+  const brief=read('paths/brief.md');
+  for(const term of ['sources/brand/','sources/AGENTS.md','as received','every file','style declarations','at most five','G1 to G5','B8','complete','design-source','[V<n>]'])assert.ok(brief.includes(term),term);
+  assert.match(brief,/no unified-brand read-back/);assert.match(brief,/Stop this coverage after B3/);
+  assert.ok(!brief.includes('B9'));assert.ok(!brief.includes('The five questions` in words'));
+  const retained=section(bank,'The brief path','The five questions');
+  for(const term of ['silence does not accept it','[Not available: not yet supplied]','status skipped','status answered','records no preference on that axis','not an interview to ask in order'])assert.ok(retained.includes(term),term);
+  assert.match(section(bank,'The five questions','Retained brief voice comparison'),/does not use P1 to P5/);
+  assert.ok(!retained.includes('`SKILL.md` Step'));assert.ok(!retained.includes('Playbook'));
+  assert.ok(!/B0 \|/.test(retained));
+});
+
+test('brief boards take one pick, the bank caption, no dark-screen question or later round',()=>{
+  const briefBoards=read('paths/brief-boards.md');
+  assert.match(briefBoards,/exactly one board/);assert.match(briefBoards,/record the pick and stop/);
+  assert.match(briefBoards,/bank's initials caption/);assert.match(briefBoards,/No closing question/);
+  assert.match(briefBoards,/no dark-screen question/);
+  assert.ok(!/monogram|next round|Can the person see|End each full board by asking/i.test(briefBoards));
 });
 
 test('organisation overlay adds its step and all seven progress lines',()=>{

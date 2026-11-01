@@ -5,3 +5,21 @@ Every question this skill asks and every pick the person makes is numbered and s
 Each round of boards, each pick within it and the lock itself are numbered answers of their own. Keep the person's ask, free comments and changes as numbered answers too, preserving every word and its order for `<requester_words>`.
 
 For the sitting, use the question numbers in `questions.md` Answer numbers, and Ask in a Form's C14 rows, including what was shown, status and the chosen action. Save the bank version from `SKILL.md`. Read only the needed bank section before asking. Observations, source limits and board file paths live with the work, never as invented answers. A returning sitting continues the same saved answers and boards; it does not replay answered screens.
+
+## Source limits
+
+Keep source locations, reads and limits with the brand work in the owning root's declared work directory, normally `work/brand/`, indexed beside the saved boards and resume pointer. Link each to the numbered answer or rule it informed without inventing another answer row. Record absent or stub about, personality or voice here, what they could not inform, and the path's unavailable check outcomes. Missing personality stays a source limit here and prompts no new personality interview. Missing voice follows `writing.md` Voice unavailable on every path, with no invented member-facing disclosure. Review unavailability and fixed-copy gaps also live here, with the page they affect; never record an unavailable check as passed.
+
+## Selector inputs and histories
+
+Selector inputs are JSON objects projected from confirmed results, not the C14 file and not one mutable object shared among commands. Keep a fresh input file for every command beside the work, with its output and the page it produced. `paths/sitting.md` names the fields and commands:
+
+| Command | File it reads | Command-specific state |
+|---------|---------------|------------------------|
+| First `looks` | `looks-answers.json` | Common supported fields with `looks: []`; no `shown`, `steer` or `picks`. |
+| Retried `looks` | `looks-retry-<n>-answers.json` | Common fields with `looks: []`, complete look `shown`, current `steer` and `off`; no `picks`. |
+| `round1` | `round1-answers.json` | Sentence, words, all taps, `off`, picked `looks`, kept assets, `photoRules` and `heroPhrase`, plus type/name and optional body; never `shown`, `steer` or `picks`. |
+| `variations` | `variations-<n>-answers.json` | Common fields and picked `looks`, full picked board `picks`, complete board `shown`, current `steer` and `off`. |
+| `lock.mjs` | `lock-answers.json` | Lock-only enrichment under `lock.md`, with the same `photoRules` retained as evidence and checked against the spec. |
+
+Keep looks history separate from boards history; append each displayed page's returned records unchanged. Do not put either history on Round 1's input. A congruency pull reaches the first looks and Round 1 through `off`; `steer` is used only by looks retries with nonempty `shown` and by variations. Raw comments stay verbatim in the numbered answers; the selector gets their supported numeric or `off` interpretation only. The photograph rule is required before Round 1 and remains the exact same text in the selected board and lock answers. At a checked-wording correction, keep the original chosen sentence and pairs beside K3's checked version rather than overwriting the member's choice.

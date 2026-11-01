@@ -5,6 +5,8 @@ import {copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, s
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
+import {readFileSync} from 'node:fs';
+import {comparePartsSplit} from './parts-split.mjs';
 
 const here=dirname(fileURLToPath(import.meta.url)), skill=resolve(here,'..'), plugin=resolve(skill,'../..');
 const scratch=mkdtempSync(join(here,'verification-')), copied=join(scratch,'plugin/skills/Build Brand');
@@ -26,12 +28,16 @@ try{
   copyDirectory(join(skill,'parts/fonts'),join(copied,'parts/fonts'));
   symlinkSync(join(plugin,'tools'),join(scratch,'plugin/tools'),'dir');
   copyFileSync(join(plugin,'skills/AGENTS.md'),join(scratch,'plugin/skills/AGENTS.md'));
-  if(process.argv.includes('--baseline'))copyFileSync(join(skill,'parts/zArchive/26-10-31 V1 - parts.md'),join(copied,'parts/parts.md'));
+  copyDirectory(join(skill,'parts/zArchive'),join(copied,'parts/zArchive'));
+  if(process.argv.includes('--baseline')){
+    const read=path=>readFileSync(join(skill,path),'utf8');
+    const sections=comparePartsSplit(read('parts/zArchive/26-10-31 V1 - parts.md'),read('parts/parts.md'),read('parts/catalogue.md'));
+    process.stdout.write(`Parts split baseline: ${sections.length} archived sections match.\n`);
+  }
   const tmp=join(scratch,'tmp');mkdirSync(tmp);
   const journey=process.env.BUILD_BRAND_JOURNEY||resolve(plugin,'../journey.md');
   const env={...process.env,TMPDIR:tmp,BUILD_BRAND_JOURNEY:journey,npm_config_offline:'true',PIP_NO_INDEX:'1'};
-  const files=readdirSync(join(copied,'tests')).filter(f=>f.endsWith('.test.mjs')&&(!process.argv.includes('--baseline')||f!=='flow.test.mjs')).sort().map(f=>join(copied,'tests',f));
-  const child=spawnSync(process.execPath,['--test','--test-reporter=tap',...files],{env,encoding:'utf8',maxBuffer:16*1024*1024});
+  const child=spawnSync(process.execPath,['--test','--test-reporter=tap'],{cwd:copied,env,encoding:'utf8',maxBuffer:16*1024*1024});
   const output=(child.stdout||'')+(child.stderr||'');
   // Keep all failures and final TAP totals, without printing fixture contents.
   const lines=output.split('\n'), failed=[];

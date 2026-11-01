@@ -211,7 +211,7 @@ test('reviewed dark patterns have substantial cells and explicit visible strengt
 });
 
 test('parts index documents every current id, the new face, and no stale recipe or pairing',()=>{
-  const doc=readFileSync(resolve(parts,'parts.md'),'utf8')+readFileSync(resolve(parts,'catalogue.md'),'utf8');
+  const doc=readFileSync(resolve(parts,'catalogue.md'),'utf8');
   for(const key of ['palettes','pairings','graphics','containers'])for(const p of library[key])assert.ok(doc.includes(`| ${p.id} |`),p.id);
   assert.ok(doc.includes('| Literata |'));assert.ok(!/\| (?:book|white-emerald|DM Serif Display) \|/.test(doc));
   assert.ok(!/#[a-f\d]{6}\b/i.test(doc));
