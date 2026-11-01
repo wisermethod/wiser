@@ -113,6 +113,8 @@ function filename(part) {
   const single = disposition.match(/filename\*=UTF-8''([^; ]+)/);
   const continuations = [...disposition.matchAll(/filename\*(\d+)\*=([^; ]+)/g)];
   if (!single && !continuations.length) return { fallback, original: fallback };
+  // Gmail shows the first filename parameter, so the original name must precede the fallback.
+  assert.ok(disposition.indexOf('filename*') < disposition.indexOf('filename="'), disposition);
   const segments = single ? [single[1]] : continuations.map((match, i) => {
     assert.equal(Number(match[1]), i);
     return i === 0 ? match[2].replace(/^UTF-8''/, '') : match[2];

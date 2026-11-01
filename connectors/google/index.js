@@ -568,7 +568,8 @@ function addressHeader(name, list) {
 }
 
 // RFC 2231 continuations split only between complete UTF-8 code points. Encoding
-// every byte also keeps punctuation from acquiring parameter syntax.
+// every byte also keeps punctuation from acquiring parameter syntax. Gmail shows the
+// first filename parameter it finds, so the original name goes before the ASCII fallback.
 function attachmentDisposition(name, index) {
   const quoted = name.replace(/[\\"]/g, '\\$&');
   if (/^[\x20-\x7e]+$/.test(name) && quoted.length <= 60) {
@@ -588,8 +589,8 @@ function attachmentDisposition(name, index) {
   const parameters = segments.length === 1
     ? [`filename*=UTF-8''${segments[0]}`]
     : segments.map((part, i) => `filename*${i}*=${i === 0 ? "UTF-8''" : ''}${part}`);
-  return [`Content-Disposition: attachment;`, ` filename="attachment-${index}";`,
-    ...parameters.map((part, i) => ` ${part}${i < parameters.length - 1 ? ';' : ''}`)].join('\r\n');
+  return [`Content-Disposition: attachment;`, ...parameters.map((part) => ` ${part};`),
+    ` filename="attachment-${index}"`].join('\r\n');
 }
 
 function mimeBoundary(serialized) {
