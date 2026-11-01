@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.01.4, November 1, 2026
+
+- When the Wiser service turns down a connection because your plan doesn't include it, Wiser now gives you the service's own message, with its link to the plans, and stops there. Before, it said the connector didn't run on the service. It doesn't retry, start a connection, or offer another way round, and asking for a standing approval for that connection grants nothing. A connector the service doesn't run at all still points you to where it does run. (e859244, 4ee15b1, 749e3f9)
+
 ## v2026.11.01.3, November 1, 2026
 
 - The classifier now suggests a skill or expert only when that file says it may, and never a tool. Seven skills say so today: Animated Explainer, Build Brand, Bio Sketch, Generate Ideas, Prior Art Check, Classifier Trial and Profile Page. Every other skill and expert, Knowledge Recall now among them, still opens the usual way, only without a suggestion. Nothing changes where no classifier is attached. (ea6cd07)
