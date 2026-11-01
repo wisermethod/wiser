@@ -3,16 +3,26 @@
 import { readFileSync } from 'node:fs';
 
 export async function auditPrintFonts(pdf, config, latexLog, log) {
+  try {
+    return await inspectPrintFonts(pdf, config, latexLog, log);
+  } catch (error) {
+    const message = String(error.message ?? error).replace(/[\r\n]+/g, ' ');
+    log(`  Warning: print font audit failed: ${message}`);
+    return { error: message };
+  }
+}
+
+async function inspectPrintFonts(pdf, config, latexLog, log) {
   const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs');
   const task = getDocument({ data: new Uint8Array(readFileSync(pdf)), disableFontFace: true, fontExtraProperties: true, verbosity: 0 });
-  const document = await task.promise;
   const family = config.typography?.font_family;
   const expected = family === 'libertinus'
     ? /^(?:Libertinus|NewTX|ntx|txsy|txex)/i
-    : family === 'source-serif' ? /^SourceSerifPro/i : /^(?:LMRoman|LMSans|LMMono|LMMath|LatinModern)/i;
+    : family === 'source-serif' ? /^(?:SourceSerifPro|CMMI|CMMIB|CMSY|CMBSY|CMEX|CMTT|SFTT)/i : /^(?:LMRoman|LMSans|LMMono|LMMath|LatinModern)/i;
   const faces = new Set();
   const unexpected = new Map();
   try {
+    const document = await task.promise;
     for (let number = 1; number <= document.numPages; number += 1) {
       const page = await document.getPage(number);
       // Font objects are delivered with the operator list, not text extraction.
@@ -24,7 +34,7 @@ export async function auditPrintFonts(pdf, config, latexLog, log) {
         const face = font.name.replace(/^[A-Z]{6}\+/, '');
         faces.add(face);
         // The template explicitly uses this family for tabs and optional quotes.
-        if (expected.test(face) || /^SourceSansPro/i.test(face)) continue;
+        if (expected.test(face) || /^(?:SourceSansPro|MSAM|MSBM)/i.test(face)) continue;
         if (!unexpected.has(face)) unexpected.set(face, new Map());
         const pages = unexpected.get(face);
         if (!pages.has(number)) pages.set(number, new Set());
