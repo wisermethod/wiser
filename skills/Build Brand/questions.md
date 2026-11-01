@@ -441,7 +441,7 @@ Progress: "Step 1 of 3: your brand files". Why: "I'll read your brand from what 
 - Done, they're in
 - Use my website
 
-Where the app accepts a whole dropped folder, replace the first clause with:
+Where the app accepts a whole dropped folder, show this sentence alone as the whole line, replacing the longer chat line:
 
 > Drop your brand files, or a folder of them, here in the chat
 
@@ -463,7 +463,7 @@ Progress: "Step 2 of 3". No additional why line. This is the one place the sessi
 
 > Your guide names Lora and Inter, but not which is for headings.
 
-Use taps wherever choices exist, swatches for found colours, type samples for lettering, and typing only where no choice can be offered. One question at a time, no more than five including any voice-conflict question from `writing.md`. Label a sixth gap or an answer they cannot give; never guess. Every live line obeys Words never said. Save each answer as it arrives.
+Use taps wherever choices exist, swatches for found colours, type samples for lettering, and typing only where no choice can be offered. One question at a time, no more than five gap questions. A voice conflict is not an open heading and asks no new question; record it under Retained brief voice comparison below, outside G1 to G5. Label a sixth gap or an answer they cannot give; never guess. Every live line obeys Words never said. Save each answer as it arrives.
 
 ### B8. Check it
 
@@ -500,6 +500,6 @@ The brand-folder branch does not use P1 to P5. Do not ask the retired five-axis 
 
 ## Retained brief voice comparison
 
-Only `writing.md` Voice check reads this section; it does not run in the full sitting. Save the comparison at F9 with both source passages and the decision. An actual conflict is one of step 2's live gap questions, counted within its five, worded from the found rules under `paths/brief.md`. There is no additional fixed interview line.
+The brand-folder path uses this record in place of `writing.md` Voice check's F9 interview and gap-budget rule; it does not run in the full sitting. Compare the chosen words with answered voice rules and save both source passages at F9. A conflict is not an open heading: ask no new question and use none of G1 to G5. Record a reconciliation only from supplied material, an answer to a permitted open-heading gap, or a correction the member gives at B8; never add a conflict question to either step.
 
-Keep the writing rule: retain it for language and leave the disputed visual requirement out until reconciled. Change the brand words: save the correction and use only the revised words. Retain a named difference between writing and appearance: save the agreed visual rule with its F9 citation. Unresolved or no answer: leave the disputed words unconfirmed and label the empty heading. No disagreement: record that result without asking. No answered voice or governing rule: save an empty F9 answer with status skipped and the reason the comparison is unavailable; no invented member line. Never change the voice file here.
+Keep the writing rule in force for language and leave a disputed visual requirement out until reconciled. Where the member has already changed the brand words, save that correction and use only the revised words. Where they have explicitly retained a difference between writing and appearance, save the agreed visual rule with its F9 citation. Otherwise leave the disputed words unconfirmed and label the heading only if empty. No disagreement: record that result without asking. No answered voice or governing rule: save an empty F9 answer with status skipped and the reason the comparison is unavailable; no invented member line. Never change the voice file here.

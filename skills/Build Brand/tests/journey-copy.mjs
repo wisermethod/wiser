@@ -23,22 +23,29 @@ const eq = (actual, expected, screen) => assert.deepEqual(actual, expected, scre
 export function compareJourneyCopy(source, bank, openingTaps) {
   const journey = between(source, '## Opening\n', '## Words never said\n');
   const j = name => h2(source, name), b = name => h2(bank, name);
-  const checked = [];
+  const checked = [], expectedBankBlockquotes = [], expectedJourneyBlockquotes = [];
   function screen(name, actual, expected) {
     // Sorting allows prose to place an org variant next to its personal line;
     // duplicates remain significant. Options are compared separately in order.
     eq(sorted(actual), sorted(expected), name);
     checked.push(...expected);
   }
+  function bankScreen(name, actual, expected) {
+    screen(name, actual, expected);
+    expectedBankBlockquotes.push(...expected);
+  }
   function quotedScreen(name, actual, expected, added = []) {
-    screen(`${name}: complete lines`, blocks(actual), [...blocks(expected), ...added]);
+    const sourceLines = blocks(expected);
+    bankScreen(`${name}: complete lines`, blocks(actual), [...sourceLines, ...added]);
+    expectedJourneyBlockquotes.push(...sourceLines);
   }
   const opening = j('Opening');
   quotedScreen('Opening', b('Opening'), opening, [capture(opening, /For an organisation: "(.*)"/)]);
 
   const keep = j('Step 1: What to keep'), bankKeep = b('Step 1: What to keep');
   const keepBlocks = blocks(keep);
-  screen('What to keep', blocks(bankKeep), [keepBlocks[0], capture(keep, /For an organisation, "(.*)"/), keepBlocks[1], capture(keep, /Where the app cannot open one: "(.*)" with the same second sentence/), capture(keep, /Done with nothing placed or dropped: "(.*)" and the same two options/)]);
+  expectedJourneyBlockquotes.push(...keepBlocks);
+  bankScreen('What to keep', blocks(bankKeep), [keepBlocks[0], capture(keep, /For an organisation, "(.*)"/), keepBlocks[1], capture(keep, /Where the app cannot open one: "(.*)" with the same second sentence/), capture(keep, /Done with nothing placed or dropped: "(.*)" and the same two options/)]);
   eq(options(bankKeep), options(keep), 'What to keep: options in order');
   checked.push(...options(keep));
 
@@ -142,13 +149,19 @@ export function compareJourneyCopy(source, bank, openingTaps) {
     if (number === 2) expectedOptions[0] += ': ' + capture(taste, /Under "Mechanical".*?: "(.*?)"/);
     const expectedLines = [expectedQuestion];
     if (brands) expectedLines.push(expectedQuestion.replace(/\.$/, ` (${number - 4} of 4).`));
-    screen(`T${number}: paged and chat question`, blocks(tap), expectedLines);
+    bankScreen(`T${number}: paged and chat question`, blocks(tap), expectedLines);
     eq(options(tap), expectedOptions, `T${number}: options in order`);
     checked.push(...expectedOptions);
   }
   assert.ok(!bank.includes('## Source notes'), 'operator asides do not belong in the bank');
-  // Every source blockquote in the entire Opening-through-Each-app range is
-  // covered above. This also fails if a new member screen is added to the spec.
-  for (const line of blocks(journey)) assert.ok(checked.includes(line), `unmapped journey screen line: ${line}`);
+  // Scan the entire member-copy range, including sections with no expected
+  // blockquotes (organisation progress and the tap preamble). Compare counts
+  // too: an extra copy of a valid line is still an invented screen. Expected
+  // lines come only from the journey and its incorporated taps above.
+  const bankCopy = between(bank, '## Opening\n', '## The five questions\n');
+  eq(sorted(blocks(bankCopy)), sorted(expectedBankBlockquotes), 'all bank blockquotes from Opening through the brief close match both ways');
+  // Cover the whole source range too, even a new screen in an unmapped section
+  // or a duplicate of an existing line. Neither side can hide extra copy.
+  eq(sorted(blocks(journey)), sorted(expectedJourneyBlockquotes), 'all journey blockquotes from Opening through Each app are mapped');
   return checked;
 }

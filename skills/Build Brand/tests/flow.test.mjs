@@ -68,6 +68,36 @@ test('copy gate rejects an extra option or screen on either side',()=>{
   assert.throws(()=>compareJourneyCopy(journey.replace('## Each app','> A new source screen.\n\n## Each app'),bank,openingTaps));
 });
 
+test('copy gate rejects a deleted opening',()=>{
+  const opening="> Let's build your brand: a few quick taps, then brands made for you. About 12 minutes.\n";
+  assert.ok(bank.includes(opening));
+  assert.throws(()=>compareJourneyCopy(journey,bank.replace(opening,''),openingTaps));
+});
+
+test('copy gate rejects deleting every scoped bank or journey blockquote line',()=>{
+  for(const [side,text,end] of [['bank',bank,'## The five questions\n'],['journey',journey,'## Words never said\n']]){
+    const start=text.indexOf('## Opening\n'), stop=text.indexOf(end,start);
+    assert.ok(start>=0&&stop>start,`${side} copy boundaries`);
+    const quoted=[...text.slice(start,stop).matchAll(/^> \S.*$/gm)];
+    assert.ok(quoted.length>40,`${side} has its complete copy range`);
+    for(const line of quoted){
+      const at=start+line.index, changed=text.slice(0,at)+text.slice(at+line[0].length);
+      assert.throws(()=>compareJourneyCopy(side==='journey'?changed:journey,side==='bank'?changed:bank,openingTaps),`${side}: ${line[0]}`);
+    }
+  }
+});
+
+for(const [name,boundary] of [
+  ['organisation progress','## Organisation: Progress and substitutions\n'],
+  ['tap preamble','### T1\n']
+])test(`copy gate rejects an invented screen in the ${name}`,()=>{
+  assert.ok(bank.includes(boundary));
+  const changed=name==='tap preamble'
+    ?bank.replace(boundary,`> An invented screen.\n\n${boundary}`)
+    :bank.replace(boundary,`${boundary}\n> An invented screen.\n`);
+  assert.throws(()=>compareJourneyCopy(journey,changed,openingTaps),/bank blockquotes/);
+});
+
 test('four brand-set questions supply distinct question-tool copy beside paged copy',()=>{
   const taps=JSON.parse(read('parts/taps.json'));
   const turn=taps.questions.slice(4,8).map((question,index)=>{
@@ -78,7 +108,44 @@ test('four brand-set questions supply distinct question-tool copy beside paged c
     return lines[1];
   });
   assert.equal(new Set(turn).size,4,'one question-tool turn has four unique questions');
+  assert.match(sitting,/If the form cannot open and T5 to T8 go to the question tool, hand Ask in a Form the bank's four Chat buttons and the question tool lines word for word/);
+  assert.match(sitting,/using `parts\/taps\.json` only for ids and nudges/);
+  turn.forEach((question,i)=>assert.notEqual(question,taps.questions[i+4].question,'runtime data is not the fallback copy'));
   for(const word of ['palette','Playbook','provisional','root','Creative Director'])assert.ok(section(bank,'Words never said','The brief path').includes(word));
+});
+
+test('brand-folder hosts use the whole drop line and retain their own computer fallback',()=>{
+  const files=bank.split('### Brand files\n')[1].split('\n### Anything missing')[0], brief=read('paths/brief.md');
+  assert.match(files,/show this sentence alone as the whole line, replacing the longer chat line:\n\n> Drop your brand files, or a folder of them, here in the chat\n/);
+  assert.ok(!files.includes('replace the first clause'));
+  assert.match(brief,/whole-folder variant as the entire line/);
+  assert.match(brief,/otherwise name that location in words and continue with this branch's Brand files drop, website and empty-receipt lines and its same two choices/);
+  assert.match(brief,/keep step's Folder screens, Skip option and empty-folder line never run here/);
+  for(const old of ["using the bank's Folder lines",'Skip this: build without them',"The folder's still empty. Put them in, or tap Skip."])assert.ok(!brief.includes(old),old);
+});
+
+test('brand-folder voice conflicts are recorded without a new question or gap slot',()=>{
+  const brief=read('paths/brief.md'), comparison=bank.split('## Retained brief voice comparison\n')[1];
+  assert.match(brief,/A voice conflict is not a gap question and uses none of these five slots/);
+  assert.match(brief,/replaces `\.\.\/writing\.md` Voice check's F9 interview and gap-budget rule: ask no new question/);
+  assert.match(router,/It records conflicts without a new question or a gap slot/);
+  assert.match(comparison,/save both source passages at F9/);
+  assert.match(comparison,/ask no new question and use none of G1 to G5/);
+  assert.match(comparison,/permitted open-heading gap, or a correction the member gives at B8/);
+  assert.match(comparison,/leave the disputed words unconfirmed and label the heading only if empty/);
+  assert.ok(!/including (?:corrections and )?any F9 conflict question|including any voice-conflict question|conflict consumes one|counted within its five/.test(brief+bank));
+});
+
+test('industry entry runs only the folder step and offers no path-choice screen',()=>{
+  const industry=read('paths/record-my-look.md'), entry=industry.split('\n\n')[1];
+  assert.match(entry,/reusing a caller's answer without offering a path choice/);
+  assert.match(entry,/caller's `brief`, or a direct ask with no caller answer, runs the folder step/);
+  assert.match(entry,/Not now writes nothing, including no stub or answers record/);
+  assert.match(entry,/caller's `full` or `simple` returns to that caller as outside the industry limit, writing nothing/);
+  assert.match(entry,/No path-choice line is shown/);
+  assert.ok(!/Offer brief and Not now|fixed industry-only path-choice line/.test(industry));
+  assert.match(industry,/Stop the coverage after B3/);
+  assert.match(industry,/Skip B8/);
 });
 
 test('brand-folder path records received material, live gaps, read-back and complete write',()=>{
