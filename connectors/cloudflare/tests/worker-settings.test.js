@@ -299,12 +299,13 @@ test('remove_custom_domain: absent hostname is refused without deleting anything
 const LIVE_DOMAIN_ID = 'abcdef0123456789abcdef0123456789abcdef01';
 const liveDomain = (id, service = read.script_name) => ({ id, zone_id: ZONE, zone_name: 'example.test', hostname: domain.hostname, service,
   environment: 'production', cert_id: NEWER, previews_enabled: false, enabled: true });
-function liveResponder(id, service) {
+function liveResponder(id, service, { omitEnvironment = false, extraCount = 0 } = {}) {
   let attached = liveDomain(id, service);
+  if (omitEnvironment) delete attached.environment;
   return (req) => {
     if (req.endpoint === ROOT + '/domains' && req.method === 'GET') {
       const result = attached ? [attached] : [];
-      return { status: 200, data: { success: true, errors: [], messages: [], result, result_info: { page: 1, per_page: result.length, count: result.length, total_count: result.length } } };
+      return { status: 200, data: { success: true, errors: [], messages: [], result, result_info: { page: 1, per_page: result.length, count: result.length, total_count: result.length + extraCount } } };
     }
     if (req.endpoint === ROOT + '/domains/' + id && req.method === 'GET') return attached ? envelope(attached) : error(404);
     if (req.endpoint === ROOT + '/domains/' + id && req.method === 'DELETE') { attached = null; return envelope(null); }
@@ -320,7 +321,16 @@ test('add_custom_domain: Cloudflare\'s live listing shape for another Worker is 
   const env = await setup(t, { responder: liveResponder(LIVE_DOMAIN_ID, 'other-worker') });
   assert.equal((await env.execute('add_custom_domain')).status, 'invalid_arguments'); assert.deepEqual(trace(env.calls), [['GET', ROOT + '/domains']]);
 });
-for (const id of ['abcdef0123456789abcdef0123456789abcdef0', 'ABCDEF0123456789ABCDEF0123456789ABCDEF01', 'abcdef0123456789abcdef0123456789abcdef01a', '../abcdef0123456789abcdef0123456789abcd'])
+test('remove_custom_domain: the live shape with environment omitted is removed', async (t) => {
+  const env = await setup(t, { responder: liveResponder(LIVE_DOMAIN_ID, undefined, { omitEnvironment: true }) });
+  assert.deepEqual(await env.execute('remove_custom_domain'), { hostname: domain.hostname, removed: true, read_back: 'absent' });
+});
+test('remove_custom_domain: a listing whose total_count exceeds its rows is refused before any write', async (t) => {
+  const env = await setup(t, { responder: liveResponder(LIVE_DOMAIN_ID, undefined, { extraCount: 1 }) });
+  assert.equal((await env.execute('remove_custom_domain')).status, 'vendor_error'); assert.deepEqual(trace(env.calls), [['GET', ROOT + '/domains']]);
+});
+for (const id of ['abcdef0123456789abcdef0123456789abcdef0', 'ABCDEF0123456789ABCDEF0123456789ABCDEF01', 'abcdef0123456789abcdef0123456789abcdef01a', '../abcdef0123456789abcdef0123456789abcd',
+  'gbcdef0123456789abcdef0123456789abcdef01', '../abcdef0123456789abcdef0123456789abcde'])
   test(`remove_custom_domain: a listed id that is not 32 or 40 lowercase hex or a UUID is refused before any write (${id.length} characters)`, async (t) => {
     const env = await setup(t, { responder: liveResponder(id) });
     assert.equal((await env.execute('remove_custom_domain')).status, 'vendor_error'); assert.deepEqual(trace(env.calls), [['GET', ROOT + '/domains']]);

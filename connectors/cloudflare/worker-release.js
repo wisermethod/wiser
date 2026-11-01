@@ -301,8 +301,10 @@ async function findDomain(input, ctx) {
     parameters: [{ name: 'hostname', value: input.hostname.toLowerCase(), type: 'query' }] };
   const reply = await call(ctx, req);
   if (reply.error) return { error: reply.error };
+  // The live listing's result_info carries total_count and no total_pages (read 2026-11-01).
   if (!Array.isArray(reply.result) || reply.result.length > 1
-    || (reply.info?.total_pages !== undefined && reply.info.total_pages !== 1 && reply.info.total_pages !== 0)) return { error: vendor(req) };
+    || (reply.info?.total_pages !== undefined && reply.info.total_pages !== 1 && reply.info.total_pages !== 0)
+    || (reply.info?.total_count !== undefined && reply.info.total_count !== reply.result.length)) return { error: vendor(req) };
   if (!reply.result.length) return { domain: null };
   const domain = reply.result[0];
   // Cloudflare's live ids are 40 hex characters (read 2026-11-01); its documented example is 32.
