@@ -629,6 +629,14 @@ function validateConfig(config) {
   if (config.typography?.quote_font !== undefined && !['body', 'sans'].includes(config.typography.quote_font)) {
     errors.push('typography.quote_font must be body or sans');
   }
+  if (config.typography?.emergency_stretch !== undefined &&
+      (!Number.isFinite(config.typography.emergency_stretch) || config.typography.emergency_stretch < 0)) {
+    errors.push('typography.emergency_stretch must be a finite nonnegative number in em');
+  }
+  if (config.typography?.tolerance !== undefined &&
+      (!Number.isInteger(config.typography.tolerance) || config.typography.tolerance < 0 || config.typography.tolerance > 10000)) {
+    errors.push('typography.tolerance must be an integer from 0 to 10000');
+  }
   if (config.typography?.url_font !== undefined && !['mono', 'body', 'sans'].includes(config.typography.url_font)) {
     errors.push('typography.url_font must be mono, body or sans');
   }
@@ -980,6 +988,8 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
   if (config.typography?.quote_font === 'sans') {
     pandocArgs.push('--variable', 'quote-sans=true');
   }
+  pandocArgs.push('--variable', `emergency-stretch=${config.typography?.emergency_stretch ?? 3}em`,
+    '--variable', `line-tolerance=${config.typography?.tolerance ?? 200}`);
   if (config.typography?.line_spacing) {
     pandocArgs.push('--variable', `linespacing=${config.typography.line_spacing}`);
   }

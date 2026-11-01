@@ -285,6 +285,10 @@ $endif$
 % Professional typography standards for hyphenation control
 % microtype (loaded above) provides font expansion to reduce hyphenation needs
 
+% Give narrow measures a final line-breaking pass before accepting overflow.
+\tolerance=$line-tolerance$
+\setlength{\emergencystretch}{$emergency-stretch$}
+
 % Discourage hyphenation slightly (default 50)
 \hyphenpenalty=200
 \exhyphenpenalty=100
