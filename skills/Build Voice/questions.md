@@ -1,6 +1,6 @@
 # The interview
 
-What the coach says and asks, in the order `SKILL.md` The coach runs it. A tapped question is asked with the app's question tool where it has one: each option a button, and where an option below has words after a colon, the words before it are the button and the words after it are the line under it. Where the app has none, one question per message, its options lettered, answered with a letter. A typed question is a plain message, one at a time. The codes (S, W, P, R, F, A) are the question numbers the answers file records and `voice.md` cites, and each sample the person gives is numbered E1 onward. Bank version for every row: `Build Voice bank 6`.
+What the coach says and asks, in the order `SKILL.md` The coach runs it. A tapped question is asked with the app's question tool where it has one: each option a button, and where an option below has words after a colon, the words before it are the button and the words after it are the line under it. Where the app has none, one question per message, its options lettered, answered with a letter. A question that says pick any takes more than one of its options: with the question tool, as its multiple choice; with none, answered with one or more letters. A typed question is a plain message, one at a time. The codes (S, W, P, R, F, A) are the question numbers the answers file records and `voice.md` cites, and each sample the person gives is numbered E1 onward. Bank version for every row: `Build Voice bank 7`.
 
 Each question says what it **feeds**. A line in quotation marks after a pick is the exact line that pick writes into `voice.md` `## How They Write`, copied word for word. A pair or tap the person's samples settled is not asked, and a screen left with no question is not shown, nor the line said before it.
 
@@ -96,18 +96,20 @@ Writes:
 
 ### P6. Humour
 
-P6 to P9 are not pairs: each is the same for everyone, P7 is asked on every run, and P6, P8 and P9 on every run whose samples did not settle them; each line it writes covers only the moment its question names. A skip writes nothing. Typed instead of tapped, an answer that plainly matches an option writes that option's line; one that matches none, such as "only about my own mistakes", writes one line in their words, for the same moment, cited with the tap's number.
+P6 to P12 are not pairs: each is the same for everyone. P7 and P10 to P12 are asked on every run, and P6, P8 and P9 on every run whose samples did not settle them; each line it writes covers only the moment its question names. A skip writes nothing. Typed instead of tapped, an answer that plainly matches an option writes that option's line; one that matches none, such as "only about my own mistakes", writes one line in their words, for the same moment, cited with the tap's number.
 
-> To help me gauge your usage of humor, tell me: when something's gone a bit wrong, would you make a joke about it in writing?
+> What kind of humor shows up in your writing? Pick any.
 
-- Yes, it keeps everyone sane
-- Only with people I know well
-- No, not in writing
+- Dry: understated, said with a straight face
+- Laughing at myself: I'm usually the joke
+- Corny: puns, wordplay, a good groan
+- None: I keep humor out of my writing
 
-Writes:
-- Yes, it keeps everyone sane: "When something has gone wrong, lets a light joke in."
-- Only with people I know well: "When something has gone wrong, jokes about it only with readers they know well."
-- No, not in writing: "When something has gone wrong, keeps jokes out of it."
+Writes one line for each kind picked; None picked with anything else counts as None:
+- Dry: "Where humor fits, keeps it dry: understated, said with a straight face, never pointed out."
+- Laughing at myself: "Where humor fits, makes themselves the joke, never the reader."
+- Corny: "Where humor fits, reaches for a pun or a bit of wordplay, and doesn't mind a groan."
+- None: "Keeps jokes out of their writing."
 
 ## W3 (typed)
 
@@ -138,11 +140,11 @@ Feeds: `## Prohibitions`, the line they tap as the example of what W4 names. Non
 
 Said before it, where it asks more than one question:
 
-> A few more taps, then I'll show you how you come across.
+> A few more taps.
 
 Where the samples left it only one:
 
-> One more tap, then I'll show you how you come across.
+> One more tap.
 
 ### P9. The stock phrase
 
@@ -196,6 +198,61 @@ Writes:
 
 "Depends" typed in the free-text answer is recorded as answered. Feeds: `## Reading Ease`, the option's level and the line under it, or on Depends or a skip, "Set by each piece's reader"; the routing row's register.
 
+## Screen 3 (tapped)
+
+Said before it:
+
+> Last three, then I'll show you how you come across.
+
+### P10. What they'd like their work known for
+
+> To help me write the way you'd make a case: what would you most like your work to be known for?
+
+- Getting real results
+- Doing right by people
+- Finding a better way
+- Being someone people can count on
+
+Writes:
+- Getting real results: "When making a case, leads with what it gets done."
+- Doing right by people: "When making a case, leads with what it means for the people involved."
+- Finding a better way: "When making a case, leads with what is new or better about it."
+- Being someone people can count on: "When making a case, leads with what is proven and dependable."
+
+Also feeds the portrait's sentence on what drives them, and `about.md` `## Personality`.
+
+### P11. The overrated virtue
+
+> One just for fun, and it tells me a lot about your writing: which of these is a little overrated?
+
+- Sounding certain
+- Being thorough
+- Being polished
+- Being clever
+
+Writes:
+- Sounding certain: "Says where they are unsure rather than sound more certain than they are."
+- Being thorough: "Leaves out what the reader doesn't need rather than cover everything."
+- Being polished: "Lets a plain, human sentence stand rather than smooth it over."
+- Being clever: "Takes the plain way to say a thing over the clever one."
+
+### P12. Where readers would sit with them
+
+> If your readers could sit down with you anywhere, where would feel most like you?
+
+- A coffee shop
+- A nice hotel lobby
+- A workshop with tools on the wall
+- A calm spa
+
+Writes:
+- A coffee shop: "Talks to the reader as an equal across a small table: relaxed, direct, no ceremony."
+- A nice hotel lobby: "Treats the reader as a guest: courteous, attentive, and makes the next step easy."
+- A workshop with tools on the wall: "Shows how rather than tells: practical, plain, and hands-on."
+- A calm spa: "Keeps an unhurried, reassuring pace; never rushes or alarms the reader."
+
+Also feeds the portrait's sentence on how the people they write for experience them.
+
 ## A1. The portrait (tapped)
 
 The question carries the portrait, so the two are always seen together: it opens with "Here's how you come across on the page:", then the portrait in full, then:
@@ -208,25 +265,13 @@ The question carries the portrait, so the two are always seen together: it opens
 
 On Close, but or Not quite, they say what to change, in the free-text answer or a reply. Feeds: the portrait; `about.md` `## Personality` where it changes their angle or their aim; where it says how they write rather than who they are, it is sorted like an A3 change.
 
-## F1. The reading (typed)
+## F2. The first piece (tapped)
 
-> Now let's have a little fun with your first piece. I'll write a personality profile of you in the style of a horoscope. Tell me your:
->
-> - Birthday with year
-> - State / province / locality where you were born
-> - Roughly what time you were born
->
-> Say "skip" if you have an allergy to hearing about yourself (but you'll be missing out on a little magic if you do).
+Where W2 gave a point, F2 is not asked: the piece is the short post on what they wish people knew, and F2a asks its post line, after this line:
 
-The answer is recorded as given; a time they do not know is left out, and the rest still makes the reading. Skipped, or given without a birthday or a place: F2. Feeds: the reading's prompt, and nothing else.
+> Now let's have a little fun with your first piece: a short post on the thing you wish more people knew.
 
-The prompt, filled in and handed over as `SKILL.md` The coach step 5 says, word for word:
-
-> I want you to give me an astrology reading for [name] born on [date] in [location] at [time] - focus on personality, career, ambition, and work/personal relationships. Keep the astrology terminology to a minimum
-
-## F2. A piece on your topic (tapped)
-
-Only after F1 is skipped or gives no birthday or no place, the reading does not come back, or A2a or A4a. Where W2 gave a point, F2 is not asked: the piece is the short post on what they wish people knew, and F2a asks its post line. Otherwise:
+Otherwise:
 
 > Let's see it in action. What should I write first?
 
@@ -248,17 +293,7 @@ Skipped: write only from what they told you in W1 and W2, for someone who would 
 
 ## A2. The verdict (tapped)
 
-The question carries the piece, so the two are always seen together: it opens with "Here's your first piece:", then the piece in full and, where anything in it was made up, the one line that says what, then the question for the piece.
-
-After the reading:
-
-> How does this piece sound?
-
-- This is spooky good
-- The writing style is on, personality is off
-- Neither the style nor the personality works
-
-After a piece on their topic:
+The question carries the piece, so the two are always seen together: it opens with "Here's your first piece:", then the piece in full and, where anything in it was made up, the one line that says what, then:
 
 > Would you send this under your name?
 
@@ -266,19 +301,11 @@ After a piece on their topic:
 - Almost: I'd change a few things
 - No, it doesn't sound like me
 
-Each piece opens in short paragraphs with a blank line between them. After A2a or A4a, the piece on their topic opens with "Here's your voice on something you'd send:" in place of "Here's your first piece:", takes the verdict for a piece on their topic, Yes, Almost or No, and is recorded A2b. The answers file records each piece and what was made up. This is spooky good, or Yes, sets the confirmation date. After a rewrite it is asked again, in the same form, and recorded A4, opening with "Here it is with your changes:", the piece in full and the one line A3a gives.
-
-### A2a (typed)
-
-Asked on The writing style is on, personality is off, recorded A4a after a rewrite.
-
-> What's off about it? A few words is plenty.
-
-Feeds: the portrait and `about.md` `## Personality`; where it says how they write, a line in the voice. Then the piece on their topic, F2, with its verdict recorded A2b; a skip goes there too.
+Each piece opens in short paragraphs with a blank line between them. The answers file records each piece and what was made up. Yes sets the confirmation date. After a rewrite it is asked again, in the same form, and recorded A4, opening with "Here it is with your changes:", the piece in full and the one line A3a gives.
 
 ## A3 (typed)
 
-Asked on Neither, Almost or No:
+Asked on Almost or No:
 
 > What would you change? Quote the line and say it your way, or just tell me.
 
@@ -294,7 +321,7 @@ Where they name one, typed in place of a tap or in a reply, it is recorded as A3
 
 ## A6. Keep or stop (tapped)
 
-Asked with the third version, after two returns, in place of A2, and carrying that version and its line as A4 does; or, after A4a, with the piece on their topic rewritten once from A5.
+Asked with the third version, after two returns, in place of A2, and carrying that version and its line as A4 does.
 
 > Want to keep your voice as it is now, or stop here and pick it up later?
 
