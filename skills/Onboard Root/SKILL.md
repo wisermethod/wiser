@@ -143,7 +143,7 @@ Which design ending did Step 3 return? Set its line accordingly:
 
 A key is **complete** when every heading is answered or labeled, at least one is answered, and every claim survived the read-back. It is **provisional** when the file is usable and a named gap remains, with an owner and what it waits on in the same line; a file whose every heading is a label is provisional, not complete, with the person as owner. It is **blocked** when the file is not usable, with the blocker named on the line as `person:`, `credential:` or `capability:` followed by who or what; the form is `blocked (person: <who>; waits on <what>)`. A key that cannot pass its read-back is provisional or blocked, never closed complete.
 
-The section holds the close line, the state lines and nothing else but notes that point, per `standards/user-root.md` C15. Where a session must read something before writing from these files, write a line naming the file and the entry in it, such as `memory/about.md` V534, never the fact itself. Nothing in the section is deleted; a later session updates a state line when a key closes, and `skills/Housekeeping/` rewrites a note that restates a fact into pointers on the person's approval, per C15.
+The section holds the close line, the state lines and nothing else but notes that point, per `standards/user-root.md` C15. Where a session must read something before writing from these files, write a note after the state lines, never itself a `- <key>:` line, naming the file and the entry in it, such as `memory/about.md` `## Key Facts`, never the fact itself. Nothing in the section is deleted; a later session updates a state line when a key closes, and `skills/Housekeeping/` rewrites a note that restates a fact into pointers on the person's approval, per C15.
 
 Where this session has the Wiser endpoint's `first_run` tool, call it with `mode: "finish"`, which records that the person's setup is done; where it has none, or the call fails, go on without it and say nothing of it.
 
@@ -181,7 +181,7 @@ It is a check, not a step. A personal root that never runs it is onboarded; one 
 - Every claim in a memory file names the person who said it or the file that says it, or carries one of the four labels in place.
 - The read-back pass ran after the files were written, and what it could not find is labeled and asked, not bound.
 - `memory/voice.md` was written by Build Voice, or its headings carry the label that says why not and the key closed provisional.
-- The `## Onboarding` section of `AGENTS.md` carries one state line per key, each provisional or blocked line naming its owner and what it waits on, and holds no copied fact, only pointers, per `standards/user-root.md` C15.
+- The `## Onboarding` section of `AGENTS.md` carries one state line per key, each provisional or blocked line naming its owner and what it waits on, and any note in it names a file and entry rather than copying a fact, per `standards/user-root.md` C15.
 - On the full path, every gate ran and the close report names each one that did not pass, per `full-path.md`.
 
 A credential's value never enters the conversation, a log, a commit, or another file.
