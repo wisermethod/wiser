@@ -151,7 +151,10 @@ function readObjects(bytes) {
   return { objects, deref, stream, root };
 }
 
-export function checkPdfX(path, { bleed = false } = {}) {
+export function checkPdfX(path, { bleed = false, trim } = {}) {
+  if (!Number.isFinite(trim?.width) || !Number.isFinite(trim?.height) || trim.width <= 0 || trim.height <= 0) {
+    throw new Error('PDF/X page boxes: expected configured trim.width and trim.height in inches');
+  }
   const bytes = readFileSync(path);
   const headerVersion = /^%PDF-(\d+\.\d+)/.exec(bytes.toString('latin1', 0, 16))?.[1] ?? null;
   const { objects, deref, stream, root } = readObjects(bytes);
@@ -221,8 +224,10 @@ export function checkPdfX(path, { bleed = false } = {}) {
       return Number.isInteger(obj?.streamStart) && deref(obj.value.get('Length')) > 0;
     });
   }).length;
+  const expectedTrim = trim;
   const seenPages = new Set();
-  const pageBoxes = [];
+  const boxSets = new Map();
+  let physical = 0;
   const boxErrors = [];
   const close = (a, b) => Math.abs(a - b) <= 0.02;
   const validBox = (box) => Array.isArray(box) && box.length === 4 && box.every(Number.isFinite) && box[2] > box[0] && box[3] > box[1];
@@ -237,16 +242,23 @@ export function checkPdfX(path, { bleed = false } = {}) {
       // TrimBox and BleedBox are not inheritable page-tree attributes.
       const trim = deref(dict.get('TrimBox'));
       const bleedBox = deref(dict.get('BleedBox'));
-      const physical = pageBoxes.length + 1;
-      pageBoxes.push({ page: physical, media, bleed: bleedBox, trim });
+      physical += 1;
+      const boxes = { media, bleed: bleedBox, trim };
+      const key = JSON.stringify(boxes);
+      if (!boxSets.has(key)) boxSets.set(key, { ...boxes, pages: 0 });
+      boxSets.get(key).pages += 1;
       if (![media, bleedBox, trim].every(validBox) || !inside(trim, bleedBox) || !inside(bleedBox, media)) {
         boxErrors.push(`page ${physical}: missing, invalid or non-nested TrimBox/BleedBox/MediaBox`);
-      } else if (bleed) {
-        const outer = physical % 2 ? media[2] - trim[2] : trim[0] - media[0];
-        const bind = physical % 2 ? trim[0] - media[0] : media[2] - trim[2];
-        if (!bleedBox.every((n, i) => close(n, media[i])) || outer < 9 - 0.02 ||
-            trim[1] - media[1] < 9 - 0.02 || media[3] - trim[3] < 9 - 0.02 || !close(bind, 0)) {
-          boxErrors.push(`page ${physical}: expected >=9 pt outer/top/bottom bleed, zero bind bleed and BleedBox = MediaBox`);
+      } else {
+        const offset = bleed ? 9 : 0;
+        const width = expectedTrim.width * 72;
+        const height = expectedTrim.height * 72;
+        const expectedMedia = [0, 0, width + offset, height + 2 * offset];
+        const left = physical % 2 ? 0 : offset;
+        const expectedBox = [left, offset, left + width, offset + height];
+        const equal = (box, expected) => box.every((n, i) => close(n, expected[i]));
+        if (!equal(media, expectedMedia) || !equal(bleedBox, expectedMedia) || !equal(trim, expectedBox)) {
+          boxErrors.push(`page ${physical}: expected MediaBox = BleedBox [${expectedMedia.join(' ')}], TrimBox [${expectedBox.join(' ')}] for configured trim and bleed=${bleed}`);
         }
       }
       return 1;
@@ -256,7 +268,7 @@ export function checkPdfX(path, { bleed = false } = {}) {
     return kids.reduce((total, kid) => total + pages(kid, media), 0);
   }
   const pageCount = pages(catalog.get('Pages'));
-  const checks = { pageBoxes: boxErrors.length === 0 && pageBoxes.length > 0, outputIntentProfile, cmykOnly, pdf13: version === '1.3', fontsEmbedded: embedded === fonts.length, evenPageCount: pageCount > 0 && pageCount % 2 === 0 };
+  const checks = { pageBoxes: boxErrors.length === 0 && pageCount > 0, outputIntentProfile, cmykOnly, pdf13: version === '1.3', fontsEmbedded: embedded === fonts.length, evenPageCount: pageCount > 0 && pageCount % 2 === 0 };
   const failures = [];
   if (!checks.pageBoxes) failures.push(`page boxes: ${boxErrors.join('; ')}`);
   if (!checks.outputIntentProfile) failures.push('missing OutputIntent /DestOutputProfile stream');
@@ -264,7 +276,7 @@ export function checkPdfX(path, { bleed = false } = {}) {
   if (!checks.pdf13) failures.push(`PDF version ${version ?? 'unknown'}; expected 1.3`);
   if (!checks.fontsEmbedded) failures.push(`unembedded fonts (${embedded}/${fonts.length} embedded)`);
   if (!checks.evenPageCount) failures.push(`odd or empty page count (${pageCount})`);
-  const result = { checks, pageBoxes, bleed, version, fonts: { embedded, total: fonts.length }, pages: pageCount, certified: false, scope: 'Structural checks only; not PDF/X-1a conformance certification.' };
+  const result = { checks, pageBoxes: { sets: [...boxSets.values()], errors: boxErrors }, bleed, version, fonts: { embedded, total: fonts.length }, pages: pageCount, certified: false, scope: 'Structural checks only; not PDF/X-1a conformance certification.' };
   if (failures.length) throw new Error(`PDF/X structural checks failed: ${failures.join('; ')}. Correct the print inputs and rebuild.`);
   return result;
 }

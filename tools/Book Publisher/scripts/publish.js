@@ -391,6 +391,13 @@ if (!problems.length && config.index?.terms_file !== undefined) {
     config._indexTerms = loadIndexTerms(resolve(config._configDir, config.index.terms_file));
   } catch (error) { problems.push(error.message); }
 }
+if (!problems.length) {
+  const { thumbTabErrors } = await import('./validate-book.js');
+  for (const file of getChapterFiles(config.source._chaptersPath, config.source?.exclude ?? [])) {
+    const path = join(config.source._chaptersPath, file);
+    problems.push(...thumbTabErrors(readFileSync(path, 'utf8'), path));
+  }
+}
 if (problems.length > 0) {
   fail(`Error: ${configPath} is not a valid book config:\n- ${problems.join('\n- ')}`);
 }
@@ -487,6 +494,10 @@ try {
   fail(`Error: ${error.message}`);
 }
 
+const { thumbTabErrors } = await import('./validate-book.js');
+const mergedTabErrors = thumbTabErrors(mergedContent, mergedPath ?? 'merged manuscript');
+if (mergedTabErrors.length) fail(`Error: ${mergedTabErrors.join('\n')}`);
+
 // Edition-specific ISBN swap: if the config names a print ISBN and the merged
 // content carries an "**ISBN:** ..." line, replace it, so paperback and hardcover
 // editions differ by config without editing chapter source.
@@ -552,7 +563,7 @@ try {
     const pdfxPdf = join(config.output._printPath, `${slug}-interior-pdfx.pdf`);
     await convertToPdfX(built.path, pdfxPdf, printTempDir);
     outputs.print_pdfx = pdfxPdf;
-    outputs.pdfx = checkPdfX(pdfxPdf, { bleed: built.bleed });
+    outputs.pdfx = checkPdfX(pdfxPdf, { bleed: built.bleed, trim: config.trim });
     if (twoPass) {
       log('Step 5/5: Verifying output');
       const pages = countPages(pdfxPdf);
@@ -982,22 +993,29 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
   const formatFilter = join(FILTERS_DIR, 'format-filter.lua');
   const margins = printMargins(config);
   const layout = printLayout(config);
-  // Inspect parsed raw nodes, not source text: code examples are not tabs.
-  // Match the format filter's HTML directive (including its default slot).
-  const tabAst = execFileSync('pandoc', ['--from', 'markdown+smart+autolink_bare_uris-implicit_figures',
-    '--to', 'json'], { input: mergedContent, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-  const drawsTab = (node) => {
-    if (!node || typeof node !== 'object') return false;
-    if (node.t === 'RawBlock' && node.c?.[0] === 'html') {
-      const params = /<!--\s*thumb-tab-start:\s*([\s\S]*?)\s*-->/.exec(node.c[1]);
-      const slot = params && Number(/slot=(\d+)/.exec(params[1])?.[1] ?? 1);
-      if (slot >= 1 && slot <= 8) return true;
-    }
-    if ((node.t === 'RawBlock' || node.t === 'RawInline') && node.c?.[0] === 'latex' &&
-        /\\thumbtabstart\s*\{[1-8]\}/.test(node.c[1])) return true;
-    return Object.values(node).some((value) => Array.isArray(value) ? value.some(drawsTab) : drawsTab(value));
-  };
-  const bleed = config.trim.bleed === true || ((config.trim.bleed ?? 'auto') === 'auto' && drawsTab(JSON.parse(tabAst)));
+  let bleed = config.trim.bleed === true;
+  if ((config.trim.bleed ?? 'auto') === 'auto') {
+    // Run the drawing filter itself with the print format. Collect only its
+    // emitted raw LaTeX: code examples and directives it discards cannot bleed.
+    const tabFilter = join(tempDir, 'tab-emission.lua');
+    writeFileSync(tabFilter, `local raw = {}
+local function collect(el)
+  if el.format == "latex" or el.format == "tex" then
+    table.insert(raw, pandoc.RawBlock("latex", el.text))
+  end
+end
+function Pandoc(doc)
+  doc:walk({RawBlock = collect, RawInline = collect})
+  return pandoc.Pandoc(raw)
+end
+`);
+    const emitted = execFileSync('pandoc', ['--from', 'markdown+smart+autolink_bare_uris-implicit_figures',
+      '--to', 'latex', '--lua-filter', formatFilter, '--lua-filter', tabFilter],
+    { input: mergedContent, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+    // TeX comments end at the newline; an escaped percent remains literal.
+    const active = emitted.replace(/(\\\\)|\\%|%[^\r\n]*/g, (token, escaped) => (escaped || token === '\\%') ? ' ' : '');
+    bleed = /\\thumbtabstart\s*\{\s*[1-8]\s*\}/.test(active);
+  }
   const bleedInches = bleed ? 0.125 : 0;
   const textWidth = config.trim.width - margins.outer - margins.inner;
   const roundedWidth = textWidth.toFixed(2);

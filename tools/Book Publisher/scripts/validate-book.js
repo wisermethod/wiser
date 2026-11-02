@@ -13,7 +13,8 @@ export function indexStrategy(config) {
 }
 
 // Fenced and inline code is illustrative text, not manuscript markup.
-function withoutCode(text) {
+function withoutCode(text, keepRaw = false) {
+  let raw = false;
   let fence;
   const containers = [];
   return text.split('\n').map((line) => {
@@ -32,13 +33,34 @@ function withoutCode(text) {
     const content = list ? body.slice(list[0].length) : body.slice(Math.min(indent, margin));
     const match = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(content);
     if (fence) {
-      if (match && match[1][0] === fence[0] && match[1].length >= fence.length && !match[2].trim()) fence = undefined;
-      return '';
+      if (match && match[1][0] === fence[0] && match[1].length >= fence.length && !match[2].trim()) { fence = undefined; raw = false; return ''; }
+      return raw ? line : '';
     }
-    if (match) { fence = match[1]; return ''; }
+    if (match) { fence = match[1]; raw = keepRaw && /^\s*\{=(?:html|latex|tex)\}\s*$/.test(match[2]); return ''; }
     if (!list && !footnote && indent >= margin + 4) return '';
     return line;
-  }).join('\n').replace(/(`+)[\s\S]*?\1(?!`)/g, '');
+  }).join('\n').replace(/(`+)([\s\S]*?)\1(?!`)(\{=(?:html|latex|tex)\})?/g,
+    (match, fence, body, raw) => keepRaw && raw ? body : '');
+}
+
+// The public directive accepts eight slots. Preserve raw-attribute blocks but
+// leave illustrative fenced/inline/indented code out of manuscript validation.
+export function thumbTabErrors(text, file) {
+  const errors = [];
+  const markup = withoutCode(text, true);
+  for (const directive of markup.matchAll(/<!--\s*thumb-tab-start:\s*([\s\S]*?)-->/g)) {
+    const slot = /\bslot\s*=\s*([^,\s]*)/.exec(directive[1]);
+    if (slot && (!/^\d+$/.test(slot[1]) || Number(slot[1]) < 1 || Number(slot[1]) > 8)) {
+      errors.push(`${file}: ${directive[0]}: thumb-tab slot must be an integer from 1 to 8; omit slot for 1.`);
+    }
+  }
+  const latex = markup.replace(/(\\\\)|\\%|%[^\r\n]*/g, (token, escaped) => (escaped || token === '\\%') ? ' ' : '');
+  for (const directive of latex.matchAll(/\\thumbtabstart\s*\{([^}]*)\}(?:\s*\{[^}]*\})?/g)) {
+    if (!/^\s*\d+\s*$/.test(directive[1]) || Number(directive[1]) < 1 || Number(directive[1]) > 8) {
+      errors.push(`${file}: ${directive[0]}: thumb-tab slot must be an integer from 1 to 8.`);
+    }
+  }
+  return errors;
 }
 
 function plainHeading(text) {
