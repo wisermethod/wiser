@@ -146,7 +146,7 @@ export function compareJourneyCopy(source, bank, openingTaps) {
     const expectedQuestion = brands ? question : row[2];
     const expectedOptions = (brands ? row[2] : row[3]).split(' · ');
     if (brands) expectedOptions.push('None of these');
-    if (number === 2) expectedOptions[0] += ': ' + capture(taste, /Under "Mechanical".*?: "(.*?)"/);
+    if (number === 2) expectedOptions[0] += ': ' + capture(taste, /Under "Engineered".*?: "(.*?)"/);
     const expectedLines = [expectedQuestion];
     if (brands) expectedLines.push(expectedQuestion.replace(/\.$/, ` (${number - 4} of 4).`));
     bankScreen(`T${number}: paged and chat question`, blocks(tap), expectedLines);

@@ -20,7 +20,7 @@ function fixture(type = 'personal') {
   const palette = library.palettes[0], pairing = library.pairings[0], graphics = library.graphics[0];
   const face = (role) => { const f = structuredClone(pairing.type[role]); f.files = f.files.map((file) => ({ ...file, path: resolve(parts, file.path) })); return f; };
   const spec = { layout: 'board', boards: [{ number: 1, name: 'Kept board', primaryMode: 'light', buttonRadius: 4, palette: structuredClone(Object.fromEntries(['light', 'dark', 'swatches'].map((k) => [k, palette[k]]))), type: { heading: face('heading'), body: face('body') }, graphics: structuredClone(graphics), content: { brandName: 'Test Person', sentence: 'I build useful things.', body: 'A supplied line.', photoRules: 'Show people using what they make.', never: ['posed stock photographs'] }, words: [{ word: 'Useful', not: 'ornamental' }, { word: 'Clear', not: 'academic' }], monogram: { initials: 'TP', container: '<svg/>' } }] };
-  const answers = { type, name: 'Test Person', sentence: spec.boards[0].content.sentence, words: structuredClone(spec.boards[0].words), taps: { mode: 'light', feel: 'natural', history: 'established-current', strength: 'strong-solid', technology: 'craftsman', style: 'patagonia', posture: 'subaru', mood: 'ikea', place: 'workshop' }, readBack: { text: 'Natural and strong, like Patagonia.', confirmed: true }, off: [], looks: ['look:soft-serif/paper-orange/drawn'], rounds: [{ question: 'Round 1', steer: 'Warmer; as it is; stronger; more current' }], assets: [], lock: { confirmed: true, board: 1, question: 'F18', specSha256: '', contactSheetPassed: true } };
+  const answers = { type, name: 'Test Person', sentence: spec.boards[0].content.sentence, words: structuredClone(spec.boards[0].words), taps: { mode: 'light', feel: 'natural', history: 'established-current', strength: 'strong-solid', technology: 'craftsman', style: 'patagonia', posture: 'toyota', mood: 'ikea', place: 'design-workshop' }, readBack: { text: 'Natural and strong, like Patagonia.', confirmed: true }, off: [], looks: ['look:soft-serif/paper-orange/drawn'], rounds: [{ question: 'Round 1', steer: 'Warmer; as it is; stronger; more current' }], assets: [], lock: { confirmed: true, board: 1, question: 'F18', specSha256: '', contactSheetPassed: true } };
   if (type !== 'personal') Object.assign(answers, { audience: 'People who make things.', promise: 'Useful things that last.', finalSay: 'Me, and others should see it' });
   const specPath = join(root, 'board.json'), answersPath = join(root, 'answers.json'), design = join(root, 'design.md'), work = join(root, 'work/brand');
   function save() { const bytes = JSON.stringify(spec); writeFileSync(specPath, bytes); answers.lock.specSha256 = sha256(bytes); writeFileSync(answersPath, JSON.stringify(answers)); }
@@ -127,6 +127,7 @@ test('a place carried from the voice coach cites P12 and its file, and refuses a
   const direction = f.read(join(f.work, 'brand-direction.html'));
   assert.match(direction, /P12 in memory\/answers\/2026-11-02 V2 voice answers\.md: A coffee shop<\/p>/);
   assert.doesNotMatch(direction, /Q9: A coffee shop/);
+  const engineered = fixture(); engineered.answers.taps.feel = 'engineered'; engineered.save(); engineered.result(); assert.ok(engineered.read().includes('Q2: Engineered: Precise and industrial (engineered)')); assert.match(engineered.read(join(engineered.work, 'brand-direction.html')), /Q2: Engineered: Precise and industrial</);
   const plain = fixture(); plain.answers.taps.place = 'coffee-shop'; plain.save(); plain.result(); assert.ok(!plain.read().includes('from the voice coach')); assert.match(plain.read(join(plain.work, 'brand-direction.html')), /Q9: A coffee shop/);
   for (const type of ['org', 'client', 'department']) { const o = fixture(type); o.answers.taps.place = 'spa'; o.answers.carried = { place: { file: '2026-11-02 voice answers.md', question: 'P12' } }; o.save(); assert.throws(o.result, /carried.*only a personal brand/); assert.equal(existsSync(o.design), false); }
   for (const [mutate, pattern] of [
@@ -135,6 +136,8 @@ test('a place carried from the voice coach cites P12 and its file, and refuses a
     [(a) => { a.carried.place.question = 'T9'; }, /carried\.place\.question/],
     [(a) => { a.taps.place = 'place-none'; }, /taps\.place/],
     [(a) => { a.taps.place = 'design-studio'; }, /taps\.place/],
+    [(a) => { a.taps.place = 'design-workshop'; }, /taps\.place.*three places P12 shares/],
+    [(a) => { a.taps.place = 'place-none'; a.carried.place.question = 'P12'; }, /taps\.place.*three places P12 shares/],
     [(a) => { a.carried.place.row = 'answered'; }, /carried\.place\.row.*unknown field/],
     [(a) => { a.carried = {}; }, /carried\.place/],
   ]) { const g = fixture(); g.answers.taps.place = 'spa'; g.answers.carried = { place: { file: '2026-11-02 voice answers.md', question: 'P12' } }; mutate(g.answers); g.save(); assert.throws(g.result, pattern); assert.equal(existsSync(g.design), false); }

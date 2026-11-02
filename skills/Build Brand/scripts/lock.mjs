@@ -123,7 +123,7 @@ function validate(spec, a, bytes, tapData) {
     const place = closed(closed(a.carried, ['place'], 'carried').place, ['file', 'question'], 'carried.place');
     if (!/^\d{4}-\d{2}-\d{2}( V\d+)? voice answers\.md$/.test(String(place.file))) fail('carried.place.file', 'name the voice answers file as C14 gives it');
     if (place.question !== 'P12') fail('carried.place.question', 'a carried place comes from P12');
-    if (!['coffee-shop', 'hotel-lobby', 'workshop', 'spa'].includes(a.taps.place)) fail('taps.place', 'a carried place is one of the four options P12 shares');
+    if (!['coffee-shop', 'hotel-lobby', 'spa'].includes(a.taps.place)) fail('taps.place', 'a carried place is one of the three places P12 shares with T9');
   }
   const offParts = [...Object.keys(tapData.axes), ...Object.values(tapData.axes).flat(), 'darkLed', 'brightColour', ...Object.values(a.taps)];
   arr(a.off ?? [], 'off').forEach((v) => { if (!offParts.includes(v)) fail('off', 'use a selected option id, axis or pole from taps.json'); });
@@ -207,7 +207,7 @@ function makeDocuments(spec, a, index, paths, tapData) {
   const S = (field) => ({ source: 'spec', field: `${prefix}.${field}` });
   const A = (field) => ({ source: 'answers', field });
   const ref = (r) => r.source === 'script' ? 'lock.mjs#SCALE' : `${r.source === 'spec' ? paths.spec : paths.answers}#${r.field}`;
-  const tap = (n) => { const q = tapData.questions[n - 1]; return { id: q.id, value: a.taps[q.id], label: q.options.find((o) => o.id === a.taps[q.id]).label }; };
+  const tap = (n) => { const q = tapData.questions[n - 1]; const o = q.options.find((v) => v.id === a.taps[q.id]); return { id: q.id, value: a.taps[q.id], label: o.description ? `${o.label}: ${o.description}` : o.label }; };
   const register = a.provenance ? `${a.provenance.register}: ${a.provenance.by}` : `Firsthand: ${a.name}`;
   const sections = Object.fromEntries(HEADINGS.map((h) => [h, []]));
   const add = (heading, text, refs, inference = false) => {

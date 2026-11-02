@@ -156,7 +156,7 @@ Typing is offered, never needed. The sentence and pairs fill Words; boundaries f
 
 Progress on every screen: "Step 3 of 6: how it should look". First screen's why only: "Quick taps about taste you already have. There are no wrong answers."
 
-Paged progress example: "Step 3 of 6: how it should look · 4 of 9". The form engine appends the current count to the base progress, with Back preserving answers. Use ids and nudges from `parts/taps.json`; no nudges are shown. The question and options below are the opening taps the journey incorporates. Not sure, Either, Balanced and None of these add nothing. Preserve their recorded option order.
+Paged progress example: "Step 3 of 6: how it should look · 4 of 9". The form engine appends the current count to the base progress, with Back preserving answers. Use ids and nudges from `parts/taps.json`; no nudges are shown. The question and options below are the opening taps the journey incorporates. Not sure, Either, Balanced and None of these add nothing. T2 and T9 show four options, with no Not sure or None of these (the operator's limit of 2026-11-02); left unanswered, each still counts as no preference. On the question tool, T5 to T8 show their four brands only, None of these left to the tool's own typed answer. Preserve their recorded option order.
 
 ### T1
 
@@ -170,11 +170,10 @@ Paged progress example: "Step 3 of 6: how it should look · 4 of 9". The form en
 
 > Which feels closest to how your brand should feel?
 
-- Mechanical: Precise and engineered
+- Engineered: Precise and industrial
 - Natural
 - Suit and tie
 - Playful and creative
-- Not sure
 
 ### T3
 
@@ -239,7 +238,7 @@ Chat buttons and the question tool:
 - Tesla
 - Porsche
 - Ford
-- Subaru
+- Toyota
 - None of these
 
 ### T8
@@ -255,7 +254,7 @@ Chat buttons and the question tool:
 - Restoration Hardware
 - Anthropologie
 - Ikea
-- Ethan Allen
+- 2Modern
 - None of these
 
 ### T9
@@ -265,9 +264,7 @@ Chat buttons and the question tool:
 - A calm spa
 - A nice hotel lobby
 - A coffee shop
-- A buzzing design studio
-- A workshop with tools on the wall
-- None of these
+- A design workshop
 
 Not asked where the place is carried from the newest voice answers file's P12, as `paths/sitting.md` Step 3 says, in the card or any fallback; the card then counts to 8, and the paged progress example above is the nine-question card's.
 
@@ -275,7 +272,7 @@ Not asked where the place is carried from the newest voice answers file's P12, a
 
 Read-back, using actual picked option words, at most one everyday pole word supported by at least two taps and at most two picked brands:
 
-> Here's what I heard: you're drawn to [natural], [established but current] and [warm], like [Patagonia] and [Subaru].
+> Here's what I heard: you're drawn to [natural], [established but current] and [warm], like [Patagonia] and [Toyota].
 >
 > Is that you?
 

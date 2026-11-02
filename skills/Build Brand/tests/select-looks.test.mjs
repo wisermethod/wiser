@@ -14,11 +14,12 @@ const hash=value=>createHash('sha256').update(value).digest('hex');
 const identity=c=>`${c.pairing}/${c.palette}/${c.graphicSet}`;
 // Original hashes predate pagination; kept-asset hashes predate the steer fix.
 // Both cover full JSON, including spares and checked refusals/replacements.
+// Pinned on the taps of 2026-11-02 (brand flow M2.9); a change to taps.json's nudges moves them.
 const fixtures=[
-  ['operator',operator,['93197fc7b74344e09018236ae728cb104f662e650a3b88ea73d636cff41ef237','709376501cec216be8a949be7e4634bb4df60dfeddafcccd5b59e310d437dc03'],
-    ['10a10abb60c227c5e52f920c9deffe59f5e5a6dc08e705a0026f61854fc5fa6d','1df9d791d532b01adc7f4f2197b6e268f418f21ce178b29e42a6ea056d8addf9']],
-  ['First Strategy',firstStrategy,['97651205c79f7da23b957117293281b903a6af43a4b3ee1f134e569db0fe06a6','599bf8758711b52245f3b4142dbf969ed62f93d5ca98935d750372a0fb3b6d93'],
-    ['cf965863d4e039053ff84ce94eda18a9e7efe9e5e37471c0f5688ddb6af2d4dc','7f6da8a95e96f56014919d318d5b143153b3ed06b5b11fd156a3355a4734d703']]
+  ['operator',operator,['4f09a66bd92d82d6e548fb277f9ddbe1a0564fbc8019be7a40ad696bd60773b7','d9f4cb8c741232d14bc8b3f3bdbc2f997bb9cf6de1ae92c7b9798e3e7819ab18'],
+    ['c086a817f2d11d51bffc32895573808347e39519493016447bfa51a1c4021600','a95bc4f1801892ac4510a7d7af69261ccb1ad72f334e4b5de9d08bd2117b3247']],
+  ['First Strategy',firstStrategy,['ed0cfd91de146514d3f2d9593d426bdb447c01479c10c444095656c6a61c59c2','6cf07d40d29a9d8fedb36bd2fb56ec6dedbd8e138125a16eee369a687fe1254d'],
+    ['7c89ec67e1edd496707ce7adbe0778c16671b9029ad0bf3db8f801a51ffc9cd9','b38eef768d1b9e11b8ce83d0d1ed7888fbb081d5a5ab4ccb4be6903a2450a1dc']]
 ];
 function assertPage(r,a,history=[]) {
   assert.equal(r.looks.length,12);assert.equal(r.options.length,12);
@@ -129,7 +130,8 @@ test('later pages keep six contrasts available when another first look is needed
   for(let page=0;page<21;page++) {const r=select('looks',{...a,shown});assertPage(r,a,shown);shown.push(...r.looks);}
 });
 test('page 2 checks report only winning-prefix refusals and their exact replacements, including a pattern-only refusal',()=>{
-  const a=operator(),patterned=structuredClone(library),drawn=patterned.graphics.find(g=>g.id==='drawn');
+  // Suit and tie with 2Modern makes page 2 backtrack on the taps of 2026-11-02, as the operator's own taps did before.
+  const a={...operator(),taps:{...operator().taps,feel:'suit-and-tie',mood:'2modern'}},patterned=structuredClone(library),drawn=patterned.graphics.find(g=>g.id==='drawn');
   drawn.pattern={...drawn.pattern,
     svg:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 5H10" stroke="{{text}}"/></svg>',
     strength:{light:1,dark:1}};
@@ -137,10 +139,10 @@ test('page 2 checks report only winning-prefix refusals and their exact replacem
   const two=select('looks',{...a,shown:one.looks},{library:patterned,check:true});
   assertPage(two,a,one.looks);
   // These refusals occurred under the winning prefix. Earlier prefixes hit
-  // another 43 refusals before backtracking; none belongs in this report.
+  // another 73 refusals before backtracking; none belongs in this report.
   assert.deepEqual(two.replacements.map(r=>[r.slot,identity(r.refused),identity(r.replacement)]),[
-    ...['newspaper','warm-grotesque','display-serif','soft-serif','humanist'].map(pairing=>
-      [6,`${pairing}/forest-coral/editorial`,'newspaper/plum-peach/geometric']),
+    ...['newspaper','warm-grotesque','chunky','humanist','soft-serif'].map(pairing=>
+      [6,`${pairing}/forest-coral/editorial`,'newspaper/paper-orange/geometric']),
     [9,'humanist/stone-cobalt/stitch','friendly-serif/stone-cobalt/drafting'],
     [9,'friendly-serif/stone-cobalt/stamp','friendly-serif/stone-cobalt/drafting']
   ]);

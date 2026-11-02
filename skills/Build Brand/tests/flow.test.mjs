@@ -197,14 +197,29 @@ test('lock fills the twelve existing headings, preserves G0, and checks words on
 
 test('a place answered at the voice coach\'s P12 is carried, not asked again, and only on a personal root',()=>{
   const records=read('records.md'), taps=JSON.parse(read('parts/taps.json')).questions.find(q=>q.id==='place');
-  for(const [label,id] of [['A coffee shop','coffee-shop'],['A nice hotel lobby','hotel-lobby'],['A workshop with tools on the wall','workshop'],['A calm spa','spa']]){
+  for(const [label,id] of [['A coffee shop','coffee-shop'],['A nice hotel lobby','hotel-lobby'],['A calm spa','spa']]){
     assert.equal(taps.options.find(o=>o.id===id)?.label,label,id);
     assert.ok(sitting.includes(`${label} \`${id}\``),id);
     assert.ok(journey.includes(label),label);
   }
-  for(const [text,phrase] of [[sitting,'On a personal root, find the newest voice answers file in `memory/answers/` that holds a P12 row'],[sitting,'`Build Voice bank 7` or a later bank, the row\'s shown cell holding P12\'s question word for word, "If your readers could sit down with you anywhere, where would feel most like you?", its status answered'],[sitting,'a letter for one in P12\'s own order (A a coffee shop, B a nice hotel lobby, C a workshop with tools on the wall, D a calm spa)'],[sitting,'including a skipped, in-between or typed P12'],[sitting,'T9 is not asked, in the card or any fallback'],[sitting,'Write no T9 row'],[sitting,'`carried.place`'],[sitting,'or eight with the place carried'],[sitting,'with the place carried, the mood, was sent without a pick'],[sitting,'nor a carried place, which they gave the voice coach'],[bank,'Not asked where the place is carried'],[bank,'no T9 row where the place is carried'],[records,'with no T9 row'],[lock,'A place carried from P12 is left out of the note'],[journey,'is of bank 7 or later, still asks P12\'s question word for word, "If your readers could sit down with you anywhere, where would feel most like you?", and shows one of those four picked, question 9 is not asked'],[journey,'A skipped, in-between or typed P12 does not count'],[journey,'The read-back does not name a carried place'],[journey,'An organisation, a client or a department is always asked its own question 9'],[sitting,'the greatest V number, a name without one counting as V1'],[sitting,'Not quite cannot mark it off; where the member asks to change it, ask T9, write its row and drop `carried`'],[lock,'and `carried` where the place was carried'],[journey,'(eight where the place is carried, below)']])assert.ok(text.includes(phrase),phrase);
+  for(const [text,phrase] of [[sitting,'On a personal root, find the newest voice answers file in `memory/answers/` that holds a P12 row'],[sitting,'`Build Voice bank 7` or a later bank, the row\'s shown cell holding P12\'s question word for word, "If your readers could sit down with you anywhere, where would feel most like you?", its status answered'],[sitting,'one of the three places P12 shares with T9 word for word, or its letter in P12\'s own order (A a coffee shop, B a nice hotel lobby, D a calm spa)'],[sitting,'P12\'s A workshop with tools on the wall, its C, is not one of T9\'s options since 2026-11-02, so it asks T9'],[sitting,'including a skipped, in-between or typed P12'],[sitting,'T9 is not asked, in the card or any fallback'],[sitting,'Write no T9 row'],[sitting,'`carried.place`'],[sitting,'or eight with the place carried'],[sitting,'with the place carried, the mood, was sent without a pick'],[sitting,'nor a carried place, which they gave the voice coach'],[bank,'Not asked where the place is carried'],[bank,'no T9 row where the place is carried'],[records,'with no T9 row'],[lock,'A place carried from P12 is left out of the note'],[journey,'is of bank 7 or later, still asks P12\'s question word for word, "If your readers could sit down with you anywhere, where would feel most like you?", and shows one of those three picked, question 9 is not asked'],[journey,'A skipped, in-between or typed P12 does not count'],[journey,'The read-back does not name a carried place'],[journey,'An organisation, a client or a department is always asked its own question 9'],[sitting,'the greatest V number, a name without one counting as V1'],[sitting,'Not quite cannot mark it off; where the member asks to change it, ask T9, write its row and drop `carried`'],[lock,'and `carried` where the place was carried'],[journey,'(eight where the place is carried, below)']])assert.ok(text.includes(phrase),phrase);
   for(const stale of ['or the last, the place, was sent','a carried place among them','or the row skipped, `place-none`','plainly match one of T9'])assert.ok(!sitting.includes(stale),stale);
   assert.ok(!lock.includes('already holds that answer\'s line'),'the voice note gives the true reason');
+});
+
+test('every tap the bank shows is the data\'s shown option, in order, and the hidden fills are never shown',()=>{
+  const data=JSON.parse(read('parts/taps.json'));
+  data.questions.forEach((q,i)=>{
+    const tap=bank.split(`### T${i+1}\n`)[1].split(/\n##/)[0];
+    const shown=tap.split('\n').filter(l=>l.startsWith('- ')).map(l=>l.slice(2));
+    assert.deepEqual(shown,q.options.filter(o=>o.shown!==false).map(o=>o.description?`${o.label}: ${o.description}`:o.label),`T${i+1}`);
+    if(i<4||i===8)assert.ok(shown.length<=4,`T${i+1} fits the question tool\'s four options`);
+    else assert.deepEqual(shown.slice(4),['None of these'],`T${i+1}: the paged card\'s five, four brands and None of these`);
+  });
+  for(const stale of ['Mechanical','Subaru','Ethan Allen','A buzzing design studio','A workshop with tools on the wall'])assert.ok(!bank.split('## Step 3: Nine taps')[1].split('## Step 3: Reveal')[0].includes(stale),stale);
+  assert.ok(sitting.includes('the T2 and T9 ones being fills the card never shows'));
+  assert.ok(sitting.includes('each with its four brands only: None of these is left to the tool\'s own typed answer'),'T5 to T8 fit the question tool');
+  assert.ok(bank.includes('On the question tool, T5 to T8 show their four brands only, None of these left to the tool\'s own typed answer.'),'the bank says so');
 });
 
 test('each approved gap line is used where its gap happens, and no file still calls it a gap',()=>{

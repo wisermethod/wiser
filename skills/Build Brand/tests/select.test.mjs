@@ -62,13 +62,13 @@ for(const [label,fixture]of [['operator',operator],['First Strategy',firstStrate
   });
 }
 test('operator and First Strategy dial arithmetic retains small nudges exactly',()=>{
-  assert.deepEqual(tapDials(operator(),data).dials,{classicContemporary:1,quietBold:2,warmCool:2,playfulSerious:1,handGeometric:1,softStrong:1});
-  assert.deepEqual(tapDials(firstStrategy(),data).dials,{classicContemporary:2,quietBold:-2,warmCool:2,playfulSerious:0,handGeometric:1,softStrong:-1});
+  assert.deepEqual(tapDials(operator(),data).dials,{classicContemporary:0.5,quietBold:1,warmCool:2,playfulSerious:2,handGeometric:0,softStrong:1});
+  assert.deepEqual(tapDials(firstStrategy(),data).dials,{classicContemporary:1.5,quietBold:-3,warmCool:2,playfulSerious:1,handGeometric:0,softStrong:-1});
   assert.equal(tapDials(operator(),data).darkLed,2.5);
 });
 test('read-back off option, pole, dial and dark-led part drop their contributions before ranking',()=>{
   const a=operator(),base=tapDials(a,data);
-  const without=tapDials({...a,off:['mechanical']},data);assert.equal(without.dials.handGeometric,0);assert.equal(without.dials.warmCool,base.dials.warmCool-1);assert.equal(without.dials.playfulSerious,base.dials.playfulSerious-1);
+  const without=tapDials({...a,off:['engineered']},data);assert.equal(without.dials.handGeometric,base.dials.handGeometric-1);assert.equal(without.dials.warmCool,base.dials.warmCool-1);assert.equal(without.dials.playfulSerious,base.dials.playfulSerious-1);
   assert.equal(tapDials({...a,off:['quietBold']},data).dials.quietBold,0);
   assert.equal(tapDials({...a,off:['strong']},data).dials.softStrong,-1);
   assert.equal(select('round1',{...a,off:['darkLed']}).darkLed,0);
@@ -153,7 +153,7 @@ test('as-it-is variations still move one or two parts and exclude history across
   assert.deepEqual(first,select('variations',{...a,picks,shown,steer}));
 });
 test('variations apply off before ranking, and keep explicit steer as the next instruction',()=>{
-  const a=operator(),shown=select('round1',a).selection.boards,picks=[shown[0]],off=['mechanical','quietBold','darkLed'];
+  const a=operator(),shown=select('round1',a).selection.boards,picks=[shown[0]],off=['engineered','quietBold','darkLed'];
   const r=select('variations',{...a,picks,shown,off,steer:{softStrong:-1}}),expected=tapDials({...a,off},data);
   assertVariations(r,picks,shown);assert.equal(r.dials.quietBold,0);assert.equal(r.darkLed,0);
   assert.equal(r.dials.warmCool,expected.dials.warmCool);assert.equal(r.dials.handGeometric,expected.dials.handGeometric);
@@ -168,7 +168,8 @@ for(const [label,fixture]of [['operator',operator],['First Strategy',firstStrate
   assert.equal(r.dials.warmCool,tapDials(a,data).dials.warmCool-3);assert.equal(r.darkLed,0);
 });
 test('fresh checked page covers bright before an angle constrained to classic pairings',()=>{
-  const a=firstStrategy(),shown=select('round1',a).selection.boards;
+  // History Not sure keeps the classic-to-current dial at 2, strong enough to constrain an angle, as before the taps of 2026-11-02.
+  const a={...firstStrategy(),taps:{...firstStrategy().taps,history:'history-unsure'}},shown=select('round1',a).selection.boards;
   const r=select('variations',{...a,picks:[],shown,off:['quietBold'],steer:{warmCool:-1}},{check:true});
   assert.equal(r.selection.boards.length,12);
   assert.deepEqual(new Set(r.selection.boards.map(b=>b.energy)),new Set(ENERGIES));
@@ -241,13 +242,15 @@ test('bolder variations seek the next louder same-temperature recipe and report 
   for(const b of r.selection.boards){const p=palette(b.palette.id);assert.equal(p.temperature,palette(pick.palette.id).temperature);assert.equal(p.paletteLoudness,Math.min(3,palette(pick.palette.id).paletteLoudness+1));}
   const loud=select('round1',operator()).selection.boards[0],ceiling=select('variations',{...operator(),picks:[loud],shown:[loud],steer:{quietBold:1}});assert.ok(ceiling.notes.some(n=>n.includes('ceiling')));
 });
-test('taps data has all nine closed option sets, neutral options, Mechanical line and complete looks rule',()=>{
-  assert.deepEqual(data.questions.map(q=>q.options.length),[3,5,4,4,5,5,5,5,6]);assert.equal(new Set(data.questions.flatMap(q=>q.options.map(o=>o.id))).size,42);
-  assert.equal(data.questions[1].options[0].description,'Precise and engineered');assert.match(data.wholeLooks.rule,/exactly one aggregate position/);
-  for(const q of data.questions)for(const option of q.options){assert.ok(option.id&&option.label);if(['Not sure','Either','Balanced','None of these','Light'].includes(option.label))assert.deepEqual(option.nudges,{});}
+test('taps data has all nine closed option sets, neutral options, Engineered line and complete looks rule',()=>{
+  assert.deepEqual(data.questions.map(q=>q.options.length),[3,5,4,4,5,5,5,5,5]);assert.equal(new Set(data.questions.flatMap(q=>q.options.map(o=>o.id))).size,41);
+  assert.equal(data.questions[1].options[0].description,'Precise and industrial');
+  assert.deepEqual(data.questions.flatMap(q=>q.options.filter(o=>o.shown===false).map(o=>o.id)),['feel-unsure','place-none']);
+  assert.deepEqual(data.questions.map(q=>q.options.filter(o=>o.shown!==false).length),[3,4,4,4,5,5,5,5,4]);assert.match(data.wholeLooks.rule,/exactly one aggregate position/);
+  for(const q of data.questions)for(const option of q.options){assert.ok(option.id&&option.label);if(['Not sure','Either','Balanced','None of these','No preference','Light'].includes(option.label))assert.deepEqual(option.nudges,{});}
 });
 test('neutral and extreme valid tap patterns still yield complete pages',()=>{
-  const patterns=[data.questions.map(q=>q.options.at(-1).id),data.questions.map(q=>q.options[0].id),['dark','natural','rooted','soft-graceful','kitchenaid','patagonia','subaru','anthropologie','spa']];
+  const patterns=[data.questions.map(q=>q.options.at(-1).id),data.questions.map(q=>q.options[0].id),['dark','natural','rooted','soft-graceful','kitchenaid','patagonia','toyota','anthropologie','spa']];
   for(const ids of patterns){const a=operator();a.taps=Object.fromEntries(data.questions.map((q,i)=>[q.id,ids[i]]));const r=select('round1',a);assert.equal(r.selection.boards.length,12);assert.deepEqual(new Set(r.selection.boards.map(b=>b.energy)),new Set(ENERGIES));}
 });
 test('help/import are inert, unknown flags fail with empty stdout before files are opened',()=>{

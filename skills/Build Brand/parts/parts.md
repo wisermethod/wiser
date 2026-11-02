@@ -33,7 +33,7 @@ The overlap with `select.mjs` is **`name`, `sentence`, `words`, `taps`, `off` an
   "taps": {
     "mode": "light", "feel": "natural", "history": "established-current",
     "strength": "strong-solid", "technology": "craftsman", "style": "patagonia",
-    "posture": "subaru", "mood": "ikea", "place": "workshop"
+    "posture": "toyota", "mood": "ikea", "place": "design-workshop"
   },
   "readBack": {"text": "Natural and strong, like Patagonia.", "confirmed": true},
   "off": [],
@@ -73,7 +73,7 @@ Success prints one JSON object with each file's path and byte count, each headin
 
 ## A carried place
 
-The lock answers' optional `carried` field. Where the place was carried from the voice coach (`paths/sitting.md` Step 3), `carried.place` records where, as `{"file": "<YYYY-MM-DD voice answers.md>", "question": "P12"}`, the file named as `standards/user-root.md` C14 gives it. `taps.place` is then `coffee-shop`, `hotel-lobby`, `workshop` or `spa`, and the place line in design and in the brand direction names P12 and that file in `memory/answers/`, never Q9. Only a personal brand may carry it. Without it, the place is this sitting's Q9.
+The lock answers' optional `carried` field. Where the place was carried from the voice coach (`paths/sitting.md` Step 3), `carried.place` records where, as `{"file": "<YYYY-MM-DD voice answers.md>", "question": "P12"}`, the file named as `standards/user-root.md` C14 gives it. `taps.place` is then `coffee-shop`, `hotel-lobby` or `spa`, the three places P12 shares with T9, and the place line in design and in the brand direction names P12 and that file in `memory/answers/`, never Q9. Only a personal brand may carry it. Without it, the place is this sitting's Q9.
 
 ## Assembly
 
@@ -94,9 +94,9 @@ node "/absolute/plugin/skills/Build Brand/scripts/assemble.mjs" --selection "/ab
 
 ## Opening taps as data
 
-`taps.json` version 1 holds the nine questions in screen order, each question's `id` and `question`, and its ordered `options`. Each option has a globally unique `id`, its member-facing `label`, optional `description`, and `nudges`. Mechanical's description is "Precise and engineered". Labels are shown as written; reference brands are names only, never copied logos. The sets use United States names; alternate regional names are not supplied here.
+`taps.json` version 1 holds the nine questions in screen order, each question's `id` and `question`, and its ordered `options`. Each option has a globally unique `id`, its member-facing `label`, optional `description`, and `nudges`. Engineered's description is "Precise and industrial". Labels are shown as written; reference brands are names only, never copied logos. The sets use United States names; alternate regional names are not supplied here.
 
-Nudges are counts toward named poles. One ordinary nudge is 1; Dark's small contemporary tick is 0.5; Established, but current adds 1 classic and 0.5 contemporary; Tesla's small dark-led tick is 0.5. `hand` encodes hand-made. `darkLed` and `brightColour` promote dark-led choices and bright recipes separately from the six dials. `natural`, `polished` and `casual` retain the complete tap reading but are not dials and are reported as ignored nudges. Neutral options carry an empty object. A positive dial score points to the second pole of `axes`; a negative score points to the first. Each part adds that score when it matches, subtracts it when it opposes, and adds zero for `either`.
+Nudges are counts toward named poles. One ordinary nudge is 1; Established, but current adds 1 classic and 0.5 contemporary; Tesla's small dark-led tick is 0.5. `hand` encodes hand-made. `darkLed` and `brightColour` promote dark-led choices and bright recipes separately from the six dials. `natural`, `polished`, `casual`, `approachable`, `creative`, `utility`, `fashionable` and `sleek` retain the complete tap reading but are not dials and are reported as ignored nudges. Neutral options carry an empty object. Feel's `feel-unsure` and place's `place-none` are marked `"shown": false`: those two questions show four options, the operator's limit of 2026-11-02, and each is kept only as its question's no-preference id for a question left unanswered. A positive dial score points to the second pole of `axes`; a negative score points to the first. Each part adds that score when it matches, subtracts it when it opposes, and adds zero for `either`.
 
 `wholeLooks.rule` contains the whole-look rule: twelve looks, six constrained score leaders with distinct palettes, pairings and graphic sets, followed by six looks each changing exactly one aggregate position from look 1 (including either). Prefer an unused dial, then an unused destination on that dial, then score and library order. Palettes never repeat. Six contrasts spread across as many available dials and destinations as the library permits. Looks 2, 5, 8 and 11 use a plain ground: their graphic set has pattern strength 0 in both light and dark, with the other drawings retained. This spreads two plain grounds among the leaders and two among the contrasts. Every look remains distinct, with a different palette. A whole look's six positions are the unweighted majority of its pairing, palette and graphic set; either contributes zero. The first page is shown once. With nothing picked, "None of these work" brings the four this-or-that taps and an optional "What's missing from these?" comment, then twelve unshown looks from another angle on the same card. The session reads the comment into `steer` and `off`. Keep all looks shown in this sitting in `shown`; the member may ask again. Each new page favours palettes, pairings and graphic sets not yet shown and keeps the same six leaders, six contrasts from its new look 1, and four plain-ground slots. Every picked look adds one tick toward each of its non-either positions, so shared positions receive more weight. These ticks are selection steer, never adopted design rules.
 
@@ -130,11 +130,11 @@ The nine `taps` keys are `mode`, `feel`, `history`, `strength`, `technology`, `s
   "sentence": "I help small teams make useful things",
   "words": [{"word": "Useful", "not": "busy"}],
   "taps": {
-    "mode": "dark", "feel": "mechanical",
+    "mode": "dark", "feel": "engineered",
     "history": "established-current", "strength": "strong-solid",
     "technology": "craftsman", "style": "lululemon",
     "posture": "tesla", "mood": "restoration-hardware",
-    "place": "design-studio"
+    "place": "design-workshop"
   },
   "off": [], "looks": [], "kept": {}
 }
