@@ -12,6 +12,11 @@ export function indexStrategy(config) {
   return config.index?.extractor != null ? 'two-pass' : 'none';
 }
 
+// Only raw TeX treats percent as a comment; Markdown prose keeps it literal.
+function withoutTexComments(text) {
+  return text.replace(/(\\\\)|\\%|%[^\r\n]*/g, (token, escaped) => (escaped || token === '\\%') ? token : '');
+}
+
 // Fenced and inline code is illustrative text, not manuscript markup.
 function withoutCode(text, keepRaw = false) {
   let raw = false;
@@ -34,13 +39,13 @@ function withoutCode(text, keepRaw = false) {
     const match = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(content);
     if (fence) {
       if (match && match[1][0] === fence[0] && match[1].length >= fence.length && !match[2].trim()) { fence = undefined; raw = false; return ''; }
-      return raw ? line : '';
+      return raw ? (raw === 'html' ? line : withoutTexComments(line)) : '';
     }
-    if (match) { fence = match[1]; raw = keepRaw && /^\s*\{=(?:html|latex|tex)\}\s*$/.test(match[2]); return ''; }
+    if (match) { fence = match[1]; raw = keepRaw && /^\s*\{=(html|latex|tex)\}\s*$/.exec(match[2])?.[1]; return ''; }
     if (!list && !footnote && indent >= margin + 4) return '';
     return line;
   }).join('\n').replace(/(`+)([\s\S]*?)\1(?!`)(\{=(?:html|latex|tex)\})?/g,
-    (match, fence, body, raw) => keepRaw && raw ? body : '');
+    (match, fence, body, raw) => keepRaw && raw ? (raw === '{=html}' ? body : withoutTexComments(body)) : '');
 }
 
 // The public directive accepts eight slots. Preserve raw-attribute blocks but
@@ -50,13 +55,13 @@ export function thumbTabErrors(text, file) {
   const markup = withoutCode(text, true);
   for (const directive of markup.matchAll(/<!--\s*thumb-tab-start:\s*([\s\S]*?)-->/g)) {
     const slot = /\bslot\s*=\s*([^,\s]*)/.exec(directive[1]);
-    if (slot && (!/^\d+$/.test(slot[1]) || Number(slot[1]) < 1 || Number(slot[1]) > 8)) {
+    if (slot && !/^0*[1-8]$/.test(slot[1])) {
       errors.push(`${file}: ${directive[0]}: thumb-tab slot must be an integer from 1 to 8; omit slot for 1.`);
     }
   }
-  const latex = markup.replace(/(\\\\)|\\%|%[^\r\n]*/g, (token, escaped) => (escaped || token === '\\%') ? ' ' : '');
+  const latex = markup.replace(/\\\\/g, ' ');
   for (const directive of latex.matchAll(/\\thumbtabstart\s*\{([^}]*)\}(?:\s*\{[^}]*\})?/g)) {
-    if (!/^\s*\d+\s*$/.test(directive[1]) || Number(directive[1]) < 1 || Number(directive[1]) > 8) {
+    if (!/^\s*0*[1-8]\s*$/.test(directive[1])) {
       errors.push(`${file}: ${directive[0]}: thumb-tab slot must be an integer from 1 to 8.`);
     }
   }

@@ -642,8 +642,20 @@ $endif$
   \fi
 }
 
+% Validate every start before drawing or queuing, including raw TeX commands.
+\ExplSyntaxOn
+\msg_new:nnn {bookpublisher} {thumb-tab-slot}
+  {Invalid~thumb-tab~slot~`#1';~use~an~integer~from~1~to~8.}
+\cs_new_protected:Npn \bookpublisherchecktabslot #1
+  {
+    \regex_match:nnF {\A\s*0*[1-8]\s*\Z} {#1}
+      {\msg_fatal:nnn {bookpublisher} {thumb-tab-slot} {#1}}
+  }
+\ExplSyntaxOff
+
 % Start thumb tab for a section
 \newcommand{\thumbtabstart}[2]{%
+  \bookpublisherchecktabslot{#1}%
   \ClearShipoutPicture% Clear any previous thumb tab hook first
   \setcounter{activethumbtab}{#1}%
   \renewcommand{\thumbtablabel}{#2}%
@@ -671,6 +683,7 @@ $if(right-hand-openings)$
 \let\bookpublisherthumbtabstart\thumbtabstart
 \let\bookpublisherthumbtabend\thumbtabend
 \renewcommand{\thumbtabstart}[2]{%
+  \bookpublisherchecktabslot{#1}%
   \gdef\bookpublisherpendingtab{\bookpublisherthumbtabstart{#1}{#2}}%
 }
 \renewcommand{\thumbtabend}{\gdef\bookpublisherpendingtab{\bookpublisherthumbtabend}}

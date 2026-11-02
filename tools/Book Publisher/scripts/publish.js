@@ -1024,7 +1024,9 @@ end
     { input: mergedContent, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
     // TeX comments end at the newline; an escaped percent remains literal.
     const active = emitted.replace(/(\\\\)|\\%|%[^\r\n]*/g, (token, escaped) => (escaped || token === '\\%') ? ' ' : '');
-    bleed = /\\thumbtabstart\s*\{\s*[1-8]\s*\}/.test(active);
+    // A start warrants bleed even if it is ended before shipout or verbatim.
+    // Raw TeX may retain leading zeroes; directives emit canonical integers.
+    bleed = /\\thumbtabstart\s*\{\s*0*[1-8]\s*\}/.test(active);
   }
   const bleedInches = bleed ? 0.125 : 0;
   const textWidth = config.trim.width - margins.outer - margins.inner;
