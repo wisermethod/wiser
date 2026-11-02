@@ -1,5 +1,6 @@
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -266,4 +267,104 @@ test('Twenty marks exactly records.create and records.update for standing approv
     ['records.create', { kind: 'change', summary: 'create records in Twenty', caution: "Creating or changing a Twenty record can start your workspace's own workflows, and a workflow may send email from a connected mailbox, so under this approval nobody looks at the record before that happens." }],
     ['records.update', { kind: 'change', summary: 'change fields on existing Twenty records', caution: "Creating or changing a Twenty record can start your workspace's own workflows, and a workflow may send email from a connected mailbox, so under this approval nobody looks at the record before that happens." }],
   ]);
+});
+
+function inputFileAction() {
+  return {
+    risk: 'medium', confirmation: 'always', execution: { prefer: 'proxy' },
+    input_files: { field: 'attachments', max_bytes: 2097152 },
+    input: { type: 'object', additionalProperties: false, properties: {
+      attachments: { type: 'array', minItems: 1, maxItems: 10,
+        items: { type: 'string', minLength: 1, maxLength: 4096, pattern: '^/[^\\u0000]*$' } },
+    } },
+  };
+}
+
+function inputFileManifest(t, action) {
+  const root = mkdtempSync(join(realpathSync(tmpdir()), 'wiser-input-manifest-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const dir = join(root, 'sample');
+  writeConnector(dir, { id: 'sample' });
+  const file = join(dir, 'manifest.json');
+  const manifest = JSON.parse(readFileSync(file, 'utf8'));
+  manifest.modules.items.actions.ping = action;
+  writeFileSync(file, JSON.stringify(manifest));
+  return { root, dir };
+}
+
+const badInputFiles = [
+  ...[null, [], '', 1, true, {}].map((value) => [String(JSON.stringify(value)), (a) => { a.input_files = value; }]),
+  ['unknown member', (a) => { a.input_files.path = '/invented'; }],
+  ['missing field', (a) => { delete a.input_files.field; }],
+  ['missing cap', (a) => { delete a.input_files.max_bytes; }],
+  ...['', null, 1, true, 'a.b', 'a/b', 'a-b', 'a b', '1a', 'a'.repeat(65), '\u00e9', 'attachments\n', 'attachments\u2028'].map((value) =>
+    [`field ${JSON.stringify(value)}`, (a) => { a.input_files.field = value; }]),
+  ...[0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1, '64', true, null].map((value) =>
+    [`cap ${JSON.stringify(value)}`, (a) => { a.input_files.max_bytes = value; }]),
+  ['nonexistent property', (a) => { a.input_files.field = 'missing'; }],
+  ['inherited property', (a) => { a.input_files.field = 'toString'; }],
+  ['absent input', (a) => { delete a.input; }],
+  ['absent input type', (a) => { delete a.input.type; }],
+  ['array input', (a) => { a.input.type = 'array'; }],
+  ['union input', (a) => { a.input.type = ['object']; }],
+  ['open input', (a) => { a.input.additionalProperties = true; }],
+  ['absent additionalProperties', (a) => { delete a.input.additionalProperties; }],
+  ['missing properties', (a) => { delete a.input.properties; }],
+  ['array properties', (a) => { a.input.properties = []; }],
+  ['null target', (a) => { a.input.properties.attachments = null; }],
+  ['string target', (a) => { a.input.properties.attachments.type = 'string'; }],
+  ['missing target type', (a) => { delete a.input.properties.attachments.type; }],
+  ['missing items', (a) => { delete a.input.properties.attachments.items; }],
+  ['tuple items', (a) => { a.input.properties.attachments.items = [{ type: 'string' }]; }],
+  ['null items', (a) => { a.input.properties.attachments.items = null; }],
+  ['wrong item type', (a) => { a.input.properties.attachments.items.type = 'number'; }],
+  ['missing item type', (a) => { delete a.input.properties.attachments.items.type; }],
+  ['union item type', (a) => { a.input.properties.attachments.items.type = ['string']; }],
+  ['reversed counts', (a) => { a.input.properties.attachments.minItems = 11; }],
+  ['reversed lengths', (a) => { a.input.properties.attachments.items.minLength = 4097; }],
+  ['bad regex', (a) => { a.input.properties.attachments.items.pattern = '['; }],
+  ['non-string regex', (a) => { a.input.properties.attachments.items.pattern = 1; }],
+];
+for (const bound of ['minItems', 'maxItems', 'minLength', 'maxLength']) {
+  for (const value of [undefined, 0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1, '1', null, true]) {
+    badInputFiles.push([`${bound} ${String(value)}`, (a) => {
+      const target = a.input.properties.attachments;
+      const schema = bound.endsWith('Length') ? target.items : target;
+      if (value === undefined) delete schema[bound];
+      else schema[bound] = value;
+    }]);
+  }
+}
+
+for (const [name, mutate] of badInputFiles) {
+  test(`F01 input_files refuses ${name} at load and --check`, async (t) => {
+    const action = inputFileAction();
+    mutate(action);
+    const { root, dir } = inputFileManifest(t, action);
+    await assert.rejects(() => loadConnector(dir), /modules\.items\.actions\.ping\.(input_files|input)/);
+    const result = spawnSync(process.execPath, [SERVER, '--check', '--connectors', root], { encoding: 'utf8' });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr + result.stdout, /modules\.items\.actions\.ping\.(input_files|input)/);
+  });
+}
+
+test('F01 input_files accepts optional bounded input, inclusive bounds and independent output_file', async (t) => {
+  for (const field of ['attachments', '_', 'a'.repeat(64), '__proto__']) {
+    for (const max_bytes of [1, 2097152, Number.MAX_SAFE_INTEGER]) {
+      const action = inputFileAction();
+      const target = action.input.properties.attachments;
+      target.minItems = target.maxItems = 1;
+      target.items.minLength = target.items.maxLength = 1;
+      delete target.items.pattern;
+      action.input_files = { field, max_bytes };
+      action.input.properties = Object.fromEntries([[field, target]]);
+      action.output_file = { media_types: ['audio/mpeg'], max_bytes: 64 };
+      const { root, dir } = inputFileManifest(t, action);
+      const loaded = await loadConnector(dir);
+      assert.deepEqual(loaded.manifest.modules.items.actions.ping, action);
+      const result = spawnSync(process.execPath, [SERVER, '--check', '--connectors', root], { encoding: 'utf8' });
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(JSON.parse(result.stdout).ok, true);
+    }
+  }
 });

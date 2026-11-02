@@ -451,13 +451,16 @@ test('sheets update overwrites a range and append inserts rows', async () => {
 });
 
 test('gmail.create_draft saves a raw RFC 5322 message and does not send it', async () => {
-  const { gw, requests } = await harness('gmail');
+  const draft = { id: 'r-example-17', message: { id: 'message-example' } };
+  const { gw, requests } = await harness('gmail', () => ({ status: 200, data: draft }));
   const plain = {
     to: ['one@example.com', 'two@example.com'],
     subject: 'Hello',
     body: 'x'.repeat(80),
   };
-  const { stop } = await confirmed(gw, requests, 'google.gmail.create_draft', plain);
+  const { stop, result } = await confirmed(gw, requests, 'google.gmail.create_draft', plain);
+  assert.deepEqual(result, draft);
+  assert.deepEqual(requests[0].parameters, [{ name: 'fields', type: 'query', value: 'id,message(id,threadId,labelIds)' }]);
   assert.equal(stop.risk, 'medium');
   assert.equal(requests[0].method, 'POST');
   assert.equal(requests[0].endpoint, 'https://gmail.googleapis.com/gmail/v1/users/me/drafts');

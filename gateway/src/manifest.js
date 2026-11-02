@@ -146,6 +146,57 @@ function validateAction(action, file, field) {
       throw validationError(file, `${at}.max_bytes`, 'must be a positive safe integer');
     }
   }
+  if (Object.hasOwn(action, 'input_files')) {
+    const inputFiles = action.input_files;
+    const at = `${field}.input_files`;
+    requireObject(inputFiles, file, at);
+    if (Object.keys(inputFiles).some((key) => key !== 'field' && key !== 'max_bytes')) {
+      throw validationError(file, at, 'must contain only field and max_bytes');
+    }
+    if (typeof inputFiles.field !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(inputFiles.field) ||
+        /\s/.test(inputFiles.field)) {
+      throw validationError(file, `${at}.field`, 'must be a top-level input property name of 1 to 64 ASCII characters');
+    }
+    if (!Number.isSafeInteger(inputFiles.max_bytes) || inputFiles.max_bytes <= 0) {
+      throw validationError(file, `${at}.max_bytes`, 'must be a positive safe integer');
+    }
+    const input = action.input;
+    if (input?.type !== 'object' || input.additionalProperties !== false) {
+      throw validationError(file, at, 'requires input.type object and additionalProperties false');
+    }
+    requireObject(input.properties, file, `${field}.input.properties`);
+    if (!Object.hasOwn(input.properties, inputFiles.field)) {
+      throw validationError(file, `${at}.field`, 'must name a declared input property');
+    }
+    const target = input.properties[inputFiles.field];
+    const targetAt = `${field}.input.properties.${inputFiles.field}`;
+    requireObject(target, file, targetAt);
+    requireObject(target.items, file, `${targetAt}.items`);
+    if (target.type !== 'array' || target.items.type !== 'string') {
+      throw validationError(file, targetAt, 'must be an array of string items');
+    }
+    for (const [schema, schemaAt, min, max] of [
+      [target, targetAt, 'minItems', 'maxItems'],
+      [target.items, `${targetAt}.items`, 'minLength', 'maxLength'],
+    ]) {
+      for (const bound of [min, max]) {
+        if (!Number.isSafeInteger(schema[bound]) || schema[bound] <= 0) {
+          throw validationError(file, `${schemaAt}.${bound}`, 'must be a positive safe integer');
+        }
+      }
+      if (schema[min] > schema[max]) {
+        throw validationError(file, schemaAt, `${min} must not exceed ${max}`);
+      }
+    }
+    if (Object.hasOwn(target.items, 'pattern')) {
+      if (typeof target.items.pattern !== 'string') {
+        throw validationError(file, `${targetAt}.items.pattern`, 'must be a compilable regex string');
+      }
+      try { new RegExp(target.items.pattern); } catch {
+        throw validationError(file, `${targetAt}.items.pattern`, 'must be a compilable regex string');
+      }
+    }
+  }
   if (Object.hasOwn(action, 'proxy_body_max_bytes') &&
       (!Number.isSafeInteger(action.proxy_body_max_bytes) || action.proxy_body_max_bytes <= 0)) {
     throw validationError(file, `${field}.proxy_body_max_bytes`, 'must be a positive safe integer');

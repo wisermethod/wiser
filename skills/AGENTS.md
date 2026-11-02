@@ -75,9 +75,16 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 |-------|-------------|-------|
 | `Ask in a Form/SKILL.md` | Put a skill's questions to a member as a form they answer by tapping pictures and choices, shown inside the chat, in a window beside a command-line tool, or as chat buttons where neither can show, with the answers read back and handed to the calling skill | Creative Director |
 | `Build Brand/SKILL.md` | Build or rebuild one user root's design.md from an existing brand, a full brand chosen and finished in one sitting at the lock without a Playbook, or a simple brand made at the person's request, with every rule traced to an answer, file or chosen part | Creative Director |
-| `Build Voice/SKILL.md` | Build or rebuild one user root's voice.md, for a personal root as a coach that first takes any writing samples the person wants to use, then asks a few short questions about them and two screens of quick taps, leaving out what the samples already show, shows them how they come across, and has them correct a first piece, and for every other type from real writing evidence routed to the register that root's outputs need | Ghost Writer |
+| `Build Voice/SKILL.md` | Build or rebuild one user root's voice.md, for a personal root as a coach that first takes any writing samples the person wants to use, then asks a few short questions about them and three screens of quick taps, leaving out what the samples already show, shows them how they come across, and has them correct a first piece, and for every other type from real writing evidence routed to the register that root's outputs need | Ghost Writer |
 | `Onboard Root/SKILL.md` | Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types | System Expert |
+| `Set Up Book/SKILL.md` | Settle a book's production decisions and fill its project instructions and edition configurations before writing or bringing in a manuscript | Publisher |
 | `Set Up Wiser/SKILL.md` | Take a new member, in one chat, from no folder open to their own Wiser folder on their Desktop, set up and with their voice and look recorded, and then to a project in their app with that folder attached, checking their Wiser connection first | System Expert |
+
+### Publishing
+
+| Skill | Description | Owner |
+|-------|-------------|-------|
+| `Publish Book/SKILL.md` | Turn a publishable manuscript and settled book specifications into built editions with a production verdict and a hand-off for the member's upload | Publisher |
 
 ### Research
 

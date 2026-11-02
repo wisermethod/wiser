@@ -247,6 +247,7 @@ test('canonical order shares a proposal and a host can hydrate its pending map',
 
 test('durations enforce 365 and seven day maxima and choose the right defaults', async (t) => {
   const f = await fixture(t);
+  // This send grant names no Playbook, so the 90-day send-only exception cannot apply.
   const p = await probe(t);
   for (const [instance, args, days] of [[f, SCOPE, 366], [p, p.scope, 8]]) {
     const refused = await tool(instance, { ...args, mode: 'propose', days });
@@ -265,6 +266,176 @@ test('durations enforce 365 and seven day maxima and choose the right defaults',
   const oneDay = await tool(f, { ...SCOPE, mode: 'propose', days: 1 });
   assert.match(oneDay.warning, / For 1 day, until 2026-10-23, /);
 });
+
+const SEND_PLAYBOOK = '2026-10-22-send-messages.plan.md';
+const SEND_CAUTION = 'These messages may start a workflow.';
+
+test('proposal cap: a send-only Playbook grant accepts 90 days', async (t) => {
+  const f = await probe(t);
+  const saved = await grant(f, { ...f.scope, playbook: SEND_PLAYBOOK, days: 90 });
+  assert.equal(Date.parse(saved.expires_at) - Date.parse(saved.created_at), 90 * STANDING_APPROVAL_DAY_MS);
+});
+
+test('a send-only Playbook proposal defaults to 90 days, grants with 90 and matches through its last day', async (t) => {
+  const f = await probe(t);
+  const scope = { ...f.scope, playbook: SEND_PLAYBOOK };
+  const proposal = await tool(f, { ...scope, mode: 'propose' });
+  assert.equal(proposal.status, 'standing_approval_proposed');
+  assert.equal(proposal.scope.days, 90);
+  assert.equal(proposal.expires_on, '2027-01-20');
+  assert.equal(proposal.heightened, true);
+  assert.deepEqual(proposal.kinds, ['send']);
+  // An explicit 90 is the same canonical scope as the proposed default.
+  const answer = await tool(f, { ...scope, days: 90, mode: 'grant', confirmed: true });
+  assert.equal(answer.status, 'ok');
+  const saved = answer.standing_approval;
+  assert.equal(Date.parse(saved.expires_at) - Date.parse(saved.created_at), 90 * STANDING_APPROVAL_DAY_MS);
+  const call = { ...f.call, playbook: SEND_PLAYBOOK };
+  for (const at of [NOW, Date.parse(saved.expires_at) - 1]) {
+    f.gw.now = () => at;
+    assert.equal((await f.gw.callTool('execute', call)).standing_approval?.id, saved.id);
+  }
+  assert.equal(f.calls.length, 2);
+  assert.equal(auditLines(f).at(-1).grant_id, saved.id);
+});
+
+for (const name of [
+  'another playbook', 'missing playbook', 'another root', 'another label', 'rebound account',
+  'expired', 'revoked', 'changed summary', 'changed caution', 'another action', 'wrong where', 'missing where',
+]) {
+  test(`a 90-day send-only Playbook grant refuses ${name} before the module`, async (t) => {
+    const f = await probe(t);
+    const actions = f.gw.connectors[0].manifest.modules.items.actions;
+    actions.marked.standing_approval.caution = SEND_CAUTION;
+    put(f, 'acme', { service: 'probe', module: 'items' });
+    // Keep the account identical so the label test cannot pass through the account check alone.
+    put(f, 'beta', { service: 'probe', module: 'items', provider_account_id: 'account-acme' });
+    const saved = await grant(f, {
+      ...f.scope, label: 'acme', playbook: SEND_PLAYBOOK, days: 90, where: { channel: ['email'] },
+    });
+    const call = { ...f.call, label: 'acme', playbook: SEND_PLAYBOOK, input: { ...f.call.input, channel: 'email' } };
+    if (name === 'another playbook') call.playbook = 'Other Work';
+    if (name === 'missing playbook') delete call.playbook;
+    if (name === 'another root') call.root = 'another-root';
+    if (name === 'another label') call.label = 'beta';
+    if (name === 'rebound account') put(f, 'acme', { service: 'probe', module: 'items', provider_account_id: 'another-account' });
+    if (name === 'expired') f.gw.now = () => Date.parse(saved.expires_at);
+    if (name === 'revoked') assert.equal((await tool(f, { mode: 'revoke', id: saved.id })).status, 'ok');
+    if (name === 'changed summary') actions.marked.standing_approval.summary = 'send different messages';
+    if (name === 'changed caution') actions.marked.standing_approval.caution = 'A different caution.';
+    if (name === 'another action') {
+      actions.unmarked.standing_approval = { ...actions.marked.standing_approval };
+      call.action = 'probe.items.unmarked';
+    }
+    if (name === 'wrong where') call.input.channel = 'sms';
+    if (name === 'missing where') delete call.input.channel;
+    const stop = await f.gw.callTool('execute', call);
+    assert.equal(stop.status, 'needs_confirmation');
+    assert.equal(Object.hasOwn(stop, 'standing_approval'), false);
+    assert.equal(f.calls.length, 0);
+    assert.equal(auditLines(f).at(-1).grant_id, null);
+  });
+}
+
+for (const [kinds, playbook, days] of [
+  [['send'], undefined, 8], [['send'], SEND_PLAYBOOK, 91],
+  [['delete'], undefined, 8], [['delete'], SEND_PLAYBOOK, 8],
+  [['pay'], undefined, 8], [['pay'], SEND_PLAYBOOK, 8],
+  [['publish'], SEND_PLAYBOOK, 8], [['grant_access'], SEND_PLAYBOOK, 8],
+  [['send', 'change'], SEND_PLAYBOOK, 8],
+]) {
+  test(`proposal cap: ${kinds.join('+')} ${playbook ? 'with' : 'without'} a Playbook refuses ${days} days`, async (t) => {
+    const f = await probe(t, { kind: kinds[0] });
+    if (kinds.length > 1) {
+      f.gw.connectors[0].manifest.modules.items.actions.unmarked.standing_approval = {
+        kind: kinds[1], summary: 'change things',
+      };
+    }
+    const scope = { ...f.scope, ...(playbook ? { playbook } : {}) };
+    const refused = await tool(f, { ...scope, days, mode: 'propose' });
+    assert.deepEqual(refused, { status: 'invalid_arguments', field: 'days', reason: 'max' });
+    assert.equal(f.gw.pendingConfirmations.size, 0);
+    assert.deepEqual(await f.gw.standingApprovals.list(), []);
+    assert.equal(f.calls.length, 0);
+    if (days === 8) {
+      const defaulted = await tool(f, { ...scope, mode: 'propose' });
+      assert.equal(defaulted.scope.days, 7);
+      const saved = await grant(f, { ...scope, days: 7 });
+      assert.equal((await f.gw.callTool('execute', { ...f.call, ...(playbook ? { playbook } : {}) })).standing_approval?.id, saved.id);
+    }
+  });
+}
+
+for (const [name, kinds, playbook, lifetime, currentKind = kinds[0]] of [
+  ['unscoped send at 30 days', ['send'], null, 30 * STANDING_APPROVAL_DAY_MS],
+  ['Playbook send at 91 days', ['send'], SEND_PLAYBOOK, 91 * STANDING_APPROVAL_DAY_MS],
+  ['Playbook delete+send at 30 days', ['delete', 'send'], SEND_PLAYBOOK, 30 * STANDING_APPROVAL_DAY_MS, 'send'],
+  ['Playbook send+change at 30 days on send', ['send', 'change'], SEND_PLAYBOOK, 30 * STANDING_APPROVAL_DAY_MS],
+  ['Playbook send+change at 30 days on change', ['send', 'change'], SEND_PLAYBOOK, 30 * STANDING_APPROVAL_DAY_MS, 'change'],
+  ['Playbook send one millisecond over 90 days', ['send'], SEND_PLAYBOOK, 90 * STANDING_APPROVAL_DAY_MS + 1],
+  ['Playbook send at zero lifetime', ['send'], SEND_PLAYBOOK, 0],
+  ['Playbook send at negative lifetime', ['send'], SEND_PLAYBOOK, -1],
+]) {
+  test(`stored lifetime: ${name} cannot match`, async (t) => {
+    const f = await probe(t, { kind: currentKind });
+    const base = await grant(f, { ...f.scope, days: 7 });
+    await tool(f, { mode: 'revoke', id: base.id });
+    // Bypass proposal validation. Expiry remains in the future even for zero/negative
+    // lifetimes, so the lifetime check itself must reject these records.
+    const expiresAt = NOW + 100 * STANDING_APPROVAL_DAY_MS;
+    const stored = {
+      ...base, id: 'sa_stored_lifetime', kinds, playbook,
+      created_at: new Date(expiresAt - lifetime).toISOString(), expires_at: new Date(expiresAt).toISOString(),
+    };
+    await f.gw.standingApprovals.add(stored);
+    assert.ok((await f.gw.standingApprovals.list()).some((row) => row.id === stored.id && !row.revoked_at));
+    // Supplying a Playbook on the call must never extend an unscoped stored grant.
+    const stop = await f.gw.callTool('execute', { ...f.call, playbook: SEND_PLAYBOOK });
+    assert.equal(stop.status, 'needs_confirmation');
+    assert.equal(f.calls.length, 0);
+    assert.equal(auditLines(f).at(-1).grant_id, null);
+  });
+}
+
+test('stored lifetime: a 90-day send-only Playbook record matches independently of proposal validation', async (t) => {
+  const f = await probe(t);
+  const base = await grant(f, { ...f.scope, days: 7 });
+  await tool(f, { mode: 'revoke', id: base.id });
+  const stored = {
+    ...base, id: 'sa_stored_send_playbook', playbook: SEND_PLAYBOOK,
+    // Duplicate kinds still have the distinct kinds ["send"].
+    kinds: ['send', 'send'], expires_at: new Date(NOW + 90 * STANDING_APPROVAL_DAY_MS).toISOString(),
+  };
+  await f.gw.standingApprovals.add(stored);
+  const call = { ...f.call, playbook: SEND_PLAYBOOK };
+  assert.equal((await f.gw.callTool('execute', call)).standing_approval?.id, stored.id);
+  assert.equal(f.calls.length, 1);
+  const manifestAction = f.gw.connectors[0].manifest.modules.items.actions.marked;
+  for (const attachments of [[], null, ['invented-file']]) {
+    assert.equal(matchStandingApproval([stored], {
+      ...call, manifestAction: { ...manifestAction, input_files: { field: 'attachments', max_bytes: 100 } },
+      input: { ...call.input, attachments }, providerAccountId: stored.provider_account_id, now: NOW,
+    }), null);
+  }
+});
+
+for (const limited of [false, true]) {
+  test(`the send-only Playbook warning is exact ${limited ? 'with' : 'without'} where limits and carries a shared caution once`, async (t) => {
+    const f = await probe(t);
+    const actions = f.gw.connectors[0].manifest.modules.items.actions;
+    actions.marked.standing_approval.caution = SEND_CAUTION;
+    actions.unmarked.standing_approval = { kind: 'send', summary: 'send other messages', caution: SEND_CAUTION };
+    const scope = { ...f.scope, playbook: SEND_PLAYBOOK, ...(limited ? { where: { channel: ['email'] } } : {}) };
+    const proposal = await tool(f, { ...scope, mode: 'propose' });
+    assert.equal(proposal.scope.days, 90);
+    assert.deepEqual(proposal.kinds, ['send']);
+    const expected = `This standing approval lets your assistant send messages and send other messages on your connection with no label without asking you first, for work done from the root "wiser-memory", in the Playbook "2026-10-22-send-messages.plan.md"${limited ? ', and only where channel is "email"' : ''}. For 90 days, until 2027-01-20, every call that matches runs straight away, with no approval step for you to see or refuse. Anything outside it still asks you, as today. These messages may start a workflow. This approval sends messages to other people, ${limited ? 'to any recipient the limits above allow' : 'to any recipient'}, and nobody looks at each one before it is sent; once sent, a message cannot be called back. Because it covers only sending, and only in one Playbook, it lasts at most 90 days. You can end it at any time: ask your assistant to revoke it, or remove it on your Wiser account page. Answer yes to grant it, or no to leave things as they are.`;
+    assert.equal(proposal.warning, expected);
+    assert.equal(proposal.warning.split(SEND_CAUTION).length - 1, 1);
+    const saved = await grant(f, scope);
+    assert.deepEqual(saved.cautions, [SEND_CAUTION]);
+  });
+}
 
 for (const [where, reason] of [
   [{ object: ['sk-canary-private'] }, 'credential_like'],
@@ -698,7 +869,8 @@ for (const kind of ['send', 'delete']) {
   });
 }
 
-test('a heightened match requires the current kind, explicit heightened consent and a seven-day lifetime', async (t) => {
+test('an unscoped heightened match requires the current kind, explicit heightened consent and a seven-day lifetime', async (t) => {
+  // No Playbook is stored, so this send grant still has the seven-day ceiling.
   const f = await probe(t);
   const saved = await grant(f, f.scope);
   const call = { ...f.call, manifestAction: f.gw.connectors[0].manifest.modules.items.actions.marked,

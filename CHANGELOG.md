@@ -4,6 +4,69 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.02.5, November 2, 2026
+
+- **update root** no longer flags an older root's Onboarding section for its closing paragraph or its status lines. A closing paragraph that opens "Adopted" rather than "Onboarded", and a status line that keeps its own dated record in brackets, are left as they are; only a separate note that copies a fact is proposed for rewriting. (e81b914)
+
+## v2026.11.02.4, November 2, 2026
+
+- The Onboarding section of a root's `AGENTS.md` now holds only its closing paragraph, one status line per key, and notes that say where to read something, such as `memory/about.md` V534, never the fact itself. Onboarding writes it that way. Before, a fact copied there went stale when its file changed, and nothing could correct it. (58c6e8f, 04bb31f, 1d76a0a)
+- **update root** now checks that section on every run. A note that copies a fact, or points at an entry that is no longer there, gets a plan row showing its exact before and after, naming where each fact is kept; it is rewritten only on your yes, and nothing else in the section changes. A fact kept nowhere else in the root is left for you to decide, never dropped. (58c6e8f, 04bb31f, 1d76a0a)
+- The rule against writing at the top of a root now names the changes Onboard Root, the voice coach, Build Brand and update root already make to its `AGENTS.md`. (58c6e8f, 04bb31f)
+
+## v2026.11.02.3, November 2, 2026
+
+- Book Publisher keeps a heading inside a box with what it introduces. At least two lines of the box's text, or a table's first two rows, stay on the heading's page, and a heading with a picture under it moves to the next page with the picture. Before, a heading such as "What to do" could sit alone at the foot of a page. (a7ef282, 154db98, 0d57736)
+- A picture in a box now always fits inside the page's margins; before, a tall one could run past the bottom margin. Content in a box that cannot fit on any page now stops the build with an error instead. (154db98, 0d57736)
+- A web address in a printed book now breaks only at its punctuation, after `://` or before a `/`, `.`, `-` and the like, and never inside `https://` or between two letters or digits. A line that ends inside an address stops short of the margin rather than spreading out the words before it, and no address runs past the margin. An address with a run of letters and digits longer than a whole line is the one place it breaks between them, and the build names that address. (720b863, 59dae0b, af5f1a6)
+
+## v2026.11.02.2, November 2, 2026
+
+- The voice coach no longer writes a horoscope-style reading or asks for your birth date, place and time. Your first piece is a short post on the thing you wish more people knew, or, where you didn't name one, a piece you pick. (8bd9c42)
+- The coach's humor question now asks what kind of humor shows up in your writing: dry, laughing at yourself, or corny. You can pick more than one, or none. (8bd9c42, c6607e5)
+- Before the coach shows you how you come across, it asks three last quick taps: what you'd most like your work known for, which virtue is a little overrated, and where your readers could sit down with you. Each writes one line into your voice, and the first shapes how the coach describes what drives you. (8bd9c42, c6607e5)
+
+## v2026.11.02, November 2, 2026
+
+- Wiser can now take a custom domain off a Cloudflare Worker. Before, it stopped with a vendor error whenever the domain was already attached, because it did not recognise the ids Cloudflare gives Worker domains; adding a domain another Worker already holds now says so instead of stopping the same way. (be0496c, 38cf534)
+
+## v2026.11.01.4, November 1, 2026
+
+- When the Wiser service turns down a connection because your plan doesn't include it, Wiser now gives you the service's own message, with its link to the plans, and stops there. Before, it said the connector didn't run on the service. It doesn't retry, start a connection, or offer another way round, and asking for a standing approval for that connection grants nothing. A connector the service doesn't run at all still points you to where it does run. (e859244, 4ee15b1, 749e3f9)
+
+## v2026.11.01.3, November 1, 2026
+
+- The classifier now suggests a skill or expert only when that file says it may, and never a tool. Seven skills say so today: Animated Explainer, Build Brand, Bio Sketch, Generate Ideas, Prior Art Check, Classifier Trial and Profile Page. Every other skill and expert, Knowledge Recall now among them, still opens the usual way, only without a suggestion. Nothing changes where no classifier is attached. (ea6cd07)
+- For people writing skills: Play Author now says when to declare a routing seam, so the classifier may suggest the skill, and that it needs the classifier seam's run both ways first; a skill that declares none, or nothing, is not suggested. (ea6cd07)
+
+## v2026.11.01.2, November 1, 2026
+
+- Book Publisher now sets a narrow book cleanly with nothing added to its chapters. A long web address breaks where it must instead of running off the page, a numbered list that passes 9, or counts in letters or Roman numerals, keeps its labels inside the text, a line that cannot otherwise fit takes a little more spacing instead of running into the margin, and a table without a caption no longer logs an error. (149f5a9, c041876, 3c86892, e4bbfcf, 0a9e334, 5682809)
+- Book Publisher has three new print settings: `typography.url_font` chooses the face web addresses print in, `mono` as before, `body` or `sans`; `typography.emergency_stretch` and `typography.tolerance` adjust how a narrow page breaks its lines. (0a9e334, 5682809, 20c08fe)
+- A book that keeps its own title page, with its title and subtitle as headings, now gets an EPUB whose navigation files are valid. Before, a store's check would refuse the file. (9dad0b2)
+- A character the book's typeface lacks is no longer printed quietly in another typeface. Libertinus's arrows now come from its own companion font, and each print build names any other typeface or missing character it finds, with its pages, without ever stopping the build. (128cf43, 7c99b58, e4bbfcf)
+- `build --verbose` now writes readable text throughout, so a script reading its log no longer stops on an accented name. (24f7a2b)
+
+## v2026.11.01, November 1, 2026
+
+- A file you attach to a Gmail draft or message now arrives under its own name when the name is long or not plain English letters, instead of as `attachment-1`. (5db9d7d)
+
+## v2026.10.31.2, October 31, 2026
+
+- Wiser can now typeset a book. Book Publisher turns a folder of Markdown chapters and a settings file into a print interior PDF, a PDF/X-1a print file checked for the things a printer refuses, such as RGB colour, fonts that are not embedded and an odd page count, and an EPUB. A book can have a contents page, Parts, boxed asides styled in both formats, numbered or unnumbered headings, its own margins and typeface, and a back-of-book index built from a list of terms or from markers in the chapters. It does not make a cover, and it does not print images past the page edge; it says so rather than trying. (26dd1ec, dfc35a5, 5a004ef, 9de3207, 0d30940, 0f40004, 6d79ca2, 614f474, cb3f5a2, f694230, a24c164, aa8bea2, 0cd61d1, 4528e04, 69b3ca0, 572f521, e3bdbcc, 997254c, 313e15a)
+- Book Publisher's check never calls a file certified. For a printer that needs PDF/X-1a, Wiser sends you to that printer's own upload check or to Adobe Acrobat Pro's Preflight before you upload. (0d30940, 2886fce)
+- `Set Up Book` settles a book's editions, page size, margins, contents and index before the writing starts, reads the printer's or store's current requirements from their own pages, and records what the book must still provide. It asks rather than guessing when your choices conflict or a decision is yours. (0fcdca5, b90f72e, 2cd2df8, 8fd965e, 4715504)
+- `Publish Book` builds each edition from your finished chapters, writes the index's term list from them, has the prose read by Ghost Writer and the built files judged by the new `Publisher` expert, then hands you the files with anything still owed, such as the printer's own preflight. Nothing is uploaded for you. (2886fce, b90f72e, 2cd2df8, 8fd965e, e3bdbcc, 4715504)
+- The new `Publisher` expert judges whether a book's setup and its built files will be accepted by the printer or store you name, and says which skill fixes each problem it finds. (a831eb0, 57c8ccc, df25fc7)
+- `deck-export` now sends a book, or any long document headed to print or an EPUB, to Book Publisher. (cf92b72)
+
+## v2026.10.31, October 31, 2026
+
+- Wiser can now send email from your Gmail: a new message, or a draft you saved there. It asks you before each one, showing who it goes to and what it says. (c963b83)
+- A Gmail draft or new message can now carry files from your computer, up to about 2 MB in all, when you use the local gateway in a command-line tool such as Claude Code or Codex. Wiser reads each file itself, never one holding your keys, your settings or Wiser's own files, and shows you each file's name, path and size before anything is saved or sent. (c963b83)
+- A Gmail draft or new message can now be a reply in an existing thread. (c963b83)
+- You can let your assistant send Gmail messages without asking each time, for the work of one Playbook, for up to 90 days, from the gateway's own warning, which says it may send to anyone with nobody looking at each message first. It never covers a message with a file attached, or sending a saved draft. Approvals for anything else that sends, deletes, spends, publishes or gives access still last at most 7 days. (c963b83)
+
 ## v2026.10.30.4, October 30, 2026
 
 - Screen Capture no longer stops on a Mac whose Screen Recording and Accessibility are already granted, and names the app that holds them correctly when a launcher runs in between. (9bc30ed, 645860c)

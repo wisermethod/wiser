@@ -1,6 +1,6 @@
 ---
 standard: user-root
-version: 0.10.0
+version: 0.11.1
 description: One declared user-root tree and the clauses used to score its layout
 ---
 
@@ -12,7 +12,7 @@ Applies to personal, org, client, department, and industry user roots. This is t
 
 ## C1 Identification
 
-The constitution's Workspace Model (`wiser/AGENTS.md`) owns root identification. Its declaration is in root `AGENTS.md`: `type:`, a Provides block, the Wiser constitution citation, Onboarding state lines, and the declared-directory table. A folder set never identifies a user root. The frontmatter also carries `root:` and `layout:`, the latter this standard's current tree version (4). Increment that integer when this standard changes the tree; a version difference is a converge input, never permission to re-onboard. `skills/Housekeeping/` owns layout migration on a declared Wiser user root and is callable any time to bring its shelves and filing declarations into conformance with this standard. A missing layout version on an already-declared Wiser root is drift, not foreign identity.
+The constitution's Workspace Model (`wiser/AGENTS.md`) owns root identification. Its declaration is in root `AGENTS.md`: `type:`, a Provides block, the Wiser constitution citation, the Onboarding section (C15), and the declared-directory table. A folder set never identifies a user root. The frontmatter also carries `root:` and `layout:`, the latter this standard's current tree version (4). Increment that integer when this standard changes the tree; a version difference is a converge input, never permission to re-onboard. `skills/Housekeeping/` owns layout migration on a declared Wiser user root and is callable any time to bring its shelves and filing declarations into conformance with this standard. A missing layout version on an already-declared Wiser root is drift, not foreign identity.
 
 That integer is the root **contract** version: the tree above, and whatever else this standard requires of a root before it counts as current. Increment it equally when a row of the table below requires something a tree change does not cover. One integer and no minor part; a row says whether it is required or advisory, so severity lives in the row and not in the number.
 
@@ -116,8 +116,6 @@ Answer files live at `memory/answers/`. Provides does not bind that directory or
 
 One answers file per run. A voice run writes `YYYY-MM-DD voice answers.md`. A design run writes `YYYY-MM-DD design answers.md`. The date is the day the run writes the file. If that name is already there, the run does not overwrite it. It writes the next free name, `YYYY-MM-DD V2 voice answers.md` or `YYYY-MM-DD V2 design answers.md`, and so on.
 
-A voice run whose first piece was a reading the person called spooky good also writes `YYYY-MM-DD voice reading.md` beside its answers file, with the same date and the same V numbering: the piece as kept, then the reading it was written from. It is not a table. No bound file cites it or reproduces it.
-
 Each answers file is one table. The columns are question number, question bank version, what was shown, the answer, and status. Status is answered, skipped, or in between. A skipped row leaves the answer empty. An in-between row says so and may carry the words the member added. The question bank version is the name and version the skill that asked states. This clause does not define that version.
 
 A sample is named by the path where it is filed. Its text is not copied into the answers file. This clause gives samples no new home.
@@ -126,13 +124,29 @@ A sample is named by the path where it is filed. Its text is not copied into the
 
 An answers file is not an onboarding record and does not file under `work/onboarding/`. C10 does not score it.
 
-A root whose directory holds no answers file scores present on this clause (vacuous). Score absent when the Work Directories table lacks the C3 row, or when the directory or the router is missing. Score misfiled when a file in the directory breaks this grammar, when Provides binds the directory, or when a bound file reproduces a row of an answers file or the reading a reading file holds after its kept piece; a line of the kept piece quoted where a bound file asks for one is not that.
+A root whose directory holds no answers file scores present on this clause (vacuous). Score absent when the Work Directories table lacks the C3 row, or when the directory or the router is missing. Score misfiled when a file in the directory breaks this grammar, when Provides binds the directory, or when a bound file reproduces a row of an answers file; a line of a kept piece quoted where a bound file asks for one is not that.
 
 The router cites this clause and restates none of it.
 
 The skill that builds `voice.md` writes the voice answers file. The skill that writes `design.md` writes the design answers file. Housekeeping creates a missing `memory/answers/` and copies `memory/answers/AGENTS.md` from `system/templates/User Root Template/` where the root has none. It writes no answers file and no bound file. Copying that router is a create. It does not replace the root `AGENTS.md`.
 
 While the root's stamp is below row 4, a skill that would write an answers file offers the named ask **update root** first and does not create `memory/answers/` itself, and it does not apply the plan; C1 and the constitution's named ask own that comparison. Where the person declines, or the update is not applied, the skill writes no answers file and goes on with the rest of its run, and the bound files it writes stand. The answers are then not kept anywhere, and they are not filed under `work/onboarding/`.
+
+## C15 Onboarding section
+
+The `## Onboarding` section of the root's `AGENTS.md` holds three things and nothing else:
+
+1. The close line `skills/Onboard Root/` writes, the paragraph opening `Onboarded <date>` that its Step 5 gives for the personal path and its Phase 9 for the full path, or, until that close, the section as the template ships it, which says the root is not onboarded.
+2. One state line per key, `- <key>: <state>`: until that close, as the template ships it, `blocked (not onboarded)`; from it, in the grammar that skill's Step 5 and Phase 9 give, `competitors: unbound` included.
+3. Where a session must read something before writing from this root's files, a note after the state lines, never itself a `- <key>:` line, naming each file and the entry in it to read: a bound file's `[V<n>]` verification anchor such as `memory/about.md` V534, a heading, or an onboarding record's row such as `work/onboarding/operating-file.md` O29.
+
+A note says where a fact is kept, never the fact itself: nothing keeps a copy in this section current, so it goes stale the day its file changes. A note may say what an entry is about, in words that stay true whatever the entry comes to say, such as "the plans"; anything more is a restated fact. The close line and the state lines are not notes: the date, path, tier, owner and what a key waits on that they carry are their grammar. A close paragraph written before this clause, such as one opening `Adopted <date>`, is the close line, and a state line that carries its own dated record in parentheses is still a state line: this clause scores notes alone, and changes neither.
+
+Score present when the section holds only those three. Score misfiled when a note states a fact, a figure, a date, a name or a decision rather than pointing to where it is kept, or when a pointer names an entry its file does not carry. A `[V<n>]` pointer resolves only while that id anchors a claim the named file now makes, by the anchor grammar `skills/Onboard Root/full-path.md` gives, an anchor written just after a claim's full stop included; a verification row that outlived its claim, or a correction note naming what the file used to say, does not count, so a pointer whose claim was re-verified under a new id is misfiled and names the new id once rewritten. A missing section is scored under C1 and `skills/Onboard Root/`.
+
+`skills/Onboard Root/` writes the section at close; `skills/Build Voice/` on its coach path and `skills/Build Brand/` each set their own key's state line. `skills/Housekeeping/` scores this clause on every **update root**, whatever the stamp, and proposes rewriting a misfiled note to pointers, changing no other byte of the section. This clause gives Housekeeping that one write and no other: it closes no key and writes no bound file.
+
+**No C1 contract row scores this clause, and that is decided rather than missing.** Decided 2026-11-02: this clause changes no tree, and Housekeeping scores every clause whatever the stamp, so an existing root converges at its next **update root** with no number to reach. C1 increments the integer for a requirement a tree change does not cover; this clause deliberately takes no row. **Do not add one, and do not read the absence as an oversight.**
 
 ## Scoring
 

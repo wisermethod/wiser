@@ -865,7 +865,7 @@
           }
         },
         "create_draft": {
-          "description": "Saves a message in Gmail Drafts and does not send it. An address is at most 254 characters and 254 bytes in UTF-8, with exactly one @, text on both sides and no whitespace, a carriage return, line feed or NUL in the subject is refused, a subject that is not plain ASCII or does not fit one header line is sent as RFC 2047 UTF-8 encoded-words on folded lines, each address goes on its own folded line, both bodies are base64 wrapped at 76 characters, raw is base64url without padding, and body_html sends multipart/alternative. Text holding a lone surrogate, which is not Unicode, is refused.",
+          "description": "Saves a message in Gmail Drafts and does not send it. Each recipient item is a single plain address with no display name, group or comment, at most 254 Unicode code points and 254 UTF-8 bytes. All input strings must be well-formed Unicode; lone surrogates are refused. Supply thread_id, in_reply_to and references together or omit all three. The last references entry must equal in_reply_to, the immediate parent's RFC Message-ID, not its Gmail resource id; match the parent's Message-Id header name from get_message case-insensitively. References are the ordered ancestor IDs including that parent last, at most 20 entries of at most 254 ASCII characters each; excluded Message-ID forms and longer ancestry must be reported, never rewritten or truncated. Google requires threadId to identify the existing thread, RFC 2822 compliant References and In-Reply-To, and matching Subject headers. Supply the existing subject unchanged; no Re: is added and no lookup verifies the thread, account, subject or parent. To/Cc/Bcc and RFC 2047 UTF-8 subjects are folded; text leaves use standard base64 wrapped at 76 characters and raw uses unpadded base64url. Local attachments require the local stdio gateway and 1 to 10 regular files totaling at most 2097152 bytes, counting duplicate paths once per occurrence. Omit attachments for no files. The gateway checks native absolute paths, actual byte sizes and integrity, refusing protected paths, environment files, memory ancestry, links including linked ancestors, multiply linked files, unreadable files and changes since approval; supply a real path. The module uses only prepared bytes, checks their count, metadata, length and SHA-256, and attaches them in the order the gateway prepared them, which is input order. Unknown extensions use application/octet-stream without content sniffing. With files MIME is multipart/mixed, body first, then attachments in input order; body_html, including empty HTML, makes a nested multipart/alternative. Attachment filenames use escaped ASCII or RFC 2231 UTF-8 parameters. No local path enters MIME. File bytes never appear in results; only selected Gmail resource fields are returned. A failed or malformed response is never automatically retried.",
           "risk": "medium",
           "confirmation": "always",
           "execution": {
@@ -880,7 +880,8 @@
                 "items": {
                   "type": "string",
                   "maxLength": 254,
-                  "pattern": "^[^\\s@\\u0000]+@[^\\s@\\u0000]+$"
+                  "pattern": "^[^\\s@\\u0000,;:<>()\\[\\]\"\\\\]+@[^\\s@\\u0000,;:<>()\\[\\]\"\\\\]+$",
+                  "minLength": 3
                 },
                 "minItems": 1
               },
@@ -890,8 +891,10 @@
                 "items": {
                   "type": "string",
                   "maxLength": 254,
-                  "pattern": "^[^\\s@\\u0000]+@[^\\s@\\u0000]+$"
-                }
+                  "pattern": "^[^\\s@\\u0000,;:<>()\\[\\]\"\\\\]+@[^\\s@\\u0000,;:<>()\\[\\]\"\\\\]+$",
+                  "minLength": 3
+                },
+                "minItems": 0
               },
               "bcc": {
                 "type": "array",
@@ -899,21 +902,61 @@
                 "items": {
                   "type": "string",
                   "maxLength": 254,
-                  "pattern": "^[^\\s@\\u0000]+@[^\\s@\\u0000]+$"
-                }
+                  "pattern": "^[^\\s@\\u0000,;:<>()\\[\\]\"\\\\]+@[^\\s@\\u0000,;:<>()\\[\\]\"\\\\]+$",
+                  "minLength": 3
+                },
+                "minItems": 0
               },
               "subject": {
                 "type": "string",
                 "maxLength": 998,
-                "pattern": "^[^\\r\\n\\u0000]*$"
+                "pattern": "^[^\\r\\n\\u0000]*$",
+                "minLength": 0
               },
               "body": {
                 "type": "string",
-                "maxLength": 200000
+                "maxLength": 200000,
+                "minLength": 0
               },
               "body_html": {
                 "type": "string",
-                "maxLength": 200000
+                "maxLength": 200000,
+                "minLength": 0
+              },
+              "attachments": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 10,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4096,
+                  "pattern": "^(?:/|[A-Za-z]:[\\\\/]|\\\\\\\\)[^\\u0000]*$"
+                },
+                "description": "Absolute paths on the local stdio gateway only. At most 10 regular files, totaling at most 2097152 bytes per message. Omit this field for no attachments; an empty array is invalid. The gateway screens protected paths, links, identities and changes since approval before giving private bytes to the module. See the action description for filesystem refusals."
+              },
+              "thread_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100,
+                "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}$"
+              },
+              "in_reply_to": {
+                "type": "string",
+                "minLength": 5,
+                "maxLength": 254,
+                "pattern": "^<[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*>$"
+              },
+              "references": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 20,
+                "items": {
+                  "type": "string",
+                  "minLength": 5,
+                  "maxLength": 254,
+                  "pattern": "^<[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*>$"
+                }
               }
             },
             "required": [
@@ -921,7 +964,178 @@
               "subject",
               "body"
             ],
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "properties": {
+                  "thread_id": false,
+                  "in_reply_to": false,
+                  "references": false
+                }
+              },
+              {
+                "required": [
+                  "thread_id",
+                  "in_reply_to",
+                  "references"
+                ]
+              }
+            ]
+          },
+          "input_files": {
+            "field": "attachments",
+            "max_bytes": 2097152
+          }
+        },
+        "send_draft": {
+          "description": "Send this saved draft only with the person's explicit go for this message. This action always asks for confirmation and cannot use a standing approval. The saved draft may have changed in Gmail since it was composed. The stop shows the draft id; it does not preview or bind remote draft bytes. Supply the Draft id, not a Message id. Sends the saved To/Cc/Bcc without a lookup, replacement message or retry, returning only selected Message resource fields.",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "draft_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100,
+                "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}$"
+              }
+            },
+            "required": [
+              "draft_id"
+            ],
             "additionalProperties": false
+          }
+        },
+        "send_message": {
+          "description": "Send only with the person's explicit go for this message, or a standing approval the person granted for this action. A call naming local attachments always asks for confirmation and is never covered by a standing approval. Each recipient item is a single plain address with no display name, group or comment, at most 254 Unicode code points and 254 UTF-8 bytes. All input strings must be well-formed Unicode; lone surrogates are refused. Supply thread_id, in_reply_to and references together or omit all three. The last references entry must equal in_reply_to, the immediate parent's RFC Message-ID, not its Gmail resource id; match the parent's Message-Id header name from get_message case-insensitively. References are the ordered ancestor IDs including that parent last, at most 20 entries of at most 254 ASCII characters each; excluded Message-ID forms and longer ancestry must be reported, never rewritten or truncated. Google requires threadId to identify the existing thread, RFC 2822 compliant References and In-Reply-To, and matching Subject headers. Supply the existing subject unchanged; no Re: is added and no lookup verifies the thread, account, subject or parent. To/Cc/Bcc and RFC 2047 UTF-8 subjects are folded; text leaves use standard base64 wrapped at 76 characters and raw uses unpadded base64url. Local attachments require the local stdio gateway and 1 to 10 regular files totaling at most 2097152 bytes, counting duplicate paths once per occurrence. Omit attachments for no files. The gateway checks native absolute paths, actual byte sizes and integrity, refusing protected paths, environment files, memory ancestry, links including linked ancestors, multiply linked files, unreadable files and changes since approval; supply a real path. The module uses only prepared bytes, checks their count, metadata, length and SHA-256, and attaches them in the order the gateway prepared them, which is input order. Unknown extensions use application/octet-stream without content sniffing. With files MIME is multipart/mixed, body first, then attachments in input order; body_html, including empty HTML, makes a nested multipart/alternative. Attachment filenames use escaped ASCII or RFC 2231 UTF-8 parameters. No local path enters MIME. File bytes never appear in results; only selected Gmail resource fields are returned. A failed or malformed response is never automatically retried.",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "to": {
+                "type": "array",
+                "maxItems": 50,
+                "items": {
+                  "type": "string",
+                  "maxLength": 254,
+                  "pattern": "^[^\\s@\\u0000,;:<>()\\[\\]\"\\\\]+@[^\\s@\\u0000,;:<>()\\[\\]\"\\\\]+$",
+                  "minLength": 3
+                },
+                "minItems": 1
+              },
+              "cc": {
+                "type": "array",
+                "maxItems": 50,
+                "items": {
+                  "type": "string",
+                  "maxLength": 254,
+                  "pattern": "^[^\\s@\\u0000,;:<>()\\[\\]\"\\\\]+@[^\\s@\\u0000,;:<>()\\[\\]\"\\\\]+$",
+                  "minLength": 3
+                },
+                "minItems": 0
+              },
+              "bcc": {
+                "type": "array",
+                "maxItems": 50,
+                "items": {
+                  "type": "string",
+                  "maxLength": 254,
+                  "pattern": "^[^\\s@\\u0000,;:<>()\\[\\]\"\\\\]+@[^\\s@\\u0000,;:<>()\\[\\]\"\\\\]+$",
+                  "minLength": 3
+                },
+                "minItems": 0
+              },
+              "subject": {
+                "type": "string",
+                "maxLength": 998,
+                "pattern": "^[^\\r\\n\\u0000]*$",
+                "minLength": 0
+              },
+              "body": {
+                "type": "string",
+                "maxLength": 200000,
+                "minLength": 0
+              },
+              "body_html": {
+                "type": "string",
+                "maxLength": 200000,
+                "minLength": 0
+              },
+              "attachments": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 10,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4096,
+                  "pattern": "^(?:/|[A-Za-z]:[\\\\/]|\\\\\\\\)[^\\u0000]*$"
+                },
+                "description": "Absolute paths on the local stdio gateway only. At most 10 regular files, totaling at most 2097152 bytes per message. Omit this field for no attachments; an empty array is invalid. The gateway screens protected paths, links, identities and changes since approval before giving private bytes to the module. See the action description for filesystem refusals."
+              },
+              "thread_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100,
+                "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}$"
+              },
+              "in_reply_to": {
+                "type": "string",
+                "minLength": 5,
+                "maxLength": 254,
+                "pattern": "^<[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*>$"
+              },
+              "references": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 20,
+                "items": {
+                  "type": "string",
+                  "minLength": 5,
+                  "maxLength": 254,
+                  "pattern": "^<[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*>$"
+                }
+              }
+            },
+            "required": [
+              "to",
+              "subject",
+              "body"
+            ],
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "properties": {
+                  "thread_id": false,
+                  "in_reply_to": false,
+                  "references": false
+                }
+              },
+              {
+                "required": [
+                  "thread_id",
+                  "in_reply_to",
+                  "references"
+                ]
+              }
+            ]
+          },
+          "input_files": {
+            "field": "attachments",
+            "max_bytes": 2097152
+          },
+          "standing_approval": {
+            "kind": "send",
+            "summary": "send Gmail messages",
+            "caution": "This grant sends messages your assistant writes, to any recipient, with no look at each one before it is sent. It never covers a message with a local file attached."
           }
         }
       },

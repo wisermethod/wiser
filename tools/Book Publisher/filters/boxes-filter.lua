@@ -1,0 +1,92 @@
+-- Opt-in fenced-div boxes. publish.js validates and supplies the class/style map.
+-- Kept separate from format-filter so EPUB retains its existing processing.
+local boxes = {}
+
+-- TeX does not accept scientific notation in dimensions or gray factors.
+-- Eight decimal places are already finer than a TeX scaled point.
+local function decimal(value)
+  return string.format('%.8f', value):gsub('0+$', ''):gsub('%.$', '')
+end
+
+local function Meta(meta)
+  if meta['book-boxes'] then
+    boxes = pandoc.json.decode(pandoc.utils.stringify(meta['book-boxes']))
+  end
+end
+
+local function box_for(elem)
+  -- The first configured class in manuscript order wins; unknown classes are
+  -- untouched, including all their identifiers, attributes and nested content.
+  for _, class in ipairs(elem.classes) do
+    if boxes[class] then return boxes[class] end
+  end
+end
+
+local function Div(elem)
+  local box = box_for(elem)
+  if not box then return nil end
+
+  if FORMAT:match('latex') then
+    -- mdframed cannot split an inner frame across pages. Refuse that placement
+    -- rather than silently overflowing or losing a long nested box's content.
+    pandoc.Pandoc(elem.content):walk({ Div = function(child)
+      if box_for(child) then
+        error('Nested configured print boxes are not supported; close the outer box before starting another boxed class.')
+      end
+    end })
+    local style = box.print
+    -- Book headings normally start new pages. Within a box they are local bold
+    -- labels, with their link targets retained, rather than chapter openers.
+    local function heading(header)
+      -- Start the line before its target: an anchor-only first fragment
+      -- would otherwise leave an empty mdframed shell when the label moves.
+      return { pandoc.Para({ pandoc.RawInline('latex', '\\leavevmode'),
+        pandoc.Span({ pandoc.Strong(header.content) }, header.attr) }),
+        pandoc.RawBlock('latex', '\\bookpublisherboxkeep') }
+    end
+    elem = elem:walk({ Blocks = function(blocks)
+      local result = pandoc.List()
+      local i = 1
+      while i <= #blocks do
+        local j = i
+        while j <= #blocks and blocks[j].t == 'Header' do j = j + 1 end
+        -- format-filter has already converted a standalone image to center.
+        -- Measure these adjacent headings and the image as one bounded unit.
+        if j > i and j <= #blocks and blocks[j].t == 'RawBlock'
+            and blocks[j].format == 'latex'
+            and blocks[j].text:match('^\\begin{center}%s+\\includegraphics') then
+          local heads = pandoc.List()
+          for n = i, j - 1 do heads:extend(heading(blocks[n])) end
+          result:insert(pandoc.RawBlock('latex', '\\bookpublisherboximage{\n'
+            .. pandoc.write(pandoc.Pandoc(heads), 'latex') .. '}{\n' .. blocks[j].text .. '\n}'))
+          i = j + 1
+        else
+          result:insert(blocks[i])
+          i = i + 1
+        end
+      end
+      return result
+    end })
+    elem = elem:walk({ Header = heading, Table = function(tbl)
+      local rows = #tbl.head.rows + #tbl.foot.rows
+      for _, body in ipairs(tbl.bodies) do rows = rows + #body.head + #body.body end
+      return { tbl, pandoc.RawBlock('latex', '\\bookpublisherboxtablerows{' .. rows .. '}') }
+    end })
+    elem.content:insert(1, pandoc.RawBlock('latex', string.format(
+      '\\begin{bookpublisherbox}{%s}{%s}{%s}{%s}',
+      decimal(style.background_gray), decimal(style.border_gray),
+      decimal(style.border_width), decimal(style.padding))))
+    elem.content:insert(pandoc.RawBlock('latex', '\\end{bookpublisherbox}'))
+    return elem
+  elseif FORMAT:match('epub') or FORMAT:match('html') then
+    local style = box.epub
+    local css = string.format(
+      'background-color: %s; border: %spx solid %s; padding: %sem; margin: 1em 0;',
+      style.background, decimal(style.border_width), style.border_color, decimal(style.padding))
+    local existing = elem.attributes.style
+    elem.attributes.style = existing and (existing .. '; ' .. css) or css
+    return elem
+  end
+end
+
+return { { Meta = Meta }, { Div = Div } }

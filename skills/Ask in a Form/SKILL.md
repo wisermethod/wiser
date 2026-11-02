@@ -3,7 +3,7 @@ name: Ask in a Form
 type: skill
 category: onboarding
 description: Put a skill's questions to a member as a form they answer by tapping pictures and choices, shown inside the chat, in a window beside a command-line tool, or as chat buttons where neither can show, with the answers read back and handed to the calling skill
-version: 0.1.6
+version: 0.1.7
 ---
 
 # Ask in a Form
@@ -103,7 +103,7 @@ A host who asks only what the calling skill needs, in a form a member can finish
       - `gone`: read the page's status line, `BC execute --code "document.getElementById('status')?.textContent"`. It reads "Sent. You can close this window." or "These answers were already sent.": read the picks off the page with `BC execute`, in the shapes `tools/Form/TOOL.md` gives each question type, from the controls under each `fieldset[data-id]`, a question with nothing picked being skipped; then step 4.5, then step 6. Anything else, or `execute` failing: ask whether to open the form again; yes, step 4.1, which reuses the window; no, step 4.5, then step 5.
    5. Clean up: `node tools/Form/scripts/form.js stop` with the port and code `serve` printed, `BC session stop`, and remove this form's temporary directories.
 
-5. **Ask in chat instead.** Say "I'll ask these here instead." Ask the same questions, in the form's order, as Build Voice asks its taps (`skills/Build Voice/SKILL.md` The coach, How you ask): a question tool that shows options as buttons, where the app has one, else one question per message with lettered options. A picture becomes its option's label, with its note where it has one; a pick-any question takes several; a slider becomes five choices, its two ends and the steps nearest the quarter, the middle and the three quarters, or every step where it has five or fewer, each labelled with its number and the end it is nearer; a text question is a plain message. What is recorded is the option's value, as a form records it; the label is only what the member sees.
+5. **Ask in chat instead.** Say "I'll ask these here instead." Ask the same questions, in the form's order, as Build Voice asks its taps (`skills/Build Voice/paths/coach.md`, How you ask): a question tool that shows options as buttons, where the app has one, else one question per message with lettered options. A picture becomes its option's label, with its note where it has one; a pick-any question takes several; a slider becomes five choices, its two ends and the steps nearest the quarter, the middle and the three quarters, or every step where it has five or fewer, each labelled with its number and the end it is nearer; a text question is a plain message. What is recorded is the option's value, as a form records it; the label is only what the member sees.
 
 6. **Read the answers back.** A calling skill using boards and actions receives the picks and the chosen action straight away at step 7; that action is the member's decision, with no further confirmation here. For other forms, the structured answers are the record: one value per question id. Where the member edited the drafted message before sending it, as Claude and Cowork let them, and it now says something the data does not, ask which is right first. Say "Here's what I have: [question], [answer]; ... Tell me if anything's wrong.", each question by its `short`, each answer as the member would say it, a skipped one as "(none)", then stop and wait. A correction replaces that answer, and the line is said again. A yes, or the member going on, confirms them: step 7.
 

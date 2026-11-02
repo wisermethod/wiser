@@ -487,7 +487,8 @@ test('--route wall time with the plugin roster and an instant classifier', { tim
   const builtAt = performance.now();
   const rows = buildRoster(PLUGIN_ROOT);
   const buildMs = Math.round(performance.now() - builtAt);
-  assert.ok(rows.length >= 60, `row count ${rows.length}`);
+  assert.equal(rows.length, 7);
+  assert.ok(rows.every((row) => row.family === 'skill'));
   const home = makeHome();
   const env = envFile(makeHome(), KEY);
   const dir = classifierDir();

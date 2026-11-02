@@ -248,7 +248,9 @@ which manages the hostname's Worker routing, rather than a Workers route pattern
 [List Worker Domains](https://developers.cloudflare.com/api/resources/workers/subresources/domains/methods/list/)
 is filtered by hostname without a service filter so another Worker's attachment
 cannot look absent. A malformed, ambiguous or incomplete listing refuses the write.
-The selected domain is [read by id](https://developers.cloudflare.com/api/resources/workers/subresources/domains/methods/get/)
+A listed domain's id is 40 lowercase hex characters, as Cloudflare answered on
+2026-11-01, or the 32-character or UUID form its documentation shows; any other id
+refuses the write before it reaches a request path. The selected domain is [read by id](https://developers.cloudflare.com/api/resources/workers/subresources/domains/methods/get/)
 before [Detach Worker Domain](https://developers.cloudflare.com/api/resources/workers/subresources/domains/methods/delete/).
 Both ownership reads must name this Worker in production; a missing hostname is
 refused. After deletion the id must return 404 and the hostname must be absent.

@@ -509,6 +509,9 @@ async function main() {
   const gateway = new ConnectionGateway({
     home: screenedHome,
     ...((flags.route || flags.call !== null) ? {} : { outputsDir: join(screenedHome, 'outputs') }),
+    ...((flags.route || flags.call !== null) ? {} : {
+      inputFileAccess: { enabled: true, envPath: flags.env, secretFiles: flags.secretFiles, secretsDir: flags.secrets },
+    }),
     role,
     harness: flags.harness,
     store,

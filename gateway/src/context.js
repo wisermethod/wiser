@@ -112,6 +112,8 @@ function releaseFetcher(releaseHosts, fetchImpl) {
  * @param {number} [opts.proxyBodyMaxBytes] The action's private proxy body budget.
  * @param {object} [opts.downloadMedia] The action's download_media declaration.
  * @param {object} [opts.outputFile] The action's output_file declaration.
+ * @param {object} [opts.inputFileDeclaration] The action's input_files declaration.
+ * @param {object[]} [opts.preparedInputFiles] Private snapshots prepared by the gateway.
  * @param {string} [opts.outputsDir] Explicit local destination, never from input.
  * @param {AbortSignal} [opts.executionSignal] Aborted when the action ends.
  * @param {() => void} [opts.onAudit]
@@ -133,7 +135,20 @@ export function buildContext({
   releaseHosts,
   fetchImpl = globalThis.fetch,
   downloadMedia, outputFile, outputsDir, executionSignal, proxyBodyMaxBytes,
+  inputFileDeclaration, preparedInputFiles,
 }) {
+  const inputField = inputFileDeclaration?.field;
+  let inputSnapshots = preparedInputFiles?.map(({ data, name, media_type, size, sha256 }) => ({
+    data: Buffer.from(data), name, media_type, size, sha256,
+  }));
+  executionSignal?.addEventListener('abort', () => { inputSnapshots = null; }, { once: true });
+  function inputFiles(field) {
+    if (!inputField || field !== inputField || !executionSignal || executionSignal.aborted || !inputSnapshots) {
+      throw statusSignal(STATUS.INVALID_ARGUMENTS, { field: inputField ?? 'input', reason: 'input_file_refused' });
+    }
+    return inputSnapshots.map((file) => ({ ...file, data: Buffer.from(file.data) }));
+  }
+
   const toolkit = auth?.toolkit;
   const providerAccountId = record?.provider_account_id ?? null;
   const declared = responseHeaders === undefined ? undefined : [...responseHeaders];
@@ -312,6 +327,7 @@ export function buildContext({
     confirm: Boolean(confirm),
     proxy,
     measureProxyBody,
+    inputFiles,
     http,
     catalog,
     audit,

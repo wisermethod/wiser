@@ -19,6 +19,14 @@ export function isHeightened(kinds) {
   return kinds.some((kind) => Object.hasOwn(HEIGHTENED_PHRASES, kind));
 }
 
+/** @param {string[]} kinds @param {string | null | undefined} playbook */
+export function maxStandingApprovalDays(kinds, playbook) {
+  if (!isHeightened(kinds)) return 365;
+  if (new Set(kinds).size === 1 && kinds.includes('send')
+      && typeof playbook === 'string' && playbook.length > 0) return 90;
+  return 7;
+}
+
 /** @param {string[]} parts */
 function joinWords(parts) {
   if (parts.length < 2) return parts.join('');
@@ -196,6 +204,8 @@ export function createStandingApprovals(home, now = Date.now) {
  * @returns {object | null}
  */
 export function matchStandingApproval(grants, { action, manifestAction, label, providerAccountId, root, playbook, input, now }) {
+  if (manifestAction?.input_files && input !== null && typeof input === 'object' &&
+      !Array.isArray(input) && Object.hasOwn(input, manifestAction.input_files.field)) return null;
   if (!manifestAction?.standing_approval || !root) return null;
   const kind = manifestAction.standing_approval.kind;
   const matches = grants.filter((grant) => isActiveStandingApproval(grant, now)
@@ -204,9 +214,10 @@ export function matchStandingApproval(grants, { action, manifestAction, label, p
     && Array.isArray(grant.summaries) && grant.summaries.includes(manifestAction.standing_approval.summary)
     && (manifestAction.standing_approval.caution === undefined
       || (Array.isArray(grant.cautions) && grant.cautions.includes(manifestAction.standing_approval.caution)))
-    && (!isHeightened([kind]) || (grant.heightened === true
+    && (!isHeightened(grant.kinds) || (grant.heightened === true
       && Date.parse(grant.expires_at) - Date.parse(grant.created_at) > 0
-      && Date.parse(grant.expires_at) - Date.parse(grant.created_at) <= 7 * STANDING_APPROVAL_DAY_MS))
+      && Date.parse(grant.expires_at) - Date.parse(grant.created_at)
+        <= maxStandingApprovalDays(grant.kinds, grant.playbook) * STANDING_APPROVAL_DAY_MS))
     && grant.label === (label ?? null)
     && grant.provider_account_id === providerAccountId
     && grant.root === root
@@ -237,7 +248,9 @@ function scopeWords(scope) {
 export function buildStandingApprovalWarning({ scope, summaries, cautions = [], kinds, heightened, expiresOn }) {
   const cautionText = [...new Set(cautions)].map((caution) => `${caution} `).join('');
   const heightenedText = heightened
-    ? `Some of these actions ${joinWords(Object.entries(HEIGHTENED_PHRASES).filter(([kind]) => kinds.includes(kind)).map(([, phrase]) => phrase))}. Under this approval nobody looks at each one before it happens, and once done it cannot be called back. It lasts at most 7 days. `
+    ? maxStandingApprovalDays(kinds, scope.playbook) === 90
+      ? `This approval sends messages to other people, ${Object.keys(scope.where ?? {}).length ? 'to any recipient the limits above allow' : 'to any recipient'}, and nobody looks at each one before it is sent; once sent, a message cannot be called back. Because it covers only sending, and only in one Playbook, it lasts at most 90 days. `
+      : `Some of these actions ${joinWords(Object.entries(HEIGHTENED_PHRASES).filter(([kind]) => kinds.includes(kind)).map(([, phrase]) => phrase))}. Under this approval nobody looks at each one before it happens, and once done it cannot be called back. It lasts at most 7 days. `
     : '';
   return `This standing approval lets your assistant ${joinWords(summaries)} ${scopeWords(scope)}. For ${scope.days} ${scope.days === 1 ? 'day' : 'days'}, until ${expiresOn}, every call that matches runs straight away, with no approval step for you to see or refuse. Anything outside it still asks you, as today. ${cautionText}${heightenedText}You can end it at any time: ask your assistant to revoke it, or remove it on your Wiser account page. Answer yes to grant it, or no to leave things as they are.`;
 }

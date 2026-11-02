@@ -4,13 +4,14 @@ import { isAncestorPid, rescanRefusal, verify } from '../../hooks/lib/binding.mj
 import { isRefused } from '../../hooks/lib/presence.mjs';
 import { buildContext } from './context.js';
 import { STATUS, StatusSignal, classifierAuditStatus, isStatusObject, projectProviderCodes, sanitizeError, statusObject, vendorErrorFrom } from './errors.js';
-import { composeSummary, containsUnsafeCodePoint, discloseInput } from './disclosure.js';
+import { composeSummary, containsUnsafeCodePoint, discloseAttachmentFiles, discloseInput } from './disclosure.js';
 import { validateInput } from './input-schema.js';
 import { cleanupOutputs, stripSlot, writeOutputFile } from './file-output.js';
+import { readInputFiles, screenInputFiles } from './file-input.js';
 import { createResponseHeaderGuard } from './response-headers.js';
 import { evaluate } from './policy.js';
 import { assertNoSecrets } from './store.js';
-import { STANDING_APPROVAL_DAY_MS, buildStandingApprovalWarning, createStandingApprovals, isActiveStandingApproval, isHeightened, matchStandingApproval, standingApprovalResult, standingApprovalSummary } from './standing-approvals.js';
+import { STANDING_APPROVAL_DAY_MS, buildStandingApprovalWarning, createStandingApprovals, isActiveStandingApproval, isHeightened, matchStandingApproval, maxStandingApprovalDays, standingApprovalResult, standingApprovalSummary } from './standing-approvals.js';
 import { readProviderUserId, writeProviderUserIdIfEmpty } from './paths.js';
 import { readClassifierKey } from './paths.js';
 import { FIRST_PARTY_ACTIONS, firstPartyDef, parseActionId, resolveAction, validateFirstPartyAnswer } from './resolve.js';
@@ -305,7 +306,7 @@ const TOOLS = [
         root: ROOT_SCHEMA,
         playbook: PLAYBOOK_SCHEMA,
         where: { type: 'object', additionalProperties: { type: 'array', minItems: 1, maxItems: 20, items: { type: 'string', minLength: 1, maxLength: 120 } }, description: 'Restrict declared string fields to these exact allowed values.' },
-        days: { type: 'integer', minimum: 1, maximum: 365, description: 'Set the duration in days, at most seven for heightened actions.' },
+        days: { type: 'integer', minimum: 1, maximum: 365, description: 'Set the duration in days, at most 7 for heightened actions, or 90 for a grant that only sends and names a Playbook.' },
         confirmed: { type: 'boolean', description: 'Use true only after the person answers yes to this exact proposed warning.' },
         id: { type: 'string', description: 'Identify the standing approval to revoke.' },
       },
@@ -590,6 +591,9 @@ function listingProviderError(err) {
  * Connection gateway: resolve, policy, execute, connect.
  */
 export class ConnectionGateway {
+  #inputFileAccess = null;
+  #fileConfirmations = new Map();
+
   /**
    * @param {object} opts
    */
@@ -599,6 +603,19 @@ export class ConnectionGateway {
       throw new TypeError('outputsDir must be an absolute path');
     }
     this.outputsDir = opts.outputsDir ?? null;
+    if (opts.inputFileAccess != null) {
+      const access = opts.inputFileAccess;
+      const absolute = (value) => typeof value === 'string' && isAbsolute(value) && !value.includes('\u0000');
+      const secrets = access.secretFiles ?? {};
+      if (typeof access !== 'object' || Array.isArray(access) || access.enabled !== true ||
+          !absolute(opts.home) || !absolute(access.envPath) || !secrets || typeof secrets !== 'object' ||
+          !Object.values(secrets).every(absolute) || (access.secretsDir != null && !absolute(access.secretsDir))) {
+        throw new TypeError('inputFileAccess requires explicit absolute local paths');
+      }
+      this.#inputFileAccess = {
+        home: opts.home, envPath: access.envPath, secretFiles: Object.values(secrets), secretsDir: access.secretsDir ?? null,
+      };
+    }
     this.role = opts.role || 'runtime';
     this.harness = opts.harness || 'unknown';
     this.store = opts.store;
@@ -644,6 +661,32 @@ export class ConnectionGateway {
     for (const [key, expiry] of this.pendingConfirmations) {
       if (expiry <= now) this.pendingConfirmations.delete(key);
     }
+    this.#pruneFileConfirmations();
+  }
+
+  /** File snapshots never outlive their entry in the numeric expiry map. */
+  #pruneFileConfirmations() {
+    for (const [base, record] of this.#fileConfirmations) {
+      if (!this.pendingConfirmations.has(record.fullDigest) || record.expiry <= this.now()) {
+        this.#fileConfirmations.delete(base);
+      }
+    }
+  }
+
+  #forgetFileConfirmation(base, fullDigest) {
+    this.pendingConfirmations.delete(fullDigest);
+    if (this.#fileConfirmations.get(base)?.fullDigest === fullDigest) this.#fileConfirmations.delete(base);
+  }
+
+  /** One live stop per base call, with descriptors only, never buffers. */
+  #recordFileConfirmation(base, fullDigest, descriptors) {
+    const previous = this.#fileConfirmations.get(base);
+    if (previous) this.#forgetFileConfirmation(base, previous.fullDigest);
+    this.recordPendingConfirmation(fullDigest);
+    this.#fileConfirmations.set(base, {
+      fullDigest, descriptors: descriptors.map((entry) => ({ ...entry })),
+      expiry: this.pendingConfirmations.get(fullDigest),
+    });
   }
 
   /**
@@ -659,6 +702,7 @@ export class ConnectionGateway {
       const oldest = this.pendingConfirmations.keys().next().value;
       this.pendingConfirmations.delete(oldest);
     }
+    this.#pruneFileConfirmations();
   }
 
   /**
@@ -678,6 +722,7 @@ export class ConnectionGateway {
       return null;
     }
     this.pendingConfirmations.delete(key);
+    this.#pruneFileConfirmations();
     return expiry;
   }
 
@@ -1037,8 +1082,9 @@ export class ConnectionGateway {
     }
     const kinds = [...new Set(covered.map(({ def }) => def.standing_approval.kind))].sort();
     const heightened = isHeightened(kinds);
-    const days = args.days ?? (heightened ? 7 : 90);
-    if (heightened && days > 7) return bad('days', 'max');
+    const maxDays = maxStandingApprovalDays(kinds, args.playbook);
+    const days = args.days ?? Math.min(90, maxDays);
+    if (days > maxDays) return bad('days', 'max');
     const scope = {
       actions, module_wide: Boolean(args.module), label: args.label ?? null,
       provider_account_id: record.provider_account_id, root: args.root,
@@ -1241,6 +1287,13 @@ export class ConnectionGateway {
     const found = this.lookupModule(parsed.service, parsed.module);
     const act = found?.mod?.actions?.[parsed.action];
     if (act) {
+      let description = act.description ?? null;
+      if (act.output_file) {
+        description = `${description ? `${description} ` : ''}This action writes a file into the gateway's outputs/ directory and runs on the local gateway only.`;
+      }
+      if (act.input_files) {
+        description = `${description ? `${description} ` : ''}Calls naming ${act.input_files.field} run only on local stdio, with an aggregate cap of ${act.input_files.max_bytes} bytes. Symbolic links at any component and all multiply linked files are refused; give the real path when an ancestor is linked.`;
+      }
       return {
         action: `${parsed.service}.${parsed.module}.${parsed.action}`,
         service: parsed.service,
@@ -1250,9 +1303,8 @@ export class ConnectionGateway {
         confirmation: act.confirmation,
         execution: act.execution,
         input: act.input ?? null,
-        description: act.output_file
-          ? `${act.description ? `${act.description} ` : ''}This action writes a file into the gateway's outputs/ directory and runs on the local gateway only.`
-          : (act.description ?? null),
+        description,
+        ...(act.input_files ? { input_files: { ...act.input_files } } : {}),
         ...(act.output_file ? { output_file: act.output_file, local_only: true } : {}),
       };
     }
@@ -1317,6 +1369,8 @@ export class ConnectionGateway {
       const outputDeclaration = act?.output_file ? {
         media_types: [...act.output_file.media_types], max_bytes: act.output_file.max_bytes,
       } : null;
+      const inputDeclaration = act?.input_files ? { ...act.input_files } : null;
+      const inputFileSchema = inputDeclaration ? structuredClone(act.input.properties[inputDeclaration.field]) : null;
       const downloadDeclaration = act?.download_media ? { hosts: [...act.download_media.hosts] } : null;
       const proxyBodyMaxBytes = act?.proxy_body_max_bytes;
       if (label !== undefined && auth?.provider === 'local-file') {
@@ -1384,6 +1438,13 @@ export class ConnectionGateway {
         return statusObject(STATUS.NEEDS_CONNECTOR, { action, reason: 'undeclared' });
       }
 
+      const hasInputFiles = inputDeclaration && input !== null && typeof input === 'object' &&
+        !Array.isArray(input) && Object.hasOwn(input, inputDeclaration.field);
+      if (hasInputFiles && !this.#inputFileAccess) {
+        return statusObject(STATUS.LOCAL_ONLY, {
+          action, reason: 'Calls naming local input files run only on the local stdio gateway.',
+        });
+      }
       if (act.output_file && !this.outputsDir) {
         return statusObject(STATUS.LOCAL_ONLY, {
           action,
@@ -1404,6 +1465,23 @@ export class ConnectionGateway {
           privilege: privilege ?? null,
           label,
         });
+      }
+      // Copy the one pending snapshot before hydration, status or any other await.
+      // A concurrent stop may replace the slot while this confirm prepares files.
+      let fileApproval = null;
+      let fileApprovalBase = null;
+      if (hasInputFiles && confirm === true && isActive(record)) {
+        this.prunePendingConfirmations();
+        const approval = approvalDisclosure(act, input);
+        if (!approval.refusal) {
+          const base = confirmationDigest(['execute', action, approval.inputForKey, record.provider_account_id,
+            ...(label === undefined ? [] : [label])]);
+          fileApprovalBase = base;
+          const pending = this.#fileConfirmations.get(base);
+          if (pending) fileApproval = {
+            fullDigest: pending.fullDigest, descriptors: pending.descriptors.map((entry) => ({ ...entry })),
+          };
+        }
       }
       if (this.needsProviderCredential(authForRun || { provider: 'catalog' })) {
         return this.needsProviderResult();
@@ -1481,10 +1559,31 @@ export class ConnectionGateway {
         }
       }
 
+      let preparedInputFiles = inputDeclaration ? [] : undefined;
+      let fileDescriptors = [];
+      if (hasInputFiles) {
+        const screened = screenInputFiles(input[inputDeclaration.field], inputDeclaration, inputFileSchema, this.#inputFileAccess);
+        const files = isStatusObject(screened) ? screened : readInputFiles(screened);
+        if (isStatusObject(files)) {
+          if (fileApproval) {
+            this.#forgetFileConfirmation(fileApprovalBase, fileApproval.fullDigest);
+          }
+          return files;
+        }
+        preparedInputFiles = files;
+        fileDescriptors = files.map((file, index) => ({
+          field: inputDeclaration.field, index, ...screened[index], size: file.size, sha256: file.sha256,
+        }));
+        if (fileApproval && canonicalJson(fileDescriptors) !== canonicalJson(fileApproval.descriptors)) {
+          this.#forgetFileConfirmation(fileApprovalBase, fileApproval.fullDigest);
+          return statusObject(STATUS.INVALID_ARGUMENTS, { field: inputDeclaration.field, reason: 'input_file_changed' });
+        }
+      }
+
       const confirmation = act?.confirmation || 'none';
       const onceKey = label === undefined ? action : canonicalJson([action, label, record.provider_account_id]);
       const needsConfirm =
-        decision.effect === 'confirm' ||
+        hasInputFiles || decision.effect === 'confirm' ||
         confirmation === 'always' ||
         (confirmation === 'once' && !this.confirmedOnce.has(onceKey));
       // What may be shown lives in src/disclosure.js. This block decides that a
@@ -1496,7 +1595,7 @@ export class ConnectionGateway {
       if (needsConfirm) {
         const approval = approvalDisclosure(act, input);
         if (approval.refusal) return approval.refusal;
-        if (confirm !== true && root && act.standing_approval && resolved.path === 'connector') {
+        if (!hasInputFiles && confirm !== true && root && act.standing_approval && resolved.path === 'connector') {
           standingGrant = matchStandingApproval(await this.standingApprovals.list(), {
             action, manifestAction: act, label, providerAccountId: record.provider_account_id,
             root, playbook, input, now: this.now(),
@@ -1504,25 +1603,32 @@ export class ConnectionGateway {
           if (standingGrant) line.grant_id = standingGrant.id;
         }
         if (!standingGrant) {
-          const confirmKey = confirmationDigest([
+          const identity = [
             'execute',
             action,
             approval.inputForKey,
             record.provider_account_id,
             // A label joins the key only when given, so an unlabelled approval keeps today's key.
             ...(label === undefined ? [] : [label]),
-          ]);
-          const matched = confirm === true && this.takePendingConfirmation(confirmKey);
+          ];
+          const baseKey = confirmationDigest(identity);
+          const confirmKey = hasInputFiles ? confirmationDigest([...identity, fileDescriptors]) : baseKey;
+          const matched = confirm === true && (hasInputFiles
+            ? fileApproval !== null && fileApproval.fullDigest === confirmKey && this.takePendingConfirmation(fileApproval.fullDigest)
+            : this.takePendingConfirmation(confirmKey));
           if (!matched) {
-            this.recordPendingConfirmation(confirmKey);
+            // A missed take records only the current read, never the copied digest.
+            if (hasInputFiles) this.#recordFileConfirmation(baseKey, confirmKey, fileDescriptors);
+            else this.recordPendingConfirmation(confirmKey);
             const disclosure = approval.disclosure;
+            const attachmentFiles = hasInputFiles ? discloseAttachmentFiles(fileDescriptors) : [];
             const summary = composeSummary({
               action,
               service: parsed.service,
               module: parsed.module,
               risk,
               description: act?.description,
-              disclosure,
+              disclosure, attachmentFiles,
             });
             return statusObject(STATUS.NEEDS_CONFIRMATION, {
               action,
@@ -1534,6 +1640,7 @@ export class ConnectionGateway {
               input_fields: disclosure.fields,
               undeclared_fields: disclosure.undeclared,
               input_values: inputValueEntries(disclosure.shown),
+              ...(hasInputFiles ? { attachment_files: attachmentFiles } : {}),
               withheld_fields: disclosure.withheld,
               summary,
               description: act?.description ?? null,
@@ -1624,6 +1731,8 @@ export class ConnectionGateway {
           downloadMedia: downloadDeclaration,
           proxyBodyMaxBytes,
           outputFile: outputDeclaration,
+          inputFileDeclaration: inputDeclaration,
+          preparedInputFiles,
           outputsDir: this.outputsDir,
           executionSignal: execution.signal,
         });
@@ -1668,6 +1777,7 @@ export class ConnectionGateway {
         throw err;
       } finally {
         execution.abort();
+        preparedInputFiles = undefined;
       }
     });
     return standingApprovalResult(result, standingGrant);

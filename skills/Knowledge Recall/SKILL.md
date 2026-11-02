@@ -3,7 +3,7 @@ name: Knowledge Recall
 type: skill
 category: knowledge
 description: Answer a question from one named knowledge set, scoped to that set alone, with the quotes and sources the answer rests on and an evidence label on every claim, saying Not available when the set does not cover it
-version: 0.6.6
+version: 0.6.7
 gaps:
   - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read
   - temporal filtering of recall by a date, so an as-of question is answered from the facts the set dates rather than filtered by the engine
@@ -17,7 +17,7 @@ Use when someone asks a question of a knowledge set that exists: what a book say
 
 Not for a question no set covers, which is `skills/External Research/` or `skills/Deep Research/`. Not for a question across sets: every recall is scoped to one dataset, and a question that needs two is asked twice, with the two answers presented as two. Not for creating or keeping a set. Not for a judgment about whether the set should be trusted for a deliverable; that is `experts/Knowledge Expert/`, and this skill reports what the set returned and how it is labeled.
 
-Classifier seam: routing, where `hooks/route.mjs` may open this skill for an ask. Else: the routing table, read as `AGENTS.md` states.
+Classifier seam: none.
 
 ## Objective
 

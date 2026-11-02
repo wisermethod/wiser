@@ -21,7 +21,7 @@
  *
  * ## What it does not cover
  *
- * Required-field deletion, nested and array-item mutation, fractional values for integer
+ * Required-field deletion, general nested and array-item mutation, fractional values for integer
  * fields, anything a module enforces after its first transport call, and pattern space beyond
  * the exemplars below. Stated so a pass is not mistaken for a proof.
  *
@@ -58,6 +58,9 @@
  *   their actions. Each needs a readable regular file with its closed media extension.
  * - **`heygen voices.add` and `heygen assets.upload_audio` use a complete generated MPEG frame at a physical temporary path.**
  *   SAMPLE_STATE supplies it before direction A, without accepting a schema divergence.
+ * - **Gmail attachments use real gateway preparation in `agreement.test.js`.**
+ *   The generic context supplies only the declared, absent-field capability, never
+ *   fabricated file records or a transport sentinel in place of preparation.
  * - **`elevenlabs voices.add` needs a readable regular MP3.** Its schema-valid sample
  *   uses a per-run physical file, as the YouTube fixtures do. Filesystem preconditions
  *   remain outside this comparison; schema checks and all constraint mutations still run.
@@ -92,6 +95,10 @@ const CONNECTORS = fileURLToPath(new URL('../../connectors', import.meta.url));
  * wrong entry fails loudly, and a pattern with no entry fails rather than being skipped.
  */
 const PATTERN_OK = {
+  // Gmail: single mailboxes, RFC Message-IDs and caller-named attachment paths.
+  "^[^\\s@\\u0000,;:<>()\\[\\]\"\\\\]+@[^\\s@\\u0000,;:<>()\\[\\]\"\\\\]+$": "person@example.com",
+  "^<[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*>$": "<parent.1@example.test>",
+  get "^(?:/|[A-Za-z]:[\\\\/]|\\\\\\\\)[^\\u0000]*$"() { return realpathSync(FIXTURE_FILE); },
   // Access human labels and addresses exclude credential-shaped runs before confirmation.
   "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}))(?![A-Za-z0-9_-]{40}$)[^\\u0000-\\u001f\\u007f]+$": "CRM staff",
   "^(?!.*(?:eyJ[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}))(?!(?:[^.]+\\.)*[A-Za-z0-9_-]{40}(?:\\.|$))[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$": "crm.example.com",
@@ -178,7 +185,8 @@ const PATTERN_OK = {
   '^[a-z0-9_]{1,50}$': 'wiser_list',
   '^(none|[0-9]{1,20})$': 'none',
   // vercel project ids. The first character is a letter, digit, underscore or
-  // hyphen, so `.` and `..` are not ids.
+  // hyphen, so `.` and `..` are not ids. Google Drive ids and Gmail thread/draft
+  // ids share this pattern and its existing exemplar.
   '^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}$': 'effectivesc',
   // google: an email address in a draft or an event, header text with no line break or
   // NUL, and a calendar date or RFC 3339 date-time.
@@ -442,6 +450,8 @@ function propertyViolation(name, d, value) {
           }
           if (Array.isArray(it.enum) && !it.enum.includes(item)) return `items.enum:${name}`;
           if (typeof item === 'string' && it.pattern && !new RegExp(it.pattern).test(item)) return `items.pattern:${name}`;
+          if (typeof item === 'string' && it.minLength !== undefined && [...item].length < it.minLength) return `items.minLength:${name}`;
+          if (typeof item === 'string' && it.maxLength !== undefined && [...item].length > it.maxLength) return `items.maxLength:${name}`;
         }
       }
     }
@@ -481,6 +491,7 @@ const REACHED = Symbol('reached-vendor');
 
 export function makeCtx(service, module, action, input, declaration = {}) {
   let reached = false;
+  const execution = new AbortController();
   const reach = () => { reached = true; const e = new Error('reached vendor'); e[REACHED] = true; throw e; };
   const ctx = buildContext({
     service, module, action, input, confirm: true,
@@ -489,13 +500,16 @@ export function makeCtx(service, module, action, input, declaration = {}) {
     authProvider: { measureProxyBody: measureFakeProxyBody, proxy: reach },
     catalogProvider: { execute: reach },
     proxyBodyMaxBytes: declaration.proxy_body_max_bytes,
+    inputFileDeclaration: declaration.input_files,
+    preparedInputFiles: declaration.input_files && !Object.hasOwn(input ?? {}, declaration.input_files.field) ? [] : undefined,
+    executionSignal: execution.signal,
   });
   // These probes observe only the first transport, never a real download or
   // authenticated request. Measurement above stays pure and is not a reach.
   ctx.http = reach;
   ctx.fetchRelease = reach;
   if (declaration.download_media && declaration.output_file) ctx.downloadMedia = reach;
-  return { ctx, reached: () => reached };
+  return { ctx, reached: () => reached, release: () => execution.abort() };
 }
 
 export async function call(fn, input, service, module, action, declaration) {
@@ -509,7 +523,62 @@ export async function call(fn, input, service, module, action, declaration) {
     return { kind: 'returned' };
   } catch (err) {
     return probe.reached() || err?.[REACHED] ? { kind: 'reached' } : { kind: 'threw', detail: String(err?.message ?? err).slice(0, 80) };
+  } finally {
+    probe.release();
   }
+}
+
+/**
+ * Judge composition probes against the independent schema checker before invoking
+ * the action. None/all are invalid for exclusive choices, but both are valid for
+ * an optional all-or-none group. In that shape every proper nonempty subset is a
+ * separate probe. Exported for independent expectations in the composition tests.
+ */
+export async function checkComposition(schema, base, run) {
+  const probes = [], divergences = [], errors = [];
+  for (const key of ['oneOf', 'anyOf']) {
+    const branches = schema[key];
+    if (!Array.isArray(branches) || branches.length < 2) continue;
+    const named = [...new Set(branches.flatMap((b) => b?.required ?? []))];
+    const topLevel = new Set(schema.required ?? []);
+    // A branch narrowing a required field is outside this probe's coverage;
+    // deleting it would measure the top-level requirement instead.
+    if (!named.length || named.some((field) => topLevel.has(field))) continue;
+    const without = { ...base };
+    for (const field of named) delete without[field];
+    const cases = [['none-of-the-branch-fields', without]];
+    if (key === 'oneOf') {
+      const withAll = { ...without };
+      for (const field of named) withAll[field] = sample(schema.properties?.[field] ?? { type: 'string' });
+      cases.push(['every-branch-field', withAll]);
+      if (schemaViolation(schema, without) === null && schemaViolation(schema, withAll) === null) {
+        const subsets = (index, selected) => {
+          if (index === named.length) {
+            if (selected.length && selected.length < named.length) {
+              cases.push([`partial-branch-fields:${selected.join(',')}`,
+                { ...without, ...Object.fromEntries(selected.map((field) => [field, withAll[field]])) }]);
+            }
+            return;
+          }
+          subsets(index + 1, selected);
+          subsets(index + 1, [...selected, named[index]]);
+        };
+        subsets(0, []);
+      }
+    }
+    for (const [label, input] of cases) {
+      const detail = `${key} ${label}`;
+      const violation = schemaViolation(schema, input);
+      if (violation?.startsWith('unmodelled:')) { errors.push(`${detail}: ${violation}`); continue; }
+      const valid = violation === null;
+      const result = await run(input);
+      probes.push({ detail, input, violation, result });
+      if (result.kind === 'threw') divergences.push({ direction: 'G', detail: `${detail} threw` });
+      else if (valid && result.kind !== 'reached') divergences.push({ direction: 'A', detail });
+      else if (!valid && result.kind !== 'refused') divergences.push({ direction: 'B', detail });
+    }
+  }
+  return { probes, divergences, errors };
 }
 
 /**
@@ -621,38 +690,12 @@ async function collect() {
         if (!closed && rx.kind === 'refused') found.add(`D ${where} ${rx.field}`);
         if (rx.kind === 'threw') found.add(`G ${where} threw-on-undeclared-key`);
 
-        // B, composition. `oneOf` and `anyOf` are how this family publishes a
-        // conditional requirement, and until 2026-09-20 nothing measured whether the
-        // module applied one. `src/input-schema.js` deliberately does not read
-        // composition, so the module is the enforcer and this is what proves it: supply
-        // none of the fields the branches choose between, and for `oneOf` supply all of
-        // them, and the module must refuse both.
-        //
-        // **Only the shape where the branches choose between fields the top level does
-        // not require.** `bing research_keywords` narrows `report`, which the top level
-        // requires, so "none of them" would delete a required field and measure the
-        // wrong thing. It is skipped rather than measured wrongly, and is named in the
-        // coverage list at the head of this file.
-        for (const key of ['oneOf', 'anyOf']) {
-          const branches = schema[key];
-          if (!Array.isArray(branches) || branches.length < 2) continue;
-          const named = [...new Set(branches.flatMap((b) => b?.required ?? []))];
-          const topLevel = new Set(schema.required ?? []);
-          if (!named.length || named.some((f) => topLevel.has(f))) continue;
-
-          const without = { ...base };
-          for (const f of named) delete without[f];
-          const rn = await call(fn, without, manifest.service, mod, act, ad);
-          if (rn.kind === 'reached') found.add(`B ${where} ${key} none-of-the-branch-fields`);
-          else if (rn.kind === 'threw') found.add(`G ${where} ${key} none-of-the-branch-fields threw`);
-
-          if (key !== 'oneOf') continue;
-          const withAll = { ...base };
-          for (const f of named) withAll[f] = sample(schema.properties?.[f] ?? { type: 'string' });
-          const ra = await call(fn, withAll, manifest.service, mod, act, ad);
-          if (ra.kind === 'reached') found.add(`B ${where} oneOf every-branch-field`);
-          else if (ra.kind === 'threw') found.add(`G ${where} oneOf every-branch-field threw`);
-        }
+        // Composition is left to the module by the gateway validator. Both valid
+        // and invalid probes are judged, retaining the exclusive-choice ratchet keys.
+        const composition = await checkComposition(schema, base,
+          (input) => call(fn, input, manifest.service, mod, act, ad));
+        for (const { direction, detail } of composition.divergences) found.add(`${direction} ${where} ${detail}`);
+        for (const error of composition.errors) errors.push(`${where}: ${error}`);
 
         for (const [pn, ps] of Object.entries(schema.properties ?? {})) {
           if (!ps || typeof ps !== 'object') continue;

@@ -36,6 +36,7 @@ The line starts at the left margin, carries nothing but the paths, backticked an
 | Expert | Description | Owns |
 |--------|-------------|------|
 | `IT Expert/EXPERT.md` | Judge a proposed DNS, zone, hosting, or credential change for its blast radius, its rollback, and its timing, sequence Zone Publisher for a change worth seeing whole before it goes live, and sequence Cloudflare Setup for a member connecting their Cloudflare account | `skills/Zone Publisher/`, `skills/Cloudflare Setup/`; its gate on Zone Publisher runs on the plan, before anything would be written; Cloudflare Setup takes no expert gate, the member making the token being its gate |
+| `Publisher/EXPERT.md` | Judge a book's production specifications before writing or ingestion and its built editions for distribution, returning readiness or routed findings against current platform requirements | `skills/Publish Book/`, `skills/Set Up Book/`; Publish Book's manuscript also passes `experts/Ghost Writer/`'s prose gate before the build, that expert's own gate and not ownership |
 
 ### Research
 
