@@ -1086,7 +1086,7 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
   if (existsSync(urlFallbacks)) {
     for (const record of readFileSync(urlFallbacks, 'utf8').split(/\r?\n/).filter(Boolean)) {
       const [, line, width, url] = record.match(/^(\d+)\|([^|]+)\|(.*)$/) ?? [];
-      if (url) log(`  Warning: URL letter/digit run wider than the whole line (${width}); internal breaks enabled at ${texFile}:${line}: ${url}`);
+      if (url) log(`  Warning: URL letter/digit run wider than the available line (${width}, including hanging indentation); internal breaks enabled at ${texFile}:${line}: ${url}`);
     }
   }
   return { path: pdf, pages: countPages(pdf) };

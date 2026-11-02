@@ -566,14 +566,23 @@ $endif$
 \SetProtrusion[context=bookpublisherurl]{encoding={T1,OT1}}{.={0,0}, -={0,0}}
 \let\bookpublisherurlfont\UrlFont
 \def\UrlFont{\bookpublisherurlfont\microtypecontext{protrusion=bookpublisherurl}}
-\Urlmuskip=0mu plus 1mu\relax
 \makeatletter
 \ExplSyntaxOn
 \str_new:N \l__bookpublisher_url_str
 \seq_new:N \l__bookpublisher_url_seq
+\seq_new:N \l__bookpublisher_url_chars_seq
 \box_new:N \l__bookpublisher_url_box
 \bool_new:N \l__bookpublisher_url_fallback_bool
-\int_new:N \l__bookpublisher_url_char_int
+\dim_new:N \l__bookpublisher_url_width_dim
+\dim_new:N \l__bookpublisher_url_mark_dim
+% pdfTeX strings contain UTF-8 bytes. Keep a complete encoded character in
+% one box, including when an oversized run needs internal break points.
+\regex_const:Nn \c__bookpublisher_url_chars_regex
+  {
+    [\x{C2}-\x{DF}][\x{80}-\x{BF}]
+    | [\x{E0}-\x{EF}][\x{80}-\x{BF}]{2}
+    | [\x{F0}-\x{F4}][\x{80}-\x{BF}]{3} | .
+  }
 \iow_new:N \g__bookpublisher_url_iow
 \iow_open:Nn \g__bookpublisher_url_iow {\jobname.url-fallbacks}
 % Paired glues cancel on an unbroken line. At the penalty only the positive
@@ -589,22 +598,27 @@ $endif$
 \cs_new_protected:Npn \__bookpublisher_url_char:n #1
   {
     \hbox{
-      \int_case:nnF {`#1}
-        {{39}{\textquotesingle}{96}{\textasciigrave}}
+      \str_case:nnF {#1}
+        {{'}{\textquotesingle}{`}{\textasciigrave}}
         {#1}
     }
   }
 \cs_new_protected:Npn \__bookpublisher_url_chars:n #1
-  { \str_map_inline:nn {#1} { \__bookpublisher_url_char:n {##1} } }
+  {
+    \regex_extract_all:NnN \c__bookpublisher_url_chars_regex {#1}
+      \l__bookpublisher_url_chars_seq
+    \seq_map_inline:Nn \l__bookpublisher_url_chars_seq
+      { \__bookpublisher_url_char:n {##1} }
+  }
 \cs_new_protected:Npn \__bookpublisher_url_run:nn #1#2
   {
-    \int_zero:N \l__bookpublisher_url_char_int
-    \str_map_inline:nn {#1}
+    \regex_extract_all:NnN \c__bookpublisher_url_chars_regex {#1}
+      \l__bookpublisher_url_chars_seq
+    \seq_map_indexed_inline:Nn \l__bookpublisher_url_chars_seq
       {
-        \int_incr:N \l__bookpublisher_url_char_int
-        \int_compare:nNnT {\l__bookpublisher_url_char_int} > {1}
+        \int_compare:nNnT {##1} > {1}
           { \__bookpublisher_url_break:n {#2} }
-        \__bookpublisher_url_char:n {##1}
+        \__bookpublisher_url_char:n {##2}
       }
   }
 \cs_set_protected:Npn \Url@FormatString
@@ -612,31 +626,52 @@ $endif$
     \UrlFont
     \str_set:Nx \l__bookpublisher_url_str { \tl_to_str:V \Url@String }
     \bool_set_false:N \l__bookpublisher_url_fallback_bool
-    % The scheme is one indivisible unit; every other item is a run or a mark.
+    % Hanging index continuations have less space than linewidth. Use the
+    % narrower measure, also respecting a local hsize and fixed side skips.
+    \dim_set:Nn \l__bookpublisher_url_width_dim
+      { \dim_min:nn {\linewidth}{\tex_hsize:D}
+        - \tex_leftskip:D - \tex_rightskip:D
+        - \dim_abs:n {\tex_hangindent:D} }
+    \dim_zero:N \l__bookpublisher_url_mark_dim
+    % Only ASCII punctuation separates runs. Non-ASCII letters/digits (and
+    % conservatively all other non-ASCII characters) stay with their run.
     \exp_args:NnV \regex_extract_all:nnN
-      { \A [Hh][Tt][Tt][Pp][Ss]?:// | [A-Za-z0-9]+ | . }
+      { \A [Hh][Tt][Tt][Pp][Ss]?://
+        | [^\x{00}-\x{2F}\x{3A}-\x{40}\x{5B}-\x{60}\x{7B}-\x{7F}]+ | . }
       \l__bookpublisher_url_str \l__bookpublisher_url_seq
     \UrlLeft
     \seq_map_inline:Nn \l__bookpublisher_url_seq
       {
-        \regex_match:nnTF { \A [A-Za-z0-9]+ \Z } {##1}
+        \regex_match:nnTF
+          { \A [^\x{00}-\x{2F}\x{3A}-\x{40}\x{5B}-\x{60}\x{7B}-\x{7F}]+ \Z } {##1}
           {
             \hbox_set:Nn \l__bookpublisher_url_box
               { \__bookpublisher_url_chars:n {##1} }
             % A finite penalty also fires before TeX tries emergencystretch.
             % Short runs therefore have NO internal break nodes at all.
-            \dim_compare:nNnTF {\box_wd:N \l__bookpublisher_url_box} > {\linewidth}
+            \dim_compare:nNnTF {\box_wd:N \l__bookpublisher_url_box}
+              > {\l__bookpublisher_url_width_dim}
               {
                 \bool_set_true:N \l__bookpublisher_url_fallback_bool
                 \__bookpublisher_url_run:nn {##1}{1000}
               }
-              { \box_use_drop:N \l__bookpublisher_url_box }
+              {
+                % A fitting run stays whole. If its preceding mark would
+                % make the pair too wide, allow a break AFTER that mark.
+                \dim_compare:nNnT
+                  {\l__bookpublisher_url_mark_dim + \box_wd:N \l__bookpublisher_url_box}
+                  > {\l__bookpublisher_url_width_dim}
+                  { \__bookpublisher_url_break:n {5000} }
+                \box_use_drop:N \l__bookpublisher_url_box
+              }
+            \dim_zero:N \l__bookpublisher_url_mark_dim
           }
           {
             \regex_match:nnTF { \A [Hh][Tt][Tt][Pp][Ss]?:// \Z } {##1}
               {
                 \hbox{\__bookpublisher_url_chars:n {##1}}
                 \__bookpublisher_url_break:n {100}
+                \dim_zero:N \l__bookpublisher_url_mark_dim
               }
               {
                 \int_case:nnF {`##1}
@@ -651,7 +686,11 @@ $endif$
                     {38}{\__bookpublisher_url_break:n {100}}
                   }
                   {\__bookpublisher_url_break:n {5000}}
-                \__bookpublisher_url_char:n {##1}
+                \hbox_set:Nn \l__bookpublisher_url_box
+                  { \__bookpublisher_url_char:n {##1} }
+                \dim_set:Nn \l__bookpublisher_url_mark_dim
+                  { \box_wd:N \l__bookpublisher_url_box }
+                \box_use_drop:N \l__bookpublisher_url_box
               }
           }
       }
@@ -659,7 +698,7 @@ $endif$
     \bool_if:NT \l__bookpublisher_url_fallback_bool
       {
         \iow_now:Nx \g__bookpublisher_url_iow
-          {\int_use:N \tex_inputlineno:D |\dim_use:N \linewidth|\l__bookpublisher_url_str}
+          {\int_use:N \tex_inputlineno:D |\dim_use:N \l__bookpublisher_url_width_dim|\l__bookpublisher_url_str}
       }
   }
 \ExplSyntaxOff
