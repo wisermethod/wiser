@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.02.5, November 2, 2026
+
+- **update root** no longer flags an older root's Onboarding section for its closing paragraph or its status lines. A closing paragraph that opens "Adopted" rather than "Onboarded", and a status line that keeps its own dated record in brackets, are left as they are; only a separate note that copies a fact is proposed for rewriting. (e81b914)
+
 ## v2026.11.02.4, November 2, 2026
 
 - The Onboarding section of a root's `AGENTS.md` now holds only its closing paragraph, one status line per key, and notes that say where to read something, such as `memory/about.md` V534, never the fact itself. Onboarding writes it that way. Before, a fact copied there went stale when its file changed, and nothing could correct it. (58c6e8f, 04bb31f, 1d76a0a)
