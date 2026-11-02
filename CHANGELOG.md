@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.02.2, November 2, 2026
+
+- The voice coach no longer writes a horoscope-style reading or asks for your birth date, place and time. Your first piece is a short post on the thing you wish more people knew, or, where you didn't name one, a piece you pick. (8bd9c42)
+- The coach's humor question now asks what kind of humor shows up in your writing: dry, laughing at yourself, or corny. You can pick more than one, or none. (8bd9c42, c6607e5)
+- Before the coach shows you how you come across, it asks three last quick taps: what you'd most like your work known for, which virtue is a little overrated, and where your readers could sit down with you. Each writes one line into your voice, and the first shapes how the coach describes what drives you. (8bd9c42, c6607e5)
+
 ## v2026.11.02, November 2, 2026
 
 - Wiser can now take a custom domain off a Cloudflare Worker. Before, it stopped with a vendor error whenever the domain was already attached, because it did not recognise the ids Cloudflare gives Worker domains; adding a domain another Worker already holds now says so instead of stopping the same way. (be0496c, 38cf534)
