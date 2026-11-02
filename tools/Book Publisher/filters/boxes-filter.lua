@@ -37,12 +37,40 @@ local function Div(elem)
     local style = box.print
     -- Book headings normally start new pages. Within a box they are local bold
     -- labels, with their link targets retained, rather than chapter openers.
-    elem = elem:walk({ Header = function(header)
+    local function heading(header)
       -- Start the line before its target: an anchor-only first fragment
       -- would otherwise leave an empty mdframed shell when the label moves.
       return { pandoc.Para({ pandoc.RawInline('latex', '\\leavevmode'),
         pandoc.Span({ pandoc.Strong(header.content) }, header.attr) }),
         pandoc.RawBlock('latex', '\\bookpublisherboxkeep') }
+    end
+    elem = elem:walk({ Blocks = function(blocks)
+      local result = pandoc.List()
+      local i = 1
+      while i <= #blocks do
+        local j = i
+        while j <= #blocks and blocks[j].t == 'Header' do j = j + 1 end
+        -- format-filter has already converted a standalone image to center.
+        -- Measure these adjacent headings and the image as one bounded unit.
+        if j > i and j <= #blocks and blocks[j].t == 'RawBlock'
+            and blocks[j].format == 'latex'
+            and blocks[j].text:match('^\\begin{center}%s+\\includegraphics') then
+          local heads = pandoc.List()
+          for n = i, j - 1 do heads:extend(heading(blocks[n])) end
+          result:insert(pandoc.RawBlock('latex', '\\bookpublisherboximage{\n'
+            .. pandoc.write(pandoc.Pandoc(heads), 'latex') .. '}{\n' .. blocks[j].text .. '\n}'))
+          i = j + 1
+        else
+          result:insert(blocks[i])
+          i = i + 1
+        end
+      end
+      return result
+    end })
+    elem = elem:walk({ Header = heading, Table = function(tbl)
+      local rows = #tbl.head.rows + #tbl.foot.rows
+      for _, body in ipairs(tbl.bodies) do rows = rows + #body.head + #body.body end
+      return { tbl, pandoc.RawBlock('latex', '\\bookpublisherboxtablerows{' .. rows .. '}') }
     end })
     elem.content:insert(1, pandoc.RawBlock('latex', string.format(
       '\\begin{bookpublisherbox}{%s}{%s}{%s}{%s}',

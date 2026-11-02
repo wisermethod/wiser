@@ -85,23 +85,43 @@ $if(boxed-divs)$
 \newcommand{\bookpublisherboxkeep}{%
   \par\nobreak\global\bookpublisherboxlines=2\relax
 }
-\AddToHook{para/end}[bookpublisherbox]{%
-  \ifbookpublisherinbox
-    \edef\bookpublisherrestoreclub{\clubpenalty=\the\clubpenalty\relax}%
-    \ifnum\bookpublisherboxlines>1 \clubpenalty=10000\relax\fi
-  \fi
-}
 \AddToHook{para/after}[bookpublisherbox]{%
   \ifbookpublisherinbox
-    \bookpublisherrestoreclub
     \ifnum\bookpublisherboxlines>0
       \global\advance\bookpublisherboxlines by -\prevgraf
       \ifnum\bookpublisherboxlines>0 \nobreak\fi
     \fi
   \fi
 }
+% Footnotes, table cells and other minipages are separate vertical lists.
+\AddToHook{env/minipage/begin}[bookpublisherbox]{\bookpublisherinboxfalse}
+\AddToHook{env/longtable/begin}[bookpublisherbox]{\bookpublisherinboxfalse}
+\newsavebox{\bookpublisherimagehead}
+\newsavebox{\bookpublisherimagebody}
+\newlength{\bookpublisherboxheight}
+\newcommand{\bookpublisherboximage}[2]{%
+  \par\begingroup
+  \bookpublisherinboxfalse
+  \setbox\bookpublisherimagehead=\vbox{\hsize=\linewidth #1\par}%
+  \global\bookpublisherboxlines=0\relax
+  \setbox\bookpublisherimagebody=\vbox{\hsize=\linewidth #2\par}%
+  % Keep the heading's type size. Only the image block is reduced if the pair
+  % cannot fit a fresh frame; reserve its rules, padding and split top skip.
+  \dimen0=\dimexpr\bookpublisherboxheight-\ht\bookpublisherimagehead-\dp\bookpublisherimagehead\relax
+  \vskip\parskip% Match the normal heading paragraph above the measured unit.
+  \vbox{\unvbox\bookpublisherimagehead\nointerlineskip
+    \ifdim\dimexpr\ht\bookpublisherimagebody+\dp\bookpublisherimagebody\relax>\dimen0
+      \hbox to \linewidth{\hfil\resizebox*{!}{\dimen0}{\usebox{\bookpublisherimagebody}}\hfil}%
+    \else\unvbox\bookpublisherimagebody\fi}%
+  \endgroup
+}
+\newcommand{\bookpublisherboxtablerows}[1]{%
+  \global\advance\bookpublisherboxlines by -#1\relax
+  \ifnum\bookpublisherboxlines>0 \nobreak\fi
+}
 \newsavebox{\bookpublisherimage}
 \let\bookpublisherincludegraphics\includegraphics
+\makeatletter
 \newenvironment{bookpublisherbox}[4]{%
   \begingroup
   \definecolor{bookpublisherboxbg}{gray}{#1}%
@@ -114,6 +134,37 @@ $if(boxed-divs)$
   % Its probe hook runs inside the scratch vbox, so this flag stays local.
   \expandafter\appto\csname MT@prot@hook\endcsname{\bookpublisherinboxfalse}%
   \bookpublisherinboxtrue
+  \setlength{\bookpublisherboxheight}{\dimexpr\textheight-2\dimexpr#4pt+#3pt\relax-\baselineskip\relax}%
+  \let\bookpublisherfootnotetext\@footnotetext
+  \long\def\@footnotetext##1{%
+    \begingroup\bookpublisherinboxfalse\bookpublisherfootnotetext{##1}\endgroup}%
+  % longtable supplies a legal zero penalty before its head. Its rows bypass
+  % the paragraph hooks, so retain the keep there and between the first rows.
+  \ExplSyntaxOn
+  \patchcmd{\LT@start}{\penalty\z@}{%
+    \penalty\ifnum\bookpublisherboxlines>\z@\@M\else\z@\fi\relax}{}{
+    \PackageError{Book Publisher}{Cannot keep boxed table heading}{Unsupported longtable start}}%
+  \ExplSyntaxOff
+  \let\bookpublishertabularcr\LT@tabularcr
+  \protected\def\LT@tabularcr{%
+    \@ifstar{\bookpublishertabularcr*}{\bookpublisherkeptrow}}%
+  \def\bookpublisherkeptrow{%
+    \let\bookpublishernextrow\bookpublishertabularcr
+    \ifnum\bookpublisherboxlines>1
+      \ifnum\LT@rows<\numexpr\bookpublisherboxlines-1\relax
+        \def\bookpublishernextrow{\bookpublishertabularcr*}%
+      \fi
+    \fi
+    \bookpublishernextrow}%
+  % Put the quote's colour whatsit on its first line. In vertical mode it
+  % would make the following parskip a legal break after a kept heading.
+  \patchcmd{\quote}{\color{quotetext}}{\leavevmode\color{quotetext}}{}{
+    \PackageError{Book Publisher}{Cannot keep boxed quote heading}{Unsupported quote start}}%
+  % Keep a quote's closing colour whatsit and space with its last line;
+  % otherwise the split can leave a continuation containing only that space.
+  \def\endquote{%
+    \@endparpenalty=10000\relax\end{list}%
+    \par\nobreak\vspace{\baselineskip}}%
   \global\bookpublisherboxlines=0\relax
   % needspace's soft penalties would undo the keep before a list.
   \let\bookpublisherneedspace\needspace
@@ -142,6 +193,7 @@ $if(boxed-divs)$
   \global\bookpublisherboxlines=0\relax
   \endgroup
 }
+\makeatother
 $endif$
 
 \usepackage{float}
