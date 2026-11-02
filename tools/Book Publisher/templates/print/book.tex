@@ -700,6 +700,9 @@ $endif$
       { \A [Hh][Tt][Tt][Pp][Ss]?://
         | [^\x{00}-\x{2F}\x{3A}-\x{40}\x{5B}-\x{60}\x{7B}-\x{7F}]+ | . }
       \l__bookpublisher_url_str \l__bookpublisher_url_seq
+    % A preceding box (for example a footnote mark) may have no break after
+    % it. Let the first URL box move intact, at a cost above punctuation.
+    \__bookpublisher_url_break:n {9000}
     \UrlLeft
     \seq_map_inline:Nn \l__bookpublisher_url_seq
       {
@@ -759,7 +762,7 @@ $endif$
     \bool_if:NT \l__bookpublisher_url_fallback_bool
       {
         \iow_now:Nx \g__bookpublisher_url_iow
-          {\int_use:N \tex_inputlineno:D |\dim_use:N \l__bookpublisher_url_width_dim|\l__bookpublisher_url_str}
+          {\int_use:N \tex_inputlineno:D |\dim_use:N \l__bookpublisher_url_width_dim|\dim_compare:nNnTF {\tex_hangindent:D} = {0pt} {0}{1}|\l__bookpublisher_url_str}
       }
   }
 \ExplSyntaxOff
