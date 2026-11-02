@@ -1,12 +1,12 @@
 # The interview
 
-What the coach says and asks, in the order `SKILL.md` The coach runs it. A tapped question is asked with the app's question tool where it has one: each option a button, and where an option below has words after a colon, the words before it are the button and the words after it are the line under it. Where the app has none, one question per message, its options lettered, answered with a letter. A question that says pick any takes more than one of its options: with the question tool, as its multiple choice; with none, answered with one or more letters. A typed question is a plain message, one at a time. The codes (S, W, P, R, F, A) are the question numbers the answers file records and `voice.md` cites, and each sample the person gives is numbered E1 onward. Bank version for every row: `Build Voice bank 7`.
+What the coach says and asks, in the order `paths/coach.md` runs it. A tapped question is asked with the app's question tool where it has one: each option a button, and where an option below has words after a colon, the words before it are the button and the words after it are the line under it. Where the app has none, one question per message, its options lettered, answered with a letter. A question that says pick any takes more than one of its options: with the question tool, as its multiple choice; with none, answered with one or more letters. A typed question is a plain message, one at a time. The codes (S, W, P, R, F, A) are the question numbers the answers file records and `voice.md` cites, and each sample the person gives is numbered E1 onward. Bank version for every row: `Build Voice bank 7`.
 
 Each question says what it **feeds**. A line in quotation marks after a pick is the exact line that pick writes into `voice.md` `## How They Write`, copied word for word. A pair or tap the person's samples settled is not asked, and a screen left with no question is not shown, nor the line said before it.
 
 ## S1. Your writing (tapped)
 
-The coach's first question, said after any offer `SKILL.md` The coach step 1 makes and before anything else. Where the request itself brings their writing, it is not asked: the writing is its samples.
+The coach's first question, said after any offer `paths/coach.md` step 1 makes and before anything else. Where the request itself brings their writing, it is not asked: the writing is its samples.
 
 > Do you have examples of content you've written that you want to use to help craft your Wiser voice?
 
@@ -21,7 +21,7 @@ Yes:
 
 > Great! You can give me those samples now. Either give me some URLs, drop the sample files directly here in chat, or paste the writing in chat.
 
-Each piece that arrives is a sample, numbered E1 onward, or on from an earlier file's highest E, read and filed as `SKILL.md` The coach step 2 says. Feeds: the portrait, the pieces, `## How They Write`, and every pair or tap the samples settle.
+Each piece that arrives is a sample, numbered E1 onward, or on from an earlier file's highest E, read and filed as `paths/coach.md` step 2 says. Feeds: the portrait, the pieces, `## How They Write`, and every pair or tap the samples settle.
 
 Where a piece cannot be read, said once in the run, naming each piece that could not be read, and then wait for their answer:
 
@@ -279,7 +279,7 @@ Otherwise:
 - An email asking for a meeting
 - A thank-you note to someone who helped
 
-Skipped: a short note saying what they do, from W1; where W1 was skipped too, there is nothing to write from, and the run stops by `SKILL.md` The coach step 8.
+Skipped: a short note saying what they do, from W1; where W1 was skipped too, there is nothing to write from, and the run stops by `paths/coach.md` step 8.
 
 ## F2a (typed)
 
@@ -289,7 +289,7 @@ One sentence that gives the piece what it needs, asked by the piece:
 - The meeting email: "Who's it to, and what's the meeting about?"
 - The thank-you note: "Who's it for, and what did they do?"
 
-Skipped: write only from what they told you in W1 and W2, for someone who would follow their work; where W1 and W2 were skipped too, there is nothing to write from, and the run stops by `SKILL.md` The coach step 8. Feeds: the piece's subject and reader; `about.md` `## Current Focus` where it is their work, written by Onboard Root.
+Skipped: write only from what they told you in W1 and W2, for someone who would follow their work; where W1 and W2 were skipped too, there is nothing to write from, and the run stops by `paths/coach.md` step 8. Feeds: the piece's subject and reader; `about.md` `## Current Focus` where it is their work, written by Onboard Root.
 
 ## A2. The verdict (tapped)
 
@@ -309,7 +309,7 @@ Asked on Almost or No:
 
 > What would you change? Quote the line and say it your way, or just tell me.
 
-After the rewrite, A5. Feeds: each change by its sort in `SKILL.md`.
+After the rewrite, A5. Feeds: each change by its sort in `paths/coach.md` step 6.
 
 ## A3a (typed, only when they answer it)
 
