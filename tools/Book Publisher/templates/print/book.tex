@@ -42,12 +42,13 @@
   \evensidemargin=\oddsidemargin
 }
 \makeatother
+% Box coordinates and paper dimensions share the rounded PDF media size.
 \AddToHook{shipout/before}{%
   \ifodd\bookpublisherphysicalpage
     \pdfpageattr{/TrimBox [0 $trim-bottom$ $trim-right-odd$ $trim-top$]
       /BleedBox [0 0 $media-width$ $media-height$]}%
   \else
-    \pdfpageattr{/TrimBox [$trim-left-even$ $trim-bottom$ $trim-right-even$ $trim-top$]
+    \pdfpageattr{/TrimBox [$trim-left-even$ $trim-bottom$ $media-width$ $trim-top$]
       /BleedBox [0 0 $media-width$ $media-height$]}%
   \fi
 }

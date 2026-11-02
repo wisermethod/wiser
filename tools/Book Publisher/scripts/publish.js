@@ -1029,6 +1029,12 @@ end
     bleed = /\\thumbtabstart\s*\{\s*0*[1-8]\s*\}/.test(active);
   }
   const bleedInches = bleed ? 0.125 : 0;
+  // Ghostscript's flatten pass rounds MediaBox to hundredths of a PDF point.
+  // Use one rounded media size for the paper and every box coordinate, so a
+  // fractional trim cannot put a box beyond the media and be dropped by GS.
+  const boxBleed = bleedInches * 72;
+  const mediaWidth = Number((config.trim.width * 72 + boxBleed).toFixed(2));
+  const mediaHeight = Number((config.trim.height * 72 + 2 * boxBleed).toFixed(2));
   const textWidth = config.trim.width - margins.outer - margins.inner;
   const roundedWidth = textWidth.toFixed(2);
   // Keep the existing metadata where it fits; otherwise retain the precision
@@ -1045,18 +1051,17 @@ end
     '--from', 'markdown+smart+autolink_bare_uris-implicit_figures',
     '--to', 'latex',
     '--top-level-division=chapter',
-    '--variable', `paperwidth=${config.trim.width + bleedInches}in`,
-    '--variable', `paperheight=${config.trim.height + 2 * bleedInches}in`,
+    '--variable', `paperwidth=${mediaWidth}bp`,
+    '--variable', `paperheight=${mediaHeight}bp`,
     '--variable', `trimwidth=${config.trim.width}in`,
     '--variable', `trimheight=${config.trim.height}in`,
     '--variable', `bleed=${bleedInches}in`,
-    '--variable', `trim-left-even=${bleedInches * 72}`,
-    '--variable', `trim-bottom=${bleedInches * 72}`,
-    '--variable', `trim-right-odd=${config.trim.width * 72}`,
-    '--variable', `trim-right-even=${(config.trim.width + bleedInches) * 72}`,
-    '--variable', `trim-top=${(config.trim.height + bleedInches) * 72}`,
-    '--variable', `media-width=${(config.trim.width + bleedInches) * 72}`,
-    '--variable', `media-height=${(config.trim.height + 2 * bleedInches) * 72}`,
+    '--variable', `trim-left-even=${boxBleed}`,
+    '--variable', `trim-bottom=${boxBleed}`,
+    '--variable', `trim-right-odd=${(mediaWidth - boxBleed).toFixed(2)}`,
+    '--variable', `trim-top=${(mediaHeight - boxBleed).toFixed(2)}`,
+    '--variable', `media-width=${mediaWidth}`,
+    '--variable', `media-height=${mediaHeight}`,
     '--variable', `margin-top=${margins.top}in`,
     '--variable', `margin-bottom=${margins.bottom}in`,
     '--variable', `margin-outer=${margins.outer}in`,
