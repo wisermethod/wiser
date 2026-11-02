@@ -78,22 +78,171 @@ $endif$
 $if(boxed-divs)$
 % Only opted-in books load the page-breakable box package and its environment.
 \usepackage[framemethod=default]{mdframed}
+% A heading needs two rendered lines, even across paragraphs or list items.
+% The count is global so a list's group cannot restore an unfinished keep.
+\newcount\bookpublisherboxlines
+\newif\ifbookpublisherinbox
+\newif\ifbookpublishertablekeep
+\newcount\bookpublisherboxretries
+\newdimen\bookpublisherboxremaining
+\newcommand{\bookpublisherboxkeep}{%
+  \par\nobreak\global\bookpublisherboxlines=2\relax
+}
+\AddToHook{para/after}[bookpublisherbox]{%
+  \ifbookpublisherinbox
+    \ifnum\bookpublisherboxlines>0
+      \global\advance\bookpublisherboxlines by -\prevgraf
+      \ifnum\bookpublisherboxlines>0 \nobreak\fi
+    \fi
+  \fi
+}
+% Footnotes, table cells and other minipages are separate vertical lists.
+\AddToHook{env/minipage/begin}[bookpublisherbox]{\bookpublisherinboxfalse}
+\AddToHook{env/longtable/begin}[bookpublisherbox]{%
+  \bookpublisherinboxfalse
+  \ifbookpublishertablekeep\else\global\bookpublisherboxlines=0\relax\fi
+}
+\newsavebox{\bookpublisherimagehead}
+\newsavebox{\bookpublisherimagebody}
+\newlength{\bookpublisherboxheight}
+\newcommand{\bookpublisherboximage}[2]{%
+  \par\begingroup
+  \bookpublisherinboxfalse
+  \setbox\bookpublisherimagehead=\vbox{\hsize=\linewidth #1\par}%
+  \global\bookpublisherboxlines=2\relax
+  \setbox\bookpublisherimagebody=\vbox{\hsize=\linewidth #2\par}%
+  % Keep the heading's type size. Only the image block is reduced if the pair
+  % cannot fit a fresh frame; reserve its rules, padding and split top skip.
+  \dimen0=\dimexpr\bookpublisherboxheight-\ht\bookpublisherimagehead-\dp\bookpublisherimagehead\relax
+  \vskip\parskip% Match the normal heading paragraph above the measured unit.
+  \vbox{\unvbox\bookpublisherimagehead\nointerlineskip
+    \ifdim\dimexpr\ht\bookpublisherimagebody+\dp\bookpublisherimagebody\relax>\dimen0
+      \global\bookpublisherboxlines=0\relax
+      \hbox to \linewidth{\hfil\resizebox*{!}{\dimen0}{\usebox{\bookpublisherimagebody}}\hfil}%
+    \else\unvbox\bookpublisherimagebody\fi}%
+  \endgroup
+  \ifnum\bookpublisherboxlines>0 \nobreak\fi
+}
+\newcommand{\bookpublisherboxtablerows}[1]{%
+  \global\advance\bookpublisherboxlines by -#1\relax
+  \ifnum\bookpublisherboxlines>0 \nobreak\fi
+}
 \newsavebox{\bookpublisherimage}
 \let\bookpublisherincludegraphics\includegraphics
+\makeatletter
+% mdframed retries an unsplittable fragment indefinitely, even on fresh pages.
+% Bound retries without progress, including content outside our keep paths.
+% Impossible raw/unbreakable content fails typesetting instead of hanging.
+\newcommand{\bookpublisherboxprogress}{%
+  \ifdim\dimexpr\ht\mdf@splitbox@one+\dp\mdf@splitbox@one\relax<\bookpublisherboxremaining
+    \global\bookpublisherboxretries=0\relax
+  \else
+    \global\advance\bookpublisherboxretries by 1\relax
+  \fi
+  \global\bookpublisherboxremaining=\dimexpr\ht\mdf@splitbox@one+\dp\mdf@splitbox@one\relax
+  \ifnum\bookpublisherboxretries>3
+    \PackageError{Book Publisher}{Box contains unbreakable content taller than a fresh frame}{Reduce the unbreakable block or split it into smaller blocks.}%
+    % A terminal read in batch mode is an immediate fatal TeX stop; unlike
+    % a normal end it cannot leave a successful, truncated PDF.
+    \batchmode\read-1 to \bookpublisherabort
+  \fi
+}
 \newenvironment{bookpublisherbox}[4]{%
   \begingroup
   \definecolor{bookpublisherboxbg}{gray}{#1}%
   \definecolor{bookpublisherboxline}{gray}{#2}%
+  \global\bookpublisherboxremaining=\maxdimen
+  \global\bookpublisherboxretries=0\relax
+  \pretocmd{\mdf@put@frame}{\bookpublisherboxprogress}{}{%
+    \PackageError{Book Publisher}{Cannot bound box retries}{Unsupported mdframed splitter}}%
+  \pretocmd{\mdf@put@frame@ii}{\bookpublisherboxprogress}{}{%
+    \PackageError{Book Publisher}{Cannot bound box retries}{Unsupported mdframed splitter}}%
   \begin{mdframed}[backgroundcolor=bookpublisherboxbg,linecolor=bookpublisherboxline,
     linewidth=#3pt,innerleftmargin=#4pt,innerrightmargin=#4pt,
     innertopmargin=#4pt,innerbottommargin=#4pt,
     skipabove=\baselineskip,skipbelow=\baselineskip]%
+  % microtype's protrusion probe makes scratch paragraphs, not body lines.
+  % Its probe hook runs inside the scratch vbox, so this flag stays local.
+  \expandafter\appto\csname MT@prot@hook\endcsname{\bookpublisherinboxfalse}%
+  \bookpublisherinboxtrue
+  \bookpublishertablekeeptrue
+  \setlength{\bookpublisherboxheight}{\dimexpr\textheight-2\dimexpr#4pt+#3pt\relax-\baselineskip\relax}%
+  \let\bookpublisherfootnotetext\@footnotetext
+  \long\def\@footnotetext##1{%
+    \begingroup\bookpublisherinboxfalse\bookpublisherfootnotetext{##1}\endgroup}%
+  % longtable supplies a legal zero penalty before its head. Its rows bypass
+  % the paragraph hooks, so retain the keep there and between the first rows.
+  % Token replacement preserves longtable's expl3 control sequences without
+  % changing catcodes or re-reading its definition as text.
+  \csname tl_if_in:NnTF\endcsname\LT@start{\penalty\z@}{%
+    \csname tl_replace_once:Nnn\endcsname\LT@start{\penalty\z@}{%
+      \penalty\ifnum\bookpublisherboxlines>\z@\@M\else\z@\fi\relax}%
+    \csname tl_replace_once:Nnn\endcsname\LT@start{\vfil\break}{%
+      \ifnum\bookpublisherboxlines>\z@\else\vfil\break\fi}%
+  }{\bookpublishertablekeepfalse
+    \PackageWarning{Book Publisher}{Unsupported longtable start; table headings left unkept}}%
+  \let\bookpublishertabularcr\LT@tabularcr
+  \protected\def\LT@tabularcr{%
+    \@ifstar{\bookpublishertabularcr*}{\bookpublisherkeptrow}}%
+  \def\bookpublisherkeptrow{%
+    \let\bookpublishernextrow\bookpublishertabularcr
+    \ifbookpublishertablekeep
+      \ifnum\bookpublisherboxlines>1
+        \ifnum\LT@rows<\numexpr\bookpublisherboxlines-1\relax
+          \def\bookpublishernextrow{\bookpublishertabularcr*}%
+        \fi
+      \fi
+    \fi
+    \bookpublishernextrow}%
+  % Put the quote's colour whatsit on its first line. In vertical mode it
+  % would make the following parskip a legal break after a kept heading.
+  \patchcmd{\quote}{\color{quotetext}}{\leavevmode\color{quotetext}}{}{
+    \PackageError{Book Publisher}{Cannot keep boxed quote heading}{Unsupported quote start}}%
+  % Only an open keep protects the quote's closing space. Once satisfied,
+  % end with a legal break and no trailing space-only continuation frame.
+  % The list's end penalty is restored for subsequent lists in this box.
+  \let\bookpublisherquote\quote
+  \def\quote{%
+    \edef\bookpublisherendparpenalty{\the\@endparpenalty}%
+    \bookpublisherquote}%
+  \def\endquote{%
+    \ifnum\bookpublisherboxlines>0 \@endparpenalty=10000\relax\fi
+    \end{list}%
+    \@endparpenalty=\bookpublisherendparpenalty\relax
+    \par\ifnum\bookpublisherboxlines>0
+      \nobreak\vspace{\baselineskip}%
+    \else\penalty0\fi}%
+  \global\bookpublisherboxlines=0\relax
+  % needspace's soft penalties would undo the keep before a list.
+  \let\bookpublisherneedspace\needspace
+  \renewcommand{\needspace}[1]{%
+    \ifnum\bookpublisherboxlines>0\else\bookpublisherneedspace{##1}\fi
+  }%
+  % Lists insert their own break penalties, including between short items.
+  \let\bookpublisheraddpenalty\addpenalty
+  \renewcommand{\addpenalty}[1]{%
+    \bookpublisheraddpenalty{\ifnum\bookpublisherboxlines>0 10000\else##1\fi}%
+  }%
   % The existing image filter uses the page's content width. Cap those images
   % (including explicit widths) at this box's narrower line width, locally.
   \RenewDocumentCommand{\includegraphics}{s O{} m}{%
     \sbox{\bookpublisherimage}{%
       \IfBooleanTF{##1}{\bookpublisherincludegraphics*[##2]{##3}}%
         {\bookpublisherincludegraphics[##2]{##3}}}%
+    \ifdim\dimexpr\ht\bookpublisherimage+\dp\bookpublisherimage\relax>\bookpublisherboxheight
+      \sbox{\bookpublisherimage}{\resizebox*{!}{\bookpublisherboxheight}{\usebox{\bookpublisherimage}}}%
+    \fi
+    % A tall graphic can be a paragraph line or a list item's only content.
+    % Give that line a break before it when a pending keep cannot fit with it.
+    % The paired heading/image command measures its own budget separately.
+    \ifbookpublisherinbox
+      \ifnum\bookpublisherboxlines>0
+        \ifdim\dimexpr\ht\bookpublisherimage+\dp\bookpublisherimage+4\baselineskip\relax>\bookpublisherboxheight
+          \global\bookpublisherboxlines=0\relax
+          \ifhmode\vadjust pre{\penalty0}\else\penalty0\fi%
+        \fi
+      \fi
+    \fi
     \ifdim\wd\bookpublisherimage>\linewidth
       \resizebox{\linewidth}{!}{\usebox{\bookpublisherimage}}%
     \else
@@ -102,8 +251,10 @@ $if(boxed-divs)$
   }%
 }{%
   \end{mdframed}%
+  \global\bookpublisherboxlines=0\relax
   \endgroup
 }
+\makeatother
 $endif$
 
 \usepackage{float}
@@ -470,21 +621,152 @@ $endif$
   pdftitle={$if(title)$$title$$else$Book$endif$},
   pdfauthor={$if(author)$$for(author)$$author$$sep$, $endfor$$endif$}
 ]{hyperref}
-% Keep the existing mono face by default, with breaks inside long URL segments.
+% Keep the existing mono face by default.
 \urlstyle{$url-font$}
 % URL characters have wider metrics than prose punctuation; keep them in bounds.
 \SetProtrusion[context=bookpublisherurl]{encoding={T1,OT1}}{.={0,0}, -={0,0}}
 \let\bookpublisherurlfont\UrlFont
 \def\UrlFont{\bookpublisherurlfont\microtypecontext{protrusion=bookpublisherurl}}
-\Urlmuskip=0mu plus 1mu\relax
-\def\UrlBreakPenalty{100}
-\def\UrlBigBreakPenalty{50}
-\expandafter\def\expandafter\UrlBreaks\expandafter{\UrlBreaks
-  \do\a\do\b\do\c\do\d\do\e\do\f\do\g\do\h\do\i\do\j\do\k\do\l\do\m
-  \do\n\do\o\do\p\do\q\do\r\do\s\do\t\do\u\do\v\do\w\do\x\do\y\do\z
-  \do\A\do\B\do\C\do\D\do\E\do\F\do\G\do\H\do\I\do\J\do\K\do\L\do\M
-  \do\N\do\O\do\P\do\Q\do\R\do\S\do\T\do\U\do\V\do\W\do\X\do\Y\do\Z
-  \do\0\do\1\do\2\do\3\do\4\do\5\do\6\do\7\do\8\do\9\do\-}
+\makeatletter
+\ExplSyntaxOn
+\str_new:N \l__bookpublisher_url_str
+\seq_new:N \l__bookpublisher_url_seq
+\seq_new:N \l__bookpublisher_url_chars_seq
+\box_new:N \l__bookpublisher_url_box
+\bool_new:N \l__bookpublisher_url_fallback_bool
+\dim_new:N \l__bookpublisher_url_width_dim
+\dim_new:N \l__bookpublisher_url_mark_dim
+% pdfTeX strings contain UTF-8 bytes. Keep a complete encoded character in
+% one box, including when an oversized run needs internal break points.
+\regex_const:Nn \c__bookpublisher_url_chars_regex
+  {
+    [\x{C2}-\x{DF}][\x{80}-\x{BF}]
+    | [\x{E0}-\x{EF}][\x{80}-\x{BF}]{2}
+    | [\x{F0}-\x{F4}][\x{80}-\x{BF}]{3} | .
+  }
+\iow_new:N \g__bookpublisher_url_iow
+\iow_open:Nn \g__bookpublisher_url_iow {\jobname.url-fallbacks}
+% Paired glues cancel on an unbroken line. At the penalty only the positive
+% glue remains, giving a URL break a ragged end without opening its characters.
+\cs_new_protected:Npn \__bookpublisher_url_break:n #1
+  {
+    % Forbid an implicit glue break that would bypass the chosen penalty.
+    \tex_penalty:D 10000
+    \tex_hskip:D 0pt~plus~\linewidth\scan_stop:
+    \tex_penalty:D #1
+    \tex_hskip:D 0pt~plus~-\linewidth\scan_stop:
+  }
+\cs_new_protected:Npn \__bookpublisher_url_char:n #1
+  {
+    \hbox{
+      \str_case:nnF {#1}
+        {{'}{\textquotesingle}{`}{\textasciigrave}}
+        {#1}
+    }
+  }
+\cs_new_protected:Npn \__bookpublisher_url_chars:n #1
+  {
+    \regex_extract_all:NnN \c__bookpublisher_url_chars_regex {#1}
+      \l__bookpublisher_url_chars_seq
+    \seq_map_inline:Nn \l__bookpublisher_url_chars_seq
+      { \__bookpublisher_url_char:n {##1} }
+  }
+\cs_new_protected:Npn \__bookpublisher_url_run:nn #1#2
+  {
+    \regex_extract_all:NnN \c__bookpublisher_url_chars_regex {#1}
+      \l__bookpublisher_url_chars_seq
+    \seq_map_indexed_inline:Nn \l__bookpublisher_url_chars_seq
+      {
+        \int_compare:nNnT {##1} > {1}
+          { \__bookpublisher_url_break:n {#2} }
+        \__bookpublisher_url_char:n {##2}
+      }
+  }
+\cs_set_protected:Npn \Url@FormatString
+  {
+    \UrlFont
+    \str_set:Nx \l__bookpublisher_url_str { \tl_to_str:V \Url@String }
+    \bool_set_false:N \l__bookpublisher_url_fallback_bool
+    % Hanging index continuations have less space than linewidth. Use the
+    % narrower measure, also respecting a local hsize and fixed side skips.
+    \dim_set:Nn \l__bookpublisher_url_width_dim
+      { \dim_min:nn {\linewidth}{\tex_hsize:D}
+        - \tex_leftskip:D - \tex_rightskip:D
+        - \dim_abs:n {\tex_hangindent:D} }
+    \dim_zero:N \l__bookpublisher_url_mark_dim
+    % Only ASCII punctuation separates runs. Non-ASCII letters/digits (and
+    % conservatively all other non-ASCII characters) stay with their run.
+    \exp_args:NnV \regex_extract_all:nnN
+      { \A [Hh][Tt][Tt][Pp][Ss]?://
+        | [^\x{00}-\x{2F}\x{3A}-\x{40}\x{5B}-\x{60}\x{7B}-\x{7F}]+ | . }
+      \l__bookpublisher_url_str \l__bookpublisher_url_seq
+    % A preceding box (for example a footnote mark) may have no break after
+    % it. Let the first URL box move intact, at a cost above punctuation.
+    \__bookpublisher_url_break:n {9000}
+    \UrlLeft
+    \seq_map_inline:Nn \l__bookpublisher_url_seq
+      {
+        \regex_match:nnTF
+          { \A [^\x{00}-\x{2F}\x{3A}-\x{40}\x{5B}-\x{60}\x{7B}-\x{7F}]+ \Z } {##1}
+          {
+            \hbox_set:Nn \l__bookpublisher_url_box
+              { \__bookpublisher_url_chars:n {##1} }
+            % A finite penalty also fires before TeX tries emergencystretch.
+            % Short runs therefore have NO internal break nodes at all.
+            \dim_compare:nNnTF {\box_wd:N \l__bookpublisher_url_box}
+              > {\l__bookpublisher_url_width_dim}
+              {
+                \bool_set_true:N \l__bookpublisher_url_fallback_bool
+                \__bookpublisher_url_run:nn {##1}{1000}
+              }
+              {
+                % A fitting run stays whole. If its preceding mark would
+                % make the pair too wide, allow a break AFTER that mark.
+                \dim_compare:nNnT
+                  {\l__bookpublisher_url_mark_dim + \box_wd:N \l__bookpublisher_url_box}
+                  > {\l__bookpublisher_url_width_dim}
+                  { \__bookpublisher_url_break:n {5000} }
+                \box_use_drop:N \l__bookpublisher_url_box
+              }
+            \dim_zero:N \l__bookpublisher_url_mark_dim
+          }
+          {
+            \regex_match:nnTF { \A [Hh][Tt][Tt][Pp][Ss]?:// \Z } {##1}
+              {
+                \hbox{\__bookpublisher_url_chars:n {##1}}
+                \__bookpublisher_url_break:n {100}
+                \dim_zero:N \l__bookpublisher_url_mark_dim
+              }
+              {
+                \int_case:nnF {`##1}
+                  {
+                    {47}{\__bookpublisher_url_break:n {100}}
+                    {46}{\__bookpublisher_url_break:n {100}}
+                    {45}{\__bookpublisher_url_break:n {100}}
+                    {95}{\__bookpublisher_url_break:n {100}}
+                    {63}{\__bookpublisher_url_break:n {100}}
+                    {35}{\__bookpublisher_url_break:n {100}}
+                    {61}{\__bookpublisher_url_break:n {100}}
+                    {38}{\__bookpublisher_url_break:n {100}}
+                  }
+                  {\__bookpublisher_url_break:n {5000}}
+                \hbox_set:Nn \l__bookpublisher_url_box
+                  { \__bookpublisher_url_char:n {##1} }
+                \dim_set:Nn \l__bookpublisher_url_mark_dim
+                  { \box_wd:N \l__bookpublisher_url_box }
+                \box_use_drop:N \l__bookpublisher_url_box
+              }
+          }
+      }
+    \UrlRight
+    \bool_if:NT \l__bookpublisher_url_fallback_bool
+      {
+        \iow_now:Nx \g__bookpublisher_url_iow
+          {\int_use:N \tex_inputlineno:D |\dim_use:N \l__bookpublisher_url_width_dim|\dim_compare:nNnTF {\tex_hangindent:D} = {0pt} {0}{1}|\l__bookpublisher_url_str}
+      }
+  }
+\ExplSyntaxOff
+\makeatother
 
 %% =============================================================================
 %% PANDOC COMPATIBILITY
