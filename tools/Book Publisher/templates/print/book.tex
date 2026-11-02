@@ -82,6 +82,9 @@ $if(boxed-divs)$
 % The count is global so a list's group cannot restore an unfinished keep.
 \newcount\bookpublisherboxlines
 \newif\ifbookpublisherinbox
+\newif\ifbookpublishertablekeep
+\newcount\bookpublisherboxretries
+\newdimen\bookpublisherboxremaining
 \newcommand{\bookpublisherboxkeep}{%
   \par\nobreak\global\bookpublisherboxlines=2\relax
 }
@@ -95,7 +98,10 @@ $if(boxed-divs)$
 }
 % Footnotes, table cells and other minipages are separate vertical lists.
 \AddToHook{env/minipage/begin}[bookpublisherbox]{\bookpublisherinboxfalse}
-\AddToHook{env/longtable/begin}[bookpublisherbox]{\bookpublisherinboxfalse}
+\AddToHook{env/longtable/begin}[bookpublisherbox]{%
+  \bookpublisherinboxfalse
+  \ifbookpublishertablekeep\else\global\bookpublisherboxlines=0\relax\fi
+}
 \newsavebox{\bookpublisherimagehead}
 \newsavebox{\bookpublisherimagebody}
 \newlength{\bookpublisherboxheight}
@@ -103,7 +109,7 @@ $if(boxed-divs)$
   \par\begingroup
   \bookpublisherinboxfalse
   \setbox\bookpublisherimagehead=\vbox{\hsize=\linewidth #1\par}%
-  \global\bookpublisherboxlines=0\relax
+  \global\bookpublisherboxlines=2\relax
   \setbox\bookpublisherimagebody=\vbox{\hsize=\linewidth #2\par}%
   % Keep the heading's type size. Only the image block is reduced if the pair
   % cannot fit a fresh frame; reserve its rules, padding and split top skip.
@@ -111,9 +117,11 @@ $if(boxed-divs)$
   \vskip\parskip% Match the normal heading paragraph above the measured unit.
   \vbox{\unvbox\bookpublisherimagehead\nointerlineskip
     \ifdim\dimexpr\ht\bookpublisherimagebody+\dp\bookpublisherimagebody\relax>\dimen0
+      \global\bookpublisherboxlines=0\relax
       \hbox to \linewidth{\hfil\resizebox*{!}{\dimen0}{\usebox{\bookpublisherimagebody}}\hfil}%
     \else\unvbox\bookpublisherimagebody\fi}%
   \endgroup
+  \ifnum\bookpublisherboxlines>0 \nobreak\fi
 }
 \newcommand{\bookpublisherboxtablerows}[1]{%
   \global\advance\bookpublisherboxlines by -#1\relax
@@ -122,10 +130,33 @@ $if(boxed-divs)$
 \newsavebox{\bookpublisherimage}
 \let\bookpublisherincludegraphics\includegraphics
 \makeatletter
+% mdframed retries an unsplittable fragment indefinitely, even on fresh pages.
+% Bound retries without progress, including content outside our keep paths.
+% Impossible raw/unbreakable content fails typesetting instead of hanging.
+\newcommand{\bookpublisherboxprogress}{%
+  \ifdim\dimexpr\ht\mdf@splitbox@one+\dp\mdf@splitbox@one\relax<\bookpublisherboxremaining
+    \global\bookpublisherboxretries=0\relax
+  \else
+    \global\advance\bookpublisherboxretries by 1\relax
+  \fi
+  \global\bookpublisherboxremaining=\dimexpr\ht\mdf@splitbox@one+\dp\mdf@splitbox@one\relax
+  \ifnum\bookpublisherboxretries>3
+    \PackageError{Book Publisher}{Box contains unbreakable content taller than a fresh frame}{Reduce the unbreakable block or split it into smaller blocks.}%
+    % A terminal read in batch mode is an immediate fatal TeX stop; unlike
+    % a normal end it cannot leave a successful, truncated PDF.
+    \batchmode\read-1 to \bookpublisherabort
+  \fi
+}
 \newenvironment{bookpublisherbox}[4]{%
   \begingroup
   \definecolor{bookpublisherboxbg}{gray}{#1}%
   \definecolor{bookpublisherboxline}{gray}{#2}%
+  \global\bookpublisherboxremaining=\maxdimen
+  \global\bookpublisherboxretries=0\relax
+  \pretocmd{\mdf@put@frame}{\bookpublisherboxprogress}{}{%
+    \PackageError{Book Publisher}{Cannot bound box retries}{Unsupported mdframed splitter}}%
+  \pretocmd{\mdf@put@frame@ii}{\bookpublisherboxprogress}{}{%
+    \PackageError{Book Publisher}{Cannot bound box retries}{Unsupported mdframed splitter}}%
   \begin{mdframed}[backgroundcolor=bookpublisherboxbg,linecolor=bookpublisherboxline,
     linewidth=#3pt,innerleftmargin=#4pt,innerrightmargin=#4pt,
     innertopmargin=#4pt,innerbottommargin=#4pt,
@@ -134,25 +165,32 @@ $if(boxed-divs)$
   % Its probe hook runs inside the scratch vbox, so this flag stays local.
   \expandafter\appto\csname MT@prot@hook\endcsname{\bookpublisherinboxfalse}%
   \bookpublisherinboxtrue
+  \bookpublishertablekeeptrue
   \setlength{\bookpublisherboxheight}{\dimexpr\textheight-2\dimexpr#4pt+#3pt\relax-\baselineskip\relax}%
   \let\bookpublisherfootnotetext\@footnotetext
   \long\def\@footnotetext##1{%
     \begingroup\bookpublisherinboxfalse\bookpublisherfootnotetext{##1}\endgroup}%
   % longtable supplies a legal zero penalty before its head. Its rows bypass
   % the paragraph hooks, so retain the keep there and between the first rows.
-  \ExplSyntaxOn
-  \patchcmd{\LT@start}{\penalty\z@}{%
-    \penalty\ifnum\bookpublisherboxlines>\z@\@M\else\z@\fi\relax}{}{
-    \PackageError{Book Publisher}{Cannot keep boxed table heading}{Unsupported longtable start}}%
-  \ExplSyntaxOff
+  % Token replacement preserves longtable's expl3 control sequences without
+  % changing catcodes or re-reading its definition as text.
+  \csname tl_if_in:NnTF\endcsname\LT@start{\penalty\z@}{%
+    \csname tl_replace_once:Nnn\endcsname\LT@start{\penalty\z@}{%
+      \penalty\ifnum\bookpublisherboxlines>\z@\@M\else\z@\fi\relax}%
+    \csname tl_replace_once:Nnn\endcsname\LT@start{\vfil\break}{%
+      \ifnum\bookpublisherboxlines>\z@\else\vfil\break\fi}%
+  }{\bookpublishertablekeepfalse
+    \PackageWarning{Book Publisher}{Unsupported longtable start; table headings left unkept}}%
   \let\bookpublishertabularcr\LT@tabularcr
   \protected\def\LT@tabularcr{%
     \@ifstar{\bookpublishertabularcr*}{\bookpublisherkeptrow}}%
   \def\bookpublisherkeptrow{%
     \let\bookpublishernextrow\bookpublishertabularcr
-    \ifnum\bookpublisherboxlines>1
-      \ifnum\LT@rows<\numexpr\bookpublisherboxlines-1\relax
-        \def\bookpublishernextrow{\bookpublishertabularcr*}%
+    \ifbookpublishertablekeep
+      \ifnum\bookpublisherboxlines>1
+        \ifnum\LT@rows<\numexpr\bookpublisherboxlines-1\relax
+          \def\bookpublishernextrow{\bookpublishertabularcr*}%
+        \fi
       \fi
     \fi
     \bookpublishernextrow}%
@@ -160,11 +198,20 @@ $if(boxed-divs)$
   % would make the following parskip a legal break after a kept heading.
   \patchcmd{\quote}{\color{quotetext}}{\leavevmode\color{quotetext}}{}{
     \PackageError{Book Publisher}{Cannot keep boxed quote heading}{Unsupported quote start}}%
-  % Keep a quote's closing colour whatsit and space with its last line;
-  % otherwise the split can leave a continuation containing only that space.
+  % Only an open keep protects the quote's closing space. Once satisfied,
+  % end with a legal break and no trailing space-only continuation frame.
+  % The list's end penalty is restored for subsequent lists in this box.
+  \let\bookpublisherquote\quote
+  \def\quote{%
+    \edef\bookpublisherendparpenalty{\the\@endparpenalty}%
+    \bookpublisherquote}%
   \def\endquote{%
-    \@endparpenalty=10000\relax\end{list}%
-    \par\nobreak\vspace{\baselineskip}}%
+    \ifnum\bookpublisherboxlines>0 \@endparpenalty=10000\relax\fi
+    \end{list}%
+    \@endparpenalty=\bookpublisherendparpenalty\relax
+    \par\ifnum\bookpublisherboxlines>0
+      \nobreak\vspace{\baselineskip}%
+    \else\penalty0\fi}%
   \global\bookpublisherboxlines=0\relax
   % needspace's soft penalties would undo the keep before a list.
   \let\bookpublisherneedspace\needspace
@@ -182,6 +229,20 @@ $if(boxed-divs)$
     \sbox{\bookpublisherimage}{%
       \IfBooleanTF{##1}{\bookpublisherincludegraphics*[##2]{##3}}%
         {\bookpublisherincludegraphics[##2]{##3}}}%
+    \ifdim\dimexpr\ht\bookpublisherimage+\dp\bookpublisherimage\relax>\bookpublisherboxheight
+      \sbox{\bookpublisherimage}{\resizebox*{!}{\bookpublisherboxheight}{\usebox{\bookpublisherimage}}}%
+    \fi
+    % A tall graphic can be a paragraph line or a list item's only content.
+    % Give that line a break before it when a pending keep cannot fit with it.
+    % The paired heading/image command measures its own budget separately.
+    \ifbookpublisherinbox
+      \ifnum\bookpublisherboxlines>0
+        \ifdim\dimexpr\ht\bookpublisherimage+\dp\bookpublisherimage+4\baselineskip\relax>\bookpublisherboxheight
+          \global\bookpublisherboxlines=0\relax
+          \ifhmode\vadjust pre{\penalty0}\else\penalty0\fi%
+        \fi
+      \fi
+    \fi
     \ifdim\wd\bookpublisherimage>\linewidth
       \resizebox{\linewidth}{!}{\usebox{\bookpublisherimage}}%
     \else
