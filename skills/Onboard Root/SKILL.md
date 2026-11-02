@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types
-version: 0.45.2
+version: 0.46.0
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
 ---
@@ -141,7 +141,9 @@ Which design ending did Step 3 return? Set its line accordingly:
 - Let's do this later: `- design: provisional (every heading labeled; owner: <the person>; waits on "build my brand")`, or `- design: complete` where the fill from a supplied guide meets the definition below.
 - Stopped: `- design: provisional (<what it waits on, as Build Brand returned it>; owner: <the person>)`.
 
-A key is **complete** when every heading is answered or labeled, at least one is answered, and every claim survived the read-back. It is **provisional** when the file is usable and a named gap remains, with an owner and what it waits on in the same line; a file whose every heading is a label is provisional, not complete, with the person as owner. It is **blocked** when the file is not usable, with the blocker named on the line as `person:`, `credential:` or `capability:` followed by who or what; the form is `blocked (person: <who>; waits on <what>)`. A key that cannot pass its read-back is provisional or blocked, never closed complete. Nothing in the section is ever deleted; a later session updates a line when a key closes.
+A key is **complete** when every heading is answered or labeled, at least one is answered, and every claim survived the read-back. It is **provisional** when the file is usable and a named gap remains, with an owner and what it waits on in the same line; a file whose every heading is a label is provisional, not complete, with the person as owner. It is **blocked** when the file is not usable, with the blocker named on the line as `person:`, `credential:` or `capability:` followed by who or what; the form is `blocked (person: <who>; waits on <what>)`. A key that cannot pass its read-back is provisional or blocked, never closed complete.
+
+The section holds the close line, the state lines and nothing else but notes that point, per `standards/user-root.md` C15. Where a session must read something before writing from these files, write a line naming the file and the entry in it, such as `memory/about.md` V534, never the fact itself. Nothing in the section is deleted; a later session updates a state line when a key closes, and `skills/Housekeeping/` rewrites a note that restates a fact into pointers on the person's approval, per C15.
 
 Where this session has the Wiser endpoint's `first_run` tool, call it with `mode: "finish"`, which records that the person's setup is done; where it has none, or the call fails, go on without it and say nothing of it.
 
@@ -170,6 +172,7 @@ It is a check, not a step. A personal root that never runs it is onboarded; one 
 - **A copy confirmed only by the tool that wrote it.** On a host with more than one way to reach the destination, those ways can disagree while each reports success. Confirm through a second one where it exists.
 - **Taking the full path for a personal root because it is more thorough.** It is longer, not more true: its records exist for claims other people are held to. A personal root that ran the full path has a run record nobody reads and an interview the person did not need.
 - **Closing a key in the state lines that the read-back did not clear.** The `## Onboarding` section is what a later session reads before a deliverable write. A line saying complete over a file holding an unread claim lets that claim into a deliverable.
+- **A fact copied into the Onboarding section.** It goes stale when its file changes and nothing keeps it current; name the file and entry instead, per `standards/user-root.md` C15.
 
 ## Success
 
@@ -178,7 +181,7 @@ It is a check, not a step. A personal root that never runs it is onboarded; one 
 - Every claim in a memory file names the person who said it or the file that says it, or carries one of the four labels in place.
 - The read-back pass ran after the files were written, and what it could not find is labeled and asked, not bound.
 - `memory/voice.md` was written by Build Voice, or its headings carry the label that says why not and the key closed provisional.
-- The `## Onboarding` section of `AGENTS.md` carries one state line per key, each provisional or blocked line naming its owner and what it waits on.
+- The `## Onboarding` section of `AGENTS.md` carries one state line per key, each provisional or blocked line naming its owner and what it waits on, and holds no copied fact, only pointers, per `standards/user-root.md` C15.
 - On the full path, every gate ran and the close report names each one that did not pass, per `full-path.md`.
 
 A credential's value never enters the conversation, a log, a commit, or another file.

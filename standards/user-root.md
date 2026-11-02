@@ -1,6 +1,6 @@
 ---
 standard: user-root
-version: 0.10.1
+version: 0.11.0
 description: One declared user-root tree and the clauses used to score its layout
 ---
 
@@ -12,7 +12,7 @@ Applies to personal, org, client, department, and industry user roots. This is t
 
 ## C1 Identification
 
-The constitution's Workspace Model (`wiser/AGENTS.md`) owns root identification. Its declaration is in root `AGENTS.md`: `type:`, a Provides block, the Wiser constitution citation, Onboarding state lines, and the declared-directory table. A folder set never identifies a user root. The frontmatter also carries `root:` and `layout:`, the latter this standard's current tree version (4). Increment that integer when this standard changes the tree; a version difference is a converge input, never permission to re-onboard. `skills/Housekeeping/` owns layout migration on a declared Wiser user root and is callable any time to bring its shelves and filing declarations into conformance with this standard. A missing layout version on an already-declared Wiser root is drift, not foreign identity.
+The constitution's Workspace Model (`wiser/AGENTS.md`) owns root identification. Its declaration is in root `AGENTS.md`: `type:`, a Provides block, the Wiser constitution citation, the Onboarding section (C15), and the declared-directory table. A folder set never identifies a user root. The frontmatter also carries `root:` and `layout:`, the latter this standard's current tree version (4). Increment that integer when this standard changes the tree; a version difference is a converge input, never permission to re-onboard. `skills/Housekeeping/` owns layout migration on a declared Wiser user root and is callable any time to bring its shelves and filing declarations into conformance with this standard. A missing layout version on an already-declared Wiser root is drift, not foreign identity.
 
 That integer is the root **contract** version: the tree above, and whatever else this standard requires of a root before it counts as current. Increment it equally when a row of the table below requires something a tree change does not cover. One integer and no minor part; a row says whether it is required or advisory, so severity lives in the row and not in the number.
 
@@ -131,6 +131,22 @@ The router cites this clause and restates none of it.
 The skill that builds `voice.md` writes the voice answers file. The skill that writes `design.md` writes the design answers file. Housekeeping creates a missing `memory/answers/` and copies `memory/answers/AGENTS.md` from `system/templates/User Root Template/` where the root has none. It writes no answers file and no bound file. Copying that router is a create. It does not replace the root `AGENTS.md`.
 
 While the root's stamp is below row 4, a skill that would write an answers file offers the named ask **update root** first and does not create `memory/answers/` itself, and it does not apply the plan; C1 and the constitution's named ask own that comparison. Where the person declines, or the update is not applied, the skill writes no answers file and goes on with the rest of its run, and the bound files it writes stand. The answers are then not kept anywhere, and they are not filed under `work/onboarding/`.
+
+## C15 Onboarding section
+
+The `## Onboarding` section of the root's `AGENTS.md` holds three things and nothing else:
+
+1. The close line `skills/Onboard Root/` writes, the paragraph opening `Onboarded <date>` that records which path ran and where its records are, or, until that close, the line the template ships, which says the root is not onboarded.
+2. One state line per key, `- <key>: <state>`, in that skill's grammar.
+3. Where a session must read something before writing from this root's files, a note naming each file and the entry in it to read: a bound file's `[V<n>]` verification anchor such as `memory/about.md` V534, a heading, or an onboarding record's row such as `work/onboarding/operating-file.md` O29.
+
+A note says where a fact is kept, never the fact itself: nothing keeps a copy in this section current, so it goes stale the day its file changes. A note may say what an entry is about, in words that stay true whatever the entry comes to say, such as "the plans"; anything more is a restated fact.
+
+Score present when the section holds only those three. Score misfiled when a note states a fact, a figure, a date, a name or a decision rather than pointing to where it is kept, or when a pointer names a file or an entry this root does not hold. A missing section is scored under C1 and `skills/Onboard Root/`.
+
+`skills/Onboard Root/` writes the section at close; `skills/Build Voice/` and `skills/Build Brand/` each set their own key's state line. `skills/Housekeeping/` scores this clause on every **update root**, whatever the stamp, and proposes rewriting a misfiled note to pointers, changing no other byte of the section. This clause gives Housekeeping that one write and no other: it closes no key and writes no bound file.
+
+**No C1 contract row scores this clause, and that is decided rather than missing.** Decided 2026-11-02: this clause changes no tree, and Housekeeping scores every clause whatever the stamp, so an existing root converges at its next **update root** with no number to reach. C1 increments the integer for a requirement a tree change does not cover; this clause deliberately takes no row. **Do not add one, and do not read the absence as an oversight.**
 
 ## Scoring
 
