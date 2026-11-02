@@ -1,6 +1,6 @@
 ---
 standard: user-root
-version: 0.11.0
+version: 0.11.1
 description: One declared user-root tree and the clauses used to score its layout
 ---
 
@@ -140,7 +140,7 @@ The `## Onboarding` section of the root's `AGENTS.md` holds three things and not
 2. One state line per key, `- <key>: <state>`: until that close, as the template ships it, `blocked (not onboarded)`; from it, in the grammar that skill's Step 5 and Phase 9 give, `competitors: unbound` included.
 3. Where a session must read something before writing from this root's files, a note after the state lines, never itself a `- <key>:` line, naming each file and the entry in it to read: a bound file's `[V<n>]` verification anchor such as `memory/about.md` V534, a heading, or an onboarding record's row such as `work/onboarding/operating-file.md` O29.
 
-A note says where a fact is kept, never the fact itself: nothing keeps a copy in this section current, so it goes stale the day its file changes. A note may say what an entry is about, in words that stay true whatever the entry comes to say, such as "the plans"; anything more is a restated fact. The close line and the state lines are not notes: the date, path, tier, owner and what a key waits on that they carry are their grammar.
+A note says where a fact is kept, never the fact itself: nothing keeps a copy in this section current, so it goes stale the day its file changes. A note may say what an entry is about, in words that stay true whatever the entry comes to say, such as "the plans"; anything more is a restated fact. The close line and the state lines are not notes: the date, path, tier, owner and what a key waits on that they carry are their grammar. A close paragraph written before this clause, such as one opening `Adopted <date>`, is the close line, and a state line that carries its own dated record in parentheses is still a state line: this clause scores notes alone, and changes neither.
 
 Score present when the section holds only those three. Score misfiled when a note states a fact, a figure, a date, a name or a decision rather than pointing to where it is kept, or when a pointer names an entry its file does not carry. A `[V<n>]` pointer resolves only while that id anchors a claim the named file now makes, by the anchor grammar `skills/Onboard Root/full-path.md` gives, an anchor written just after a claim's full stop included; a verification row that outlived its claim, or a correction note naming what the file used to say, does not count, so a pointer whose claim was re-verified under a new id is misfiled and names the new id once rewritten. A missing section is scored under C1 and `skills/Onboard Root/`.
 
