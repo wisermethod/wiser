@@ -228,3 +228,10 @@ test('all 49 ranked parts carry six closed positions and a soft-to-strong reason
   assert.equal(count,49);assert.equal(pairing('chunky').tags.softStrong,'soft');
   for(const p of library.palettes)assert.equal(p.tags.warmCool,p.temperature);
 });
+
+test('marker keeps its hand-drawn heading and uses the pack reading face for every body size',()=>{
+  const p=pairing('marker');assert.equal(p.type.heading.family,'Shantell Sans');
+  assert.equal(p.type.body.family,'Instrument Sans');assert.ok(library.fonts[p.type.body.family]);
+  assert.deepEqual(p.type.body.weights,[400,700]);assert.ok(!p.type.body.variations);
+  for(const size of Object.values(p.type.body.sizes))assert.equal(size.variations,null);
+});

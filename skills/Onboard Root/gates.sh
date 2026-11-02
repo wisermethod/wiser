@@ -352,6 +352,52 @@ without_brand_note() {
 
 AWK_LIB='
 function trim(s){ sub(/^[ \t]+/,"",s); sub(/[ \t]+$/,"",s); return s }
+# Only these parentheticals carry a citation rather than another claim.
+function citation_paren(   path){
+  path="(memory|work|sources|todos|inbox|zArchive)/[A-Za-z0-9._~ /-]+"
+  return "\\([ \t]*((Firsthand|Secondhand|Public statement|Research inference|Working need):[^()]+|" path "|`" path "`)[ \t]*\\)"
+}
+function sentence_opener(word){
+  return index(" the this that these those a an it its their his her our your my we they he she there here what when where which who whom whose how why if unless because although though while after before since until once every each all both any some no none one two three four five next last other another such same both either neither not never do does did is are was were be been being has have had can could might must shall should would about above across against among around at by for from in into of off on onto over per through to under upon with within without and or but so yet for nor as than then thus hence therefore however moreover furthermore instead rather still also only just even ", " " tolower(word) " ")>0
+}
+function claim_sentences(line,S,   n,k,nw,AW,lastw,nextw,m,tmp){
+  n=split(line,S,/\. /)
+  # A dotted abbreviation is not a full stop. Splitting on ". " cuts
+  # "e.g. Example Ltd." in half and reports the orphan as an unanchored
+  # sentence while the anchor sits on the other half. Rejoin any
+  # fragment whose last token is a dotted abbreviation or a single
+  # initial, unless the next fragment begins with a sentence opener.
+  k=1
+  while(k<n){
+    nw=split(S[k],AW,/[ \t]+/)
+    lastw=AW[nw]
+    nextw=trim(S[k+1]); sub(/^[^A-Za-z]+/,"",nextw); sub(/[^A-Za-z].*$/,"",nextw)
+    if(!(nextw ~ /^[A-Z]/ && sentence_opener(nextw)) && (lastw ~ /^[A-Za-z](\.[A-Za-z])+$/ || lastw ~ /^[A-Z]$/ || lastw ~ /^(Mr|Mrs|Ms|Dr|Prof|Inc|Ltd|Co|St|No|vs|etc|Jr|Sr)$/)){
+      S[k]=S[k] ". " S[k+1]
+      for(m=k+1;m<n;m++) S[m]=S[m+1]
+      n--
+    } else k++
+  }
+  # An anchor after the full stop, with only citation parentheticals
+  # between, belongs to the sentence before it. Pull both back.
+  for(k=2;k<=n;k++){
+    tmp=S[k]
+    while(match(tmp,"^[ \t]*(" citation_paren() "[ \t]*)*\\[V[0-9]+\\]")){
+      S[k-1]=S[k-1] " " substr(tmp,RSTART,RLENGTH)
+      tmp=substr(tmp,RSTART+RLENGTH)
+    }
+    S[k]=tmp
+  }
+  return n
+}
+function snippet(s,   n){
+  if(length(s)<=90) return s
+  # LC_ALL=C counts bytes. Retreat past UTF-8 continuation bytes so the
+  # diagnostic never ends partway through a character.
+  n=90
+  while(n>0 && substr(s,n+1,1) ~ /[\200-\277]/) n--
+  return substr(s,1,n) "..."
+}
 function isrow(line){ return (trim(line) ~ /^\|/) }
 function is_sep(line,   t){
   t=trim(line)
@@ -1073,8 +1119,6 @@ gate_G5a() {
     BEGIN{
       nr=split(tolower(rootname),RW,/[^a-z0-9'\'']+/)
       for(q=1;q<=nr;q++) if(RW[q]!="") ROOTW[RW[q]]=1
-      no=split("the this that these those a an it its their his her our your my we they he she there here what when where which who whom whose how why if unless because although though while after before since until once every each all both any some no none one two three four five next last other another such same both either neither not never do does did is are was were be been being has have had can could might must shall should would about above across against among around at by for from in into of off on onto over per through to under upon with within without and or but so yet for nor as than then thus hence therefore however moreover furthermore instead rather still also only just even",OP," ")
-      for(q=1;q<=no;q++) OPENER[OP[q]]=1
     }
     { L[NR]=$0 }
     END{
@@ -1091,32 +1135,7 @@ gate_G5a() {
         if(t ~ /^\*.*\*$/) continue                # prompt line
         if(is_sep(t)) continue                     # table separator
         if(isrow(t) && i<NR && is_sep(L[i+1])) continue   # table header
-        n=split(line,S,/\. /)
-        # A dotted abbreviation is not a full stop. Splitting on ". " cuts
-        # "e.g. Example Ltd." in half and reports the orphan as an unanchored
-        # sentence while the anchor sits on the other half. Rejoin any
-        # fragment whose last token is a dotted abbreviation or a single
-        # initial, which is what the split left behind when it ate the dot.
-        k=1
-        while(k<n){
-          nw=split(S[k],AW,/[ \t]+/)
-          lastw=AW[nw]
-          if(lastw ~ /^[A-Za-z](\.[A-Za-z])+$/ || lastw ~ /^[A-Z]$/ || lastw ~ /^(Mr|Mrs|Ms|Dr|Prof|Inc|Ltd|Co|St|No|vs|etc|Jr|Sr)$/){
-            S[k]=S[k] ". " S[k+1]
-            for(m=k+1;m<n;m++) S[m]=S[m+1]
-            n--
-          } else k++
-        }
-        # an anchor written after the full stop belongs to the sentence
-        # before it, so pull it back before testing.
-        for(k=2;k<=n;k++){
-          tmp=S[k]
-          while(match(tmp,/^[ \t]*\[V[0-9]+\]/)){
-            S[k-1]=S[k-1] " " substr(tmp,RSTART,RLENGTH)
-            tmp=substr(tmp,RSTART+RLENGTH)
-          }
-          S[k]=tmp
-        }
+        n=claim_sentences(line,S)
         for(k=1;k<=n;k++){
           s=trim(S[k])
           if(s=="") continue
@@ -1151,7 +1170,7 @@ gate_G5a() {
             w1=W[1]
             gsub(/^[("\x27`\[]+/,"",w1)
             gsub(/[)"\x27`\].,;:!?]+$/,"",w1)
-            if(w1 ~ /^[A-Z][A-Za-z\x27-]+$/ && !OPENER[tolower(w1)] \
+            if(w1 ~ /^[A-Z][A-Za-z\x27-]+$/ && !sentence_opener(w1) \
                && !(ROOTW[tolower(w1)] && index(tolower(s),tolower(rootname))>0)) cand=1
           }
           for(w=2;w<=nb;w++){
@@ -1170,8 +1189,7 @@ gate_G5a() {
           if(low ~ /ahead of|[a-z]er than/) cand=1
           if(!cand) continue
           if(s ~ /\[V[0-9]+\]/) continue
-          disp=s
-          if(length(disp)>90) disp=substr(disp,1,90) "..."
+          disp=snippet(s)
           printf "line %d: candidate load-bearing sentence carries no [V<n>] anchor: %s\n", i, disp
         }
       }
@@ -1284,15 +1302,7 @@ gate_G5c() {
         if(t ~ /^\*.*\*$/) continue
         if(is_sep(t)) continue
         if(isrow(t) && i<NR && is_sep(L[i+1])) continue
-        n=split(line,S,/\. /)
-        for(k=2;k<=n;k++){
-          tmp=S[k]
-          while(match(tmp,/^[ \t]*\[V[0-9]+\]/)){
-            S[k-1]=S[k-1] " " substr(tmp,RSTART,RLENGTH)
-            tmp=substr(tmp,RSTART+RLENGTH)
-          }
-          S[k]=tmp
-        }
+        n=claim_sentences(line,S)
         for(k=1;k<=n;k++){
           s=trim(S[k]); if(s=="") continue
           low=tolower(s)
@@ -1301,7 +1311,7 @@ gate_G5c() {
           if(match(s,/\[V[0-9]+\]/)) anchor=substr(s,RSTART+1,RLENGTH-2)
           proh=0
           if(low ~ /must not|never|may not|forbidden|prohibited|do not/) proh=1
-          disp=s; if(length(disp)>90) disp=substr(disp,1,90) "..."
+          disp=snippet(s)
           printf "%d%s%s%s%d%s%s\n", i, US, anchor, US, proh, US, disp
         }
       }
@@ -1361,7 +1371,9 @@ gate_G6() {
       continue
     fi
     if [ ! -s "$TMPD/g6.txt" ]; then
-      add_fail "$r: '## Must-reach list' has no rows"
+      if ! section_body "$f" "## Must-reach list" | grep -qiE '(^|[.!?][[:space:]]+)(Must-reach items:[[:space:]]+none[.;]|The must-reach (list|enumeration) is empty[.;])'; then
+        add_fail "$r: '## Must-reach list' has no rows and no explicit empty enumeration"
+      fi
       continue
     fi
     while IFS="$US" read -r ln item kind text disp where; do
@@ -1413,7 +1425,7 @@ gate_G6() {
 # existing. Widening narrows that hole. It cannot close it: no keyword list is
 # the set of all prohibitions. run-log.md states the residual rather than
 # claiming this gate catches omission in general.
-CONSTRAINT_GRAMMAR='must not|may not|must only|may only|only |never|not permitted|permitted only|prohibited|forbidden|do not|cannot|shall not|no [a-z]+ may|restricted|require[sd]? approval|sign-?off|approval|cleared|clearance|embargo|compliance|regulat|legal|confidential|under nda|not for|internal only|do not share|fee|retainer|term of|pricing|priced|invoice|scope of work|deliverable count|review note|reviewer|comment|tracked change|redline|struck out'
+CONSTRAINT_GRAMMAR='(^|[^[:alnum:]_])(must not|may not|must only|may only|only|never|not permitted|permitted only|prohibited|forbidden|do not|cannot|shall not|no [a-z]+ may|restricted|require[sd]? approval|sign-?off|approvals?|cleared|clearance|embargo|compliance|regulat[[:alpha:]]*|legal|confidential(ity)?|under nda|not for|internal only|do not share|fees?|retainer|term of|pricing|priced|invoices?|scope of work|deliverable count|review notes?|reviewers?|comments?|tracked changes?|redline|struck out)([^[:alnum:]_]|$)'
 
 gate_G6b() {
   if [ ! -d "$SRC_DIR" ]; then
@@ -2089,6 +2101,15 @@ gate_G14() {
   # does not. "name: account owner / basis: account owner" passed before.
   van=$(kv "$VOICE" "voice-authority-name")
   vab=$(kv "$VOICE" "voice-authority-basis")
+  # Source citations can repeat the authority without being the basis itself.
+  basis_plain=$(printf '%s' "$vab" | awk "$AWK_LIB"'
+    {
+      gsub(/\[[^]]*\]\([^)]*\)/, "")
+      gsub(citation_paren(), "")
+      gsub(/\[V[0-9]+\]/, "")
+      sub(/^[[:space:]]+/, ""); sub(/[[:space:].,;:!?]+$/, "")
+      print
+    }')
   if [ -n "$van" ]; then
     if [ "$SHORT" = "1" ] && [ -n "$OWNER_LC" ] && [ "$(printf '%s' "$van" | tr 'A-Z' 'a-z')" = "$OWNER_LC" ]; then
       : # the root's owner, by owner_name's name, whatever its shape
@@ -2111,23 +2132,21 @@ gate_G14() {
     # that in words the domain list does not contain.
     owner="$OWNER_LC"
     if [ "$SHORT" = "1" ] && [ -n "$owner" ] && [ "$(printf '%s' "$van" | tr 'A-Z' 'a-z')" = "$owner" ]; then
-      lab=$(printf '%s' "$vab" | tr 'A-Z' 'a-z')
-      if [ -z "$vab" ] || [ "$lab" = "$owner" ]; then
+      lab=$(printf '%s' "$basis_plain" | tr 'A-Z' 'a-z')
+      if [ -z "$basis_plain" ] || [ "$lab" = "$owner" ]; then
         add_fail "$(rel "$VOICE"): 'voice-authority-basis' is empty or repeats the name; say that this is the owner's own voice"
       else
         add_note "the root's owner is the authority on their own voice; no domain of authority is owed"
       fi
     elif [ -n "$vab" ]; then
       lan=$(printf '%s' "$van" | tr 'A-Z' 'a-z')
-      lab=$(printf '%s' "$vab" | tr 'A-Z' 'a-z')
+      lab=$(printf '%s' "$basis_plain" | tr 'A-Z' 'a-z')
       if [ "$lan" = "$lab" ]; then
         add_fail "$(rel "$VOICE"): 'voice-authority-basis' repeats the name and records no basis for authority in any domain"
-      elif printf '%s' "$lab" | grep -qF "$lan"; then
-        add_fail "$(rel "$VOICE"): 'voice-authority-basis' only restates the name and records no basis for authority in any domain"
       else
         # A basis has to name what the authority rests on, not assert that it
         # exists. "she signs off" and "is the right person" are assertions.
-        nw=$(printf '%s' "$vab" | wc -w | tr -d ' ')
+        nw=$(printf '%s' "$basis_plain" | wc -w | tr -d ' ')
         if [ "${nw:-0}" -lt 6 ]; then
           add_fail "$(rel "$VOICE"): 'voice-authority-basis: $vab' is too thin to be a basis; name the domain and what the authority rests on"
         elif ! printf '%s' "$lab" | grep -qE "(sign-?off|approv|owns|accountab|responsib|authorit|mandate|named in|appointed|delegat|holds|remit|per the|under the|section|brief|contract|policy|role of|as the)"; then
@@ -2623,36 +2642,57 @@ gate_G19() {
     while IFS= read -r f; do
       [ -n "$f" ] || continue
       r=$(rel "$f")
-      while IFS= read -r rec; do
-        [ -n "$rec" ] || continue
-        ln=${rec%%:*}
-        tok=$(printf '%s' "$rec" | sed 's/^[0-9]*://')
+      while IFS="$US" read -r ln tok joins; do
         [ -n "$tok" ] || continue
-        if ! under_root "$tok"; then
-          add_fail "$r line $ln: path '$tok' $_ur_why"
-          continue
+        if under_root "$tok"; then
+          path_error="does not resolve under the root"
+        else
+          path_error="$_ur_why"
         fi
-        target="$ROOT/$tok"
-        if [ ! -e "$target" ]; then
-          add_fail "$r line $ln: path '$tok' does not resolve under the root"
-        fi
-      done < <(awk '
+        # A plain-text path may continue through spaces. Try each longer
+        # join on this line, retaining containment checks for every candidate.
+        # A resolving directory cannot swallow a following filename. Defer
+        # accepting it until the next join reveals that word, or the line ends.
+        resolved=0; directory=""
+        while IFS= read -r candidate; do
+          [ -n "$candidate" ] || continue
+          if [ -n "$directory" ]; then
+            nextword=${candidate#"$directory "}
+            if ! printf '%s\n' "$nextword" | grep -qE '^[^[:space:]/]+\.[[:alnum:]]+$'; then
+              resolved=1
+              break
+            fi
+            directory=""; tok="$candidate"
+          fi
+          if under_root "$candidate" && [ -e "$ROOT/$candidate" ]; then
+            if [ -d "$ROOT/$candidate" ]; then
+              directory="$candidate"
+            else
+              resolved=1
+              break
+            fi
+          fi
+        done < <(printf '%s\n' "$tok" "$joins" | tr "$US" '\n')
+        [ -z "$directory" ] || resolved=1
+        [ "$resolved" = "1" ] || add_fail "$r line $ln: path '$tok' $path_error"
+      done < <(awk -v US="$US" '
       function trim(s){ sub(/^[ \t]+/,"",s); sub(/[ \t]+$/,"",s); return s }
       function clean(t){
         gsub(/^[("\[<]+/,"",t)
         gsub(/[)"\]>.,;:!?]+$/,"",t)
         return t
       }
-      function emit(t,   lt){
+      function emit(t,nextword,whole,   lt,j,candidate,joins){
+        candidate=t
         t=clean(t)
         if(t=="") return
         if(index(t,"://")>0) return
         if(index(t,"/")==0) return
-        if(t ~ /[ \t]/) return
+        if(!whole && t ~ /[ \t]/) return
         lt=tolower(t)
         if(lt=="n/a" || lt=="and/or" || lt=="he/she" || lt=="yes/no" || lt=="either/or") return
         if(t ~ /^[0-9]+\/[0-9]+$/) return
-        if(t !~ /^[A-Za-z0-9._~\/-]+$/) return
+        if(!whole && t !~ /^[A-Za-z0-9._~\/-]+$/) return
         if(t !~ /[A-Za-z0-9]/) return
         # This gate asks one question: does a path this root names exist in
         # this root? So only a root-relative path is its business. The first
@@ -2663,8 +2703,12 @@ gate_G19() {
         # standards of the composed plugin (standards/conventions.md), which
         # correctly do not resolve under a client root and never should.
         if(t !~ /^(\.\/)?(memory|work|sources|todos|inbox|zArchive)\//) return
-        seen[t]=1
-        print NR ":" t
+        joins=""
+        if(nextword>0) for(j=nextword;j<=n;j++){
+          candidate=candidate " " W[j]
+          joins=joins US clean(candidate)
+        }
+        printf "%d%s%s%s\n", NR, US, t, joins
       }
       {
         line=$0
@@ -2675,12 +2719,12 @@ gate_G19() {
         rest=line
         while(match(rest,/`[^`]+`/)){
           span=substr(rest,RSTART+1,RLENGTH-2)
-          emit(span)
+          emit(span,0,1)
           rest=substr(rest,1,RSTART-1) " " substr(rest,RSTART+RLENGTH)
         }
         n=split(rest,W,/[ \t]+/)
-        for(i=1;i<=n;i++) emit(W[i])
-      }' "$f" | sort -u -t: -k1,1n -k2,2)
+        for(i=1;i<=n;i++) emit(W[i],i+1)
+      }' "$f" | sort -u -t "$US" -k1,1n -k2,2)
     done < <(bound_files)
   else
     add_note "no bound files under $(rel "$MEM"): the path clause did not run"

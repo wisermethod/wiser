@@ -38,7 +38,7 @@ try{
   }
   const tmp=join(scratch,'tmp');mkdirSync(tmp);
   const journey=process.env.BUILD_BRAND_JOURNEY||resolve(plugin,'../journey.md');
-  const env={...process.env,TMPDIR:tmp,BUILD_BRAND_JOURNEY:journey,npm_config_offline:'true',PIP_NO_INDEX:'1'};
+  const env={...process.env,TMPDIR:tmp,BUILD_BRAND_JOURNEY:journey,BUILD_BRAND_GATES:join(plugin,'skills/Onboard Root/gates.sh'),npm_config_offline:'true',PIP_NO_INDEX:'1'};
   const child=spawnSync(process.execPath,['--test','--test-reporter=tap'],{cwd:copied,env,encoding:'utf8',maxBuffer:16*1024*1024});
   const output=(child.stdout||'')+(child.stderr||'');
   // Keep all failures and final TAP totals, without printing fixture contents.

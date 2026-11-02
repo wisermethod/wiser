@@ -17,3 +17,12 @@ test('assembly accepts caller mark caption and nullable closing without changing
  for(const closing of [null,'Which is closest?']){const s=selection([board(library)],library);Object.assign(s.boards[0].content,{markCaption:'A place for your logo.',closing});assert.deepEqual(assemble(s,library).boards[0].content,s.boards[0].content);}
  for(const value of ['',1,false]){const s=selection([board(library)],library);s.boards[0].content.closing=value;assert.throws(()=>assemble(s,library),/closing/);}
 });
+
+test('simple path wires the bank caption through assembly while other boards retain their default',()=>{
+ const caption='These initials hold the place of a logo. Ask for a logo any time.';
+ const path=readFileSync(new URL('../paths/simple.md',import.meta.url),'utf8'),bank=readFileSync(new URL('../questions.md',import.meta.url),'utf8');
+ assert.ok(bank.includes('> '+caption));assert.ok(path.includes('`content.markCaption`'));assert.ok(path.includes(caption));
+ const s=selection([board(library)],library);s.boards[0].content.markCaption=caption;s.footnote=caption;
+ assert.equal(assemble(s,library).boards[0].content.markCaption,caption);assert.equal(assemble(s,library).footnote,caption);
+ const ordinary=selection([board(library)],library);assert.ok(!Object.hasOwn(assemble(ordinary,library).boards[0].content,'markCaption'));
+});

@@ -79,7 +79,7 @@ export function compareJourneyCopy(source, bank, openingTaps) {
   quotedScreen('Making the boards', b('Making the boards'), making, [capture(making, /instead reads "(.*?)"/)]);
 
   const boards = j('Step 4 (5 for an organisation): The boards'), bankBoards = b('Step 4: The boards');
-  quotedScreen('Boards and initials caption', bankBoards, boards, [capture(boards, /locked\."\): "(.*?)"/)]);
+  quotedScreen('Boards and initials caption', bankBoards, boards, [capture(boards, /locked\."\): "(.*?)"/), capture(boards, /which has no lock \(the operator's choice of 2026-11-02\): "(.*?)"/)]);
   const sourceBoardCopy = [capture(boards, /Under each tile, apart from its tap area, "(.*?)"/), capture(boards, /between "(.*?)" above/), capture(boards, /tick box, "(.*?)"/), capture(boards, /always shown: "(.*?)"/), capture(boards, /with nothing picked, "(.*?)"/), capture(boards, /with one, "(.*?)"/), capture(boards, /with two or three, "(.*?)"/), capture(boards, /exactly one picked: "(.*?)"/), capture(boards, /Its line: "(.*?)"/), capture(boards, /its line reads "(.*?)"/)];
   const actualBoardCopy = [capture(bankBoards, /\. "(.*?)" replaces all tiles/), capture(bankBoards, /same card\. "(.*?)" above and below it/), capture(bankBoards, /with "(.*?)" tick/), ...bankBoards.split('\n').filter(line => /^\| (Show me more|Lock this board in) \|/.test(line)).flatMap(line => {
     const [, label, detail] = line.split('|').map(s => s.trim());

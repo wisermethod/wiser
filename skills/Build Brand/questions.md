@@ -1,6 +1,6 @@
 # Build Brand's question bank
 
-Read by section. Member copy below is fixed: preserve every word, option order, progress and why line, filling brackets only from the member's material. Section headings, answer numbers, feeds and instructions are never shown. `SKILL.md` supplies the bank version, `Build Brand 0.3.0`; `records.md` supplies the C14 record. Retained brief-path sections at the end still govern that path alone.
+Read by section. Member copy below is fixed: preserve every word, option order, progress and why line, filling brackets only from the member's material, with the industry Record my look exception in `paths/brief.md` for the Brand files progress line. Section headings, answer numbers, feeds and instructions are never shown. `SKILL.md` supplies the bank version, `Build Brand 0.3.0`; `records.md` supplies the C14 record. Retained brief-path sections at the end still govern that path alone.
 
 ## Answer numbers
 
@@ -348,6 +348,10 @@ The initials caption:
 
 > These initials hold the place of a logo. Ask for a logo any time after you lock a board.
 
+On a simple brand's page, which has no lock:
+
+> These initials hold the place of a logo. Ask for a logo any time.
+
 No closing question on a board. Never show Share of a typical page, the contrast note or the colours' role names Action fill, Reading ink, Inset field. Colours are swatches with everyday names; checks still run. Word/boundary pairs appear on each tile.
 
 ## Step 5: Blend and tune
@@ -461,11 +465,11 @@ Read with `paths/brief.md`; `writing.md` owns the evidence pass, voice compariso
 
 An offered answer you may explicitly take; silence does not accept it. Already answered from supplied material: save the answer and source without asking again. Skipped: save an empty answer with status skipped; write `[Not available: not yet supplied]` only in `design.md`, where its heading is empty. Default accepted: save status answered, saying it was the offered default and naming the material it uses. An explicit "neither" records no preference on that axis, rather than a missing answer. Retain earlier answers when saving a correction. An unanswered read-back is never confirmation.
 
-Keep B1 for received files and the website, B2 for stated colour values and lettering, B3 for supplied recognition rules, B4 for a sourced sentence, B5 for sourced word/boundary pairs, B6 for imagery, B7 for prohibitions, and B8 for read-back confirmation. These are recording numbers, not an interview to ask in order. B12 can identify an adopted photo sentence when `writing.md` needs one; it is not an extra fixed question. A gap question uses G1 to G5 and cites the heading and corresponding B row it settles. An industry stops its coverage after B3; `paths/brief.md` and `paths/record-my-look.md` govern that limit.
+Keep B1 for received files and the website, B2 for stated colour values and lettering, B3 for supplied recognition rules, B4 for a sourced sentence, B5 for sourced word/boundary pairs, B6 for imagery, B7 for prohibitions, and B8 for read-back confirmation. These are recording numbers, not an interview to ask in order. B12 can identify an adopted photo sentence when `writing.md` needs one; it is not an extra fixed question. A gap question uses G1 to G5 and cites the heading and corresponding B row it settles. A gap answer for a heading with no B row, including Layout Habits and Foundation, is recorded and cited at its G number. An industry stops its coverage after B3; `paths/brief.md` and `paths/record-my-look.md` govern that limit.
 
 ### Brand files
 
-Progress: "Step 1 of 3: your brand files". Why: "I'll read your brand from what you already have."
+Progress: "Step 1 of 3: your brand files". Why: "I'll read your brand from what you already have." An industry's Record my look shows this step with no progress line, since it has no step 2 or 3.
 
 > Drop your brand files here in the chat: a brand guide, your logo, slides or a document in your style. Or paste your website's address. Either works, or both.
 

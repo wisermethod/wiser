@@ -114,7 +114,9 @@ function validate(spec, a, bytes, tapData) {
   const b = matches[0]; const index = spec.boards.indexOf(b);
   for (const k of ['name', 'sentence']) str(a[k], k);
   if (!['personal', 'org', 'client', 'department'].includes(a.type)) fail('type', 'use personal, org, client or department');
+  if (a.type !== 'personal' && !a.provenance) fail('provenance', 'name the person who answered with register and by');
   if (a.provenance) { closed(a.provenance, ['register', 'by'], 'provenance'); if (!['Firsthand', 'Secondhand', 'Public statement'].includes(a.provenance.register)) fail('provenance.register', 'unknown sourcing register'); str(a.provenance.by, 'provenance.by'); }
+  if (a.type !== 'personal' && a.provenance.by.trim().toLowerCase() === a.name.trim().toLowerCase()) fail('provenance.by', 'name the person who answered, rather than the brand itself');
   if (a.paths) closed(a.paths, ['archive'], 'paths');
   arr(a.words, 'words'); if (!a.words.length) fail('words', 'supply the chosen words');
   a.words.forEach((w, i) => { closed(w, ['word', 'not'], `words.${i}`); str(w.word, `words.${i}.word`); str(w.not, `words.${i}.not`); });
@@ -215,7 +217,7 @@ function makeDocuments(spec, a, index, paths, tapData) {
   const sections = Object.fromEntries(HEADINGS.map((h) => [h, []]));
   const add = (heading, text, refs, inference = false) => {
     const source = refs.map(ref).join('; ');
-    const citation = inference ? `Research inference: ${source}` : `${register}; ${source}`;
+    const citation = refs.every((r) => r.source === 'script') ? 'Working need: lock.mjs SCALE' : inference ? `Research inference: ${source}` : `${register}; ${source}`;
     const claim = { heading, text, refs, citation }; claims.push(claim); sections[heading].push(claim);
   };
   const label = (heading, reason) => sections[heading].push({ label: `[Not available: ${reason}]` });
@@ -230,7 +232,7 @@ function makeDocuments(spec, a, index, paths, tapData) {
   for (const [level, step] of Object.entries(SCALE.levels)) add('Typography', `${level}: ${SCALE.base * SCALE.ratio ** step}px; line height ${SCALE.lines[level]} light, ${(SCALE.lines[level] + .05).toFixed(2)} dark.`, [{ source: 'script', field: 'SCALE' }], true);
   add('Typography', `Use the settled faces and scale in ${paths.typography}. Sizes serve a working need; they are not additional member choices.`, [{ source: 'script', field: 'SCALE' }], true);
   add('Layout Habits', `${b.graphics.description} Use ${b.buttonRadius}px button corners.`, [S('graphics.description'), S('buttonRadius')]);
-  for (let n = 1; n <= 4; n++) { const t = tap(n); add('Layout Habits', `Visual choice Q${n}: ${t.label} (${t.value}).`, [A(`taps.${t.id}`)]); }
+  for (let n = 1; n <= 4; n++) { const t = tap(n); add('Layout Habits', `Visual choice T${n}: ${t.label} (${t.value}).`, [A(`taps.${t.id}`)]); }
   if (a.rounds) a.rounds.forEach((r, i) => add('Layout Habits', `${r.question}: ${r.steer}.`, [A(`rounds.${i}.question`), A(`rounds.${i}.steer`)])); else label('Layout Habits', a.unavailable.rounds);
   add('Source Assets and Templates', `Locked board: ${paths.spec}, board ${b.number}, ${b.name}; governs the whole look.`, [S('number'), S('name')]);
   for (const [i, asset] of a.assets.entries()) add('Source Assets and Templates', `${asset.path}: ${asset.governs}.`, [A(`assets.${i}.path`), A(`assets.${i}.governs`)]);
@@ -248,8 +250,8 @@ function makeDocuments(spec, a, index, paths, tapData) {
   for (const gap of ['Alternatives', 'Open space', 'Success measures']) sections.Foundation.push({ label: `${gap}: [Not available: not asked]` });
   for (let n = 1; n <= 9; n++) {
     const t = tap(n);
-    if (t.id === 'place' && a.carried) add('Visual Personality', `Place, from the voice coach's ${a.carried.place.question} in memory/answers/${a.carried.place.file}: ${t.label} (${t.value})`, [A(`taps.${t.id}`), A('carried.place.question'), A('carried.place.file')]);
-    else add('Visual Personality', `Q${n}: ${t.label} (${t.value})`, [A(`taps.${t.id}`)]);
+    if (t.id === 'place' && a.carried) add('Visual Personality', `Place, from the voice coach's ${a.carried.place.question} in \`memory/answers/${a.carried.place.file}\`: ${t.label} (${t.value})`, [A(`taps.${t.id}`), A('carried.place.question'), A('carried.place.file')]);
+    else add('Visual Personality', `T${n}: ${t.label} (${t.value})`, [A(`taps.${t.id}`)]);
   }
   if (a.readBack) { add('Visual Personality', a.readBack.text, [A('readBack.text')]); if (a.off?.length) add('Visual Personality', `Dropped from the steer: ${a.off.join(', ')}.`, a.off.map((_, i) => A(`off.${i}`))); }
   else label('Visual Personality', a.unavailable.readBack);
@@ -283,7 +285,7 @@ function direction(doc, a) {
   }
   const sections = [section('What the brand is', p(a.sentence) + (a.promise ? p(a.promise) : '') + (a.audience ? p(a.audience) : '')), section('Core words', a.words.map((w) => p(`${w.word}, not ${w.not}.`)).join(''))];
   const looks = a.readBack ? [p(a.readBack.text)] : [];
-  for (let n = 1; n <= 9; n++) looks.push(p(n === 9 && a.carried ? `Place, from the voice coach's ${a.carried.place.question} in memory/answers/${a.carried.place.file}: ${doc.tap(n).label}` : `Q${n}: ${doc.tap(n).label}`));
+  for (let n = 1; n <= 9; n++) looks.push(p(n === 9 && a.carried ? `Place, from the voice coach's ${a.carried.place.question} in \`memory/answers/${a.carried.place.file}\`: ${doc.tap(n).label}` : `T${n}: ${doc.tap(n).label}`));
   if (a.looks) looks.push(...a.looks.map((l) => p(l)));
   sections.push(section('How it looks', looks.join('')), section('Colour', `<div class="table"><table><thead><tr><th>Mode</th><th>Name</th><th>Value</th><th>Role</th><th>Page share</th>${b.palette.temperature ? '<th>Temperature</th>' : ''}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`));
   sections.push(section('Type', ['heading', 'body', ...(b.type.handwriting ? ['handwriting'] : [])].map((role) => `<div class="face" style="font-family:var(--font-${role})"><h3>${html(b.type[role].family)}</h3><p>${html(role)}: ${html(b.type[role].description)}</p><p>Weights: ${[...new Set(Object.values(b.type[role].sizes).map((s) => s.weight))].join(', ')}.</p><p>${html(b.type[role].sample)}</p></div>`).join('')));
@@ -389,9 +391,10 @@ export function run(argv) {
   const headingReport = HEADINGS.map((heading) => ({ heading, state: doc.sections[heading].some((c) => !c.label) ? (doc.sections[heading].some((c) => c.label) ? 'filled-and-labelled' : 'filled') : 'labelled' }));
   // G5a splits at '. ': every sentence, including source-register prose,
   // carries the row for the complete rule it belongs to.
+  const claimMarkdown = (c) => md(c.text).replace(/\\`(memory\/answers\/[^`]+)\\`/g, '`$1`');
   const renderClaim = (c) => {
     if (c.label) return c.label;
-    const line = `${md(c.text)} (${md(c.citation)})`;
+    const line = `${claimMarkdown(c)} (${md(c.citation)})`;
     return c.anchor ? line.replace(/\. /g, ` [${c.anchor}]. `) + ` [${c.anchor}]` : line;
   };
   const designBytes = `# Design of ${md(a.name)}\n\n<!-- provenance-preamble -->\nMarkers delimit this preamble for the gate harness; keep both.\n\nLabels and registers are \`standards/conventions.md\`'s. Replace each whole-line prompt with sourced content or its evidence label under \`skills/Onboard Root/\`. Full-path verification anchors follow that skill's \`full-path.md\`, The written form of each record.\n<!-- /provenance-preamble -->\n\n${renderClaim(doc.status)}\n\n${HEADINGS.map((h) => `## ${h}\n\n${doc.sections[h].map(renderClaim).join('\n\n')}`).join('\n\n')}\n`;
@@ -402,7 +405,7 @@ export function run(argv) {
   const sourceAgain = { spec: json(read(specPath), 'read-back spec'), answers: json(read(answersPath), 'read-back answers') };
   const unanchored = designBytes.replace(/ \[V\d+\]/g, '');
   for (const claim of doc.claims) {
-    if (!unanchored.includes(md(claim.text)) || !unanchored.includes(md(claim.citation))) fail('read-back', 'a claim or citation is missing from rendered design');
+    if (!unanchored.includes(claimMarkdown(claim)) || !unanchored.includes(md(claim.citation))) fail('read-back', 'a claim or citation is missing from rendered design');
     for (const r of claim.refs) if (r.source !== 'script' && !claim.text.includes(String(valueAt(sourceAgain[r.source], r.field)))) fail('read-back', `rendered claim differs from ${r.source}#${r.field}`);
   }
   const entries = [{ path: design, bytes: designBytes }, { path: paths.palette, bytes: paletteCSS(b, `${specPath}#boards.${index}`) }, { path: paths.typography, bytes: typographyCSS(b, `${specPath}#boards.${index}`) }, { path: paths.direction, bytes: direction(doc, a) }];

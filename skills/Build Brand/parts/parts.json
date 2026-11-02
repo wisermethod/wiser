@@ -2820,8 +2820,8 @@
           ]
         },
         "body": {
-          "family": "Shantell Sans",
-          "description": "Reduced bounce and informal detail keep the written texture steady in paragraphs.",
+          "family": "Instrument Sans",
+          "description": "Open forms and restrained details keep longer passages easy to follow.",
           "weights": [
             400,
             700
@@ -2853,19 +2853,14 @@
           },
           "files": [
             {
-              "path": "fonts/Shantell Sans/ShantellSans-Latin.woff2",
+              "path": "fonts/Instrument Sans/InstrumentSans-Latin.woff2",
               "weight": [
-                300,
-                800
+                400,
+                700
               ],
               "style": "normal"
             }
-          ],
-          "variations": {
-            "BNCE": 0,
-            "INFM": 0,
-            "SPAC": 0
-          }
+          ]
         }
       },
       "handwriting": [
@@ -2951,7 +2946,7 @@
       "settingsProvenance": {
         "heading": "trial",
         "headingDetails": "Trial display size, line height, tracking, width bound, weights and size-specific axes retained; middle size uses the trial's explicit word size or 30px default; small tracking retains the trial's name-lockup setting.",
-        "body": "Trial regular reading weight where supplied; 72px specimen, 17px reading sizes and line heights follow the board fixture. The specimen uses bold 700 to show supporting emphasis explicitly; reading uses 400. Normal width and reduced bounce serve reading.",
+        "body": "Curated Instrument Sans reading face; 72px specimen, 17px reading sizes and line heights retained. The specimen uses bold 700; reading uses 400.",
         "notes": "Curated note order after review; each family retains its bundled three-size settings."
       },
       "softStrongReason": "Bouncing pen strokes carry a loose and openly playful voice. Read from the heading forms; weight alone does not decide softness."

@@ -71,6 +71,8 @@ Then the must-reach list, which is the forward check from source to memory:
 A row of kind `prohibition` or `compliance` may only be `in-bound-file`: downstream work loads bound files and does not load the todo list, so a constraint routed to `work/onboarding/operating-file.md` is a constraint nothing reads.
 `Where` is `<path>#<anchor or heading>` for `in-bound-file`, or `work/onboarding/operating-file.md O<n>` for `in-operating-file`. The path is inside this root: absolute, walking out with `..`, or reached through a link leaving the root are each refused by the gate, since a record cannot make a gate read another root's file and count what it finds as this root's evidence.
 
+When the source contains none of these kinds, keep the empty table and state `Must-reach items: none.` beneath it. `The must-reach enumeration is empty.` or `The must-reach list is empty.` also states that outcome; an explanation may follow after a period or semicolon. An empty table without that statement, or a missing list, fails G6.
+
 An item is never disposed of as absent from the source. The list is drawn from the source, so "none found" and "not present in source" are contradictions, not dispositions.
 
 ### `evidence/<angle>.md`

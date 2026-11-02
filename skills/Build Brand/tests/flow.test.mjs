@@ -239,3 +239,17 @@ test('each approved gap line is used where its gap happens, and no file still ca
   for(const [text,phrase] of [[sitting,'not appended to the looks history a second time'],[sitting,'not appended to board `shown` a second time and does not take Review again'],[sitting,'a check problem on `brand.logo`'],[sitting,'"logo and fonts" only where the font-file refusal comes with a kept logo the card would refuse too'],[sitting,'sent without a pick (`null`)'],[sitting,'never a no-preference fill'],[org,'Can answered about not support the audience draft or the promise draft?'],[org,"bank's organisation offers line"],[lock,'say no sentence line; any changed pair still takes its one-word line']])assert.ok(text.includes(phrase),phrase);
   for(const [text,stale] of [[sitting,'Do not turn a skipped answer into a preference'],[org,'page-to-share phrase in the bank'],[lock,'go to Done after recording any pair-only correction'],[router,'under the retained rule']])assert.ok(!text.includes(stale),stale);
 });
+
+test('brief gaps without a B row keep their G number and Review retries use the selector',()=>{
+ for(const text of [read('paths/brief.md'),bank])assert.match(text,/no B row, including Layout Habits and Foundation, is recorded and cited at its G number/);
+ assert.match(sitting,/full blocked `selection.boards` records in `avoid`/);
+ assert.match(read('records.md'),/optional `avoid` on a Review retry/);
+ assert.match(sitting,/never in `shown`, since none was displayed/);
+});
+
+test('industry Record my look keeps the brand-files screen without a progress line across its instructions',()=>{
+ for(const text of [read('paths/brief.md'),bank])assert.match(text,/no progress line, since it has no step 2 or 3/);
+ assert.match(read('paths/record-my-look.md'),/no progress line: an industry has no step 2 or 3/);
+ assert.match(read('paths/brief.md').split('\n')[2],/An industry's Record my look shows the Brand files screen with no progress line/);
+ assert.match(bank.split('\n')[2],/industry Record my look exception in `paths\/brief\.md`/);
+});

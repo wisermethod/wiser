@@ -18,8 +18,10 @@ Selector inputs are JSON objects projected from confirmed results, not the C14 f
 |---------|---------------|------------------------|
 | First `looks` | `looks-answers.json` | Common supported fields with `looks: []`; no `shown`, `steer` or `picks`. |
 | Retried `looks` | `looks-retry-<n>-answers.json` | Common fields with `looks: []`, complete look `shown`, current `steer` and `off`; no `picks`. |
-| `round1` | `round1-answers.json` | Sentence, words, all taps, `off`, picked `looks`, kept assets, `photoRules` and `heroPhrase`, plus type/name and optional body; never `shown`, `steer` or `picks`. |
-| `variations` | `variations-<n>-answers.json` | Common fields and picked `looks`, full picked board `picks`, complete board `shown`, current `steer` and `off`. |
+| `round1` | `round1-answers.json` | Sentence, words, all taps, `off`, picked `looks`, kept assets, `photoRules` and `heroPhrase`, plus type/name and optional body; never `shown`, `steer` or `picks`; optional `avoid` on a Review retry. |
+| `variations` | `variations-<n>-answers.json` | Common fields and picked `looks`, full picked board `picks`, complete board `shown`, current `steer` and `off`; optional `avoid` on a Review retry. |
 | `lock.mjs` | `lock-answers.json` | Lock-only enrichment under `lock.md`, with the same `photoRules` retained as evidence and checked against the spec. |
+
+For a Review retry, retain the same command inputs and flags and add `avoid` with the full blocked board records, accumulating any blocked replacements. Only avoided slots move; use the returned form unchanged. A blocked page was never displayed: do not append it or its rejected boards to `shown`. An exhausted slot is an explicit refusal, not permission to assemble by hand.
 
 Keep looks history separate from boards history; append each displayed page's returned records unchanged. Do not put either history on Round 1's input. A congruency pull reaches the first looks and Round 1 through `off`; `steer` is used only by looks retries with nonempty `shown` and by variations. Raw comments stay verbatim in the numbered answers; the selector gets their supported numeric or `off` interpretation only. The photograph rule is required before Round 1 and remains the exact same text in the selected board and lock answers. At a checked-wording correction, keep the original chosen sentence and pairs beside K3's checked version rather than overwriting the member's choice.

@@ -21,7 +21,7 @@ function fixture(type = 'personal') {
   const face = (role) => { const f = structuredClone(pairing.type[role]); f.files = f.files.map((file) => ({ ...file, path: resolve(parts, file.path) })); return f; };
   const spec = { layout: 'board', boards: [{ number: 1, name: 'Kept board', primaryMode: 'light', buttonRadius: 4, palette: structuredClone(Object.fromEntries(['light', 'dark', 'swatches'].map((k) => [k, palette[k]]))), type: { heading: face('heading'), body: face('body') }, graphics: structuredClone(graphics), content: { brandName: 'Test Person', sentence: 'I build useful things.', body: 'A supplied line.', photoRules: 'Show people using what they make.', never: ['posed stock photographs'] }, words: [{ word: 'Useful', not: 'ornamental' }, { word: 'Clear', not: 'academic' }], monogram: { initials: 'TP', container: '<svg/>' } }] };
   const answers = { type, name: 'Test Person', sentence: spec.boards[0].content.sentence, words: structuredClone(spec.boards[0].words), taps: { mode: 'light', feel: 'natural', history: 'established-current', strength: 'strong-solid', technology: 'craftsman', style: 'patagonia', posture: 'toyota', mood: 'ikea', place: 'design-workshop' }, readBack: { text: 'Natural and strong, like Patagonia.', confirmed: true }, off: [], looks: ['look:soft-serif/paper-orange/drawn'], rounds: [{ question: 'Round 1', steer: 'Warmer; as it is; stronger; more current' }], assets: [], lock: { confirmed: true, board: 1, question: 'F18', specSha256: '', contactSheetPassed: true } };
-  if (type !== 'personal') Object.assign(answers, { audience: 'People who make things.', promise: 'Useful things that last.', finalSay: 'Me, and others should see it' });
+  if (type !== 'personal') Object.assign(answers, { audience: 'People who make things.', promise: 'Useful things that last.', finalSay: 'Me, and others should see it', provenance: { register: 'Firsthand', by: 'Test Respondent' } });
   const specPath = join(root, 'board.json'), answersPath = join(root, 'answers.json'), design = join(root, 'design.md'), work = join(root, 'work/brand');
   function save() { const bytes = JSON.stringify(spec); writeFileSync(specPath, bytes); answers.lock.specSha256 = sha256(bytes); writeFileSync(answersPath, JSON.stringify(answers)); }
   save();
@@ -36,7 +36,7 @@ for (const type of ['personal', 'org', 'client', 'department']) test(`${type}: a
   assert.equal(designState(design), 'complete');
   for (const h of HEADINGS) assert.ok(result.headings.find((r) => r.heading === h));
   for (const line of design.split('\n').filter((l) => l && !l.startsWith('#') && !l.startsWith('<!--') && !l.startsWith('Markers ') && !l.startsWith('Labels '))) {
-    assert.match(line, /\(Firsthand:|\(Research inference:|\[Not available:|\(Source:/, line);
+    assert.match(line, /\(Working need:|\(Firsthand:|\(Research inference:|\[Not available:|\(Source:/, line);
   }
   for (const key of Object.keys(f.answers.taps)) assert.ok(design.includes(`#taps.${key}`));
   assert.match(design, /\[Not available: not asked\]/);
@@ -58,6 +58,11 @@ test('all locked light and dark values are unmoved, role named and pop preserved
 });
 test('fixed modular scale, weights, line heights, families and licences', () => {
   const f = fixture(); f.result(); const css = f.read(join(f.work, 'typography.css'));
+  const design = f.read();
+  assert.equal((design.match(/Working need: lock.mjs SCALE/g) || []).length, 6);
+  assert.doesNotMatch(design, /Research inference: lock\.mjs/);
+  for (let n = 1; n <= 9; n++) assert.ok(design.includes(`T${n}:`));
+  assert.doesNotMatch(design, /\bQ[1-9]:/);
   assert.equal(SCALE.base, 16); assert.equal(SCALE.ratio, 1.25);
   for (const [name, step] of Object.entries(SCALE.levels)) {
     assert.ok(css.includes(`${SCALE.ratio ** step}rem`)); assert.ok(css.includes(`--type-line-${name}-dark: ${(SCALE.lines[name] + .05).toFixed(2)}`));
@@ -122,14 +127,14 @@ for (const [name, mutate, pattern] of [
 test('lock hash binds the exact supplied spec bytes', () => { const f = fixture(); writeFileSync(f.specPath, f.read(f.specPath) + '\n'); assert.throws(f.result, /specSha256/); });
 test('a place carried from the voice coach cites P12 and its file, and refuses a malformed carry', () => {
   const f = fixture(); f.answers.taps.place = 'coffee-shop'; f.answers.carried = { place: { file: '2026-11-02 V2 voice answers.md', question: 'P12' } }; f.save(); f.result();
-  assert.ok(f.read().includes("Place, from the voice coach's P12 in memory/answers/2026-11-02 V2 voice answers.md: A coffee shop (coffee-shop)"));
-  assert.ok(!f.read().includes('Q9: A coffee shop'));
+  assert.ok(f.read().includes("Place, from the voice coach's P12 in `memory/answers/2026-11-02 V2 voice answers.md`: A coffee shop (coffee-shop)"));
+  assert.ok(!f.read().includes('T9: A coffee shop'));
   const direction = f.read(join(f.work, 'brand-direction.html'));
-  assert.match(direction, /P12 in memory\/answers\/2026-11-02 V2 voice answers\.md: A coffee shop<\/p>/);
-  assert.doesNotMatch(direction, /Q9: A coffee shop/);
-  const engineered = fixture(); engineered.answers.taps.feel = 'engineered'; engineered.save(); engineered.result(); assert.ok(engineered.read().includes('Q2: Engineered: Precise and industrial (engineered)')); assert.match(engineered.read(join(engineered.work, 'brand-direction.html')), /Q2: Engineered: Precise and industrial</);
-  const workshop = fixture(); workshop.answers.taps.place = 'design-workshop'; workshop.answers.carried = { place: { file: '2026-11-03 voice answers.md', question: 'P12' } }; workshop.save(); workshop.result(); assert.ok(workshop.read().includes("Place, from the voice coach's P12 in memory/answers/2026-11-03 voice answers.md: A design workshop (design-workshop)"));
-  const plain = fixture(); plain.answers.taps.place = 'coffee-shop'; plain.save(); plain.result(); assert.ok(!plain.read().includes('from the voice coach')); assert.match(plain.read(join(plain.work, 'brand-direction.html')), /Q9: A coffee shop/);
+  assert.match(direction, /P12 in `memory\/answers\/2026-11-02 V2 voice answers\.md`: A coffee shop<\/p>/);
+  assert.doesNotMatch(direction, /T9: A coffee shop/);
+  const engineered = fixture(); engineered.answers.taps.feel = 'engineered'; engineered.save(); engineered.result(); assert.ok(engineered.read().includes('T2: Engineered: Precise and industrial (engineered)')); assert.match(engineered.read(join(engineered.work, 'brand-direction.html')), /T2: Engineered: Precise and industrial</);
+  const workshop = fixture(); workshop.answers.taps.place = 'design-workshop'; workshop.answers.carried = { place: { file: '2026-11-03 voice answers.md', question: 'P12' } }; workshop.save(); workshop.result(); assert.ok(workshop.read().includes("Place, from the voice coach's P12 in `memory/answers/2026-11-03 voice answers.md`: A design workshop (design-workshop)"));
+  const plain = fixture(); plain.answers.taps.place = 'coffee-shop'; plain.save(); plain.result(); assert.ok(!plain.read().includes('from the voice coach')); assert.match(plain.read(join(plain.work, 'brand-direction.html')), /T9: A coffee shop/);
   for (const type of ['org', 'client', 'department']) { const o = fixture(type); o.answers.taps.place = 'spa'; o.answers.carried = { place: { file: '2026-11-02 voice answers.md', question: 'P12' } }; o.save(); assert.throws(o.result, /carried.*only a personal brand/); assert.equal(existsSync(o.design), false); }
   for (const [mutate, pattern] of [
     [(a) => { a.carried.place.file = 'voice answers.md'; }, /carried\.place\.file/],
@@ -141,6 +146,22 @@ test('a place carried from the voice coach cites P12 and its file, and refuses a
     [(a) => { a.carried.place.row = 'answered'; }, /carried\.place\.row.*unknown field/],
     [(a) => { a.carried = {}; }, /carried\.place/],
   ]) { const g = fixture(); g.answers.taps.place = 'spa'; g.answers.carried = { place: { file: '2026-11-02 voice answers.md', question: 'P12' } }; mutate(g.answers); g.save(); assert.throws(g.result, pattern); assert.equal(existsSync(g.design), false); }
+});
+test('non-personal locks require the named respondent before publication', () => {
+  for (const type of ['org', 'client', 'department']) {
+    const f = fixture(type); delete f.answers.provenance; f.save();
+    assert.throws(f.result, /provenance.*person who answered/); assert.equal(existsSync(f.design), false);
+    f.answers.provenance = { register: 'Firsthand', by: 'Named Respondent' }; f.save(); f.result();
+    assert.match(f.read(), /Firsthand: Named Respondent/); assert.doesNotMatch(f.read(), /Firsthand: Test Person/);
+  }
+});
+for (const type of ['org', 'client', 'department']) test(`${type}: the respondent cannot be the brand's own name`, () => {
+  for (const by of ['Harbor Lane Dental', '  hArBoR LaNe DeNtAl  ']) {
+    const f = fixture(type); f.answers.name = f.spec.boards[0].content.brandName = ' Harbor Lane Dental ';
+    f.answers.provenance.by = by; f.save();
+    assert.throws(f.result, /provenance\.by.*person who answered/);
+    assert.equal(existsSync(f.design), false);
+  }
 });
 test('organisation requires audience, promise and final say', () => { for (const k of ['audience', 'promise', 'finalSay']) { const f = fixture('org'); delete f.answers[k]; f.save(); assert.throws(f.result, new RegExp(k)); } });
 test('complete existing design refuses; --replace archives bytes and numbers versions', () => {
@@ -227,3 +248,41 @@ test('help before file access, import has no effects, closed flags and duplicate
   assert.equal(readdirSync(f.root).includes('design.md'), false);
 });
 function pathToImport(file) { return new URL('file://' + file.replaceAll(' ', '%20')).href; }
+
+test('onboarding G10/G19 accept the lock fixture with its bound shelf relocated, and reject old scale citations', () => {
+  const f = fixture();
+  // This run may not open a memory directory. The existing fixture keeps its
+  // design at root. Run the original CLI first, then relocate only MEM in an
+  // in-memory harness copy: the G10/G19 gate bodies remain byte-for-byte intact.
+  writeFileSync(join(f.root, 'AGENTS.md'), '---\nroot: Test Person\ntype: personal\n---\n');
+  Object.assign(f.answers, { audience: 'People making useful things.', promise: 'Useful things that last.' });
+  f.answers.carried = { place: { file: '2026-11-02 V2 voice answers.md', question: 'P12' } };
+  f.save(); f.result();
+  const gates = process.env.BUILD_BRAND_GATES || resolve(dirname(script), '../../Onboard Root/gates.sh');
+  const source = readFileSync(gates, 'utf8');
+  assert.equal(source.split('MEM="$ROOT/memory"').length, 2);
+  const relocated = source.replace('MEM="$ROOT/memory"', 'MEM="$ROOT"');
+  for (const gate of ['G10', 'G19']) {
+    const original = spawnSync('bash', [gates, '--gate', gate, f.root], { encoding: 'utf8' });
+    assert.equal(original.status, 1, original.stderr);
+    assert.match(original.stdout, new RegExp(`SKIP +${gate}`));
+  }
+  const missing = spawnSync('bash', ['-s', '--', '--gate', 'G19', f.root], { input: relocated, encoding: 'utf8' });
+  assert.equal(missing.status, 1, missing.stdout + missing.stderr);
+  assert.match(missing.stdout, /memory\/answers\/2026-11-02 V2 voice answers\.md.*does not resolve/);
+  // Supply the cited answer outside memory; the link is only resolved for
+  // existence by G19. The relocated shelf never opens a file through it.
+  mkdirSync(join(f.root, 'answers'));
+  writeFileSync(join(f.root, 'answers', f.answers.carried.place.file), '| P12 | A design workshop |\n');
+  symlinkSync('.', join(f.root, 'memory'));
+  for (const gate of ['G10', 'G19']) {
+    const checked = spawnSync('bash', ['-s', '--', '--gate', gate, f.root], { input: relocated, encoding: 'utf8' });
+    assert.equal(checked.status, 0, checked.stdout + checked.stderr);
+    assert.match(checked.stdout, new RegExp(`PASS +${gate}`));
+  }
+  const good = f.read();
+  writeFileSync(f.design, good.replaceAll('Working need: lock.mjs SCALE', 'Research inference: lock.mjs SCALE'));
+  const negative = spawnSync('bash', ['-s', '--', '--gate', 'G10', f.root], { input: relocated, encoding: 'utf8' });
+  assert.equal(negative.status, 1);assert.equal((negative.stdout.match(/names no E<n> evidence row/g) || []).length, 6);
+  writeFileSync(f.design, good);
+});
