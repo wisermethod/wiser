@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.02.4, November 2, 2026
+
+- The Onboarding section of a root's `AGENTS.md` now holds only its closing paragraph, one status line per key, and notes that say where to read something, such as `memory/about.md` V534, never the fact itself. Onboarding writes it that way. Before, a fact copied there went stale when its file changed, and nothing could correct it. (58c6e8f, 04bb31f, 1d76a0a)
+- **update root** now checks that section on every run. A note that copies a fact, or points at an entry that is no longer there, gets a plan row showing its exact before and after, naming where each fact is kept; it is rewritten only on your yes, and nothing else in the section changes. A fact kept nowhere else in the root is left for you to decide, never dropped. (58c6e8f, 04bb31f, 1d76a0a)
+- The rule against writing at the top of a root now names the changes Onboard Root, the voice coach, Build Brand and update root already make to its `AGENTS.md`. (58c6e8f, 04bb31f)
+
 ## v2026.11.02.3, November 2, 2026
 
 - Book Publisher keeps a heading inside a box with what it introduces. At least two lines of the box's text, or a table's first two rows, stay on the heading's page, and a heading with a picture under it moves to the next page with the picture. Before, a heading such as "What to do" could sit alone at the foot of a page. (a7ef282, 154db98, 0d57736)
