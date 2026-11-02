@@ -111,6 +111,8 @@ Writes one line for each kind picked; None picked with anything else counts as N
 - Corny: "Where humor fits, reaches for a pun or a bit of wordplay, and doesn't mind a groan."
 - None: "Keeps jokes out of their writing."
 
+The answers file records every option picked, in this order, separated by semicolons.
+
 ## W3 (typed)
 
 > How would a friend describe the way you talk? Their words, not the polite version.
