@@ -508,21 +508,110 @@ $endif$
   pdftitle={$if(title)$$title$$else$Book$endif$},
   pdfauthor={$if(author)$$for(author)$$author$$sep$, $endfor$$endif$}
 ]{hyperref}
-% Keep the existing mono face by default, with breaks inside long URL segments.
+% Keep the existing mono face by default.
 \urlstyle{$url-font$}
 % URL characters have wider metrics than prose punctuation; keep them in bounds.
 \SetProtrusion[context=bookpublisherurl]{encoding={T1,OT1}}{.={0,0}, -={0,0}}
 \let\bookpublisherurlfont\UrlFont
 \def\UrlFont{\bookpublisherurlfont\microtypecontext{protrusion=bookpublisherurl}}
 \Urlmuskip=0mu plus 1mu\relax
-\def\UrlBreakPenalty{100}
-\def\UrlBigBreakPenalty{50}
-\expandafter\def\expandafter\UrlBreaks\expandafter{\UrlBreaks
-  \do\a\do\b\do\c\do\d\do\e\do\f\do\g\do\h\do\i\do\j\do\k\do\l\do\m
-  \do\n\do\o\do\p\do\q\do\r\do\s\do\t\do\u\do\v\do\w\do\x\do\y\do\z
-  \do\A\do\B\do\C\do\D\do\E\do\F\do\G\do\H\do\I\do\J\do\K\do\L\do\M
-  \do\N\do\O\do\P\do\Q\do\R\do\S\do\T\do\U\do\V\do\W\do\X\do\Y\do\Z
-  \do\0\do\1\do\2\do\3\do\4\do\5\do\6\do\7\do\8\do\9\do\-}
+\makeatletter
+\ExplSyntaxOn
+\str_new:N \l__bookpublisher_url_str
+\seq_new:N \l__bookpublisher_url_seq
+\box_new:N \l__bookpublisher_url_box
+\bool_new:N \l__bookpublisher_url_fallback_bool
+\int_new:N \l__bookpublisher_url_char_int
+\iow_new:N \g__bookpublisher_url_iow
+\iow_open:Nn \g__bookpublisher_url_iow {\jobname.url-fallbacks}
+% Paired glues cancel on an unbroken line. At the penalty only the positive
+% glue remains, giving a URL break a ragged end without opening its characters.
+\cs_new_protected:Npn \__bookpublisher_url_break:n #1
+  {
+    % Forbid an implicit glue break that would bypass the chosen penalty.
+    \tex_penalty:D 10000
+    \tex_hskip:D 0pt~plus~\linewidth\scan_stop:
+    \tex_penalty:D #1
+    \tex_hskip:D 0pt~plus~-\linewidth\scan_stop:
+  }
+\cs_new_protected:Npn \__bookpublisher_url_char:n #1
+  {
+    \hbox{
+      \int_case:nnF {`#1}
+        {{39}{\textquotesingle}{96}{\textasciigrave}}
+        {#1}
+    }
+  }
+\cs_new_protected:Npn \__bookpublisher_url_chars:n #1
+  { \str_map_inline:nn {#1} { \__bookpublisher_url_char:n {##1} } }
+\cs_new_protected:Npn \__bookpublisher_url_run:nn #1#2
+  {
+    \int_zero:N \l__bookpublisher_url_char_int
+    \str_map_inline:nn {#1}
+      {
+        \int_incr:N \l__bookpublisher_url_char_int
+        \int_compare:nNnT {\l__bookpublisher_url_char_int} > {1}
+          { \__bookpublisher_url_break:n {#2} }
+        \__bookpublisher_url_char:n {##1}
+      }
+  }
+\cs_set_protected:Npn \Url@FormatString
+  {
+    \UrlFont
+    \str_set:Nx \l__bookpublisher_url_str { \tl_to_str:V \Url@String }
+    \bool_set_false:N \l__bookpublisher_url_fallback_bool
+    % The scheme is one indivisible unit; every other item is a run or a mark.
+    \exp_args:NnV \regex_extract_all:nnN
+      { \A [Hh][Tt][Tt][Pp][Ss]?:// | [A-Za-z0-9]+ | . }
+      \l__bookpublisher_url_str \l__bookpublisher_url_seq
+    \UrlLeft
+    \seq_map_inline:Nn \l__bookpublisher_url_seq
+      {
+        \regex_match:nnTF { \A [A-Za-z0-9]+ \Z } {##1}
+          {
+            \hbox_set:Nn \l__bookpublisher_url_box
+              { \__bookpublisher_url_chars:n {##1} }
+            % A finite penalty also fires before TeX tries emergencystretch.
+            % Short runs therefore have NO internal break nodes at all.
+            \dim_compare:nNnTF {\box_wd:N \l__bookpublisher_url_box} > {\linewidth}
+              {
+                \bool_set_true:N \l__bookpublisher_url_fallback_bool
+                \__bookpublisher_url_run:nn {##1}{1000}
+              }
+              { \box_use_drop:N \l__bookpublisher_url_box }
+          }
+          {
+            \regex_match:nnTF { \A [Hh][Tt][Tt][Pp][Ss]?:// \Z } {##1}
+              {
+                \hbox{\__bookpublisher_url_chars:n {##1}}
+                \__bookpublisher_url_break:n {100}
+              }
+              {
+                \int_case:nnF {`##1}
+                  {
+                    {47}{\__bookpublisher_url_break:n {100}}
+                    {46}{\__bookpublisher_url_break:n {100}}
+                    {45}{\__bookpublisher_url_break:n {100}}
+                    {95}{\__bookpublisher_url_break:n {100}}
+                    {63}{\__bookpublisher_url_break:n {100}}
+                    {35}{\__bookpublisher_url_break:n {100}}
+                    {61}{\__bookpublisher_url_break:n {100}}
+                    {38}{\__bookpublisher_url_break:n {100}}
+                  }
+                  {\__bookpublisher_url_break:n {5000}}
+                \__bookpublisher_url_char:n {##1}
+              }
+          }
+      }
+    \UrlRight
+    \bool_if:NT \l__bookpublisher_url_fallback_bool
+      {
+        \iow_now:Nx \g__bookpublisher_url_iow
+          {\int_use:N \tex_inputlineno:D |\dim_use:N \linewidth|\l__bookpublisher_url_str}
+      }
+  }
+\ExplSyntaxOff
+\makeatother
 
 %% =============================================================================
 %% PANDOC COMPATIBILITY

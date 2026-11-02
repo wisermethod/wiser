@@ -1080,6 +1080,15 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
   if (!existsSync(pdf)) {
     throw new Error('pdflatex produced no PDF; see the .log file in the temp directory');
   }
+  // TeX measures each run in its actual URL face and local line width. Read the
+  // final pass's records even without --verbose; engine output alone is hidden.
+  const urlFallbacks = join(tempDir, `${slug}.url-fallbacks`);
+  if (existsSync(urlFallbacks)) {
+    for (const record of readFileSync(urlFallbacks, 'utf8').split(/\r?\n/).filter(Boolean)) {
+      const [, line, width, url] = record.match(/^(\d+)\|([^|]+)\|(.*)$/) ?? [];
+      if (url) log(`  Warning: URL letter/digit run wider than the whole line (${width}); internal breaks enabled at ${texFile}:${line}: ${url}`);
+    }
+  }
   return { path: pdf, pages: countPages(pdf) };
 }
 
