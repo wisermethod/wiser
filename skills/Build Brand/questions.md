@@ -82,6 +82,8 @@ Second card's own why: "So I know who should see it."
 
 The person setting it up locks it whatever the answer. Others to see it or decide makes the share page the first offer after the lock.
 
+Where the organisation's record is too thin to draft its audience and promise, its thin-record sentence below is asked before the first card, as one plain typed message with this step's progress and why, and both drafts are made from the answer. It is the one typed sentence; Step 2: What your brand says does not ask it again.
+
 ## Organisation: Progress and substitutions
 
 The organisation, client or department uses these complete lines:
@@ -94,13 +96,13 @@ The organisation, client or department uses these complete lines:
 - Step 6 of 7: blend and tune
 - Step 7 of 7: locked
 
-The step 1 and opening variants are above. For the thin record: "In a sentence, what does [org] do?" For the sentence screen: "When someone asks what [org] does, you could say:" and "Is that [org]?" For places: "Where would [org]'s clients feel most at home?" Paged counts follow the same pattern, with the step one higher, of 7.
+The step 1 and opening variants are above. For the thin record: "In a sentence, what does [org] do?" For the sentence screen: "When someone asks what [org] does, you could say:" and "Is that [org]?" For the own-words line: "In your own words, then: in a sentence, what does [org] do?" For places: "Where would [org]'s clients feel most at home?" Paged counts follow the same pattern, with the step one higher, of 7.
 
 ## Step 2: What your brand says
 
 Progress: "Step 2 of 6: what your brand says". Why: "Your words come first. The look is built to carry them."
 
-Only when the answered record is too thin to draft:
+Only when the answered record is too thin to draft, and not already answered at an organisation's Who it's for:
 
 > In a sentence, what do you do? For example: "I help small bakeries sell online."
 
@@ -143,6 +145,10 @@ A second Close gives one more pair; afterwards the options are:
 - B
 - Keep the first one
 - I'll say it in a sentence
+
+Neither, or I'll say it in a sentence, brings one plain message, and the reply is the sentence the member keeps:
+
+> In your own words, then: in a sentence, what do you do?
 
 Typing is offered, never needed. The sentence and pairs fill Words; boundaries fill Prohibitions and Never. Promise and the picture rule, "When a photograph is used", are drafted, not asked; the picture rule appears on every board and is adopted with the lock. Ghost Writer checks once at the lock, not these offers.
 
@@ -300,6 +306,10 @@ Twelve tiles from `select.mjs looks`, its options unchanged, four on a plain gro
 
 None of these work uses Steering a round below with "What's missing from these?", progress example "Step 3 of 6: how it should look · 2 of 5", then twelve unshown looks with the same buttons. Append every shown look unchanged to history. No wrong-look question.
 
+When no new page of twelve can be made from looks not yet shown, the last page of looks comes back, not appended to history again, on the same card with the same buttons, after one message:
+
+> That's every look I have. Pick the closest one, and I'll build your boards from there.
+
 ## Making the boards
 
 > Making your boards now. A minute or two.
@@ -325,6 +335,14 @@ What next, at most two buttons:
 
 Above three, Show me more stays grey with "You picked [n] boards. Pick up to three to go on." The warning is on the button alone; every other unmet action hides.
 
+At every round, and on the brief path's one page, where the design check cannot run, one message before the page:
+
+> These boards skipped my usual design check, so treat them as a first look.
+
+Where the member's own logo or font files cannot show in the card, one message, then the boards open on a page of their own; the bracket is "logo", "fonts" or "logo and fonts", by what the card cannot show:
+
+> Your boards use your own [logo / fonts], which this card can't show, so I'll open them on their own page instead.
+
 ### Board copy
 
 The initials caption:
@@ -342,6 +360,10 @@ Each round: four new boards per picked board, one pick four, two eight, three tw
 > Select the board(s) that feel most like you
 
 The same buttons as Step 4. There is no cap on rounds and no dark-pattern question.
+
+With nothing picked and no new page possible from boards not yet shown, the last page comes back where it was shown, in the card or on its own page, not appended to `shown` or reviewed again, after one message:
+
+> That's every new direction I have. Pick the closest board, and I'll make variations of it.
 
 ## Steering a round
 
@@ -406,9 +428,15 @@ Then one status line:
 
 > Setting up your colours and lettering for everything I make for you.
 
-Ghost Writer checks the kept sentence and words once here. Where it changes a word, before Done:
+Ghost Writer checks the kept sentence and words once here. Where it changes the kept sentence, before Done:
 
 > I tightened your sentence: [new sentence]
+
+Where it changes a kept word or what that word isn't, one line for each changed pair, after any sentence line and before Done, [not] being the word's boundary:
+
+> I tightened one of your words: [word], not [not].
+
+With no voice file to check the words against, say nothing of it: the voice note is not offered, and nothing is disclosed.
 
 Then:
 
@@ -416,7 +444,11 @@ Then:
 >
 > When you want one of these, just ask: a logo, a one-page guide, or your brand on your website or slides.
 
-For an organisation with other viewers or a different final decider, the offers lead with "a page to share with the people who should see it". The journey supplies that phrase, not a full alternate offer sentence. Every offer runs only on ask; no offer spans a session.
+For an organisation with other viewers or a different final decider, the offers lead with "a page to share with the people who should see it", the close's second line reading in full:
+
+> When you want one of these, just ask: a page to share with the people who should see it, a logo, a one-page guide, or [org]'s brand on your website or slides.
+
+Every offer runs only on ask; no offer spans a session.
 
 ## Words never said
 
@@ -493,6 +525,12 @@ Only after the confirmed write:
 > When you want one of these, just ask: your brand shown on a sample card and banner, a refreshed logo, or a one-page guide.
 
 These are later offers, never an automatic board round or a budget extension. A later sample-card-and-banner request uses `paths/brief-boards.md`, B11 for its one pick, then stops. Drafting an adopted sentence uses `writing.md` Sentences the person adopts, never a deleted router step.
+
+### Record my look close
+
+An industry root's close, with `paths/record-my-look.md`, once the field's conventions are written, in place of the brief close; [Industry] is the field's own name:
+
+> Done. [Industry]'s look is recorded, and everything I make in this folder will follow it.
 
 ## The five questions
 

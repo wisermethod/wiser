@@ -4,7 +4,7 @@ Read for `paths/brief.md`, `paths/simple.md` and `paths/record-my-look.md`. The 
 
 ## Voice unavailable
 
-Every path uses this rule for unbound voice, an absent file or a stub with no answered writing rules. Keep the person's own words with their source, or identify a draft grounded only in their numbered answers and supplied material as a working draft, not in their voice. Never run Content Author with its required voice input missing, infer writing rules from taste taps, or invent a voice. Record what voice could not inform with the work under `records.md` Source limits; save an unavailable-comparison F9 as skipped where that retained comparison applies. The journey supplies no fixed member-facing voice-absence disclosure line. Add none at the draft or close; that missing copy is a gap, not permission to compose a new line. This rule also governs the sitting's lock check when voice is unavailable.
+Every path uses this rule for unbound voice, an absent file or a stub with no answered writing rules. Keep the person's own words with their source, or identify a draft grounded only in their numbered answers and supplied material as a working draft, not in their voice. Never run Content Author with its required voice input missing, infer writing rules from taste taps, or invent a voice. Record what voice could not inform with the work under `records.md` Source limits; save an unavailable-comparison F9 as skipped where that retained comparison applies. Say nothing of it to the member, at the draft or the close: no voice note is offered and nothing is disclosed, the operator's rule. This rule also governs the sitting's lock check when voice is unavailable.
 
 ## Sentences the person adopts
 

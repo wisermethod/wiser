@@ -128,7 +128,7 @@ export function compareJourneyCopy(source, bank, openingTaps) {
   eq(options(b('Organisation: Progress and substitutions')), sourceProgress, 'all organisation progress lines');
   assert.equal(orgNames.length, sourceProgress.length);
   const bankSubstitutions = b('Organisation: Progress and substitutions');
-  screen('Organisation substitutions', [capture(bankSubstitutions, /thin record: "(.*?)"/), capture(bankSubstitutions, /sentence screen: "(.*?)"/), capture(bankSubstitutions, /and "(.*?)"/), capture(bankSubstitutions, /places: "(.*?)"/)], [capture(words, /For an organisation, "(.*?)"/), capture(words, /For an organisation, "(When someone.*?)"/), capture(words, /and "(Is that.*?)"/), capture(taste, /For an organisation, "(.*?)"/) ]);
+  screen('Organisation substitutions', [capture(bankSubstitutions, /thin record: "(.*?)"/), capture(bankSubstitutions, /sentence screen: "(.*?)"/), capture(bankSubstitutions, /and "(.*?)"/), capture(bankSubstitutions, /places: "(.*?)"/), capture(bankSubstitutions, /own-words line: "(.*?)"/)], [capture(words, /For an organisation, "(.*?)"/), capture(words, /For an organisation, "(When someone.*?)"/), capture(words, /and "(Is that.*?)"/), capture(taste, /For an organisation, "(.*?)"/), capture(words, /For an organisation, "(In your own words.*?)"/)]);
   screen('Folder extra lines', [capture(bankKeep, /same second sentence: "(.*?)"/), capture(bankKeep, /Say "(.*?)" only/), capture(bankKeep, /ownership phrase: "(.*?)"/)], [capture(keep, /folder:\n\n> .*?\. (Put them.*?)\n/), capture(keep, /"(Or drop them here in the chat)" is said/), capture(keep, /For an organisation, "(\[org\]'s.*?)"/)]);
 
   // The journey incorporates the opening taps by reference. Their own source
