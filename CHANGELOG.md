@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.02, November 2, 2026
+
+- Wiser can now take a custom domain off a Cloudflare Worker. Before, it stopped with a vendor error whenever the domain was already attached, because it did not recognise the ids Cloudflare gives Worker domains; adding a domain another Worker already holds now says so instead of stopping the same way. (be0496c, 38cf534)
+
 ## v2026.11.01.4, November 1, 2026
 
 - When the Wiser service turns down a connection because your plan doesn't include it, Wiser now gives you the service's own message, with its link to the plans, and stops there. Before, it said the connector didn't run on the service. It doesn't retry, start a connection, or offer another way round, and asking for a standing approval for that connection grants nothing. A connector the service doesn't run at all still points you to where it does run. (e859244, 4ee15b1, 749e3f9)
