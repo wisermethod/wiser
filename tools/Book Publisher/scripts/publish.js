@@ -537,6 +537,7 @@ try {
     copyFileSync(built.path, standardPdf);
     outputs.print_pdf = standardPdf;
     outputs.pages = built.pages;
+    outputs.bleed = built.bleed;
     try {
       const { auditPrintFonts } = await import('./font-audit.js');
       outputs.print_fonts = await auditPrintFonts(standardPdf, config,
@@ -551,7 +552,7 @@ try {
     const pdfxPdf = join(config.output._printPath, `${slug}-interior-pdfx.pdf`);
     await convertToPdfX(built.path, pdfxPdf, printTempDir);
     outputs.print_pdfx = pdfxPdf;
-    outputs.pdfx = checkPdfX(pdfxPdf);
+    outputs.pdfx = checkPdfX(pdfxPdf, { bleed: built.bleed });
     if (twoPass) {
       log('Step 5/5: Verifying output');
       const pages = countPages(pdfxPdf);
@@ -631,6 +632,9 @@ function validateConfig(config) {
   }
   if (!config.output?.print && !config.output?.epub) {
     errors.push('missing: output.print or output.epub (nowhere to write)');
+  }
+  if (config.trim?.bleed !== undefined && !['auto', true, false].includes(config.trim.bleed)) {
+    errors.push('trim.bleed must be auto, true or false');
   }
   if (config.typography?.quote_font !== undefined && !['body', 'sans'].includes(config.typography.quote_font)) {
     errors.push('typography.quote_font must be body or sans');
@@ -951,6 +955,23 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
   const formatFilter = join(FILTERS_DIR, 'format-filter.lua');
   const margins = printMargins(config);
   const layout = printLayout(config);
+  // Inspect parsed raw nodes, not source text: code examples are not tabs.
+  // Match the format filter's HTML directive (including its default slot).
+  const tabAst = execFileSync('pandoc', ['--from', 'markdown+smart+autolink_bare_uris-implicit_figures',
+    '--to', 'json'], { input: mergedContent, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  const drawsTab = (node) => {
+    if (!node || typeof node !== 'object') return false;
+    if (node.t === 'RawBlock' && node.c?.[0] === 'html') {
+      const params = /<!--\s*thumb-tab-start:\s*([\s\S]*?)\s*-->/.exec(node.c[1]);
+      const slot = params && Number(/slot=(\d+)/.exec(params[1])?.[1] ?? 1);
+      if (slot >= 1 && slot <= 8) return true;
+    }
+    if ((node.t === 'RawBlock' || node.t === 'RawInline') && node.c?.[0] === 'latex' &&
+        /\\thumbtabstart\s*\{[1-8]\}/.test(node.c[1])) return true;
+    return Object.values(node).some((value) => Array.isArray(value) ? value.some(drawsTab) : drawsTab(value));
+  };
+  const bleed = config.trim.bleed === true || ((config.trim.bleed ?? 'auto') === 'auto' && drawsTab(JSON.parse(tabAst)));
+  const bleedInches = bleed ? 0.125 : 0;
   const textWidth = config.trim.width - margins.outer - margins.inner;
   const roundedWidth = textWidth.toFixed(2);
   // Keep the existing metadata where it fits; otherwise retain the precision
@@ -967,8 +988,18 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
     '--from', 'markdown+smart+autolink_bare_uris-implicit_figures',
     '--to', 'latex',
     '--top-level-division=chapter',
-    '--variable', `paperwidth=${config.trim.width}in`,
-    '--variable', `paperheight=${config.trim.height}in`,
+    '--variable', `paperwidth=${config.trim.width + bleedInches}in`,
+    '--variable', `paperheight=${config.trim.height + 2 * bleedInches}in`,
+    '--variable', `trimwidth=${config.trim.width}in`,
+    '--variable', `trimheight=${config.trim.height}in`,
+    '--variable', `bleed=${bleedInches}in`,
+    '--variable', `trim-left-even=${bleedInches * 72}`,
+    '--variable', `trim-bottom=${bleedInches * 72}`,
+    '--variable', `trim-right-odd=${config.trim.width * 72}`,
+    '--variable', `trim-right-even=${(config.trim.width + bleedInches) * 72}`,
+    '--variable', `trim-top=${(config.trim.height + bleedInches) * 72}`,
+    '--variable', `media-width=${(config.trim.width + bleedInches) * 72}`,
+    '--variable', `media-height=${(config.trim.height + 2 * bleedInches) * 72}`,
     '--variable', `margin-top=${margins.top}in`,
     '--variable', `margin-bottom=${margins.bottom}in`,
     '--variable', `margin-outer=${margins.outer}in`,
@@ -1089,7 +1120,7 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
       if (url) log(`  Warning: URL letter/digit run wider than the available line (${width}${hanging === '1' ? ', including hanging indentation' : ''}); internal breaks enabled at ${texFile}:${line}: ${url}`);
     }
   }
-  return { path: pdf, pages: countPages(pdf) };
+  return { path: pdf, pages: countPages(pdf), bleed };
 }
 
 // Pages in a finished PDF. LaTeX writes the page tree inside a compressed object
