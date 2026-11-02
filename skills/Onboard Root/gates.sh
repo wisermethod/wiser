@@ -337,6 +337,19 @@ strip_preamble() {
   ' "$1"
 }
 
+# Build Brand checked this voice section at its lock. Blank it through the
+# next ## heading or EOF, preserving line numbers; other bound files pass through.
+without_brand_note() {
+  if [ "$1" != "$MEM/voice.md" ]; then cat "$1"; return; fi
+  awk '
+    {
+      t=$0; sub(/[[:space:]]+$/, "", t)
+      if(t ~ /^## /) brand = (t == "## From your brand")
+      print brand ? "" : $0
+    }
+  ' "$1"
+}
+
 AWK_LIB='
 function trim(s){ sub(/^[ \t]+/,"",s); sub(/[ \t]+$/,"",s); return s }
 function isrow(line){ return (trim(line) ~ /^\|/) }
@@ -1046,7 +1059,7 @@ gate_G5a() {
       if ! grep -qx "$id" "$TMPD/g5a-rows.txt" 2>/dev/null; then
         add_fail "$r line $ln: anchor [$id] has no row in verification.md '## Claims' or '## Negative claims'"
       fi
-    done < <(grep -onE '\[V[0-9]+\]' "$f" 2>/dev/null | sort -u -t: -k1,1n -k2,2)
+    done < <(without_brand_note "$f" | grep -onE '\[V[0-9]+\]' 2>/dev/null | sort -u -t: -k1,1n -k2,2)
   done < <(bound_files)
 
   # Backward: every candidate load-bearing sentence carries an anchor.
@@ -1056,7 +1069,7 @@ gate_G5a() {
     while IFS= read -r msg; do
       [ -n "$msg" ] || continue
       add_fail "$r $msg"
-    done < <(awk -v rootname="$ROOTNAME" "$AWK_LIB"'
+    done < <(without_brand_note "$f" | awk -v rootname="$ROOTNAME" "$AWK_LIB"'
     BEGIN{
       nr=split(tolower(rootname),RW,/[^a-z0-9'\'']+/)
       for(q=1;q<=nr;q++) if(RW[q]!="") ROOTW[RW[q]]=1
@@ -1162,7 +1175,7 @@ gate_G5a() {
           printf "line %d: candidate load-bearing sentence carries no [V<n>] anchor: %s\n", i, disp
         }
       }
-    }' "$f")
+    }')
   done < <(bound_files)
 }
 
@@ -1519,11 +1532,11 @@ gate_G9() {
     while IFS= read -r hit; do
       [ -n "$hit" ] || continue
       add_fail "$r line ${hit%%:*}: a prompt line survives (^\\*.*\\*\$)"
-    done < <(strip_preamble "$f" | grep -nE '^\*.*\*$' 2>/dev/null)
+    done < <(without_brand_note "$f" | strip_preamble - | grep -nE '^\*.*\*$' 2>/dev/null)
     # (b) and (c). The prompt-line scan above strips the preamble; this one
     # must too, or fenced instruction reads as a section body. strip_preamble
     # blanks its lines rather than removing them, so line numbers still match.
-    strip_preamble "$f" > "$TMPD/g9body.txt"
+    without_brand_note "$f" | strip_preamble - > "$TMPD/g9body.txt"
     while IFS= read -r msg; do
       [ -n "$msg" ] || continue
       add_fail "$r $msg"
@@ -1979,7 +1992,7 @@ gate_G13() {
         for(i=1;i<=n;i++) if($0 ~ "(^|[^a-z])" a[i] "([^a-z]|$)") out = out (out==""?"":", ") a[i]
         print out }')
     add_fail "$(rel "$VOICE") line $ln: closed-list adjective(s) '$words' used as a bare trait: $txt"
-  done < <(grep -nEi "(^|[^A-Za-z])($BARE_ADJ)([^A-Za-z]|\$)" "$VOICE" 2>/dev/null)
+  done < <(without_brand_note "$VOICE" | grep -nEi "(^|[^A-Za-z])($BARE_ADJ)([^A-Za-z]|\$)" 2>/dev/null)
 }
 
 # ---- G13b The routing table resolves the root's deliverables ------------

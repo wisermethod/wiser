@@ -6,8 +6,13 @@ import assert from 'node:assert/strict';
 // The operator's tap changes of 2026-11-02 (brand flow M2.9): new option ids in
 // the examples, Engineered's line, Dark's dropped tick, more non-dial nudges and
 // the two fills the card never shows.
+// 2026-11-02, M4 review: --caller leaves onboarding state to its caller.
 const CONTRACT_EDITS = {
-  'Locking a board': [['"posture": "subaru", "mood": "ikea", "place": "workshop"', '"posture": "toyota", "mood": "ikea", "place": "design-workshop"']],
+  'Locking a board': [
+    ['"posture": "subaru", "mood": "ikea", "place": "workshop"', '"posture": "toyota", "mood": "ikea", "place": "design-workshop"'],
+    ['`--replace` permits replacing a complete design.', '`--replace` permits replacing a complete design. Optional `--caller` is a boolean: it leaves `## Onboarding` and run-record `## Per-key close` unchanged for the caller to close.'],
+    ['Existing `AGENTS.md` Onboarding and `work/onboarding/run-record.md` Per-key close design lines are set to `complete`;', 'Without `--caller`, existing `AGENTS.md` Onboarding and `work/onboarding/run-record.md` Per-key close design lines are set to `complete`;'],
+  ],
   'Opening taps as data': [
     ['Mechanical\'s description is "Precise and engineered".', 'Engineered\'s description is "Precise and industrial".'],
     ['One ordinary nudge is 1; Dark\'s small contemporary tick is 0.5; ', 'One ordinary nudge is 1; '],

@@ -186,6 +186,22 @@ test('state updates only Onboarding and Per-key close; verification preserves ol
     for (const sentence of line.split(/\. /)) assert.match(sentence, /\[V\d+\]/, sentence);
   }
 });
+for (const caller of [true, false]) test(`${caller ? '--caller preserves' : 'direct lock completes'} existing onboarding design state lines`, () => {
+  const f = fixture('org'); mkdirSync(join(f.root, 'work/onboarding'), { recursive: true });
+  const ag = join(f.root, 'AGENTS.md'), record = join(f.root, 'work/onboarding/run-record.md'), verification = join(f.root, 'work/onboarding/verification.md');
+  const agentsBefore = '## Provides\n- design: design.md\n\n## Onboarding\nNot onboarded.\n- about: blocked\n- design: blocked (person: Test Person; waits on onboarding)\n\n## Other\n- design: untouched\n';
+  const recordBefore = '## Per-key close\n- voice: blocked\n- design: provisional\n\n## Other\n- design: unchanged\n';
+  writeFileSync(ag, agentsBefore); writeFileSync(record, recordBefore);
+  writeFileSync(verification, '## Claims\n\n| Row | Key | Class | Claim | Anchor | Bound file | Cites | Mechanism | Exactness | Second mechanism | Outcome | Label | Search |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n');
+  const result = run([...(caller ? ['--caller'] : []), ...f.argv]);
+  assert.equal(f.read(ag), caller ? agentsBefore : agentsBefore.replace('- design: blocked (person: Test Person; waits on onboarding)', '- design: complete'));
+  assert.equal(f.read(record), caller ? recordBefore : recordBefore.replace('- design: provisional', '- design: complete'));
+  for (const path of [ag, record]) assert.equal(result.files.some((file) => file.path === path), !caller);
+  assert.equal(result.state, 'complete'); assert.equal(designState(f.read()), 'complete');
+  for (const name of ['palette.css', 'typography.css', 'brand-direction.html']) assert.ok(existsSync(join(f.work, name)));
+  assert.match(f.read(verification), /\| design \| design-source \|/);
+  for (const [, anchor] of f.read().matchAll(/\[(V\d+)\]/g)) assert.ok(f.read(verification).includes(`| ${anchor} | design |`));
+});
 test('output paths, symlinks, hardlinks and broken links cannot bypass the screen', () => {
   const f = fixture(), outside = join(sandbox, 'outside'); mkdirSync(outside);
   symlinkSync(outside, join(f.root, 'escaped'), 'dir');
@@ -206,6 +222,8 @@ test('help before file access, import has no effects, closed flags and duplicate
   for (const flag of ['--env', '--install', '--typo']) { const c = spawnSync(process.execPath, [script, flag], { encoding: 'utf8' }); assert.equal(c.status, 1); assert.equal(c.stdout, ''); assert.ok(c.stderr.includes(flag)); }
   const imported = spawnSync(process.execPath, ['--input-type=module', '-e', `await import(${JSON.stringify(pathToImport(script))})`], { encoding: 'utf8' }); assert.equal(imported.status, 0); assert.equal(imported.stdout, '');
   const f = fixture(); assert.throws(() => run([...f.argv, '--work', f.work]), /duplicate/);
+  assert.match(child.stdout, /--caller/);
+  assert.throws(() => run([...f.argv, '--caller', '--caller']), /duplicate/);
   assert.equal(readdirSync(f.root).includes('design.md'), false);
 });
 function pathToImport(file) { return new URL('file://' + file.replaceAll(' ', '%20')).href; }

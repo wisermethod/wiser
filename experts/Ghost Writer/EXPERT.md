@@ -23,7 +23,7 @@ Three files never leave the workspace but feed prose that will, and this gate re
 
 - A concept from `skills/Build Concepts/`, read as the reader of whatever it feeds.
 - A theme set from `skills/Categorize Content/`, read as the reader of whatever it feeds, or as its own reader where the theme set ships as the deliverable.
-- A voice file from `skills/Build Voice/`, read for whether every trait is checkable in a piece of writing and traced to its evidence as that skill's Objective defines it, an answer number in the run's answers file included, since that file is the ruler Commitment 3 judges by.
+- A voice file from `skills/Build Voice/`, read for whether every trait is checkable in a piece of writing and traced to its evidence as that skill's Objective defines it, an answer number in the run's answers file included, since that file is the ruler Commitment 3 judges by. A line under `## From your brand` takes a numbered answer in the root's design answers file as its evidence, cited by question number with the member's tap labels as `skills/Build Brand/lock.md` Voice note writes it. That evidence holds for this section only.
 
 On a voice file the voice read is that trace check, and no bound file is read. On a transcript summary the voice read is dropped. Whether the voice is right is the confirming authority's, never this expert's.
 

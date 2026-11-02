@@ -14,7 +14,7 @@ export const SCALE = Object.freeze({ base: 16, ratio: 1.25, levels: { caption: -
 const HELP = `Write the four settled brand outputs from one assembled, locked board.
 Usage: node lock.mjs --spec <absolute.json> --answers <absolute.json>
                      --root <absolute directory> --design <absolute.md>
-                     --work <absolute directory> [--replace]
+                     --work <absolute directory> [--replace] [--caller]
        node lock.mjs help
 Options:
   --spec       assemble.mjs's board JSON (not a selection).
@@ -25,9 +25,11 @@ Options:
   --work       Brand work directory, beside the boards. Writes palette.css,
                typography.css and brand-direction.html here.
   --replace    Permit replacing a complete design; archive originals first.
+  --caller     Leave Onboarding and Per-key close design state to the caller.
   --help, -h   Show usage without reading files.
-Also updates existing AGENTS.md Onboarding design state, and existing
-work/onboarding/{verification,run-record}.md design records only.
+Also updates existing work/onboarding/verification.md design records.
+Without --caller, updates existing AGENTS.md Onboarding and
+work/onboarding/run-record.md Per-key close design state too.
 Archives: beside each replaced file in zArchive/YY-MM-DD Vn - original,
 or answers.paths.archive when the root declares a different archive home.
 No packages, configuration, installs, stdin or network. Unknown flags fail.
@@ -75,13 +77,14 @@ function json(bytes, at) { try { return JSON.parse(bytes); } catch { fail(at, 'i
 function valueAt(input, field) { return field.split('.').reduce((v, k) => v?.[k], input); }
 function options(argv) {
   const flags = ['--spec', '--answers', '--root', '--design', '--work'];
-  for (const v of argv) if (v.startsWith('-') && ![...flags, '--replace', '--help', '-h'].includes(v)) fail(v, 'unknown option');
+  const booleans = ['--replace', '--caller'];
+  for (const v of argv) if (v.startsWith('-') && ![...flags, ...booleans, '--help', '-h'].includes(v)) fail(v, 'unknown option');
   if (!argv.length || argv.includes('--help') || argv.includes('-h') || (argv.length === 1 && argv[0] === 'help')) return null;
   const out = {};
   for (let i = 0; i < argv.length; i++) {
-    const flag = argv[i]; if (![...flags, '--replace'].includes(flag)) fail(flag, 'unexpected argument');
+    const flag = argv[i]; if (![...flags, ...booleans].includes(flag)) fail(flag, 'unexpected argument');
     if (own(out, flag)) fail(flag, 'duplicate option');
-    out[flag] = flag === '--replace' ? true : str(argv[++i], flag);
+    out[flag] = booleans.includes(flag) ? true : str(argv[++i], flag);
   }
   for (const flag of flags) if (!out[flag]) fail(flag, 'required option');
   return out;
@@ -404,8 +407,8 @@ export function run(argv) {
   }
   const entries = [{ path: design, bytes: designBytes }, { path: paths.palette, bytes: paletteCSS(b, `${specPath}#boards.${index}`) }, { path: paths.typography, bytes: typographyCSS(b, `${specPath}#boards.${index}`) }, { path: paths.direction, bytes: direction(doc, a) }];
   if (checked != null) entries.push({ path: verification, bytes: checked });
-  if (existing(ag)) { const before = read(ag), after = updateState(before, 'Onboarding', 'design'); if (before !== after) entries.push({ path: ag, bytes: after }); }
-  if (existing(record)) { const before = read(record), after = updateState(before, 'Per-key close', 'design'); if (before !== after) entries.push({ path: record, bytes: after }); }
+  if (!o['--caller'] && existing(ag)) { const before = read(ag), after = updateState(before, 'Onboarding', 'design'); if (before !== after) entries.push({ path: ag, bytes: after }); }
+  if (!o['--caller'] && existing(record)) { const before = read(record), after = updateState(before, 'Per-key close', 'design'); if (before !== after) entries.push({ path: record, bytes: after }); }
   const archiveHome = a.paths?.archive ? screen(resolve(root, a.paths.archive), true) : null;
   if (archiveHome && !inside(root, archiveHome)) fail('archive', 'archive home must stay inside root');
   if (archiveHome && (!existing(ag) || !read(ag).includes(a.paths.archive))) fail('archive', 'custom archive home is not named by the root AGENTS.md');
