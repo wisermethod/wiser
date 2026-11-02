@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.02.3, November 2, 2026
+
+- Book Publisher keeps a heading inside a box with what it introduces. At least two lines of the box's text, or a table's first two rows, stay on the heading's page, and a heading with a picture under it moves to the next page with the picture. Before, a heading such as "What to do" could sit alone at the foot of a page. (a7ef282, 154db98, 0d57736)
+- A picture in a box now always fits inside the page's margins; before, a tall one could run past the bottom margin. Content in a box that cannot fit on any page now stops the build with an error instead. (154db98, 0d57736)
+- A web address in a printed book now breaks only at its punctuation, after `://` or before a `/`, `.`, `-` and the like, and never inside `https://` or between two letters or digits. A line that ends inside an address stops short of the margin rather than spreading out the words before it, and no address runs past the margin. An address with a run of letters and digits longer than a whole line is the one place it breaks between them, and the build names that address. (720b863, 59dae0b, af5f1a6)
+
 ## v2026.11.02.2, November 2, 2026
 
 - The voice coach no longer writes a horoscope-style reading or asks for your birth date, place and time. Your first piece is a short post on the thing you wish more people knew, or, where you didn't name one, a piece you pick. (8bd9c42)
