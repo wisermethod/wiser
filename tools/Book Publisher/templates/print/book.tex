@@ -359,15 +359,15 @@ $endif$
 \fancyhf{}
 \fancyhead[LE]{\small\itshape\leftmark}
 \fancyhead[RO]{\small\itshape\rightmark}
-% Only show page numbers after page 3 (skip title, copyright, TOC)
-\fancyfoot[C]{\ifnum\value{page}>3 \thepage\fi}
+% Without front files, skip the manuscript's title, copyright and contents folios.
+\fancyfoot[C]{$if(contents-before)$\thepage$else$\ifnum\value{page}>3 \thepage\fi$endif$}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
 \fancypagestyle{plain}{
   \fancyhf{}
-  % Only show page numbers after page 3
-  \fancyfoot[C]{\ifnum\value{page}>3 \thepage\fi}
+  % A contents.before prefix has already printed those unnumbered pages.
+  \fancyfoot[C]{$if(contents-before)$\thepage$else$\ifnum\value{page}>3 \thepage\fi$endif$}
   \renewcommand{\headrulewidth}{0pt}
 }
 
@@ -381,7 +381,13 @@ $if(chapter-opening-break)$
 % and its non-discardable spacer. Omit that spacer rather than breaking after
 % the chapter's contents locator has already been written by book.cls.
 \usepackage{etoolbox}
+\newif\ifbookpublisherindex
 \makeatletter
+\let\bookpublisherindexchapterhead\ttl@mkchap@i
+\newcommand{\bookpublisherindexspacing}{%
+  \let\ttl@mkchap@i\bookpublisherindexchapterhead
+  \bookpublisherindextrue
+}
 \patchcmd{\ttl@mkchap@i}{\vspace*{\@tempskipa}}{}{}{
   \PackageError{Book Publisher}{Cannot remove titlesec chapter before-skip}{}
 }
@@ -393,7 +399,7 @@ $endif$
 % With contents, chapter already breaks before writing its locator; a second
 % break inside the title format would move the title away from that locator.
 \titleformat{\chapter}[display]
-  {$if(chapter-opening-break)$$else$\clearpage$endif$\normalfont\Huge\bfseries\raggedright}
+  {$if(chapter-opening-break)$\ifbookpublisherindex\clearpage\fi$else$\clearpage$endif$\normalfont\Huge\bfseries\raggedright}
   {}
   {0pt}
   {}
@@ -846,6 +852,9 @@ $endif$
 % After \clearpage, the physical counter names the NEXT page, even after folio resets.
 % An even counter means an odd number of pages have shipped
 \newcommand{\ensureevenpages}{%
+$if(right-hand-openings)$
+  \bookpublisherapplytab% No later opening: retain the directive on the last page.
+$endif$
   \clearpage% Flush all pending content first
   \ifodd\bookpublisherphysicalpage%
     % Counter is odd = even pages output = we're good
@@ -871,9 +880,12 @@ $if(print-contents)$
 \makeatletter
 \newcommand{\bookpublishergeneratedcontents}{%
 $if(contents-before)$
-  \clearpage\endgroup
+  \clearpage\endgroup\makeatother
 $endif$
   \cleardoublepage
+$if(contents-before)$
+  \immediate\write\@auxout{\string\newlabel{bookpublisher-front-pages}{{}{\number\numexpr\value{page}-1\relax}}}%
+$endif$
   \begingroup
   \let\ps@plain\ps@empty
   \pagestyle{empty}
@@ -906,10 +918,27 @@ $endif$
 $body$
 
 $if(include-index)$
+$if(right-hand-openings)$
+% An empty makeindex run has no index opening to consume the pending tab.
+\IfFileExists{\jobname.ind}{%
+\ifnum\pdffilesize{\jobname.ind}>0\relax
+$endif$
 $if(right-hand-openings)$\cleardoublepage\bookpublisherapplytab$else$\clearpage$endif$
 \phantomsection
 \addcontentsline{toc}{chapter}{Index}
+\begingroup
+$if(print-contents)$$else$
+$if(chapter-opening-break)$
+% The index uses a top box, not a chapter page break. Keep its legacy spacing.
+\bookpublisherindexspacing
+$endif$
+$endif$
 \printindex
+\endgroup
+$if(right-hand-openings)$
+\fi
+}{}
+$endif$
 $endif$
 
 % Ensure even page count for print (adds blank page if odd)

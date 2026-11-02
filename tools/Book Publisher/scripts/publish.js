@@ -395,7 +395,13 @@ if (!problems.length) {
   const { thumbTabErrors } = await import('./validate-book.js');
   for (const file of getChapterFiles(config.source._chaptersPath, config.source?.exclude ?? [])) {
     const path = join(config.source._chaptersPath, file);
-    problems.push(...thumbTabErrors(readFileSync(path, 'utf8'), path));
+    const content = readFileSync(path, 'utf8');
+    problems.push(...thumbTabErrors(content, path));
+    if (config.contents?.before?.includes(file)) {
+      for (const marker of content.matchAll(/\{\{idx:[^{}]*(?:\{[^{}]*\}[^{}]*)?\}\}/g)) {
+        problems.push(`${path}: contents.before files cannot contain ${marker[0]}: their pages print no folio`);
+      }
+    }
   }
 }
 if (problems.length > 0) {
@@ -532,6 +538,7 @@ try {
       const { extractPages } = await import('./extract-pages.js');
       await extractPages({
         pdfPath: firstPass.path, auxPath: firstPassAux, mergedPath,
+        frontMatterLength: config._contentsBeforeText?.length ?? 0,
         extractor: config.index.extractor, generatedContents: config.contents?.enabled === true, log
       });
       mergedContent = readFileSync(mergedPath, 'utf8');
@@ -924,10 +931,9 @@ function mergeChapters(config, indexSections) {
     content = content.replace(/\[([^\]]+)\]\(\.\.\/([^)]+)\)/g, '[$1]($2)');
     return content.trim();
   });
-  // A print-only boundary at the end of the ordered prefix. Keep it through
-  // indexing and two-pass extraction; strip it before EPUB processing.
+  // Remember the ordered prefix without persisting typesetting commands.
   if (config.contents?.before?.length) {
-    sections[config.contents.before.length - 1] += '\n\n\\bookpublishergeneratedcontents{}';
+    config._contentsBeforeText = sections.slice(0, config.contents.before.length).join('\n\n');
   }
   if (indexSections) indexSections.push(...sections);
   return sections.join('\n\n');
@@ -982,10 +988,14 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
   const mergedFile = join(tempDir, `${slug}-source.md`);
   // Keep the auditable manuscript limited to source text and index markers.
   // The tool's file-boundary command belongs only to its typesetting input.
-  const contentsBoundary = '\n\n\\bookpublishergeneratedcontents{}';
-  writeFileSync(mergedFile, mergedContent.replace(contentsBoundary, ''));
+  writeFileSync(mergedFile, mergedContent);
   const pandocFile = config.contents?.before?.length ? join(tempDir, `${slug}-typesetting.md`) : mergedFile;
-  if (pandocFile !== mergedFile) writeFileSync(pandocFile, mergedContent);
+  if (pandocFile !== mergedFile) {
+    let prefix = config._contentsBeforeText;
+    if (config.isbn?.print) prefix = prefix.replace(/\*\*ISBN:\*\*\s*[\d-]+/, `**ISBN:** ${config.isbn.print}`);
+    if (!mergedContent.startsWith(prefix)) throw new Error('contents.before boundary no longer matches the merged manuscript');
+    writeFileSync(pandocFile, prefix + '\n\n\\bookpublishergeneratedcontents{}' + mergedContent.slice(prefix.length));
+  }
 
   const texFile = join(tempDir, `${slug}.tex`);
   const templateFile = join(TEMPLATES_DIR, 'print', 'book.tex');
@@ -1296,7 +1306,7 @@ async function buildEpubFile(config, mergedContent, slug, tempDir) {
   const { cleanMarkdownForEpub, postProcessEpub } = await import('./epub.js');
 
   const mergedFile = join(tempDir, `${slug}-source.md`);
-  writeFileSync(mergedFile, cleanMarkdownForEpub(mergedContent.replaceAll('\\bookpublishergeneratedcontents{}', ''), config));
+  writeFileSync(mergedFile, cleanMarkdownForEpub(mergedContent, config));
 
   const epubFile = join(config.output._epubPath, `${slug}.epub`);
 
