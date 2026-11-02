@@ -28,6 +28,8 @@ try{
   copyDirectory(join(skill,'parts/fonts'),join(copied,'parts/fonts'));
   symlinkSync(join(plugin,'tools'),join(scratch,'plugin/tools'),'dir');
   copyFileSync(join(plugin,'skills/AGENTS.md'),join(scratch,'plugin/skills/AGENTS.md'));
+  // The places carry reads the voice coach's P12 (flow.test.mjs).
+  mkdirSync(join(scratch,'plugin/skills/Build Voice'));copyFileSync(join(plugin,'skills/Build Voice/questions.md'),join(scratch,'plugin/skills/Build Voice/questions.md'));
   copyDirectory(join(skill,'parts/zArchive'),join(copied,'parts/zArchive'));
   if(process.argv.includes('--baseline')){
     const read=path=>readFileSync(join(skill,path),'utf8');

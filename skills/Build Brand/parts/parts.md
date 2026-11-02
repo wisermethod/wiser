@@ -73,7 +73,7 @@ Success prints one JSON object with each file's path and byte count, each headin
 
 ## A carried place
 
-The lock answers' optional `carried` field. Where the place was carried from the voice coach (`paths/sitting.md` Step 3), `carried.place` records where, as `{"file": "<YYYY-MM-DD voice answers.md>", "question": "P12"}`, the file named as `standards/user-root.md` C14 gives it. `taps.place` is then `coffee-shop`, `hotel-lobby` or `spa`, the three places P12 shares with T9, and the place line in design and in the brand direction names P12 and that file in `memory/answers/`, never Q9. Only a personal brand may carry it. Without it, the place is this sitting's Q9.
+The lock answers' optional `carried` field. Where the place was carried from the voice coach (`paths/sitting.md` Step 3), `carried.place` records where, as `{"file": "<YYYY-MM-DD voice answers.md>", "question": "P12"}`, the file named as `standards/user-root.md` C14 gives it. `taps.place` is then `coffee-shop`, `hotel-lobby`, `design-workshop` or `spa`, the places P12 shares with T9, and the place line in design and in the brand direction names P12 and that file in `memory/answers/`, never Q9. Only a personal brand may carry it. Without it, the place is this sitting's Q9.
 
 ## Assembly
 

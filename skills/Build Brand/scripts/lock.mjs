@@ -123,7 +123,7 @@ function validate(spec, a, bytes, tapData) {
     const place = closed(closed(a.carried, ['place'], 'carried').place, ['file', 'question'], 'carried.place');
     if (!/^\d{4}-\d{2}-\d{2}( V\d+)? voice answers\.md$/.test(String(place.file))) fail('carried.place.file', 'name the voice answers file as C14 gives it');
     if (place.question !== 'P12') fail('carried.place.question', 'a carried place comes from P12');
-    if (!['coffee-shop', 'hotel-lobby', 'spa'].includes(a.taps.place)) fail('taps.place', 'a carried place is one of the three places P12 shares with T9');
+    if (!['coffee-shop', 'hotel-lobby', 'design-workshop', 'spa'].includes(a.taps.place)) fail('taps.place', 'a carried place is one of the places P12 shares with T9');
   }
   const offParts = [...Object.keys(tapData.axes), ...Object.values(tapData.axes).flat(), 'darkLed', 'brightColour', ...Object.values(a.taps)];
   arr(a.off ?? [], 'off').forEach((v) => { if (!offParts.includes(v)) fail('off', 'use a selected option id, axis or pole from taps.json'); });

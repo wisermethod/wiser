@@ -1,6 +1,6 @@
 # The interview
 
-What the coach says and asks, in the order `paths/coach.md` runs it. A tapped question is asked with the app's question tool where it has one: each option a button, and where an option below has words after a colon, the words before it are the button and the words after it are the line under it. Where the app has none, one question per message, its options lettered, answered with a letter. A question that says pick any takes more than one of its options: with the question tool, as its multiple choice; with none, answered with one or more letters. A typed question is a plain message, one at a time. The codes (S, W, P, R, F, A) are the question numbers the answers file records and `voice.md` cites, and each sample the person gives is numbered E1 onward. Bank version for every row: `Build Voice bank 7`.
+What the coach says and asks, in the order `paths/coach.md` runs it. A tapped question is asked with the app's question tool where it has one: each option a button, and where an option below has words after a colon, the words before it are the button and the words after it are the line under it. Where the app has none, one question per message, its options lettered, answered with a letter. A question that says pick any takes more than one of its options: with the question tool, as its multiple choice; with none, answered with one or more letters. A typed question is a plain message, one at a time. The codes (S, W, P, R, F, A) are the question numbers the answers file records and `voice.md` cites, and each sample the person gives is numbered E1 onward. Bank version for every row: `Build Voice bank 8`.
 
 Each question says what it **feeds**. A line in quotation marks after a pick is the exact line that pick writes into `voice.md` `## How They Write`, copied word for word. A pair or tap the person's samples settled is not asked, and a screen left with no question is not shown, nor the line said before it.
 
@@ -244,13 +244,13 @@ Writes:
 
 - A coffee shop
 - A nice hotel lobby
-- A workshop with tools on the wall
+- A design workshop
 - A calm spa
 
 Writes:
 - A coffee shop: "Talks to the reader as an equal across a small table: relaxed, direct, no ceremony."
 - A nice hotel lobby: "Treats the reader as a guest: courteous, attentive, and makes the next step easy."
-- A workshop with tools on the wall: "Shows how rather than tells: practical, plain, and hands-on."
+- A design workshop: "Works ideas out alongside the reader: inventive, hands-on, and open about the work in progress."
 - A calm spa: "Keeps an unhurried, reassuring pace; never rushes or alarms the reader."
 
 Also feeds the portrait's sentence on how the people they write for experience them.

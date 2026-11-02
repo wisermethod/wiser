@@ -128,6 +128,7 @@ test('a place carried from the voice coach cites P12 and its file, and refuses a
   assert.match(direction, /P12 in memory\/answers\/2026-11-02 V2 voice answers\.md: A coffee shop<\/p>/);
   assert.doesNotMatch(direction, /Q9: A coffee shop/);
   const engineered = fixture(); engineered.answers.taps.feel = 'engineered'; engineered.save(); engineered.result(); assert.ok(engineered.read().includes('Q2: Engineered: Precise and industrial (engineered)')); assert.match(engineered.read(join(engineered.work, 'brand-direction.html')), /Q2: Engineered: Precise and industrial</);
+  const workshop = fixture(); workshop.answers.taps.place = 'design-workshop'; workshop.answers.carried = { place: { file: '2026-11-03 voice answers.md', question: 'P12' } }; workshop.save(); workshop.result(); assert.ok(workshop.read().includes("Place, from the voice coach's P12 in memory/answers/2026-11-03 voice answers.md: A design workshop (design-workshop)"));
   const plain = fixture(); plain.answers.taps.place = 'coffee-shop'; plain.save(); plain.result(); assert.ok(!plain.read().includes('from the voice coach')); assert.match(plain.read(join(plain.work, 'brand-direction.html')), /Q9: A coffee shop/);
   for (const type of ['org', 'client', 'department']) { const o = fixture(type); o.answers.taps.place = 'spa'; o.answers.carried = { place: { file: '2026-11-02 voice answers.md', question: 'P12' } }; o.save(); assert.throws(o.result, /carried.*only a personal brand/); assert.equal(existsSync(o.design), false); }
   for (const [mutate, pattern] of [
@@ -136,8 +137,7 @@ test('a place carried from the voice coach cites P12 and its file, and refuses a
     [(a) => { a.carried.place.question = 'T9'; }, /carried\.place\.question/],
     [(a) => { a.taps.place = 'place-none'; }, /taps\.place/],
     [(a) => { a.taps.place = 'design-studio'; }, /taps\.place/],
-    [(a) => { a.taps.place = 'design-workshop'; }, /taps\.place.*three places P12 shares/],
-    [(a) => { a.taps.place = 'place-none'; a.carried.place.question = 'P12'; }, /taps\.place.*three places P12 shares/],
+    [(a) => { a.taps.place = 'place-none'; a.carried.place.question = 'P12'; }, /taps\.place.*places P12 shares/],
     [(a) => { a.carried.place.row = 'answered'; }, /carried\.place\.row.*unknown field/],
     [(a) => { a.carried = {}; }, /carried\.place/],
   ]) { const g = fixture(); g.answers.taps.place = 'spa'; g.answers.carried = { place: { file: '2026-11-02 voice answers.md', question: 'P12' } }; mutate(g.answers); g.save(); assert.throws(g.result, pattern); assert.equal(existsSync(g.design), false); }
