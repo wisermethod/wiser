@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.02.6, November 2, 2026
+
+- Book Publisher's printed edge tabs now run 0.125 in past the trim into a bleed, as KDP and IngramSpark ask for, and every page of the print PDF records its trim and bleed. The bleed is added on the outer, top and bottom edges only when the book prints a tab, and the build reports whether it did, so you can pick the matching upload setting; `trim.bleed` turns it on or off. The eight tab positions now fit any page height, with half an inch above the first and below the last. Before, tabs were sized for a 10-inch page and stopped at the trim. (8d3e8ae, 48d9d01, e97fe45, 5f5a746)
+- A new setting, `contents.before`, prints your title page, and any other opening pages you name, before the generated contents. Before, the contents always came first. (7ece852, 0dd45bd)
+- Every Part and chapter now opens on a right-hand page, the usual print layout; `openings.right_hand: false` turns it off. A blank page added before an opening prints no header or page number and keeps the edge tab of the section it ends. (7ece852, 0dd45bd)
+
 ## v2026.11.02.5, November 2, 2026
 
 - **update root** no longer flags an older root's Onboarding section for its closing paragraph or its status lines. A closing paragraph that opens "Adopted" rather than "Onboarded", and a status line that keeps its own dated record in brackets, are left as they are; only a separate note that copies a fact is proposed for rewriting. (e81b914)
