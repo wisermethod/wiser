@@ -237,7 +237,7 @@ function requireTexFiles(config) {
     'T1SourceSansPro-TLF.fd', 'SourceSansPro-Bold-tlf-t1.tfm',
     'SourceSansPro-Bold.pfb', 'a_emkxm5.enc'];
   if (config.typography?.font_family === 'libertinus') files.push('binhex.tex');
-  if (config.contents?.enabled === true) files.push('etoolbox.sty');
+  if (config.contents?.enabled === true || config.openings?.right_hand !== false) files.push('etoolbox.sty');
   if (Object.keys(config.boxes ?? {}).length) {
     files.push('mdframed.sty', 'md-frame-0.mdf', 'kvoptions.sty', 'xparse.sty',
       'etoolbox.sty', 'zref-abspage.sty', 'zref-base.sty', 'color.sty',
@@ -463,7 +463,7 @@ let mergedContent;
 const indexSections = config._indexTerms ? [] : undefined;
 let indexedContent;
 try {
-  if (mergedPath && existsSync(mergedPath) && !forceMerge && !twoPass && !indexSections) {
+  if (mergedPath && existsSync(mergedPath) && !forceMerge && !twoPass && !indexSections && !config.contents?.before?.length) {
     log(`Using merged file: ${config.source.merged}`);
     mergedContent = readFileSync(mergedPath, 'utf8');
   } else {
@@ -477,7 +477,7 @@ try {
   }
   if (indexSections && buildPrint) {
     const { indexChapters } = await import('./index-terms.js');
-    indexedContent = indexChapters(indexSections, config._indexTerms);
+    indexedContent = indexChapters(indexSections, config._indexTerms, { skipChapters: config.contents?.before?.length ?? 0 });
   }
 } catch (error) {
   // The merge runs before the build's own try below, so it carries a handler of
@@ -657,7 +657,7 @@ function validateConfig(config) {
     }
     if (config.index.enabled === false) errors.push('index.terms_file requires the makeindex strategy (index.enabled: true)');
   }
-  for (const key of ['contents', 'headings', 'parts']) {
+  for (const key of ['contents', 'headings', 'parts', 'openings']) {
     if (config[key] !== undefined && (!config[key] || typeof config[key] !== 'object' || Array.isArray(config[key]))) {
       errors.push(`${key} must be a mapping`);
     }
@@ -667,6 +667,23 @@ function validateConfig(config) {
   }
   if (config.contents?.depth !== undefined && (!Number.isInteger(config.contents.depth) || config.contents.depth < 1 || config.contents.depth > 5)) {
     errors.push('contents.depth must be an integer from 1 to 5 (Markdown heading levels)');
+  }
+  if (config.contents?.before !== undefined) {
+    const before = config.contents.before;
+    if (!Array.isArray(before) || before.some((name) => typeof name !== 'string')) {
+      errors.push('contents.before must be a list of manuscript file names');
+    } else if (before.length) {
+      if (config.contents.enabled !== true) errors.push('contents.before requires contents.enabled: true');
+      if (config.source?._chaptersPath && existsSync(config.source._chaptersPath)) {
+        const files = getChapterFiles(config.source._chaptersPath, config.source?.exclude ?? []);
+        if (before.some((name, i) => name !== files[i] || !statSync(join(config.source._chaptersPath, name)).isFile())) {
+          errors.push('contents.before must name the manuscript\'s first files in their existing sorted order');
+        }
+      }
+    }
+  }
+  if (config.openings?.right_hand !== undefined && typeof config.openings.right_hand !== 'boolean') {
+    errors.push('openings.right_hand must be a boolean');
   }
   if (config.headings?.numbered !== undefined && typeof config.headings.numbered !== 'boolean') {
     errors.push('headings.numbered must be a boolean');
@@ -896,6 +913,11 @@ function mergeChapters(config, indexSections) {
     content = content.replace(/\[([^\]]+)\]\(\.\.\/([^)]+)\)/g, '[$1]($2)');
     return content.trim();
   });
+  // A print-only boundary at the end of the ordered prefix. Keep it through
+  // indexing and two-pass extraction; strip it before EPUB processing.
+  if (config.contents?.before?.length) {
+    sections[config.contents.before.length - 1] += '\n\n\\bookpublishergeneratedcontents{}';
+  }
   if (indexSections) indexSections.push(...sections);
   return sections.join('\n\n');
 }
@@ -947,7 +969,12 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
   }
 
   const mergedFile = join(tempDir, `${slug}-source.md`);
-  writeFileSync(mergedFile, mergedContent);
+  // Keep the auditable manuscript limited to source text and index markers.
+  // The tool's file-boundary command belongs only to its typesetting input.
+  const contentsBoundary = '\n\n\\bookpublishergeneratedcontents{}';
+  writeFileSync(mergedFile, mergedContent.replace(contentsBoundary, ''));
+  const pandocFile = config.contents?.before?.length ? join(tempDir, `${slug}-typesetting.md`) : mergedFile;
+  if (pandocFile !== mergedFile) writeFileSync(pandocFile, mergedContent);
 
   const texFile = join(tempDir, `${slug}.tex`);
   const templateFile = join(TEMPLATES_DIR, 'print', 'book.tex');
@@ -979,7 +1006,7 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
   const imageWidth = Number(roundedWidth) > 0 && Number(roundedWidth) <= textWidth ? roundedWidth : String(textWidth);
 
   const pandocArgs = [
-    mergedFile,
+    pandocFile,
     '-o', texFile,
     '--template', templateFile,
     '--lua-filter', formatFilter,
@@ -1042,6 +1069,11 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
   if (config.contents?.enabled === true) {
     pandocArgs.push('--variable', 'print-contents=true', '--metadata', 'print-contents=true',
       '--variable', `print-contents-depth=${(config.contents.depth ?? 1) - 1}`);
+  }
+  if (config.contents?.before?.length) pandocArgs.push('--variable', 'contents-before=true');
+  if (config.openings?.right_hand !== false) pandocArgs.push('--variable', 'right-hand-openings=true');
+  if (config.contents?.enabled === true || config.openings?.right_hand !== false) {
+    pandocArgs.push('--variable', 'chapter-opening-break=true');
   }
   if (config.headings?.numbered === false) {
     pandocArgs.push('--variable', 'unnumbered-headings=true');
@@ -1246,7 +1278,7 @@ async function buildEpubFile(config, mergedContent, slug, tempDir) {
   const { cleanMarkdownForEpub, postProcessEpub } = await import('./epub.js');
 
   const mergedFile = join(tempDir, `${slug}-source.md`);
-  writeFileSync(mergedFile, cleanMarkdownForEpub(mergedContent, config));
+  writeFileSync(mergedFile, cleanMarkdownForEpub(mergedContent.replaceAll('\\bookpublishergeneratedcontents{}', ''), config));
 
   const epubFile = join(config.output._epubPath, `${slug}.epub`);
 

@@ -376,7 +376,7 @@ $endif$
 %% =============================================================================
 \usepackage{titlesec}
 
-$if(print-contents)$
+$if(chapter-opening-break)$
 % The old in-format chapter break discarded titlesec's starred before-skip
 % and its non-discardable spacer. Omit that spacer rather than breaking after
 % the chapter's contents locator has already been written by book.cls.
@@ -393,7 +393,7 @@ $endif$
 % With contents, chapter already breaks before writing its locator; a second
 % break inside the title format would move the title away from that locator.
 \titleformat{\chapter}[display]
-  {$if(print-contents)$$else$\clearpage$endif$\normalfont\Huge\bfseries\raggedright}
+  {$if(chapter-opening-break)$$else$\clearpage$endif$\normalfont\Huge\bfseries\raggedright}
   {}
   {0pt}
   {}
@@ -402,7 +402,7 @@ $endif$
 % Section format (## in markdown) - Part headings and Appendices
 % cleardoublepage forces start on odd (recto) page for print layout
 \titleformat{\section}[display]
-  {$if(print-contents)$$else$\cleardoublepage$endif$\normalfont\huge\bfseries\raggedright}
+  {$if(print-contents)$$else$\cleardoublepage$if(right-hand-openings)$\bookpublisherapplytab$endif$$endif$\normalfont\huge\bfseries\raggedright}
   {}
   {0pt}
   {}
@@ -411,7 +411,7 @@ $endif$
 % Subsection format (### in markdown) - Chapter titles
 % cleardoublepage forces start on odd (recto) page for print layout
 \titleformat{\subsection}[display]
-  {$if(print-contents)$$else$\cleardoublepage$endif$\normalfont\LARGE\bfseries\raggedright}
+  {$if(print-contents)$$else$\cleardoublepage$if(right-hand-openings)$\bookpublisherapplytab$endif$$endif$\normalfont\LARGE\bfseries\raggedright}
   {}
   {0pt}
   {}
@@ -437,10 +437,24 @@ $endif$
 
 % Prefix the finished titlesec commands without consuming their star or arguments.
 % Installing these after titlesec preserves normal, starred and short-title forms.
+$if(right-hand-openings)$
+% Flush the preceding section before applying a queued tab. The inserted verso
+% ends that section's leaf and must carry its tab, with no other furniture.
+\renewcommand{\cleardoublepage}{%
+  \clearpage
+  \ifodd\bookpublisherphysicalpage\else
+    \hbox{}\thispagestyle{empty}\newpage
+  \fi
+}
+\let\bookpublisherchapter\chapter
+\renewcommand{\chapter}{\cleardoublepage\bookpublisherapplytab\bookpublisherchapter}
+\let\bookpublisherpart\part
+\renewcommand{\part}{\cleardoublepage\bookpublisherapplytab\bookpublisherpart}
+$endif$
 \let\oldsection\section
-\renewcommand{\section}{\FloatBarrier$if(print-contents)$\cleardoublepage$endif$\oldsection}
+\renewcommand{\section}{\FloatBarrier$if(print-contents)$\cleardoublepage$if(right-hand-openings)$\bookpublisherapplytab$endif$$endif$\oldsection}
 \let\oldsubsection\subsection
-\renewcommand{\subsection}{\FloatBarrier$if(print-contents)$\cleardoublepage$endif$\oldsubsection}
+\renewcommand{\subsection}{\FloatBarrier$if(print-contents)$\cleardoublepage$if(right-hand-openings)$\bookpublisherapplytab$endif$$endif$\oldsubsection}
 \let\oldsubsubsection\subsubsection
 \renewcommand{\subsubsection}{\FloatBarrier\oldsubsubsection}
 
@@ -636,6 +650,26 @@ $endif$
   \setcounter{activethumbtab}{0}%
   \renewcommand{\thumbtablabel}{}%
 }
+
+$if(right-hand-openings)$
+% Directives before an opening cannot change the page still being flushed.
+% Ordinary prose applies a queued directive at its next outer paragraph.
+\let\bookpublisherpendingtab\relax
+\newcommand{\bookpublisherapplytab}{%
+  \let\bookpublishernexttab\bookpublisherpendingtab
+  \global\let\bookpublisherpendingtab\relax
+  \bookpublishernexttab
+  % A title format groups its font and spacing, not the section's tab state.
+  \global\let\thumbtablabel\thumbtablabel
+}
+\let\bookpublisherthumbtabstart\thumbtabstart
+\let\bookpublisherthumbtabend\thumbtabend
+\renewcommand{\thumbtabstart}[2]{%
+  \gdef\bookpublisherpendingtab{\bookpublisherthumbtabstart{#1}{#2}}%
+}
+\renewcommand{\thumbtabend}{\gdef\bookpublisherpendingtab{\bookpublisherthumbtabend}}
+\AddToHook{para/begin}{\ifinner\else\bookpublisherapplytab\fi}
+$endif$
 
 %% =============================================================================
 %% HYPERLINKS
@@ -834,31 +868,45 @@ $endif$
 \pagestyle{plain}
 
 $if(print-contents)$
-% Keep generated front matter separate from manuscript folios and recto/verso.
+\makeatletter
+\newcommand{\bookpublishergeneratedcontents}{%
+$if(contents-before)$
+  \clearpage\endgroup
+$endif$
+  \cleardoublepage
+  \begingroup
+  \let\ps@plain\ps@empty
+  \pagestyle{empty}
+  \renewcommand{\numberline}[1]{}
+  \setcounter{tocdepth}{$print-contents-depth$}
+  \tableofcontents
+  \cleardoublepage
+  \endgroup
+  % Includes the entire unnumbered prefix for two-pass extraction.
+  \immediate\write\@auxout{\string\newlabel{bookpublisher-contents-pages}{{}{\number\numexpr\value{page}-1\relax}}}%
+  \pagenumbering{arabic}
+  \pagestyle{plain}
+}
 \pagenumbering{roman}
+$if(contents-before)$
+% Front files keep their manuscript order, but cannot add contents entries or
+% expose folios, even when their own format directives select a page style.
 \begingroup
-\makeatletter
-\let\ps@plain\ps@empty
-\makeatother
 \pagestyle{empty}
-% The template's heading pages have no automatic labels, at any numbering depth.
-\renewcommand{\numberline}[1]{}
-\setcounter{tocdepth}{$print-contents-depth$}
-\tableofcontents
-\cleardoublepage
-\endgroup
-% An internal AUX label records the physical offset for two-pass extraction.
-\makeatletter
-\immediate\write\@auxout{\string\newlabel{bookpublisher-contents-pages}{{}{\number\numexpr\value{page}-1\relax}}}
+\let\ps@plain\ps@empty
+\let\ps@fancy\ps@empty
+\let\pagestyle\@gobble
+\let\addcontentsline\@gobblethree
+$else$
+\bookpublishergeneratedcontents
+$endif$
 \makeatother
-\pagenumbering{arabic}
-\pagestyle{plain}
 $endif$
 
 $body$
 
 $if(include-index)$
-\clearpage
+$if(right-hand-openings)$\cleardoublepage\bookpublisherapplytab$else$\clearpage$endif$
 \phantomsection
 \addcontentsline{toc}{chapter}{Index}
 \printindex
