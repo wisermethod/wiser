@@ -78,6 +78,28 @@ $endif$
 $if(boxed-divs)$
 % Only opted-in books load the page-breakable box package and its environment.
 \usepackage[framemethod=default]{mdframed}
+% A heading needs two rendered lines, even across paragraphs or list items.
+% The count is global so a list's group cannot restore an unfinished keep.
+\newcount\bookpublisherboxlines
+\newif\ifbookpublisherinbox
+\newcommand{\bookpublisherboxkeep}{%
+  \par\nobreak\global\bookpublisherboxlines=2\relax
+}
+\AddToHook{para/end}[bookpublisherbox]{%
+  \ifbookpublisherinbox
+    \edef\bookpublisherrestoreclub{\clubpenalty=\the\clubpenalty\relax}%
+    \ifnum\bookpublisherboxlines>1 \clubpenalty=10000\relax\fi
+  \fi
+}
+\AddToHook{para/after}[bookpublisherbox]{%
+  \ifbookpublisherinbox
+    \bookpublisherrestoreclub
+    \ifnum\bookpublisherboxlines>0
+      \global\advance\bookpublisherboxlines by -\prevgraf
+      \ifnum\bookpublisherboxlines>0 \nobreak\fi
+    \fi
+  \fi
+}
 \newsavebox{\bookpublisherimage}
 \let\bookpublisherincludegraphics\includegraphics
 \newenvironment{bookpublisherbox}[4]{%
@@ -88,6 +110,21 @@ $if(boxed-divs)$
     linewidth=#3pt,innerleftmargin=#4pt,innerrightmargin=#4pt,
     innertopmargin=#4pt,innerbottommargin=#4pt,
     skipabove=\baselineskip,skipbelow=\baselineskip]%
+  % microtype's protrusion probe makes scratch paragraphs, not body lines.
+  % Its probe hook runs inside the scratch vbox, so this flag stays local.
+  \expandafter\appto\csname MT@prot@hook\endcsname{\bookpublisherinboxfalse}%
+  \bookpublisherinboxtrue
+  \global\bookpublisherboxlines=0\relax
+  % needspace's soft penalties would undo the keep before a list.
+  \let\bookpublisherneedspace\needspace
+  \renewcommand{\needspace}[1]{%
+    \ifnum\bookpublisherboxlines>0\else\bookpublisherneedspace{##1}\fi
+  }%
+  % Lists insert their own break penalties, including between short items.
+  \let\bookpublisheraddpenalty\addpenalty
+  \renewcommand{\addpenalty}[1]{%
+    \bookpublisheraddpenalty{\ifnum\bookpublisherboxlines>0 10000\else##1\fi}%
+  }%
   % The existing image filter uses the page's content width. Cap those images
   % (including explicit widths) at this box's narrower line width, locally.
   \RenewDocumentCommand{\includegraphics}{s O{} m}{%
@@ -102,6 +139,7 @@ $if(boxed-divs)$
   }%
 }{%
   \end{mdframed}%
+  \global\bookpublisherboxlines=0\relax
   \endgroup
 }
 $endif$

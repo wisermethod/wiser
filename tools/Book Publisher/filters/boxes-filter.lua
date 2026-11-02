@@ -38,7 +38,11 @@ local function Div(elem)
     -- Book headings normally start new pages. Within a box they are local bold
     -- labels, with their link targets retained, rather than chapter openers.
     elem = elem:walk({ Header = function(header)
-      return pandoc.Para({ pandoc.Span({ pandoc.Strong(header.content) }, header.attr) })
+      -- Start the line before its target: an anchor-only first fragment
+      -- would otherwise leave an empty mdframed shell when the label moves.
+      return { pandoc.Para({ pandoc.RawInline('latex', '\\leavevmode'),
+        pandoc.Span({ pandoc.Strong(header.content) }, header.attr) }),
+        pandoc.RawBlock('latex', '\\bookpublisherboxkeep') }
     end })
     elem.content:insert(1, pandoc.RawBlock('latex', string.format(
       '\\begin{bookpublisherbox}{%s}{%s}{%s}{%s}',
