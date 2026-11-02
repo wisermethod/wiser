@@ -120,6 +120,25 @@ for (const [name, mutate, pattern] of [
   ['unknown type', (f) => { f.answers.type = 'industry'; }, /type/],
 ]) test(`refuses ${name} before any output`, () => { const f = fixture(); mutate(f); f.save(); assert.throws(f.result, pattern); assert.equal(existsSync(f.design), false); assert.equal(existsSync(f.work), false); });
 test('lock hash binds the exact supplied spec bytes', () => { const f = fixture(); writeFileSync(f.specPath, f.read(f.specPath) + '\n'); assert.throws(f.result, /specSha256/); });
+test('a place carried from the voice coach cites P12 and its file, and refuses a malformed carry', () => {
+  const f = fixture(); f.answers.taps.place = 'coffee-shop'; f.answers.carried = { place: { file: '2026-11-02 V2 voice answers.md', question: 'P12' } }; f.save(); f.result();
+  assert.ok(f.read().includes("Place, from the voice coach's P12 in memory/answers/2026-11-02 V2 voice answers.md: A coffee shop (coffee-shop)"));
+  assert.ok(!f.read().includes('Q9: A coffee shop'));
+  const direction = f.read(join(f.work, 'brand-direction.html'));
+  assert.match(direction, /P12 in memory\/answers\/2026-11-02 V2 voice answers\.md: A coffee shop<\/p>/);
+  assert.doesNotMatch(direction, /Q9: A coffee shop/);
+  const plain = fixture(); plain.answers.taps.place = 'coffee-shop'; plain.save(); plain.result(); assert.ok(!plain.read().includes('from the voice coach')); assert.match(plain.read(join(plain.work, 'brand-direction.html')), /Q9: A coffee shop/);
+  for (const type of ['org', 'client', 'department']) { const o = fixture(type); o.answers.taps.place = 'spa'; o.answers.carried = { place: { file: '2026-11-02 voice answers.md', question: 'P12' } }; o.save(); assert.throws(o.result, /carried.*only a personal brand/); assert.equal(existsSync(o.design), false); }
+  for (const [mutate, pattern] of [
+    [(a) => { a.carried.place.file = 'voice answers.md'; }, /carried\.place\.file/],
+    [(a) => { a.carried.place.file = '2026-11-02 design answers.md'; }, /carried\.place\.file/],
+    [(a) => { a.carried.place.question = 'T9'; }, /carried\.place\.question/],
+    [(a) => { a.taps.place = 'place-none'; }, /taps\.place/],
+    [(a) => { a.taps.place = 'design-studio'; }, /taps\.place/],
+    [(a) => { a.carried.place.row = 'answered'; }, /carried\.place\.row.*unknown field/],
+    [(a) => { a.carried = {}; }, /carried\.place/],
+  ]) { const g = fixture(); g.answers.taps.place = 'spa'; g.answers.carried = { place: { file: '2026-11-02 voice answers.md', question: 'P12' } }; mutate(g.answers); g.save(); assert.throws(g.result, pattern); assert.equal(existsSync(g.design), false); }
+});
 test('organisation requires audience, promise and final say', () => { for (const k of ['audience', 'promise', 'finalSay']) { const f = fixture('org'); delete f.answers[k]; f.save(); assert.throws(f.result, new RegExp(k)); } });
 test('complete existing design refuses; --replace archives bytes and numbers versions', () => {
   const f = fixture(); f.result(); const first = f.read(); assert.throws(f.result, /complete design already exists/);

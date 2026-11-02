@@ -118,6 +118,13 @@ function validate(spec, a, bytes, tapData) {
   obj(a.taps, 'taps');
   for (const q of tapData.questions) if (!q.options.some((v) => v.id === a.taps[q.id])) fail(`taps.${q.id}`, 'use an option id from parts/taps.json');
   for (const k of Object.keys(a.taps)) if (!tapData.questions.some((q) => q.id === k)) fail(`taps.${k}`, 'unknown question');
+  if (a.carried) {
+    if (a.type !== 'personal') fail('carried', 'only a personal brand carries a place from the voice coach');
+    const place = closed(closed(a.carried, ['place'], 'carried').place, ['file', 'question'], 'carried.place');
+    if (!/^\d{4}-\d{2}-\d{2}( V\d+)? voice answers\.md$/.test(String(place.file))) fail('carried.place.file', 'name the voice answers file as C14 gives it');
+    if (place.question !== 'P12') fail('carried.place.question', 'a carried place comes from P12');
+    if (!['coffee-shop', 'hotel-lobby', 'workshop', 'spa'].includes(a.taps.place)) fail('taps.place', 'a carried place is one of the four options P12 shares');
+  }
   const offParts = [...Object.keys(tapData.axes), ...Object.values(tapData.axes).flat(), 'darkLed', 'brightColour', ...Object.values(a.taps)];
   arr(a.off ?? [], 'off').forEach((v) => { if (!offParts.includes(v)) fail('off', 'use a selected option id, axis or pole from taps.json'); });
   if (new Set(a.off ?? []).size !== (a.off ?? []).length) fail('off', 'duplicate read-back part');
@@ -236,7 +243,11 @@ function makeDocuments(spec, a, index, paths, tapData) {
   else add('Foundation', `The promise is the chosen sentence: ${a.sentence}`, [A('sentence')], true);
   if (a.finalSay) add('Foundation', `Final say: ${a.finalSay}`, [A('finalSay')]);
   for (const gap of ['Alternatives', 'Open space', 'Success measures']) sections.Foundation.push({ label: `${gap}: [Not available: not asked]` });
-  for (let n = 1; n <= 9; n++) { const t = tap(n); add('Visual Personality', `Q${n}: ${t.label} (${t.value})`, [A(`taps.${t.id}`)]); }
+  for (let n = 1; n <= 9; n++) {
+    const t = tap(n);
+    if (t.id === 'place' && a.carried) add('Visual Personality', `Place, from the voice coach's ${a.carried.place.question} in memory/answers/${a.carried.place.file}: ${t.label} (${t.value})`, [A(`taps.${t.id}`), A('carried.place.question'), A('carried.place.file')]);
+    else add('Visual Personality', `Q${n}: ${t.label} (${t.value})`, [A(`taps.${t.id}`)]);
+  }
   if (a.readBack) { add('Visual Personality', a.readBack.text, [A('readBack.text')]); if (a.off?.length) add('Visual Personality', `Dropped from the steer: ${a.off.join(', ')}.`, a.off.map((_, i) => A(`off.${i}`))); }
   else label('Visual Personality', a.unavailable.readBack);
   if (a.looks) a.looks.forEach((look, i) => add('Visual Personality', `Whole look picked: ${look}.`, [A(`looks.${i}`)])); else label('Visual Personality', a.unavailable.looks);
@@ -269,7 +280,7 @@ function direction(doc, a) {
   }
   const sections = [section('What the brand is', p(a.sentence) + (a.promise ? p(a.promise) : '') + (a.audience ? p(a.audience) : '')), section('Core words', a.words.map((w) => p(`${w.word}, not ${w.not}.`)).join(''))];
   const looks = a.readBack ? [p(a.readBack.text)] : [];
-  for (let n = 1; n <= 9; n++) looks.push(p(`Q${n}: ${doc.tap(n).label}`));
+  for (let n = 1; n <= 9; n++) looks.push(p(n === 9 && a.carried ? `Place, from the voice coach's ${a.carried.place.question} in memory/answers/${a.carried.place.file}: ${doc.tap(n).label}` : `Q${n}: ${doc.tap(n).label}`));
   if (a.looks) looks.push(...a.looks.map((l) => p(l)));
   sections.push(section('How it looks', looks.join('')), section('Colour', `<div class="table"><table><thead><tr><th>Mode</th><th>Name</th><th>Value</th><th>Role</th><th>Page share</th>${b.palette.temperature ? '<th>Temperature</th>' : ''}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`));
   sections.push(section('Type', ['heading', 'body', ...(b.type.handwriting ? ['handwriting'] : [])].map((role) => `<div class="face" style="font-family:var(--font-${role})"><h3>${html(b.type[role].family)}</h3><p>${html(role)}: ${html(b.type[role].description)}</p><p>Weights: ${[...new Set(Object.values(b.type[role].sizes).map((s) => s.weight))].join(', ')}.</p><p>${html(b.type[role].sample)}</p></div>`).join('')));
@@ -408,7 +419,7 @@ export function run(argv) {
     for (const input of inputs) { const source = existing(input); if (input === e.path || (source && st && source.dev === st.dev && source.ino === st.ino)) fail('path', 'output aliases an input'); }
   }
   const archives = publish(entries, archiveHome);
-  return { state: 'complete', files: entries.map((e) => ({ path: e.path, bytes: Buffer.byteLength(e.bytes) })), headings: headingReport, archives, readBack: { claims: doc.claims.length, outcome: 'passed' }, unusedAnswerFields: Object.keys(a).filter((k) => !['name', 'sentence', 'words', 'taps', 'off', 'readBack', 'looks', 'rounds', 'type', 'assets', 'audience', 'promise', 'finalSay', 'lock', 'unavailable', 'provenance', 'paths'].includes(k)), elapsedMs: Number((performance.now() - started).toFixed(3)) };
+  return { state: 'complete', files: entries.map((e) => ({ path: e.path, bytes: Buffer.byteLength(e.bytes) })), headings: headingReport, archives, readBack: { claims: doc.claims.length, outcome: 'passed' }, unusedAnswerFields: Object.keys(a).filter((k) => !['name', 'sentence', 'words', 'taps', 'off', 'readBack', 'looks', 'rounds', 'type', 'assets', 'audience', 'promise', 'finalSay', 'lock', 'unavailable', 'provenance', 'paths', 'carried'].includes(k)), elapsedMs: Number((performance.now() - started).toFixed(3)) };
 }
 export function main(argv = process.argv.slice(2)) {
   try { const result = run(argv); process.stdout.write((typeof result === 'string' ? result : JSON.stringify(result)) + '\n'); }

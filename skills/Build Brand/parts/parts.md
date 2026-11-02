@@ -71,6 +71,10 @@ Existing `AGENTS.md` Onboarding and `work/onboarding/run-record.md` Per-key clos
 
 Success prints one JSON object with each file's path and byte count, each heading's `filled`, `labelled` or `filled-and-labelled` state, archives, read-back claim count, unused answer fields and `elapsedMs`. Identical inputs at identical paths produce identical four output bytes; elapsed time and archive version numbers are intentionally variable. No output is written on validation failure. The command's performance check is under five seconds including process startup.
 
+## A carried place
+
+The lock answers' optional `carried` field. Where the place was carried from the voice coach (`paths/sitting.md` Step 3), `carried.place` records where, as `{"file": "<YYYY-MM-DD voice answers.md>", "question": "P12"}`, the file named as `standards/user-root.md` C14 gives it. `taps.place` is then `coffee-shop`, `hotel-lobby`, `workshop` or `spa`, and the place line in design and in the brand direction names P12 and that file in `memory/answers/`, never Q9. Only a personal brand may carry it. Without it, the place is this sitting's Q9.
+
 ## Assembly
 
 The skill writes a selection JSON with `person`, two `intro` lines, ordered `groups` with id and label, `footnote`, and `boards`. Each board supplies `number`, `name`, `group`, `energy`, `why`, optional `recommendation` and `zero`, `primaryMode`, and `buttonRadius`. Its `palette` has an `id` and optional `overrides` keyed by light or dark and then by role. Its `pairing` has an `id` and optional `headingFrom` or `bodyFrom`, each either a pairing id or a supplied face object. Blended heading settings and loudness tags come from the heading donor. Its `handwriting` is one of the base pairing's offered family names or explicit null.

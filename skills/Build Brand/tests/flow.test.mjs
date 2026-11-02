@@ -195,6 +195,18 @@ test('lock fills the twelve existing headings, preserves G0, and checks words on
   assert.match(lock,/Offers, only on the member's ask/);
 });
 
+test('a place answered at the voice coach\'s P12 is carried, not asked again, and only on a personal root',()=>{
+  const records=read('records.md'), taps=JSON.parse(read('parts/taps.json')).questions.find(q=>q.id==='place');
+  for(const [label,id] of [['A coffee shop','coffee-shop'],['A nice hotel lobby','hotel-lobby'],['A workshop with tools on the wall','workshop'],['A calm spa','spa']]){
+    assert.equal(taps.options.find(o=>o.id===id)?.label,label,id);
+    assert.ok(sitting.includes(`${label} \`${id}\``),id);
+    assert.ok(journey.includes(label),label);
+  }
+  for(const [text,phrase] of [[sitting,'On a personal root, find the newest voice answers file in `memory/answers/` that holds a P12 row'],[sitting,'`Build Voice bank 7`, the row\'s status answered'],[sitting,'a letter for one in P12\'s own order (A a coffee shop, B a nice hotel lobby, C a workshop with tools on the wall, D a calm spa)'],[sitting,'including a skipped, in-between or typed P12'],[sitting,'T9 is not asked, in the card or any fallback'],[sitting,'Write no T9 row'],[sitting,'`carried.place`'],[sitting,'or eight with the place carried'],[sitting,'with the place carried, the mood, was sent without a pick'],[sitting,'nor a carried place, which they gave the voice coach'],[bank,'Not asked where the place is carried'],[bank,'no T9 row where the place is carried'],[records,'with no T9 row'],[lock,'A place carried from P12 is left out of the note'],[journey,'is of bank 7 and shows one of those four picked, question 9 is not asked'],[journey,'A skipped, in-between or typed P12 does not count'],[journey,'The read-back does not name a carried place'],[journey,'An organisation, a client or a department is always asked its own question 9'],[sitting,'the greatest V number, a name without one counting as V1'],[sitting,'Not quite cannot mark it off; where the member asks to change it, ask T9, write its row and drop `carried`'],[lock,'and `carried` where the place was carried'],[journey,'(eight where the place is carried, below)']])assert.ok(text.includes(phrase),phrase);
+  for(const stale of ['or the last, the place, was sent','a carried place among them','or the row skipped, `place-none`','plainly match one of T9'])assert.ok(!sitting.includes(stale),stale);
+  assert.ok(!lock.includes('already holds that answer\'s line'),'the voice note gives the true reason');
+});
+
 test('each approved gap line is used where its gap happens, and no file still calls it a gap',()=>{
   const org=read('paths/organisation.md'), boards=read('paths/brief-boards.md'), writing=read('writing.md'), industry=read('paths/record-my-look.md');
   for(const [text,phrase] of [[org,"organisation thin-record sentence"],[sitting,'already saved the thin-record answer at `organisation.md` Who it\'s for'],[sitting,"own-words line"],[sitting,"`mode-either`, `feel-unsure`, `history-unsure`, `strength-unsure`, `technology-none`, `style-none`, `posture-none`, `mood-none` or `place-none`"],[sitting,"As it is is 0, and so is a tap left unanswered"],[sitting,"every-look line"],[sitting,"every-direction line"],[sitting,"own-page line"],[sitting,"design-check line"],[boards,"design-check line"],[router,"design-check line"],[lock,"one-word line"],[lock,"organisation offers line"],[lock,"saying nothing of it to the member"],[writing,"Say nothing of it to the member"],[industry,"Record my look close"]])assert.ok(text.includes(phrase),phrase);

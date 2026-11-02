@@ -4,7 +4,7 @@ Read by section. Member copy below is fixed: preserve every word, option order, 
 
 ## Answer numbers
 
-B0 records a path choice only where one is actually needed; the sitting and the brand-folder entry do not ask it. R0 is the original ask; R1 onward are unasked comments, kept verbatim. For the sitting: J1 what to keep; J1a folder; O1 audience, O2 promise, O3 final say; J2a thin-record sentence, J2b drafted sentence and pairs, J2c each redraft with its pass; T1 to T9 the nine taste taps; J3a read-back, J3b off parts, J3c pull; L1 onward each page of whole looks and action; L<n>-S1 to S5 its steer and comment where none works; C1 onward each boards page, picks and action, C<n>-S1 to S5 its steer and comment; K1 the lock; K2 the optional voice note; K3 any checked wording correction. Keep earlier answers on correction. Each page and each pick have their own numbered row within their round; save their unchanged full records with the work for selection and resume. Feed citations identify the question, page and pick, never just the current screen.
+B0 records a path choice only where one is actually needed; the sitting and the brand-folder entry do not ask it. R0 is the original ask; R1 onward are unasked comments, kept verbatim. For the sitting: J1 what to keep; J1a folder; O1 audience, O2 promise, O3 final say; J2a thin-record sentence, J2b drafted sentence and pairs, J2c each redraft with its pass; T1 to T9 the nine taste taps, with no T9 row where the place is carried from a voice answers file's P12; J3a read-back, J3b off parts, J3c pull; L1 onward each page of whole looks and action; L<n>-S1 to S5 its steer and comment where none works; C1 onward each boards page, picks and action, C<n>-S1 to S5 its steer and comment; K1 the lock; K2 the optional voice note; K3 any checked wording correction. Keep earlier answers on correction. Each page and each pick have their own numbered row within their round; save their unchanged full records with the work for selection and resume. Feed citations identify the question, page and pick, never just the current screen.
 
 ## Opening
 
@@ -268,6 +268,8 @@ Chat buttons and the question tool:
 - A buzzing design studio
 - A workshop with tools on the wall
 - None of these
+
+Not asked where the place is carried from the newest voice answers file's P12, as `paths/sitting.md` Step 3 says, in the card or any fallback; the card then counts to 8, and the paged progress example above is the nine-question card's.
 
 ## Step 3: Reveal and pull
 
