@@ -27,6 +27,18 @@ function lookup(library, kind, id, at) {
   }
   return found[0];
 }
+// Kept colours use the nearest named library colour, rather than the name of
+// the colour they replaced. Normalize short hex before comparing RGB values.
+function keptColourName(value, library) {
+  const rgb = (hex) => (hex.length === 4 ? hex.slice(1).split('').map(c => c + c) : hex.slice(1).match(/../g)).map(c => parseInt(c, 16));
+  const target = rgb(value);
+  let nearest, distance = Infinity;
+  for (const palette of library.palettes) for (const mode of MODES) for (const swatch of palette.modeSwatches?.[mode] ?? palette.swatches) {
+    const delta = rgb(palette[mode][swatch.key]).reduce((sum, n, i) => sum + (n - target[i]) ** 2, 0);
+    if (delta < distance) { nearest = swatch.name.replace(/\s*\([^()]*\)\s*$/, '').replace(/\s+\d+$/, ''); distance = delta; }
+  }
+  return nearest;
+}
 // Ranking provenance travels in the command's report, outside the deliberately
 // closed Contact Sheet spec (which accepts only its three match-check tags).
 export function partPositions(library, board) {
@@ -66,6 +78,20 @@ export function assembleCore(selection, library, { resolveFont = (face) => copy(
           palette[mode][role] = value;
         }
       }
+      // Each mode needs its own names when a kept colour changes only one.
+      palette.modeSwatches ??= Object.fromEntries(MODES.map(mode => [mode, copy(palette.swatches)]));
+      for (const mode of MODES) {
+        for (const swatches of [palette.modeSwatches[mode], palette.chips?.[mode] ?? []]) {
+          for (const swatch of swatches) if (has(b.palette.overrides[mode] ?? {}, swatch.key)) swatch.name = keptColourName(palette[mode][swatch.key], library);
+          const names = new Set();
+          for (const swatch of swatches) {
+            const base = swatch.name; let number = 2;
+            while (names.has(swatch.name)) swatch.name = `${base} ${number++}`;
+            names.add(swatch.name);
+          }
+        }
+      }
+      palette.swatches = copy(palette.modeSwatches.light);
     }
     object(b.pairing, ['id', 'headingFrom', 'bodyFrom'], `${at}.pairing`);
     const pairing = lookup(library, 'pairings', b.pairing.id, `${at}.pairing.id`);
@@ -76,6 +102,7 @@ export function assembleCore(selection, library, { resolveFont = (face) => copy(
       if (typeof choice === 'string') {
         donors[role] = lookup(library, 'pairings', choice, where);
         type[role] = resolveFont(donors[role].type[role], `${at}.type.${role}`, library);
+        if (!type[role].sample.startsWith('Sample: ')) type[role].sample = `Sample: ${type[role].sample}`;
       } else {
         donors[role] = pairing;
         type[role] = resolveSuppliedFont(choice, pairing.type[role], b.content?.sentence, where);
@@ -137,8 +164,11 @@ export function assembleCore(selection, library, { resolveFont = (face) => copy(
     b.closingExamples.forEach((s) => text(s, `${at}.closingExamples`));
     return { ...Object.fromEntries(['number','name','group','energy','why','recommendation','zero','primaryMode','buttonRadius'].filter((k) => has(b,k)).map((k) => [k,b[k]])), palette, type, tags: { paletteLoudness: recipe.paletteLoudness, typeLoudness: heading.tags.typeLoudness, typeCut: heading.tags.typeCut }, graphics, monogram, content: copy(b.content), ...(has(b, 'words') ? { words: copy(b.words) } : {}), note: {...b.note, svg: set.noteArrow}, sample: {...copy(b.sample), ...copy(set.sample), rule: set.bannerRule}, items: copy(b.items), closingExamples: copy(b.closingExamples) };
   });
-  for (const g of groups) if (!boards.some((b) => b.group === g)) fail(`groups.${g}`, 'empty group');
-  return { layout: 'board', person: selection.person, intro: copy(selection.intro), groups: copy(selection.groups), footnote: selection.footnote, boards };
+  // A lock keeps one board from a page and may retain that page's group list.
+  // Validate every group above, then omit only unused groups for that one pick.
+  if (boards.length !== 1) for (const g of groups) if (!boards.some((b) => b.group === g)) fail(`groups.${g}`, 'empty group');
+  const keptGroups = boards.length === 1 ? selection.groups.filter((g) => g.id === boards[0].group) : selection.groups;
+  return { layout: 'board', person: selection.person, intro: copy(selection.intro), groups: copy(keptGroups), footnote: selection.footnote, boards };
 }
 
 export const assemblyHelpers = { fail, copy, has, object, text, num };

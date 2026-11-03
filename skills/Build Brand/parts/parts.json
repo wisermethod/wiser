@@ -466,7 +466,7 @@
     },
     "Shantell Sans": {
       "folder": "fonts/Shantell Sans",
-      "role": "text",
+      "role": "handwriting",
       "licence": "SIL Open Font License 1.1",
       "licenceFile": "fonts/Shantell Sans/OFL.txt",
       "sourceUrl": "https://github.com/google/fonts/tree/45e3d5269e4a17d823f6d84470bc084dc5ae46f6/ofl/shantellsans",
@@ -2555,7 +2555,8 @@
         "body": "Trial regular reading weight where supplied; 72px specimen, 17px reading sizes and line heights follow the board fixture. The specimen uses bold 700 to show supporting emphasis explicitly; reading uses 400. Normal width and reduced bounce serve reading.",
         "notes": "Curated note order after review; each family retains its bundled three-size settings."
       },
-      "softStrongReason": "Slender, incisive titles meet compact and practical reading text. Read from the heading forms; weight alone does not decide softness."
+      "softStrongReason": "Slender, incisive titles meet compact and practical reading text. Read from the heading forms; weight alone does not decide softness.",
+      "displayStyle": "high-contrast-serif"
     },
     {
       "id": "chunky",
@@ -2764,6 +2765,94 @@
       },
       "type": {
         "heading": {
+          "family": "Instrument Sans",
+          "description": "Open forms and restrained details keep longer passages easy to follow.",
+          "weights": [
+            400,
+            700
+          ],
+          "licence": "SIL Open Font License 1.1",
+          "sample": "A clear line leaves room for the next thought.",
+          "sizes": {
+            "display": {
+              "size": 72,
+              "lineHeight": 1,
+              "tracking": -0.02,
+              "weight": 700,
+              "variations": null
+            },
+            "middle": {
+              "size": 17,
+              "lineHeight": 1.55,
+              "tracking": 0,
+              "weight": 400,
+              "variations": null
+            },
+            "small": {
+              "size": 17,
+              "lineHeight": 1.5,
+              "tracking": 0,
+              "weight": 400,
+              "variations": null
+            }
+          },
+          "files": [
+            {
+              "path": "fonts/Instrument Sans/InstrumentSans-Latin.woff2",
+              "weight": [
+                400,
+                700
+              ],
+              "style": "normal"
+            }
+          ]
+        },
+        "body": {
+          "family": "Instrument Sans",
+          "description": "Open forms and restrained details keep longer passages easy to follow.",
+          "weights": [
+            400,
+            700
+          ],
+          "licence": "SIL Open Font License 1.1",
+          "sample": "A clear line leaves room for the next thought.",
+          "sizes": {
+            "display": {
+              "size": 72,
+              "lineHeight": 1,
+              "tracking": -0.02,
+              "weight": 700,
+              "variations": null
+            },
+            "middle": {
+              "size": 17,
+              "lineHeight": 1.55,
+              "tracking": 0,
+              "weight": 400,
+              "variations": null
+            },
+            "small": {
+              "size": 17,
+              "lineHeight": 1.5,
+              "tracking": 0,
+              "weight": 400,
+              "variations": null
+            }
+          },
+          "files": [
+            {
+              "path": "fonts/Instrument Sans/InstrumentSans-Latin.woff2",
+              "weight": [
+                400,
+                700
+              ],
+              "style": "normal"
+            }
+          ]
+        }
+      },
+      "handwriting": [
+        {
           "family": "Shantell Sans",
           "description": "Uneven strokes and adjustable bounce put the trace of a pen into type.",
           "weights": [
@@ -2819,56 +2908,6 @@
             }
           ]
         },
-        "body": {
-          "family": "Shantell Sans",
-          "description": "Reduced bounce and informal detail keep the written texture steady in paragraphs.",
-          "weights": [
-            400,
-            700
-          ],
-          "licence": "SIL Open Font License 1.1",
-          "sample": "A clear line leaves room for the next thought.",
-          "sizes": {
-            "display": {
-              "size": 72,
-              "lineHeight": 1,
-              "tracking": -0.02,
-              "weight": 700,
-              "variations": null
-            },
-            "middle": {
-              "size": 17,
-              "lineHeight": 1.55,
-              "tracking": 0,
-              "weight": 400,
-              "variations": null
-            },
-            "small": {
-              "size": 17,
-              "lineHeight": 1.5,
-              "tracking": 0,
-              "weight": 400,
-              "variations": null
-            }
-          },
-          "files": [
-            {
-              "path": "fonts/Shantell Sans/ShantellSans-Latin.woff2",
-              "weight": [
-                300,
-                800
-              ],
-              "style": "normal"
-            }
-          ],
-          "variations": {
-            "BNCE": 0,
-            "INFM": 0,
-            "SPAC": 0
-          }
-        }
-      },
-      "handwriting": [
         {
           "family": "Kalam",
           "description": "Soft, separate pen strokes make a short note feel relaxed.",
@@ -2907,54 +2946,16 @@
               "style": "normal"
             }
           ]
-        },
-        {
-          "family": "Covered By Your Grace",
-          "description": "Narrow upright strokes fit an energetic aside into a small space.",
-          "weights": [
-            400
-          ],
-          "licence": "SIL Open Font License 1.1",
-          "sample": "A small thought in the margin.",
-          "sizes": {
-            "display": {
-              "size": 47.2,
-              "lineHeight": 1.15,
-              "tracking": 0,
-              "weight": 400,
-              "variations": null
-            },
-            "middle": {
-              "size": 30.68,
-              "lineHeight": 1.15,
-              "tracking": 0,
-              "weight": 400,
-              "variations": null
-            },
-            "small": {
-              "size": 20.06,
-              "lineHeight": 1.35,
-              "tracking": 0,
-              "weight": 400,
-              "variations": null
-            }
-          },
-          "files": [
-            {
-              "path": "fonts/Covered By Your Grace/CoveredByYourGrace-Latin.woff2",
-              "weight": 400,
-              "style": "normal"
-            }
-          ]
         }
       ],
       "settingsProvenance": {
         "heading": "trial",
         "headingDetails": "Trial display size, line height, tracking, width bound, weights and size-specific axes retained; middle size uses the trial's explicit word size or 30px default; small tracking retains the trial's name-lockup setting.",
-        "body": "Trial regular reading weight where supplied; 72px specimen, 17px reading sizes and line heights follow the board fixture. The specimen uses bold 700 to show supporting emphasis explicitly; reading uses 400. Normal width and reduced bounce serve reading.",
+        "body": "Curated Instrument Sans reading face; 72px specimen, 17px reading sizes and line heights retained. The specimen uses bold 700; reading uses 400.",
         "notes": "Curated note order after review; each family retains its bundled three-size settings."
       },
-      "softStrongReason": "Bouncing pen strokes carry a loose and openly playful voice. Read from the heading forms; weight alone does not decide softness."
+      "softStrongReason": "Bouncing pen strokes carry a loose and openly playful voice. Read from the heading forms; weight alone does not decide softness.",
+      "selectable": false
     },
     {
       "id": "poster",
@@ -3732,7 +3733,8 @@
         "body": "Trial regular reading weight where supplied; 72px specimen, 17px reading sizes and line heights follow the board fixture. The specimen uses bold 700 to show supporting emphasis explicitly; reading uses 400. Normal width and reduced bounce serve reading.",
         "notes": "Curated note order after review; each family retains its bundled three-size settings."
       },
-      "softStrongReason": "Sculptural thick and thin strokes stand above clean, balanced reading text. Read from the heading forms; weight alone does not decide softness."
+      "softStrongReason": "Sculptural thick and thin strokes stand above clean, balanced reading text. Read from the heading forms; weight alone does not decide softness.",
+      "displayStyle": "high-contrast-serif"
     },
     {
       "id": "expressive",
@@ -4786,43 +4788,43 @@
       },
       "swatches": [
         {
-          "name": "Page base",
+          "name": "Chalk white",
           "role": "The main page",
           "share": 40,
           "key": "ground"
         },
         {
-          "name": "Inset field",
+          "name": "Oat beige",
           "role": "Supporting surfaces",
           "share": 20,
           "key": "panel"
         },
         {
-          "name": "Reading ink",
+          "name": "Near black",
           "role": "Paragraphs and names",
           "share": 14,
           "key": "text"
         },
         {
-          "name": "Deep field",
+          "name": "Dark brown",
           "role": "Large deep fields",
           "share": 12,
           "key": "deep"
         },
         {
-          "name": "Drawing ink",
+          "name": "Bright orange",
           "role": "Drawings and small gestures",
           "share": 6,
           "key": "mark"
         },
         {
-          "name": "Action fill",
+          "name": "Burnt orange",
           "role": "Primary action surface",
           "share": 4,
           "key": "pop"
         },
         {
-          "name": "Detail ink",
+          "name": "Warm grey",
           "role": "Supporting words",
           "share": 4,
           "key": "smallPrint"
@@ -4831,43 +4833,43 @@
       "modeSwatches": {
         "light": [
           {
-            "name": "Page base",
+            "name": "Chalk white",
             "role": "The main page",
             "share": 40,
             "key": "ground"
           },
           {
-            "name": "Inset field",
+            "name": "Oat beige",
             "role": "Supporting surfaces",
             "share": 20,
             "key": "panel"
           },
           {
-            "name": "Reading ink",
+            "name": "Near black",
             "role": "Paragraphs and names",
             "share": 14,
             "key": "text"
           },
           {
-            "name": "Deep field",
+            "name": "Dark brown",
             "role": "Large deep fields",
             "share": 12,
             "key": "deep"
           },
           {
-            "name": "Drawing ink",
+            "name": "Bright orange",
             "role": "Drawings and small gestures",
             "share": 6,
             "key": "mark"
           },
           {
-            "name": "Action fill",
+            "name": "Burnt orange",
             "role": "Primary action surface",
             "share": 4,
             "key": "pop"
           },
           {
-            "name": "Detail ink",
+            "name": "Warm grey",
             "role": "Supporting words",
             "share": 4,
             "key": "smallPrint"
@@ -4875,37 +4877,37 @@
         ],
         "dark": [
           {
-            "name": "Page base",
+            "name": "Dark brown",
             "role": "The main page",
             "share": 44,
             "key": "ground"
           },
           {
-            "name": "Inset field",
+            "name": "Deep brown",
             "role": "Supporting surfaces",
             "share": 20,
             "key": "panel"
           },
           {
-            "name": "Reading ink",
+            "name": "Warm white",
             "role": "Paragraphs and names",
             "share": 18,
             "key": "text"
           },
           {
-            "name": "Drawing ink",
+            "name": "Bright orange",
             "role": "Drawings and small gestures",
             "share": 6,
             "key": "mark"
           },
           {
-            "name": "Action fill",
+            "name": "Burnt orange",
             "role": "Primary action surface",
             "share": 4,
             "key": "pop"
           },
           {
-            "name": "Detail ink",
+            "name": "Warm grey",
             "role": "Supporting words",
             "share": 8,
             "key": "smallPrint"
@@ -5011,37 +5013,37 @@
       },
       "swatches": [
         {
-          "name": "Page base",
+          "name": "Pale grey",
           "role": "The main page",
           "share": 42,
           "key": "ground"
         },
         {
-          "name": "Inset field",
+          "name": "Light grey",
           "role": "Supporting surfaces",
           "share": 18,
           "key": "panel"
         },
         {
-          "name": "Reading ink",
+          "name": "Charcoal",
           "role": "Paragraphs and names",
           "share": 16,
           "key": "text"
         },
         {
-          "name": "Deep field",
+          "name": "Dark brown",
           "role": "Large deep fields",
           "share": 12,
           "key": "deep"
         },
         {
-          "name": "Action fill",
+          "name": "Golden yellow",
           "role": "Primary action surface",
           "share": 8,
           "key": "pop"
         },
         {
-          "name": "Drawing ink",
+          "name": "Warm grey",
           "role": "Drawings and small gestures",
           "share": 4,
           "key": "mark"
@@ -5093,7 +5095,85 @@
         "handGeometric": "either",
         "softStrong": "soft"
       },
-      "softStrongReason": "A pale mineral sheet keeps yellow a small working signal."
+      "softStrongReason": "A pale mineral sheet keeps yellow a small working signal.",
+      "modeSwatches": {
+        "light": [
+          {
+            "name": "Pale grey",
+            "role": "The main page",
+            "share": 42,
+            "key": "ground"
+          },
+          {
+            "name": "Light grey",
+            "role": "Supporting surfaces",
+            "share": 18,
+            "key": "panel"
+          },
+          {
+            "name": "Charcoal",
+            "role": "Paragraphs and names",
+            "share": 16,
+            "key": "text"
+          },
+          {
+            "name": "Dark brown",
+            "role": "Large deep fields",
+            "share": 12,
+            "key": "deep"
+          },
+          {
+            "name": "Golden yellow",
+            "role": "Primary action surface",
+            "share": 8,
+            "key": "pop"
+          },
+          {
+            "name": "Warm grey",
+            "role": "Drawings and small gestures",
+            "share": 4,
+            "key": "mark"
+          }
+        ],
+        "dark": [
+          {
+            "name": "Dark brown",
+            "role": "The main page",
+            "share": 42,
+            "key": "ground"
+          },
+          {
+            "name": "Brown",
+            "role": "Supporting surfaces",
+            "share": 18,
+            "key": "panel"
+          },
+          {
+            "name": "Warm white",
+            "role": "Paragraphs and names",
+            "share": 16,
+            "key": "text"
+          },
+          {
+            "name": "Dark brown 2",
+            "role": "Large deep fields",
+            "share": 12,
+            "key": "deep"
+          },
+          {
+            "name": "Golden yellow",
+            "role": "Primary action surface",
+            "share": 8,
+            "key": "pop"
+          },
+          {
+            "name": "Golden yellow 2",
+            "role": "Drawings and small gestures",
+            "share": 4,
+            "key": "mark"
+          }
+        ]
+      }
     },
     {
       "id": "plaster-red",
@@ -5146,37 +5226,37 @@
       },
       "swatches": [
         {
-          "name": "Page base",
+          "name": "Pale peach",
           "role": "The main page",
           "share": 40,
           "key": "ground"
         },
         {
-          "name": "Inset field",
+          "name": "Sand beige",
           "role": "Supporting surfaces",
           "share": 18,
           "key": "panel"
         },
         {
-          "name": "Reading ink",
+          "name": "Near black",
           "role": "Paragraphs and names",
           "share": 16,
           "key": "text"
         },
         {
-          "name": "Deep field",
+          "name": "Burgundy",
           "role": "Large deep fields",
           "share": 12,
           "key": "deep"
         },
         {
-          "name": "Action fill",
+          "name": "Red",
           "role": "Primary action surface",
           "share": 10,
           "key": "pop"
         },
         {
-          "name": "Detail ink",
+          "name": "Brown",
           "role": "Supporting words",
           "share": 4,
           "key": "smallPrint"
@@ -5201,7 +5281,85 @@
         "handGeometric": "either",
         "softStrong": "soft"
       },
-      "softStrongReason": "Pink plaster gives rounded lettering grounded warmth."
+      "softStrongReason": "Pink plaster gives rounded lettering grounded warmth.",
+      "modeSwatches": {
+        "light": [
+          {
+            "name": "Pale peach",
+            "role": "The main page",
+            "share": 40,
+            "key": "ground"
+          },
+          {
+            "name": "Sand beige",
+            "role": "Supporting surfaces",
+            "share": 18,
+            "key": "panel"
+          },
+          {
+            "name": "Near black",
+            "role": "Paragraphs and names",
+            "share": 16,
+            "key": "text"
+          },
+          {
+            "name": "Burgundy",
+            "role": "Large deep fields",
+            "share": 12,
+            "key": "deep"
+          },
+          {
+            "name": "Red",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          },
+          {
+            "name": "Brown",
+            "role": "Supporting words",
+            "share": 4,
+            "key": "smallPrint"
+          }
+        ],
+        "dark": [
+          {
+            "name": "Burgundy",
+            "role": "The main page",
+            "share": 40,
+            "key": "ground"
+          },
+          {
+            "name": "Dark red",
+            "role": "Supporting surfaces",
+            "share": 18,
+            "key": "panel"
+          },
+          {
+            "name": "Warm white",
+            "role": "Paragraphs and names",
+            "share": 16,
+            "key": "text"
+          },
+          {
+            "name": "Burgundy 2",
+            "role": "Large deep fields",
+            "share": 12,
+            "key": "deep"
+          },
+          {
+            "name": "Salmon pink",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          },
+          {
+            "name": "Pale pink",
+            "role": "Supporting words",
+            "share": 4,
+            "key": "smallPrint"
+          }
+        ]
+      }
     },
     {
       "id": "tan-blue",
@@ -5254,37 +5412,37 @@
       },
       "swatches": [
         {
-          "name": "Page base",
+          "name": "Tan",
           "role": "The main page",
           "share": 42,
           "key": "ground"
         },
         {
-          "name": "Inset field",
+          "name": "Cream",
           "role": "Supporting surfaces",
           "share": 20,
           "key": "panel"
         },
         {
-          "name": "Reading ink",
+          "name": "Near black",
           "role": "Paragraphs and names",
           "share": 16,
           "key": "text"
         },
         {
-          "name": "Deep field",
+          "name": "Dark brown",
           "role": "Large deep fields",
           "share": 10,
           "key": "deep"
         },
         {
-          "name": "Action fill",
+          "name": "Royal blue",
           "role": "Primary action surface",
           "share": 8,
           "key": "pop"
         },
         {
-          "name": "Detail ink",
+          "name": "Brown",
           "role": "Supporting words",
           "share": 4,
           "key": "smallPrint"
@@ -5318,7 +5476,85 @@
         "handGeometric": "either",
         "softStrong": "strong"
       },
-      "softStrongReason": "Dark brown text and a firm blue stroke give the tan page structure."
+      "softStrongReason": "Dark brown text and a firm blue stroke give the tan page structure.",
+      "modeSwatches": {
+        "light": [
+          {
+            "name": "Tan",
+            "role": "The main page",
+            "share": 42,
+            "key": "ground"
+          },
+          {
+            "name": "Cream",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Near black",
+            "role": "Paragraphs and names",
+            "share": 16,
+            "key": "text"
+          },
+          {
+            "name": "Dark brown",
+            "role": "Large deep fields",
+            "share": 10,
+            "key": "deep"
+          },
+          {
+            "name": "Royal blue",
+            "role": "Primary action surface",
+            "share": 8,
+            "key": "pop"
+          },
+          {
+            "name": "Brown",
+            "role": "Supporting words",
+            "share": 4,
+            "key": "smallPrint"
+          }
+        ],
+        "dark": [
+          {
+            "name": "Dark brown",
+            "role": "The main page",
+            "share": 42,
+            "key": "ground"
+          },
+          {
+            "name": "Brown",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Cream",
+            "role": "Paragraphs and names",
+            "share": 16,
+            "key": "text"
+          },
+          {
+            "name": "Dark brown 2",
+            "role": "Large deep fields",
+            "share": 10,
+            "key": "deep"
+          },
+          {
+            "name": "Periwinkle blue",
+            "role": "Primary action surface",
+            "share": 8,
+            "key": "pop"
+          },
+          {
+            "name": "Beige",
+            "role": "Supporting words",
+            "share": 4,
+            "key": "smallPrint"
+          }
+        ]
+      }
     },
     {
       "id": "white-blue",
@@ -5371,31 +5607,31 @@
       },
       "swatches": [
         {
-          "name": "Page base",
+          "name": "Blue white",
           "role": "The main page",
           "share": 46,
           "key": "ground"
         },
         {
-          "name": "Action fill",
+          "name": "Royal blue",
           "role": "Primary action surface",
           "share": 30,
           "key": "pop"
         },
         {
-          "name": "Reading ink",
+          "name": "Near black",
           "role": "Paragraphs and names",
           "share": 16,
           "key": "text"
         },
         {
-          "name": "Inset field",
+          "name": "Pale blue",
           "role": "Supporting surfaces",
           "share": 6,
           "key": "panel"
         },
         {
-          "name": "Detail ink",
+          "name": "Slate blue",
           "role": "Supporting words",
           "share": 2,
           "key": "smallPrint"
@@ -5512,7 +5748,73 @@
         "handGeometric": "either",
         "softStrong": "strong"
       },
-      "softStrongReason": "Ultramarine takes the largest colour field on blue-tinted white."
+      "softStrongReason": "Ultramarine takes the largest colour field on blue-tinted white.",
+      "modeSwatches": {
+        "light": [
+          {
+            "name": "Blue white",
+            "role": "The main page",
+            "share": 46,
+            "key": "ground"
+          },
+          {
+            "name": "Royal blue",
+            "role": "Primary action surface",
+            "share": 30,
+            "key": "pop"
+          },
+          {
+            "name": "Near black",
+            "role": "Paragraphs and names",
+            "share": 16,
+            "key": "text"
+          },
+          {
+            "name": "Pale blue",
+            "role": "Supporting surfaces",
+            "share": 6,
+            "key": "panel"
+          },
+          {
+            "name": "Slate blue",
+            "role": "Supporting words",
+            "share": 2,
+            "key": "smallPrint"
+          }
+        ],
+        "dark": [
+          {
+            "name": "Royal blue",
+            "role": "The main page",
+            "share": 46,
+            "key": "ground"
+          },
+          {
+            "name": "White",
+            "role": "Primary action surface",
+            "share": 30,
+            "key": "pop"
+          },
+          {
+            "name": "White 2",
+            "role": "Paragraphs and names",
+            "share": 16,
+            "key": "text"
+          },
+          {
+            "name": "Deep blue",
+            "role": "Supporting surfaces",
+            "share": 6,
+            "key": "panel"
+          },
+          {
+            "name": "Blue white",
+            "role": "Supporting words",
+            "share": 2,
+            "key": "smallPrint"
+          }
+        ]
+      }
     },
     {
       "id": "gold-pink",
@@ -5565,31 +5867,31 @@
       },
       "swatches": [
         {
-          "name": "Page base",
+          "name": "Golden yellow",
           "role": "The main page",
           "share": 40,
           "key": "ground"
         },
         {
-          "name": "Inset field",
+          "name": "Cream",
           "role": "Supporting surfaces",
           "share": 18,
           "key": "panel"
         },
         {
-          "name": "Reading ink",
+          "name": "Dark plum",
           "role": "Paragraphs and names",
           "share": 30,
           "key": "text"
         },
         {
-          "name": "Action fill",
+          "name": "Pink",
           "role": "Primary action surface",
           "share": 8,
           "key": "pop"
         },
         {
-          "name": "Detail ink",
+          "name": "Plum",
           "role": "Supporting words",
           "share": 4,
           "key": "smallPrint"
@@ -5623,7 +5925,73 @@
         "handGeometric": "either",
         "softStrong": "strong"
       },
-      "softStrongReason": "Golden yellow, deep plum and saturated pink share broad colour fields."
+      "softStrongReason": "Golden yellow, deep plum and saturated pink share broad colour fields.",
+      "modeSwatches": {
+        "light": [
+          {
+            "name": "Golden yellow",
+            "role": "The main page",
+            "share": 40,
+            "key": "ground"
+          },
+          {
+            "name": "Cream",
+            "role": "Supporting surfaces",
+            "share": 18,
+            "key": "panel"
+          },
+          {
+            "name": "Dark plum",
+            "role": "Paragraphs and names",
+            "share": 30,
+            "key": "text"
+          },
+          {
+            "name": "Pink",
+            "role": "Primary action surface",
+            "share": 8,
+            "key": "pop"
+          },
+          {
+            "name": "Plum",
+            "role": "Supporting words",
+            "share": 4,
+            "key": "smallPrint"
+          }
+        ],
+        "dark": [
+          {
+            "name": "Dark plum",
+            "role": "The main page",
+            "share": 40,
+            "key": "ground"
+          },
+          {
+            "name": "Plum",
+            "role": "Supporting surfaces",
+            "share": 18,
+            "key": "panel"
+          },
+          {
+            "name": "Cream",
+            "role": "Paragraphs and names",
+            "share": 30,
+            "key": "text"
+          },
+          {
+            "name": "Golden yellow",
+            "role": "Primary action surface",
+            "share": 8,
+            "key": "pop"
+          },
+          {
+            "name": "Pale mauve",
+            "role": "Supporting words",
+            "share": 4,
+            "key": "smallPrint"
+          }
+        ]
+      }
     },
     {
       "id": "red-sky",
@@ -5676,25 +6044,25 @@
       },
       "swatches": [
         {
-          "name": "Page base",
+          "name": "Red orange",
           "role": "The main page",
           "share": 44,
           "key": "ground"
         },
         {
-          "name": "Inset field",
+          "name": "Pale cream",
           "role": "Supporting surfaces",
           "share": 18,
           "key": "panel"
         },
         {
-          "name": "Reading ink",
+          "name": "Navy blue",
           "role": "Paragraphs and names",
           "share": 28,
           "key": "text"
         },
         {
-          "name": "Action fill",
+          "name": "Sky blue",
           "role": "Primary action surface",
           "share": 10,
           "key": "pop"
@@ -5764,7 +6132,61 @@
         "handGeometric": "either",
         "softStrong": "strong"
       },
-      "softStrongReason": "A tomato field and navy lettering make a firm colour statement."
+      "softStrongReason": "A tomato field and navy lettering make a firm colour statement.",
+      "modeSwatches": {
+        "light": [
+          {
+            "name": "Red orange",
+            "role": "The main page",
+            "share": 44,
+            "key": "ground"
+          },
+          {
+            "name": "Pale cream",
+            "role": "Supporting surfaces",
+            "share": 18,
+            "key": "panel"
+          },
+          {
+            "name": "Navy blue",
+            "role": "Paragraphs and names",
+            "share": 28,
+            "key": "text"
+          },
+          {
+            "name": "Sky blue",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ],
+        "dark": [
+          {
+            "name": "Navy blue",
+            "role": "The main page",
+            "share": 44,
+            "key": "ground"
+          },
+          {
+            "name": "Deep blue",
+            "role": "Supporting surfaces",
+            "share": 18,
+            "key": "panel"
+          },
+          {
+            "name": "Pale cream",
+            "role": "Paragraphs and names",
+            "share": 28,
+            "key": "text"
+          },
+          {
+            "name": "Coral",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ]
+      }
     },
     {
       "id": "print-pink",
@@ -5817,31 +6239,31 @@
       },
       "swatches": [
         {
-          "name": "Page base",
+          "name": "Warm white",
           "role": "The main page",
           "share": 40,
           "key": "ground"
         },
         {
-          "name": "Title ink",
+          "name": "Ocean blue",
           "role": "Titles and names",
           "share": 14,
           "key": "headline"
         },
         {
-          "name": "Reading ink",
+          "name": "Navy blue",
           "role": "Paragraphs and names",
           "share": 18,
           "key": "text"
         },
         {
-          "name": "Action fill",
+          "name": "Bright pink",
           "role": "Primary action surface",
           "share": 14,
           "key": "pop"
         },
         {
-          "name": "Inset field",
+          "name": "Pale yellow",
           "role": "Supporting surfaces",
           "share": 14,
           "key": "panel"
@@ -5920,7 +6342,73 @@
         "handGeometric": "either",
         "softStrong": "either"
       },
-      "softStrongReason": "Pink ink and a pale yellow sheet balance the blue lettering."
+      "softStrongReason": "Pink ink and a pale yellow sheet balance the blue lettering.",
+      "modeSwatches": {
+        "light": [
+          {
+            "name": "Warm white",
+            "role": "The main page",
+            "share": 40,
+            "key": "ground"
+          },
+          {
+            "name": "Ocean blue",
+            "role": "Titles and names",
+            "share": 14,
+            "key": "headline"
+          },
+          {
+            "name": "Navy blue",
+            "role": "Paragraphs and names",
+            "share": 18,
+            "key": "text"
+          },
+          {
+            "name": "Bright pink",
+            "role": "Primary action surface",
+            "share": 14,
+            "key": "pop"
+          },
+          {
+            "name": "Pale yellow",
+            "role": "Supporting surfaces",
+            "share": 14,
+            "key": "panel"
+          }
+        ],
+        "dark": [
+          {
+            "name": "Navy blue",
+            "role": "The main page",
+            "share": 40,
+            "key": "ground"
+          },
+          {
+            "name": "Warm white",
+            "role": "Titles and names",
+            "share": 14,
+            "key": "headline"
+          },
+          {
+            "name": "Warm white 2",
+            "role": "Paragraphs and names",
+            "share": 18,
+            "key": "text"
+          },
+          {
+            "name": "Bright pink",
+            "role": "Primary action surface",
+            "share": 14,
+            "key": "pop"
+          },
+          {
+            "name": "Deep blue",
+            "role": "Supporting surfaces",
+            "share": 14,
+            "key": "panel"
+          }
+        ]
+      }
     },
     {
       "id": "white-green",
@@ -5973,31 +6461,31 @@
       },
       "swatches": [
         {
-          "name": "Page base",
+          "name": "Green white",
           "role": "The main page",
           "share": 46,
           "key": "ground"
         },
         {
-          "name": "Action fill",
+          "name": "Leaf green",
           "role": "Primary action surface",
           "share": 28,
           "key": "pop"
         },
         {
-          "name": "Reading ink",
+          "name": "Near black",
           "role": "Paragraphs and names",
           "share": 18,
           "key": "text"
         },
         {
-          "name": "Inset field",
+          "name": "Pale green",
           "role": "Supporting surfaces",
           "share": 4,
           "key": "panel"
         },
         {
-          "name": "Deep field",
+          "name": "Forest green",
           "role": "Large deep fields",
           "share": 4,
           "key": "deep"
@@ -6131,7 +6619,73 @@
         "handGeometric": "either",
         "softStrong": "strong"
       },
-      "softStrongReason": "Upright dark lettering meets a large fresh green field."
+      "softStrongReason": "Upright dark lettering meets a large fresh green field.",
+      "modeSwatches": {
+        "light": [
+          {
+            "name": "Green white",
+            "role": "The main page",
+            "share": 46,
+            "key": "ground"
+          },
+          {
+            "name": "Leaf green",
+            "role": "Primary action surface",
+            "share": 28,
+            "key": "pop"
+          },
+          {
+            "name": "Near black",
+            "role": "Paragraphs and names",
+            "share": 18,
+            "key": "text"
+          },
+          {
+            "name": "Pale green",
+            "role": "Supporting surfaces",
+            "share": 4,
+            "key": "panel"
+          },
+          {
+            "name": "Forest green",
+            "role": "Large deep fields",
+            "share": 4,
+            "key": "deep"
+          }
+        ],
+        "dark": [
+          {
+            "name": "Bright green",
+            "role": "The main page",
+            "share": 46,
+            "key": "ground"
+          },
+          {
+            "name": "Near black",
+            "role": "Primary action surface",
+            "share": 28,
+            "key": "pop"
+          },
+          {
+            "name": "Near black 2",
+            "role": "Paragraphs and names",
+            "share": 18,
+            "key": "text"
+          },
+          {
+            "name": "Leaf green",
+            "role": "Supporting surfaces",
+            "share": 4,
+            "key": "panel"
+          },
+          {
+            "name": "Forest green",
+            "role": "Large deep fields",
+            "share": 4,
+            "key": "deep"
+          }
+        ]
+      }
     },
     {
       "id": "olive-paper",
@@ -6184,37 +6738,37 @@
       },
       "swatches": [
         {
-          "name": "Page base",
+          "name": "Olive green",
           "role": "The main page",
           "share": 40,
           "key": "ground"
         },
         {
-          "name": "Inset field",
+          "name": "Dark olive",
           "role": "Supporting surfaces",
           "share": 18,
           "key": "panel"
         },
         {
-          "name": "Reading ink",
+          "name": "Cream",
           "role": "Paragraphs and names",
           "share": 16,
           "key": "text"
         },
         {
-          "name": "Deep field",
+          "name": "Deep olive",
           "role": "Large deep fields",
           "share": 14,
           "key": "deep"
         },
         {
-          "name": "Action fill",
+          "name": "Amber",
           "role": "Primary action surface",
           "share": 8,
           "key": "pop"
         },
         {
-          "name": "Detail ink",
+          "name": "Cream 2",
           "role": "Supporting words",
           "share": 4,
           "key": "smallPrint"
@@ -6383,7 +6937,85 @@
         "handGeometric": "either",
         "softStrong": "soft"
       },
-      "softStrongReason": "Cream words and a small golden signal soften the mid-olive field."
+      "softStrongReason": "Cream words and a small golden signal soften the mid-olive field.",
+      "modeSwatches": {
+        "light": [
+          {
+            "name": "Olive green",
+            "role": "The main page",
+            "share": 40,
+            "key": "ground"
+          },
+          {
+            "name": "Dark olive",
+            "role": "Supporting surfaces",
+            "share": 18,
+            "key": "panel"
+          },
+          {
+            "name": "Cream",
+            "role": "Paragraphs and names",
+            "share": 16,
+            "key": "text"
+          },
+          {
+            "name": "Deep olive",
+            "role": "Large deep fields",
+            "share": 14,
+            "key": "deep"
+          },
+          {
+            "name": "Amber",
+            "role": "Primary action surface",
+            "share": 8,
+            "key": "pop"
+          },
+          {
+            "name": "Cream 2",
+            "role": "Supporting words",
+            "share": 4,
+            "key": "smallPrint"
+          }
+        ],
+        "dark": [
+          {
+            "name": "Dark olive",
+            "role": "The main page",
+            "share": 40,
+            "key": "ground"
+          },
+          {
+            "name": "Deep olive",
+            "role": "Supporting surfaces",
+            "share": 18,
+            "key": "panel"
+          },
+          {
+            "name": "Warm white",
+            "role": "Paragraphs and names",
+            "share": 16,
+            "key": "text"
+          },
+          {
+            "name": "Deep olive 2",
+            "role": "Large deep fields",
+            "share": 14,
+            "key": "deep"
+          },
+          {
+            "name": "Amber",
+            "role": "Primary action surface",
+            "share": 8,
+            "key": "pop"
+          },
+          {
+            "name": "Warm white 2",
+            "role": "Supporting words",
+            "share": 4,
+            "key": "smallPrint"
+          }
+        ]
+      }
     },
     {
       "id": "plum-peach",
@@ -6436,37 +7068,37 @@
       },
       "swatches": [
         {
-          "name": "Page base",
+          "name": "Pale pink",
           "role": "The main page",
           "share": 44,
           "key": "ground"
         },
         {
-          "name": "Inset field",
+          "name": "Pale mauve",
           "role": "Supporting surfaces",
           "share": 18,
           "key": "panel"
         },
         {
-          "name": "Reading ink",
+          "name": "Dark plum",
           "role": "Paragraphs and names",
           "share": 18,
           "key": "text"
         },
         {
-          "name": "Deep field",
+          "name": "Deep plum",
           "role": "Large deep fields",
           "share": 8,
           "key": "deep"
         },
         {
-          "name": "Action fill",
+          "name": "Peach",
           "role": "Primary action surface",
           "share": 8,
           "key": "pop"
         },
         {
-          "name": "Detail ink",
+          "name": "Grey plum",
           "role": "Supporting words",
           "share": 4,
           "key": "smallPrint"
@@ -6572,7 +7204,85 @@
         "handGeometric": "either",
         "softStrong": "soft"
       },
-      "softStrongReason": "The muted plum room carries a soft peach signal."
+      "softStrongReason": "The muted plum room carries a soft peach signal.",
+      "modeSwatches": {
+        "light": [
+          {
+            "name": "Pale pink",
+            "role": "The main page",
+            "share": 44,
+            "key": "ground"
+          },
+          {
+            "name": "Pale mauve",
+            "role": "Supporting surfaces",
+            "share": 18,
+            "key": "panel"
+          },
+          {
+            "name": "Dark plum",
+            "role": "Paragraphs and names",
+            "share": 18,
+            "key": "text"
+          },
+          {
+            "name": "Deep plum",
+            "role": "Large deep fields",
+            "share": 8,
+            "key": "deep"
+          },
+          {
+            "name": "Peach",
+            "role": "Primary action surface",
+            "share": 8,
+            "key": "pop"
+          },
+          {
+            "name": "Grey plum",
+            "role": "Supporting words",
+            "share": 4,
+            "key": "smallPrint"
+          }
+        ],
+        "dark": [
+          {
+            "name": "Dark plum",
+            "role": "The main page",
+            "share": 44,
+            "key": "ground"
+          },
+          {
+            "name": "Plum",
+            "role": "Supporting surfaces",
+            "share": 18,
+            "key": "panel"
+          },
+          {
+            "name": "Warm white",
+            "role": "Paragraphs and names",
+            "share": 18,
+            "key": "text"
+          },
+          {
+            "name": "Deep plum",
+            "role": "Large deep fields",
+            "share": 8,
+            "key": "deep"
+          },
+          {
+            "name": "Peach",
+            "role": "Primary action surface",
+            "share": 8,
+            "key": "pop"
+          },
+          {
+            "name": "Pale mauve",
+            "role": "Supporting words",
+            "share": 4,
+            "key": "smallPrint"
+          }
+        ]
+      }
     },
     {
       "id": "navy-gold",
@@ -6625,31 +7335,31 @@
       },
       "swatches": [
         {
-          "name": "Page base",
+          "name": "Warm white",
           "role": "The main page",
           "share": 46,
           "key": "ground"
         },
         {
-          "name": "Inset field",
+          "name": "Pale beige",
           "role": "Supporting surfaces",
           "share": 16,
           "key": "panel"
         },
         {
-          "name": "Reading ink",
+          "name": "Navy blue",
           "role": "Paragraphs and names",
           "share": 20,
           "key": "text"
         },
         {
-          "name": "Action fill",
+          "name": "Navy blue 2",
           "role": "Primary action surface",
           "share": 12,
           "key": "pop"
         },
         {
-          "name": "Detail ink",
+          "name": "Slate blue",
           "role": "Supporting words",
           "share": 6,
           "key": "smallPrint"
@@ -6664,7 +7374,73 @@
         "handGeometric": "either",
         "softStrong": "strong"
       },
-      "softStrongReason": "Deep navy and warm yellow give heavy lettering a clear night setting."
+      "softStrongReason": "Deep navy and warm yellow give heavy lettering a clear night setting.",
+      "modeSwatches": {
+        "light": [
+          {
+            "name": "Warm white",
+            "role": "The main page",
+            "share": 46,
+            "key": "ground"
+          },
+          {
+            "name": "Pale beige",
+            "role": "Supporting surfaces",
+            "share": 16,
+            "key": "panel"
+          },
+          {
+            "name": "Navy blue",
+            "role": "Paragraphs and names",
+            "share": 20,
+            "key": "text"
+          },
+          {
+            "name": "Navy blue 2",
+            "role": "Primary action surface",
+            "share": 12,
+            "key": "pop"
+          },
+          {
+            "name": "Slate blue",
+            "role": "Supporting words",
+            "share": 6,
+            "key": "smallPrint"
+          }
+        ],
+        "dark": [
+          {
+            "name": "Navy blue",
+            "role": "The main page",
+            "share": 46,
+            "key": "ground"
+          },
+          {
+            "name": "Deep blue",
+            "role": "Supporting surfaces",
+            "share": 16,
+            "key": "panel"
+          },
+          {
+            "name": "Warm white",
+            "role": "Paragraphs and names",
+            "share": 20,
+            "key": "text"
+          },
+          {
+            "name": "Golden yellow",
+            "role": "Primary action surface",
+            "share": 12,
+            "key": "pop"
+          },
+          {
+            "name": "Pale blue",
+            "role": "Supporting words",
+            "share": 6,
+            "key": "smallPrint"
+          }
+        ]
+      }
     },
     {
       "id": "stone-cobalt",
@@ -6717,25 +7493,25 @@
       },
       "swatches": [
         {
-          "name": "Page base",
+          "name": "Cool white",
           "role": "The main page",
           "share": 48,
           "key": "ground"
         },
         {
-          "name": "Inset field",
+          "name": "Pale grey",
           "role": "Supporting surfaces",
           "share": 20,
           "key": "panel"
         },
         {
-          "name": "Reading ink",
+          "name": "Blue black",
           "role": "Paragraphs and names",
           "share": 22,
           "key": "text"
         },
         {
-          "name": "Action fill",
+          "name": "Cobalt blue",
           "role": "Primary action surface",
           "share": 10,
           "key": "pop"
@@ -6750,7 +7526,61 @@
         "handGeometric": "either",
         "softStrong": "soft"
       },
-      "softStrongReason": "Cool stone and blue ink keep the page quiet and precise."
+      "softStrongReason": "Cool stone and blue ink keep the page quiet and precise.",
+      "modeSwatches": {
+        "light": [
+          {
+            "name": "Cool white",
+            "role": "The main page",
+            "share": 48,
+            "key": "ground"
+          },
+          {
+            "name": "Pale grey",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Blue black",
+            "role": "Paragraphs and names",
+            "share": 22,
+            "key": "text"
+          },
+          {
+            "name": "Cobalt blue",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ],
+        "dark": [
+          {
+            "name": "Blue black",
+            "role": "The main page",
+            "share": 48,
+            "key": "ground"
+          },
+          {
+            "name": "Deep blue",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Cool white",
+            "role": "Paragraphs and names",
+            "share": 22,
+            "key": "text"
+          },
+          {
+            "name": "Pale blue",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ]
+      }
     },
     {
       "id": "sage-brass",
@@ -6803,25 +7633,25 @@
       },
       "swatches": [
         {
-          "name": "Page base",
+          "name": "Pale sage",
           "role": "The main page",
           "share": 48,
           "key": "ground"
         },
         {
-          "name": "Inset field",
+          "name": "Light sage",
           "role": "Supporting surfaces",
           "share": 20,
           "key": "panel"
         },
         {
-          "name": "Reading ink",
+          "name": "Forest green",
           "role": "Paragraphs and names",
           "share": 22,
           "key": "text"
         },
         {
-          "name": "Action fill",
+          "name": "Brass yellow",
           "role": "Primary action surface",
           "share": 10,
           "key": "pop"
@@ -6836,7 +7666,61 @@
         "handGeometric": "either",
         "softStrong": "soft"
       },
-      "softStrongReason": "Pale sage and a brass stroke make a calm natural sheet."
+      "softStrongReason": "Pale sage and a brass stroke make a calm natural sheet.",
+      "modeSwatches": {
+        "light": [
+          {
+            "name": "Pale sage",
+            "role": "The main page",
+            "share": 48,
+            "key": "ground"
+          },
+          {
+            "name": "Light sage",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Forest green",
+            "role": "Paragraphs and names",
+            "share": 22,
+            "key": "text"
+          },
+          {
+            "name": "Brass yellow",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ],
+        "dark": [
+          {
+            "name": "Forest green",
+            "role": "The main page",
+            "share": 48,
+            "key": "ground"
+          },
+          {
+            "name": "Deep green",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Pale sage",
+            "role": "Paragraphs and names",
+            "share": 22,
+            "key": "text"
+          },
+          {
+            "name": "Brass yellow",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ]
+      }
     },
     {
       "id": "white-oxblood",
@@ -6889,25 +7773,25 @@
       },
       "swatches": [
         {
-          "name": "Page base",
+          "name": "Pink white",
           "role": "The main page",
           "share": 48,
           "key": "ground"
         },
         {
-          "name": "Inset field",
+          "name": "Pale pink",
           "role": "Supporting surfaces",
           "share": 20,
           "key": "panel"
         },
         {
-          "name": "Reading ink",
+          "name": "Burgundy",
           "role": "Paragraphs and names",
           "share": 22,
           "key": "text"
         },
         {
-          "name": "Action fill",
+          "name": "Deep red",
           "role": "Primary action surface",
           "share": 10,
           "key": "pop"
@@ -7283,7 +8167,61 @@
         "handGeometric": "either",
         "softStrong": "strong"
       },
-      "softStrongReason": "One deep oxblood red takes a large confident field."
+      "softStrongReason": "One deep oxblood red takes a large confident field.",
+      "modeSwatches": {
+        "light": [
+          {
+            "name": "Pink white",
+            "role": "The main page",
+            "share": 48,
+            "key": "ground"
+          },
+          {
+            "name": "Pale pink",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Burgundy",
+            "role": "Paragraphs and names",
+            "share": 22,
+            "key": "text"
+          },
+          {
+            "name": "Deep red",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ],
+        "dark": [
+          {
+            "name": "Burgundy",
+            "role": "The main page",
+            "share": 48,
+            "key": "ground"
+          },
+          {
+            "name": "Deep red",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Pink white",
+            "role": "Paragraphs and names",
+            "share": 22,
+            "key": "text"
+          },
+          {
+            "name": "Pale pink",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ]
+      }
     },
     {
       "id": "white-vermilion",
@@ -7336,25 +8274,25 @@
       },
       "swatches": [
         {
-          "name": "Page base",
+          "name": "Warm white",
           "role": "The main page",
           "share": 48,
           "key": "ground"
         },
         {
-          "name": "Inset field",
+          "name": "Pale beige",
           "role": "Supporting surfaces",
           "share": 20,
           "key": "panel"
         },
         {
-          "name": "Reading ink",
+          "name": "Dark brown",
           "role": "Paragraphs and names",
           "share": 22,
           "key": "text"
         },
         {
-          "name": "Action fill",
+          "name": "Brick red",
           "role": "Primary action surface",
           "share": 10,
           "key": "pop"
@@ -7388,7 +8326,61 @@
         "handGeometric": "either",
         "softStrong": "strong"
       },
-      "softStrongReason": "The deep red-orange field makes a direct statement."
+      "softStrongReason": "The deep red-orange field makes a direct statement.",
+      "modeSwatches": {
+        "light": [
+          {
+            "name": "Warm white",
+            "role": "The main page",
+            "share": 48,
+            "key": "ground"
+          },
+          {
+            "name": "Pale beige",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Dark brown",
+            "role": "Paragraphs and names",
+            "share": 22,
+            "key": "text"
+          },
+          {
+            "name": "Brick red",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ],
+        "dark": [
+          {
+            "name": "Dark red",
+            "role": "The main page",
+            "share": 48,
+            "key": "ground"
+          },
+          {
+            "name": "Brick red",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Cream",
+            "role": "Paragraphs and names",
+            "share": 22,
+            "key": "text"
+          },
+          {
+            "name": "Peach",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ]
+      }
     },
     {
       "id": "lime-teal",
@@ -7441,25 +8433,25 @@
       },
       "swatches": [
         {
-          "name": "Page base",
+          "name": "Lime green",
           "role": "The main page",
           "share": 48,
           "key": "ground"
         },
         {
-          "name": "Inset field",
+          "name": "Pale lime",
           "role": "Supporting surfaces",
           "share": 20,
           "key": "panel"
         },
         {
-          "name": "Reading ink",
+          "name": "Deep teal",
           "role": "Paragraphs and names",
           "share": 22,
           "key": "text"
         },
         {
-          "name": "Action fill",
+          "name": "Teal",
           "role": "Primary action surface",
           "share": 10,
           "key": "pop"
@@ -7493,7 +8485,61 @@
         "handGeometric": "either",
         "softStrong": "strong"
       },
-      "softStrongReason": "Clear lime and blue-black words feel sharp and open."
+      "softStrongReason": "Clear lime and blue-black words feel sharp and open.",
+      "modeSwatches": {
+        "light": [
+          {
+            "name": "Lime green",
+            "role": "The main page",
+            "share": 48,
+            "key": "ground"
+          },
+          {
+            "name": "Pale lime",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Deep teal",
+            "role": "Paragraphs and names",
+            "share": 22,
+            "key": "text"
+          },
+          {
+            "name": "Teal",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ],
+        "dark": [
+          {
+            "name": "Deep teal",
+            "role": "The main page",
+            "share": 48,
+            "key": "ground"
+          },
+          {
+            "name": "Teal",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Pale lime",
+            "role": "Paragraphs and names",
+            "share": 22,
+            "key": "text"
+          },
+          {
+            "name": "Light lime",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ]
+      }
     },
     {
       "id": "citrus-blue",
@@ -7546,25 +8592,25 @@
       },
       "swatches": [
         {
-          "name": "Page base",
+          "name": "Orange",
           "role": "The main page",
           "share": 48,
           "key": "ground"
         },
         {
-          "name": "Inset field",
+          "name": "Pale yellow",
           "role": "Supporting surfaces",
           "share": 20,
           "key": "panel"
         },
         {
-          "name": "Reading ink",
+          "name": "Navy blue",
           "role": "Paragraphs and names",
           "share": 22,
           "key": "text"
         },
         {
-          "name": "Action fill",
+          "name": "Royal blue",
           "role": "Primary action surface",
           "share": 10,
           "key": "pop"
@@ -7589,7 +8635,61 @@
         "handGeometric": "either",
         "softStrong": "strong"
       },
-      "softStrongReason": "Orange and yellow fields meet firm blue lettering."
+      "softStrongReason": "Orange and yellow fields meet firm blue lettering.",
+      "modeSwatches": {
+        "light": [
+          {
+            "name": "Orange",
+            "role": "The main page",
+            "share": 48,
+            "key": "ground"
+          },
+          {
+            "name": "Pale yellow",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Navy blue",
+            "role": "Paragraphs and names",
+            "share": 22,
+            "key": "text"
+          },
+          {
+            "name": "Royal blue",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ],
+        "dark": [
+          {
+            "name": "Navy blue",
+            "role": "The main page",
+            "share": 48,
+            "key": "ground"
+          },
+          {
+            "name": "Deep blue",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Cream",
+            "role": "Paragraphs and names",
+            "share": 22,
+            "key": "text"
+          },
+          {
+            "name": "Golden yellow",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ]
+      }
     },
     {
       "id": "cobalt-yellow",
@@ -7642,25 +8742,25 @@
       },
       "swatches": [
         {
-          "name": "Page base",
+          "name": "Cobalt blue",
           "role": "The main page",
           "share": 48,
           "key": "ground"
         },
         {
-          "name": "Inset field",
+          "name": "Deep blue",
           "role": "Supporting surfaces",
           "share": 20,
           "key": "panel"
         },
         {
-          "name": "Reading ink",
+          "name": "Cream",
           "role": "Paragraphs and names",
           "share": 22,
           "key": "text"
         },
         {
-          "name": "Action fill",
+          "name": "Golden yellow",
           "role": "Primary action surface",
           "share": 10,
           "key": "pop"
@@ -7675,7 +8775,61 @@
         "handGeometric": "either",
         "softStrong": "strong"
       },
-      "softStrongReason": "Cobalt carries pale lettering with a clear yellow accent."
+      "softStrongReason": "Cobalt carries pale lettering with a clear yellow accent.",
+      "modeSwatches": {
+        "light": [
+          {
+            "name": "Cobalt blue",
+            "role": "The main page",
+            "share": 48,
+            "key": "ground"
+          },
+          {
+            "name": "Deep blue",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Cream",
+            "role": "Paragraphs and names",
+            "share": 22,
+            "key": "text"
+          },
+          {
+            "name": "Golden yellow",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ],
+        "dark": [
+          {
+            "name": "Navy blue",
+            "role": "The main page",
+            "share": 48,
+            "key": "ground"
+          },
+          {
+            "name": "Deep blue",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Cream",
+            "role": "Paragraphs and names",
+            "share": 22,
+            "key": "text"
+          },
+          {
+            "name": "Sand yellow",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ]
+      }
     },
     {
       "id": "forest-coral",
@@ -7728,25 +8882,25 @@
       },
       "swatches": [
         {
-          "name": "Page base",
+          "name": "Forest green",
           "role": "The main page",
           "share": 48,
           "key": "ground"
         },
         {
-          "name": "Inset field",
+          "name": "Deep green",
           "role": "Supporting surfaces",
           "share": 20,
           "key": "panel"
         },
         {
-          "name": "Reading ink",
+          "name": "Cream",
           "role": "Paragraphs and names",
           "share": 22,
           "key": "text"
         },
         {
-          "name": "Action fill",
+          "name": "Peach",
           "role": "Primary action surface",
           "share": 10,
           "key": "pop"
@@ -7761,7 +8915,61 @@
         "handGeometric": "either",
         "softStrong": "soft"
       },
-      "softStrongReason": "Cream words and a soft coral stroke temper the forest field."
+      "softStrongReason": "Cream words and a soft coral stroke temper the forest field.",
+      "modeSwatches": {
+        "light": [
+          {
+            "name": "Forest green",
+            "role": "The main page",
+            "share": 48,
+            "key": "ground"
+          },
+          {
+            "name": "Deep green",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Cream",
+            "role": "Paragraphs and names",
+            "share": 22,
+            "key": "text"
+          },
+          {
+            "name": "Peach",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ],
+        "dark": [
+          {
+            "name": "Forest green",
+            "role": "The main page",
+            "share": 48,
+            "key": "ground"
+          },
+          {
+            "name": "Deep green",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Cream",
+            "role": "Paragraphs and names",
+            "share": 22,
+            "key": "text"
+          },
+          {
+            "name": "Peach",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ]
+      }
     },
     {
       "id": "ink-amber",
@@ -7814,25 +9022,25 @@
       },
       "swatches": [
         {
-          "name": "Page base",
+          "name": "Cream",
           "role": "The main page",
           "share": 48,
           "key": "ground"
         },
         {
-          "name": "Inset field",
+          "name": "Pale beige",
           "role": "Supporting surfaces",
           "share": 20,
           "key": "panel"
         },
         {
-          "name": "Reading ink",
+          "name": "Dark brown",
           "role": "Paragraphs and names",
           "share": 22,
           "key": "text"
         },
         {
-          "name": "Action fill",
+          "name": "Amber",
           "role": "Primary action surface",
           "share": 10,
           "key": "pop"
@@ -7847,7 +9055,61 @@
         "handGeometric": "either",
         "softStrong": "either"
       },
-      "softStrongReason": "Brown-black ink puts pale words first while muted amber tempers it."
+      "softStrongReason": "Brown-black ink puts pale words first while muted amber tempers it.",
+      "modeSwatches": {
+        "light": [
+          {
+            "name": "Cream",
+            "role": "The main page",
+            "share": 48,
+            "key": "ground"
+          },
+          {
+            "name": "Pale beige",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Dark brown",
+            "role": "Paragraphs and names",
+            "share": 22,
+            "key": "text"
+          },
+          {
+            "name": "Amber",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ],
+        "dark": [
+          {
+            "name": "Dark brown",
+            "role": "The main page",
+            "share": 48,
+            "key": "ground"
+          },
+          {
+            "name": "Brown",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Cream",
+            "role": "Paragraphs and names",
+            "share": 22,
+            "key": "text"
+          },
+          {
+            "name": "Amber",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ]
+      }
     },
     {
       "id": "navy-coral",
@@ -7900,25 +9162,25 @@
       },
       "swatches": [
         {
-          "name": "Page base",
+          "name": "Warm white",
           "role": "The main page",
           "share": 48,
           "key": "ground"
         },
         {
-          "name": "Inset field",
+          "name": "Cool grey",
           "role": "Supporting surfaces",
           "share": 20,
           "key": "panel"
         },
         {
-          "name": "Reading ink",
+          "name": "Blue black",
           "role": "Paragraphs and names",
           "share": 22,
           "key": "text"
         },
         {
-          "name": "Action fill",
+          "name": "Brick red",
           "role": "Primary action surface",
           "share": 10,
           "key": "pop"
@@ -7952,7 +9214,61 @@
         "handGeometric": "either",
         "softStrong": "soft"
       },
-      "softStrongReason": "Smoky navy and soft coral soften the dark field."
+      "softStrongReason": "Smoky navy and soft coral soften the dark field.",
+      "modeSwatches": {
+        "light": [
+          {
+            "name": "Warm white",
+            "role": "The main page",
+            "share": 48,
+            "key": "ground"
+          },
+          {
+            "name": "Cool grey",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Blue black",
+            "role": "Paragraphs and names",
+            "share": 22,
+            "key": "text"
+          },
+          {
+            "name": "Brick red",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ],
+        "dark": [
+          {
+            "name": "Blue black",
+            "role": "The main page",
+            "share": 48,
+            "key": "ground"
+          },
+          {
+            "name": "Deep blue",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Warm white",
+            "role": "Paragraphs and names",
+            "share": 22,
+            "key": "text"
+          },
+          {
+            "name": "Coral pink",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ]
+      }
     },
     {
       "id": "rose-ink",
@@ -8005,25 +9321,25 @@
       },
       "swatches": [
         {
-          "name": "Page base",
+          "name": "Rose pink",
           "role": "The main page",
           "share": 48,
           "key": "ground"
         },
         {
-          "name": "Inset field",
+          "name": "Pale pink",
           "role": "Supporting surfaces",
           "share": 20,
           "key": "panel"
         },
         {
-          "name": "Reading ink",
+          "name": "Dark plum",
           "role": "Paragraphs and names",
           "share": 22,
           "key": "text"
         },
         {
-          "name": "Action fill",
+          "name": "Plum",
           "role": "Primary action surface",
           "share": 10,
           "key": "pop"
@@ -8381,7 +9697,61 @@
         "handGeometric": "either",
         "softStrong": "soft"
       },
-      "softStrongReason": "Pale rose inset spaces soften the full rose and burgundy field."
+      "softStrongReason": "Pale rose inset spaces soften the full rose and burgundy field.",
+      "modeSwatches": {
+        "light": [
+          {
+            "name": "Rose pink",
+            "role": "The main page",
+            "share": 48,
+            "key": "ground"
+          },
+          {
+            "name": "Pale pink",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Dark plum",
+            "role": "Paragraphs and names",
+            "share": 22,
+            "key": "text"
+          },
+          {
+            "name": "Plum",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ],
+        "dark": [
+          {
+            "name": "Dark plum",
+            "role": "The main page",
+            "share": 48,
+            "key": "ground"
+          },
+          {
+            "name": "Plum",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Pink white",
+            "role": "Paragraphs and names",
+            "share": 22,
+            "key": "text"
+          },
+          {
+            "name": "Pale pink",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ]
+      }
     },
     {
       "id": "yellow-ink",
@@ -8434,25 +9804,25 @@
       },
       "swatches": [
         {
-          "name": "Page base",
+          "name": "Yellow",
           "role": "The main page",
           "share": 48,
           "key": "ground"
         },
         {
-          "name": "Inset field",
+          "name": "Pale yellow",
           "role": "Supporting surfaces",
           "share": 20,
           "key": "panel"
         },
         {
-          "name": "Reading ink",
+          "name": "Dark brown",
           "role": "Paragraphs and names",
           "share": 22,
           "key": "text"
         },
         {
-          "name": "Action fill",
+          "name": "Brown",
           "role": "Primary action surface",
           "share": 10,
           "key": "pop"
@@ -8810,7 +10180,61 @@
         "handGeometric": "either",
         "softStrong": "strong"
       },
-      "softStrongReason": "Broad yellow and brown-black letters give practical force."
+      "softStrongReason": "Broad yellow and brown-black letters give practical force.",
+      "modeSwatches": {
+        "light": [
+          {
+            "name": "Yellow",
+            "role": "The main page",
+            "share": 48,
+            "key": "ground"
+          },
+          {
+            "name": "Pale yellow",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Dark brown",
+            "role": "Paragraphs and names",
+            "share": 22,
+            "key": "text"
+          },
+          {
+            "name": "Brown",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ],
+        "dark": [
+          {
+            "name": "Dark brown",
+            "role": "The main page",
+            "share": 48,
+            "key": "ground"
+          },
+          {
+            "name": "Brown",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Cream",
+            "role": "Paragraphs and names",
+            "share": 22,
+            "key": "text"
+          },
+          {
+            "name": "Sand yellow",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ]
+      }
     },
     {
       "id": "green-black",
@@ -8863,25 +10287,25 @@
       },
       "swatches": [
         {
-          "name": "Page base",
+          "name": "Pale sage",
           "role": "The main page",
           "share": 48,
           "key": "ground"
         },
         {
-          "name": "Inset field",
+          "name": "Light sage",
           "role": "Supporting surfaces",
           "share": 20,
           "key": "panel"
         },
         {
-          "name": "Reading ink",
+          "name": "Deep green",
           "role": "Paragraphs and names",
           "share": 22,
           "key": "text"
         },
         {
-          "name": "Action fill",
+          "name": "Forest green",
           "role": "Primary action surface",
           "share": 10,
           "key": "pop"
@@ -9239,7 +10663,61 @@
         "handGeometric": "either",
         "softStrong": "soft"
       },
-      "softStrongReason": "Soft chalk words and a muted sage signal soften green-black."
+      "softStrongReason": "Soft chalk words and a muted sage signal soften green-black.",
+      "modeSwatches": {
+        "light": [
+          {
+            "name": "Pale sage",
+            "role": "The main page",
+            "share": 48,
+            "key": "ground"
+          },
+          {
+            "name": "Light sage",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Deep green",
+            "role": "Paragraphs and names",
+            "share": 22,
+            "key": "text"
+          },
+          {
+            "name": "Forest green",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ],
+        "dark": [
+          {
+            "name": "Green black",
+            "role": "The main page",
+            "share": 48,
+            "key": "ground"
+          },
+          {
+            "name": "Deep green",
+            "role": "Supporting surfaces",
+            "share": 20,
+            "key": "panel"
+          },
+          {
+            "name": "Pale cream",
+            "role": "Paragraphs and names",
+            "share": 22,
+            "key": "text"
+          },
+          {
+            "name": "Sage green",
+            "role": "Primary action surface",
+            "share": 10,
+            "key": "pop"
+          }
+        ]
+      }
     }
   ],
   "containers": [
@@ -9547,7 +11025,7 @@
       "sample": {
         "rule": "<svg preserveAspectRatio=\"none\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 30\" ><path d=\"M2 9 H94 M6 19 H98\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"3\" stroke-linecap=\"round\" /></svg>",
         "circle": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><ellipse cx=\"48\" cy=\"13\" rx=\"45\" ry=\"11\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"/><ellipse cx=\"53\" cy=\"17\" rx=\"44\" ry=\"10\" fill=\"none\" stroke=\"currentColor\" stroke-width=\".8\"/></svg>",
-        "path": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 30\" ><circle cx=\"10\" cy=\"13\" r=\"2\" fill=\"currentColor\"/><circle cx=\"15\" cy=\"17\" r=\"2\" fill=\"currentColor\"/><circle cx=\"35\" cy=\"13\" r=\"2\" fill=\"currentColor\"/><circle cx=\"40\" cy=\"17\" r=\"2\" fill=\"currentColor\"/><circle cx=\"60\" cy=\"13\" r=\"2\" fill=\"currentColor\"/><circle cx=\"65\" cy=\"17\" r=\"2\" fill=\"currentColor\"/><circle cx=\"85\" cy=\"13\" r=\"2\" fill=\"currentColor\"/><circle cx=\"90\" cy=\"17\" r=\"2\" fill=\"currentColor\"/></svg>",
+        "path": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 30\" ><circle cx=\"10\" cy=\"13\" r=\"2\" fill=\"currentColor\"/><circle cx=\"15\" cy=\"17\" r=\"2\" fill=\"currentColor\"/><circle cx=\"47\" cy=\"13\" r=\"2\" fill=\"currentColor\"/><circle cx=\"52\" cy=\"17\" r=\"2\" fill=\"currentColor\"/><circle cx=\"85\" cy=\"13\" r=\"2\" fill=\"currentColor\"/><circle cx=\"90\" cy=\"17\" r=\"2\" fill=\"currentColor\"/></svg>",
         "closing": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 30\" ><rect x=\"43\" y=\"8\" width=\"14\" height=\"14\" fill=\"currentColor\"/></svg>"
       },
       "bannerRule": "<svg preserveAspectRatio=\"none\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 30\" ><path d=\"M2 9 H94 M6 19 H98\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"3\" stroke-linecap=\"round\" /></svg>",
@@ -9611,7 +11089,7 @@
       "sample": {
         "rule": "<svg preserveAspectRatio=\"none\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 30\" ><rect x=\"2\" y=\"12\" width=\"96\" height=\"6\" fill=\"currentColor\"/></svg>",
         "circle": "<svg preserveAspectRatio=\"none\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 30\"><path d=\"M0 3 H100 M0 27 H100\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"/></svg>",
-        "path": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 30\" ><circle cx=\"8\" cy=\"15\" r=\"4\" fill=\"currentColor\"/><circle cx=\"36\" cy=\"15\" r=\"4\" fill=\"currentColor\"/><circle cx=\"64\" cy=\"15\" r=\"4\" fill=\"currentColor\"/><circle cx=\"92\" cy=\"15\" r=\"4\" fill=\"currentColor\"/></svg>",
+        "path": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 30\" ><circle cx=\"8\" cy=\"15\" r=\"4\" fill=\"currentColor\"/><circle cx=\"49\" cy=\"15\" r=\"4\" fill=\"currentColor\"/><circle cx=\"92\" cy=\"15\" r=\"4\" fill=\"currentColor\"/></svg>",
         "closing": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 30\" ><circle cx=\"50\" cy=\"15\" r=\"10\" fill=\"currentColor\"/></svg>"
       },
       "bannerRule": "<svg preserveAspectRatio=\"none\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 30\" ><rect x=\"2\" y=\"12\" width=\"96\" height=\"6\" fill=\"currentColor\"/></svg>",
@@ -9680,7 +11158,7 @@
       "sample": {
         "rule": "<svg preserveAspectRatio=\"none\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 30\" ><path d=\"M0 15 H100\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1\" stroke-linecap=\"round\" /></svg>",
         "circle": "<svg preserveAspectRatio=\"none\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 30\"><path d=\"M3 10 V3 H16 M84 3 H97 V10 M97 20 V27 H84 M16 27 H3 V20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1\" /></svg>",
-        "path": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><circle cx=\"12\" cy=\"15\" r=\"10\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1\"/><circle cx=\"37\" cy=\"15\" r=\"10\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1\"/><circle cx=\"62\" cy=\"15\" r=\"10\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1\"/><circle cx=\"87\" cy=\"15\" r=\"10\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1\"/><path d=\"M9 11 L12 8 V22 M33 11 Q37 5 41 11 Q42 14 33 22 H42 M58 9 Q67 6 66 12 L62 15 Q69 17 66 21 Q62 25 58 21 M88 8 L82 17 H92 M89 8 V23\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" /></svg>",
+        "path": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><circle cx=\"12\" cy=\"15\" r=\"10\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1\"/><circle cx=\"49\" cy=\"15\" r=\"10\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1\"/><circle cx=\"88\" cy=\"15\" r=\"10\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1\"/><path d=\"M9 11 L12 8 V22 M45 11 Q49 5 53 11 Q54 14 45 22 H54 M84 9 Q93 6 92 12 L88 15 Q95 17 92 21 Q88 25 84 21\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" /></svg>",
         "closing": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 30\" ><path d=\"M41 5 V24 H60 M46 18 H60\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" /></svg>"
       },
       "bannerRule": "<svg preserveAspectRatio=\"none\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 30\" ><path d=\"M0 15 H100\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1\" stroke-linecap=\"round\" /></svg>",
@@ -9813,7 +11291,7 @@
       "sample": {
         "rule": "<svg preserveAspectRatio=\"none\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 30\" ><path d=\"M1 10 H99 M1 19 H99\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" /></svg>",
         "circle": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 30\" preserveAspectRatio=\"none\"><path d=\"M97 10 L92 4 L78 5 L74 2 L55 4 M42 3 L22 5 L19 4 L5 9 L3 18 L9 20 L7 24 L25 26 L42 25 L58 28 L81 25 L90 26 L97 20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.8\" stroke-linejoin=\"bevel\"/></svg>",
-        "path": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 30\" ><path d=\"M30 4 V26 M40 4 V26 M50 4 V26 M60 4 V26 M25 24 L66 6\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" /></svg>",
+        "path": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 30\" ><path d=\"M30 4 V26 M45 4 V26 M60 4 V26 M25 24 L66 6\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" /></svg>",
         "closing": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 30\" ><path d=\"M33 15 L46 26 L72 4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"3\" stroke-linecap=\"round\" /></svg>"
       },
       "bannerRule": "<svg preserveAspectRatio=\"none\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 30\" ><path d=\"M1 10 H99 M1 19 H99\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" /></svg>",
@@ -9841,6 +11319,98 @@
         "softStrong": "strong"
       },
       "softStrongReason": "Rough-edged seals and inked rings leave a firm impression."
+    }
+  ],
+  "refusedClusters": [
+    {
+      "id": "cream-serif-terracotta",
+      "source": {
+        "file": "experts/Creative Director/EXPERT.md",
+        "section": "Prohibited Defaults Taxonomy, Whole-layout clusters",
+        "recorded": "2026-07-27",
+        "decision": "2026-11-02",
+        "expectedToAge": true
+      },
+      "ground": {
+        "near": "#F4F1EA",
+        "maxRgbDistance": 24
+      },
+      "displayStyle": "high-contrast-serif",
+      "accents": {
+        "roles": [
+          "pop",
+          "mark"
+        ],
+        "match": "any",
+        "bands": [
+          {
+            "hue": [
+              5,
+              25
+            ],
+            "saturation": [
+              0.4,
+              1
+            ],
+            "lightness": [
+              0.25,
+              0.65
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-black-single-acid-or-vermilion",
+      "source": {
+        "file": "experts/Creative Director/EXPERT.md",
+        "section": "Prohibited Defaults Taxonomy, Whole-layout clusters",
+        "recorded": "2026-07-27",
+        "decision": "2026-11-02",
+        "expectedToAge": true
+      },
+      "ground": {
+        "near": "#000000",
+        "maxRgbDistance": 55
+      },
+      "accents": {
+        "roles": [
+          "pop",
+          "mark"
+        ],
+        "match": "all",
+        "maxRgbDistance": 80,
+        "bands": [
+          {
+            "hue": [
+              70,
+              110
+            ],
+            "saturation": [
+              0.6,
+              1
+            ],
+            "lightness": [
+              0.4,
+              0.7
+            ]
+          },
+          {
+            "hue": [
+              0,
+              25
+            ],
+            "saturation": [
+              0.65,
+              1
+            ],
+            "lightness": [
+              0.35,
+              0.65
+            ]
+          }
+        ]
+      }
     }
   ]
 }

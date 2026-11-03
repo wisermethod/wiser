@@ -20,8 +20,9 @@ function fixture(type = 'personal') {
   const palette = library.palettes[0], pairing = library.pairings[0], graphics = library.graphics[0];
   const face = (role) => { const f = structuredClone(pairing.type[role]); f.files = f.files.map((file) => ({ ...file, path: resolve(parts, file.path) })); return f; };
   const spec = { layout: 'board', boards: [{ number: 1, name: 'Kept board', primaryMode: 'light', buttonRadius: 4, palette: structuredClone(Object.fromEntries(['light', 'dark', 'swatches'].map((k) => [k, palette[k]]))), type: { heading: face('heading'), body: face('body') }, graphics: structuredClone(graphics), content: { brandName: 'Test Person', sentence: 'I build useful things.', body: 'A supplied line.', photoRules: 'Show people using what they make.', never: ['posed stock photographs'] }, words: [{ word: 'Useful', not: 'ornamental' }, { word: 'Clear', not: 'academic' }], monogram: { initials: 'TP', container: '<svg/>' } }] };
-  const answers = { type, name: 'Test Person', sentence: spec.boards[0].content.sentence, words: structuredClone(spec.boards[0].words), taps: { mode: 'light', feel: 'natural', history: 'established-current', strength: 'strong-solid', technology: 'craftsman', style: 'patagonia', posture: 'subaru', mood: 'ikea', place: 'workshop' }, readBack: { text: 'Natural and strong, like Patagonia.', confirmed: true }, off: [], looks: ['look:soft-serif/paper-orange/drawn'], rounds: [{ question: 'Round 1', steer: 'Warmer; as it is; stronger; more current' }], assets: [], lock: { confirmed: true, board: 1, question: 'F18', specSha256: '', contactSheetPassed: true } };
-  if (type !== 'personal') Object.assign(answers, { audience: 'People who make things.', promise: 'Useful things that last.', finalSay: 'Me, and others should see it' });
+  const answers = { type, name: 'Test Person', sentence: spec.boards[0].content.sentence, words: structuredClone(spec.boards[0].words), taps: { mode: 'light', feel: 'natural', history: 'established-current', strength: 'strong-solid', technology: 'craftsman', style: 'patagonia', posture: 'toyota', mood: 'ikea', place: 'design-workshop' }, readBack: { text: 'Natural and strong, like Patagonia.', confirmed: true }, off: [], looks: ['look:soft-serif/paper-orange/drawn'], rounds: [{ question: 'Round 1', steer: 'Warmer; as it is; stronger; more current' }], assets: [], lock: { confirmed: true, board: 1, question: 'F18', specSha256: '', contactSheetPassed: true } };
+  answers.answerNumbers = { file: '2026-11-02 V2 design answers.md', looks: ['L4'], rounds: ['C6'], board: 'C6' };
+  if (type !== 'personal') Object.assign(answers, { audience: 'People who make things.', promise: 'Useful things that last.', finalSay: 'Me, and others should see it', provenance: { register: 'Firsthand', by: 'Test Respondent' } });
   const specPath = join(root, 'board.json'), answersPath = join(root, 'answers.json'), design = join(root, 'design.md'), work = join(root, 'work/brand');
   function save() { const bytes = JSON.stringify(spec); writeFileSync(specPath, bytes); answers.lock.specSha256 = sha256(bytes); writeFileSync(answersPath, JSON.stringify(answers)); }
   save();
@@ -36,7 +37,7 @@ for (const type of ['personal', 'org', 'client', 'department']) test(`${type}: a
   assert.equal(designState(design), 'complete');
   for (const h of HEADINGS) assert.ok(result.headings.find((r) => r.heading === h));
   for (const line of design.split('\n').filter((l) => l && !l.startsWith('#') && !l.startsWith('<!--') && !l.startsWith('Markers ') && !l.startsWith('Labels '))) {
-    assert.match(line, /\(Firsthand:|\(Research inference:|\[Not available:|\(Source:/, line);
+    assert.match(line, /\(Working need:|\(Firsthand:|\(Research inference:|\[Not available:|\(Source:/, line);
   }
   for (const key of Object.keys(f.answers.taps)) assert.ok(design.includes(`#taps.${key}`));
   assert.match(design, /\[Not available: not asked\]/);
@@ -58,6 +59,11 @@ test('all locked light and dark values are unmoved, role named and pop preserved
 });
 test('fixed modular scale, weights, line heights, families and licences', () => {
   const f = fixture(); f.result(); const css = f.read(join(f.work, 'typography.css'));
+  const design = f.read();
+  assert.equal((design.match(/Working need: lock.mjs SCALE/g) || []).length, 6);
+  assert.doesNotMatch(design, /Research inference: lock\.mjs/);
+  for (let n = 1; n <= 9; n++) assert.ok(design.includes(`T${n}:`));
+  assert.doesNotMatch(design, /\bQ[1-9]:/);
   assert.equal(SCALE.base, 16); assert.equal(SCALE.ratio, 1.25);
   for (const [name, step] of Object.entries(SCALE.levels)) {
     assert.ok(css.includes(`${SCALE.ratio ** step}rem`)); assert.ok(css.includes(`--type-line-${name}-dark: ${(SCALE.lines[name] + .05).toFixed(2)}`));
@@ -70,7 +76,9 @@ test('the shared answers projection is accepted by selection with identical fiel
   const { validateAnswers } = await import('../scripts/select.mjs');
   const taps = JSON.parse(readFileSync(join(parts, 'taps.json'))), f = fixture();
   f.answers.off = ['softStrong', 'warm', 'natural'];
+  f.answers.looks = ['look-' + sha256('soft-serif/paper-orange/drawn').slice(0,32)];
   const shared = Object.fromEntries(['name', 'sentence', 'words', 'taps', 'off', 'looks'].map((k) => [k, f.answers[k]]));
+  shared.looksShown = [{value:f.answers.looks[0],pairing:'soft-serif',palette:'paper-orange',graphicSet:'drawn'}];
   assert.deepEqual(validateAnswers(structuredClone(shared), taps, library, 'round1'), shared);
   f.save(); f.result(); assert.match(f.read(), /Dropped from the steer: softStrong, warm, natural/);
 });
@@ -91,7 +99,7 @@ test('placeholder initials never become a mark', () => {
   const f = fixture(); f.result(); assert.match(f.read(), /## Mark\n\n\[Not available: a logo is offered after the lock\]/);
 });
 test('explicit legacy labels permit absent records; direction omits unsupported Pictures', () => {
-  const f = fixture(); for (const k of ['readBack', 'rounds', 'looks']) delete f.answers[k]; delete f.spec.boards[0].content.photoRules;
+  const f = fixture(); for (const k of ['readBack', 'rounds', 'looks']) delete f.answers[k]; f.answers.answerNumbers.looks = []; f.answers.answerNumbers.rounds = []; delete f.spec.boards[0].content.photoRules;
   f.answers.unavailable = { readBack: 'read-back not supplied', rounds: 'round answers not supplied', looks: 'whole looks not supplied', photoRules: 'the supplied locked board states no picture rule' };
   f.save(); f.result(); for (const reason of Object.values(f.answers.unavailable)) assert.ok(f.read().includes(reason));
   assert.doesNotMatch(f.read(join(f.work, 'brand-direction.html')), /<h2>Pictures<\/h2>/);
@@ -120,6 +128,51 @@ for (const [name, mutate, pattern] of [
   ['unknown type', (f) => { f.answers.type = 'industry'; }, /type/],
 ]) test(`refuses ${name} before any output`, () => { const f = fixture(); mutate(f); f.save(); assert.throws(f.result, pattern); assert.equal(existsSync(f.design), false); assert.equal(existsSync(f.work), false); });
 test('lock hash binds the exact supplied spec bytes', () => { const f = fixture(); writeFileSync(f.specPath, f.read(f.specPath) + '\n'); assert.throws(f.result, /specSha256/); });
+test('a place carried from the voice coach cites P12 and its file, and refuses a malformed carry', () => {
+  const f = fixture(); f.answers.taps.place = 'coffee-shop'; f.answers.carried = { place: { file: '2026-11-02 V2 voice answers.md', question: 'P12' } }; f.save(); f.result();
+  assert.ok(f.read().includes("Place, from the voice coach's P12 in `memory/answers/2026-11-02 V2 voice answers.md`: A coffee shop (coffee-shop)"));
+  assert.ok(!f.read().includes('T9: A coffee shop'));
+  const direction = f.read(join(f.work, 'brand-direction.html'));
+  assert.match(direction, /P12 in `memory\/answers\/2026-11-02 V2 voice answers\.md`: A coffee shop<\/p>/);
+  assert.doesNotMatch(direction, /T9: A coffee shop/);
+  const engineered = fixture(); engineered.answers.taps.feel = 'engineered'; engineered.save(); engineered.result(); assert.ok(engineered.read().includes('T2: Engineered: Precise and industrial (engineered)')); assert.match(engineered.read(join(engineered.work, 'brand-direction.html')), /T2: Engineered: Precise and industrial</);
+  const workshop = fixture(); workshop.answers.taps.place = 'design-workshop'; workshop.answers.carried = { place: { file: '2026-11-03 voice answers.md', question: 'P12' } }; workshop.save(); workshop.result(); assert.ok(workshop.read().includes("Place, from the voice coach's P12 in `memory/answers/2026-11-03 voice answers.md`: A design workshop (design-workshop)"));
+  const plain = fixture(); plain.answers.taps.place = 'coffee-shop'; plain.save(); plain.result(); assert.ok(!plain.read().includes('from the voice coach')); assert.match(plain.read(join(plain.work, 'brand-direction.html')), /T9: A coffee shop/);
+  for (const type of ['org', 'client', 'department']) { const o = fixture(type); o.answers.taps.place = 'spa'; o.answers.carried = { place: { file: '2026-11-02 voice answers.md', question: 'P12' } }; o.save(); assert.throws(o.result, /carried.*only a personal brand/); assert.equal(existsSync(o.design), false); }
+  for (const [mutate, pattern] of [
+    [(a) => { a.carried.place.file = 'voice answers.md'; }, /carried\.place\.file/],
+    [(a) => { a.carried.place.file = '2026-11-02 design answers.md'; }, /carried\.place\.file/],
+    [(a) => { a.carried.place.question = 'T9'; }, /carried\.place\.question/],
+    [(a) => { a.taps.place = 'place-none'; }, /taps\.place/],
+    [(a) => { a.taps.place = 'design-studio'; }, /taps\.place/],
+    [(a) => { a.taps.place = 'place-none'; a.carried.place.question = 'P12'; }, /taps\.place.*places P12 shares/],
+    [(a) => { a.carried.place.row = 'answered'; }, /carried\.place\.row.*unknown field/],
+    [(a) => { a.carried = {}; }, /carried\.place/],
+  ]) { const g = fixture(); g.answers.taps.place = 'spa'; g.answers.carried = { place: { file: '2026-11-02 voice answers.md', question: 'P12' } }; mutate(g.answers); g.save(); assert.throws(g.result, pattern); assert.equal(existsSync(g.design), false); }
+});
+test('non-personal locks require the named respondent before publication', () => {
+  for (const type of ['org', 'client', 'department']) {
+    const f = fixture(type); delete f.answers.provenance; f.save();
+    assert.throws(f.result, /provenance.*person who answered/); assert.equal(existsSync(f.design), false);
+    f.answers.provenance = { register: 'Firsthand', by: 'Named Respondent' }; f.save(); f.result();
+    assert.match(f.read(), /Firsthand: Named Respondent/); assert.doesNotMatch(f.read(), /Firsthand: Test Person/);
+  }
+});
+for (const type of ['org', 'client', 'department']) test(`${type}: the respondent cannot be the brand's own name`, () => {
+  for (const by of ['Harbor Lane Dental', '  hArBoR LaNe DeNtAl  ']) {
+    const f = fixture(type); f.answers.name = f.spec.boards[0].content.brandName = ' Harbor Lane Dental ';
+    f.answers.provenance.by = by; f.save();
+    assert.throws(f.result, /provenance\.by.*person who answered/);
+    assert.equal(existsSync(f.design), false);
+  }
+});
+test('the brand direction sets each face name in its own face and lists Foundation with its answer numbers', () => {
+  const f = fixture('org'); f.result();
+  const direction = f.read(join(f.work, 'brand-direction.html'));
+  for (const role of ['heading', 'body']) assert.match(direction, new RegExp(`<h3 style="font-family:var\\(--font-${role}\\)">`));
+  const table = direction.split('Where each choice comes from')[1];
+  for (const id of ['O1', 'O2', 'O3']) assert.match(table, new RegExp(`\\b${id}\\b`), id);
+});
 test('organisation requires audience, promise and final say', () => { for (const k of ['audience', 'promise', 'finalSay']) { const f = fixture('org'); delete f.answers[k]; f.save(); assert.throws(f.result, new RegExp(k)); } });
 test('complete existing design refuses; --replace archives bytes and numbers versions', () => {
   const f = fixture(); f.result(); const first = f.read(); assert.throws(f.result, /complete design already exists/);
@@ -164,6 +217,22 @@ test('state updates only Onboarding and Per-key close; verification preserves ol
     for (const sentence of line.split(/\. /)) assert.match(sentence, /\[V\d+\]/, sentence);
   }
 });
+for (const caller of [true, false]) test(`${caller ? '--caller preserves' : 'direct lock completes'} existing onboarding design state lines`, () => {
+  const f = fixture('org'); mkdirSync(join(f.root, 'work/onboarding'), { recursive: true });
+  const ag = join(f.root, 'AGENTS.md'), record = join(f.root, 'work/onboarding/run-record.md'), verification = join(f.root, 'work/onboarding/verification.md');
+  const agentsBefore = '## Provides\n- design: design.md\n\n## Onboarding\nNot onboarded.\n- about: blocked\n- design: blocked (person: Test Person; waits on onboarding)\n\n## Other\n- design: untouched\n';
+  const recordBefore = '## Per-key close\n- voice: blocked\n- design: provisional\n\n## Other\n- design: unchanged\n';
+  writeFileSync(ag, agentsBefore); writeFileSync(record, recordBefore);
+  writeFileSync(verification, '## Claims\n\n| Row | Key | Class | Claim | Anchor | Bound file | Cites | Mechanism | Exactness | Second mechanism | Outcome | Label | Search |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n');
+  const result = run([...(caller ? ['--caller'] : []), ...f.argv]);
+  assert.equal(f.read(ag), caller ? agentsBefore : agentsBefore.replace('- design: blocked (person: Test Person; waits on onboarding)', '- design: complete'));
+  assert.equal(f.read(record), caller ? recordBefore : recordBefore.replace('- design: provisional', '- design: complete'));
+  for (const path of [ag, record]) assert.equal(result.files.some((file) => file.path === path), !caller);
+  assert.equal(result.state, 'complete'); assert.equal(designState(f.read()), 'complete');
+  for (const name of ['palette.css', 'typography.css', 'brand-direction.html']) assert.ok(existsSync(join(f.work, name)));
+  assert.match(f.read(verification), /\| design \| design-source \|/);
+  for (const [, anchor] of f.read().matchAll(/\[(V\d+)\]/g)) assert.ok(f.read(verification).includes(`| ${anchor} | design |`));
+});
 test('output paths, symlinks, hardlinks and broken links cannot bypass the screen', () => {
   const f = fixture(), outside = join(sandbox, 'outside'); mkdirSync(outside);
   symlinkSync(outside, join(f.root, 'escaped'), 'dir');
@@ -184,6 +253,295 @@ test('help before file access, import has no effects, closed flags and duplicate
   for (const flag of ['--env', '--install', '--typo']) { const c = spawnSync(process.execPath, [script, flag], { encoding: 'utf8' }); assert.equal(c.status, 1); assert.equal(c.stdout, ''); assert.ok(c.stderr.includes(flag)); }
   const imported = spawnSync(process.execPath, ['--input-type=module', '-e', `await import(${JSON.stringify(pathToImport(script))})`], { encoding: 'utf8' }); assert.equal(imported.status, 0); assert.equal(imported.stdout, '');
   const f = fixture(); assert.throws(() => run([...f.argv, '--work', f.work]), /duplicate/);
+  assert.match(child.stdout, /--caller/);
+  assert.throws(() => run([...f.argv, '--caller', '--caller']), /duplicate/);
   assert.equal(readdirSync(f.root).includes('design.md'), false);
 });
 function pathToImport(file) { return new URL('file://' + file.replaceAll(' ', '%20')).href; }
+
+test('onboarding G10/G19 accept the lock fixture with its bound shelf relocated, and reject old scale citations', () => {
+  const f = fixture();
+  // This run may not open a memory directory. The existing fixture keeps its
+  // design at root. Run the original CLI first, then relocate only MEM in an
+  // in-memory harness copy: the G10/G19 gate bodies remain byte-for-byte intact.
+  writeFileSync(join(f.root, 'AGENTS.md'), '---\nroot: Test Person\ntype: personal\n---\n');
+  Object.assign(f.answers, { audience: 'People making useful things.', promise: 'Useful things that last.' });
+  Object.assign(f.answers.answerNumbers, { audience: 'J2b', promise: 'J2b' });
+  f.answers.carried = { place: { file: '2026-11-02 V2 voice answers.md', question: 'P12' } };
+  f.save(); f.result();
+  const gates = process.env.BUILD_BRAND_GATES || resolve(dirname(script), '../../Onboard Root/gates.sh');
+  const source = readFileSync(gates, 'utf8');
+  assert.equal(source.split('MEM="$ROOT/memory"').length, 2);
+  const relocated = source.replace('MEM="$ROOT/memory"', 'MEM="$ROOT"');
+  for (const gate of ['G10', 'G19']) {
+    const original = spawnSync('bash', [gates, '--gate', gate, f.root], { encoding: 'utf8' });
+    assert.equal(original.status, 1, original.stderr);
+    assert.match(original.stdout, new RegExp(`SKIP +${gate}`));
+  }
+  const missing = spawnSync('bash', ['-s', '--', '--gate', 'G19', f.root], { input: relocated, encoding: 'utf8' });
+  assert.equal(missing.status, 1, missing.stdout + missing.stderr);
+  assert.match(missing.stdout, /memory\/answers\/2026-11-02 V2 voice answers\.md.*does not resolve/);
+  // Supply the cited answer outside memory; the link is only resolved for
+  // existence by G19. The relocated shelf never opens a file through it.
+  mkdirSync(join(f.root, 'answers'));
+  writeFileSync(join(f.root, 'answers', f.answers.carried.place.file), '| P12 | A design workshop |\n');
+  writeFileSync(join(f.root, 'answers', f.answers.answerNumbers.file), '| J2b | Recorded sentence and words |\n');
+  symlinkSync('.', join(f.root, 'memory'));
+  for (const gate of ['G10', 'G19']) {
+    const checked = spawnSync('bash', ['-s', '--', '--gate', gate, f.root], { input: relocated, encoding: 'utf8' });
+    assert.equal(checked.status, 0, checked.stdout + checked.stderr);
+    assert.match(checked.stdout, new RegExp(`PASS +${gate}`));
+  }
+  const good = f.read();
+  writeFileSync(f.design, good.replaceAll('Working need: lock.mjs SCALE', 'Research inference: lock.mjs SCALE'));
+  const negative = spawnSync('bash', ['-s', '--', '--gate', 'G10', f.root], { input: relocated, encoding: 'utf8' });
+  assert.equal(negative.status, 1);assert.equal((negative.stdout.match(/names no E<n> evidence row/g) || []).length, 6);
+  writeFileSync(f.design, good);
+});
+
+test('a personal lock derives Foundation from the recorded J2b sentence and passes G10', () => {
+  const f=fixture();
+  writeFileSync(join(f.root,'AGENTS.md'),'---\nroot: Test Person\ntype: personal\n---\n');
+  mkdirSync(join(f.root,'answers'));
+  writeFileSync(join(f.root,'answers',f.answers.answerNumbers.file),`| Number | Answer |\n|---|---|\n| J2b | ${f.answers.sentence} |\n`);
+  f.result();
+  assert.equal(f.answers.audience,undefined);assert.equal(f.answers.promise,undefined);
+  assert.equal((f.read().match(/Research inference: J2b;/g)||[]).length,2);
+  const gates=process.env.BUILD_BRAND_GATES||resolve(dirname(script),'../../Onboard Root/gates.sh');
+  const harness=readFileSync(gates,'utf8').replace('MEM="$ROOT/memory"','MEM="$ROOT"');
+  const check=()=>spawnSync('bash',['-s','--','--gate','G10',f.root],{input:harness,encoding:'utf8'});
+  const good=check();assert.equal(good.status,0,good.stdout+good.stderr);assert.match(good.stdout,/PASS +G10/);
+  writeFileSync(join(f.root,'answers',f.answers.answerNumbers.file),'| Number | Answer |\n|---|---|\n| J2a | Other answer |\n');
+  const missing=check();assert.equal(missing.status,1);assert.match(missing.stdout,/J2b that no file in memory\/answers\/ records/);
+});
+
+test('M5.4 item 12: personal answerNumbers reject organisation-only O1 and O2 before publication', () => {
+  for (const field of ['audience', 'promise']) for (const id of ['O1', 'O2']) {
+    const f = fixture(); f.answers[field] = 'A sourced personal statement.';
+    f.answers.answerNumbers[field] = id; f.save();
+    assert.throws(f.result, /answerNumbers.*O1 and O2.*personal/);
+    assert.equal(existsSync(f.design), false);
+  }
+  const f = fixture(); f.answers.audience = 'A sourced personal statement.';
+  f.answers.answerNumbers.audience = 'J2b'; f.save();
+  assert.equal(f.result().state, 'complete');
+  assert.match(f.read(), /J2b/);
+});
+
+test('M5.4 item 14: G16 accepts actual lock output and a caller relock preserves both dispute records', () => {
+  const f = fixture('org');
+  writeFileSync(join(f.root, 'AGENTS.md'), '---\nroot: Test Organisation\ntype: org\n---\n\n## Provides\n- design: design.md\n');
+  f.result(); const prior = f.read();
+  const onboarding = join(f.root, 'work/onboarding'); mkdirSync(onboarding);
+  const audit = '# Audit\n\n## Findings\n\n| Finding | Disposition | Deciding check | Where checker looked | Bound file entry |\n|---|---|---|---|---|\n| A4 | disputed | Both searches disagree | Words | design.md |\n\n(Disputed: audit.md A4; producer and auditor searches disagree about Words.)\n';
+  const operating = '# Open items\n\n(Disputed: audit.md A4; design.md Words; owner: Dana Reyes; status: needed.)\n';
+  writeFileSync(join(onboarding, 'audit.md'), audit); writeFileSync(join(onboarding, 'operating-file.md'), operating);
+  const gates = process.env.BUILD_BRAND_GATES || resolve(dirname(script), '../../Onboard Root/gates.sh');
+  const harness = readFileSync(gates, 'utf8').replace('MEM="$ROOT/memory"', 'MEM="$ROOT"');
+  const check = () => {
+    const r = spawnSync('bash', ['-s', '--', '--gate', 'G16', f.root], { input: harness, encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stdout + r.stderr); assert.match(r.stdout, /PASS +G16/);
+  };
+  check();
+  const result = run([...f.argv, '--replace', '--caller']);
+  assert.equal(f.read(result.archives.find(a => a.path === f.design).archive), prior);
+  assert.equal(f.read(join(onboarding, 'audit.md')), audit);
+  assert.equal(f.read(join(onboarding, 'operating-file.md')), operating);
+  assert.doesNotMatch(f.read(), /\(Disputed:/);
+  check();
+});
+
+test('the documented provisional state line permits locking a fully populated provisional file without --replace', () => {
+  const writing=readFileSync(new URL('../writing.md',import.meta.url),'utf8');
+  const sitting=readFileSync(new URL('../paths/sitting.md',import.meta.url),'utf8');
+  const line=writing.match(/`(State: provisional)`/)?.[1];
+  assert.ok(line,'writing must give the exact state line');assert.ok(sitting.includes('`'+line+'`'));
+  const f=fixture();f.result();const provisional=f.read().replace(/^#.*\n/,`# Provisional design\n\n${line}\n`);
+  writeFileSync(f.design,provisional);assert.equal(designState(provisional),'incomplete');
+  assert.equal(f.result().state,'complete');
+});
+
+
+test('m51-r3: lock retains every role and size axis, fallback and optical sizing with source read-back', () => {
+  const f = fixture(), b = f.spec.boards[0];
+  b.type.heading = structuredClone(library.pairings.find(p => p.id === 'soft-serif').type.heading);
+  b.type.heading.files = b.type.heading.files.map(file => ({ ...file, path: resolve(parts, file.path) }));
+  b.type.heading.opticalSizing = 'auto';
+  b.type.heading.sizes.display.opticalSizing = 'none';
+  b.type.body.variations = { wght: 411, opsz: 18 };
+  for (const size of Object.values(b.type.body.sizes)) size.variations = null;
+  b.type.body.sizes.display.variations = { wght: 711, opsz: 32 };
+  b.type.handwriting = structuredClone(b.type.body);
+  b.type.handwriting.variations = { slnt: -8.5 };
+  f.save(); const result = f.result();
+  assert.equal(result.readBack.outcome, 'passed');
+  const css = f.read(join(f.work, 'typography.css')), direction = f.read(join(f.work, 'brand-direction.html')), design = f.read();
+  for (const [role, face] of Object.entries(b.type)) {
+    for (const [size, settings] of Object.entries({ default: face, ...face.sizes })) {
+      const axes = settings.variations ?? face.variations;
+      const optical = settings.opticalSizing ?? face.opticalSizing;
+      const field = `boards.0.type.${role}${size === 'default' ? '' : `.sizes.${size}`}`;
+      const selector = `.type-${role}-${size}`;
+      for (const output of [css, direction]) {
+        const start = output.indexOf(`${selector} {`);
+        assert.ok(start >= 0, selector);
+        const rule = output.slice(start, output.indexOf('}', start));
+        for (const [axis, value] of Object.entries(axes || {})) assert.ok(rule.includes(`"${axis}" ${value}`), `${selector}: ${axis} ${value}`);
+        if (optical) assert.ok(rule.includes(`font-optical-sizing: ${optical};`), selector);
+      }
+      for (const [axis, value] of Object.entries(settings.variations || {})) {
+        for (const output of [css, direction, design]) assert.ok(output.includes(`${field}.variations.${axis}`), `${field}.${axis}`);
+        assert.ok(design.includes(`"${axis}" ${value}`));
+      }
+      if (settings.opticalSizing) for (const output of [css, direction, design]) assert.ok(output.includes(`${field}.opticalSizing`));
+      if (size !== 'default') assert.ok(direction.includes(`class="type-${role}-${size}"`), selector);
+    }
+  }
+  assert.match(direction, /body\{[^}]*font-variation-settings:[^}]*"wght" 411/);
+  assert.match(direction, /h1\{[^}]*font-variation-settings:[^}]*"opsz" 72/);
+  assert.doesNotMatch(direction.match(/h1\{[^}]*\}/)[0], /"opsz" 144/);
+  assert.match(direction, /h2\{[^}]*font-variation-settings:[^}]*"opsz" 36/);
+  assert.match(direction, /h3\{[^}]*font-variation-settings:[^}]*"WONK" 0/);
+});
+
+test('m51-r3: malformed axes and optical sizing fail before lock publication', () => {
+  for (const [change, reason] of [
+    [b => { b.type.heading.variations = { bad: 1 }; }, /variations/],
+    [b => { b.type.body.sizes.small.variations = { opsz: '18' }; }, /variations/],
+    [b => { b.type.heading.opticalSizing = 'none; color:red'; }, /opticalSizing/],
+    [b => { b.type.heading.sizes.middle.opticalSizing = 'invalid'; }, /opticalSizing/],
+  ]) {
+    const f = fixture(); change(f.spec.boards[0]); f.save();
+    assert.throws(f.result, reason); assert.equal(existsSync(f.design), false);
+  }
+});
+
+
+test('direction maps each working size to the nearest locked cut for its own role', () => {
+  const f = fixture(), b = f.spec.boards[0];
+  for (const [role, sizes] of Object.entries({ heading: [32, 20, 25], body: [17, 40, 10] })) {
+    for (const [i, size] of ['display', 'middle', 'small'].entries()) {
+      b.type[role].sizes[size].size = sizes[i];
+      b.type[role].sizes[size].variations = { opsz: sizes[i], wght: 400 + i };
+    }
+  }
+  f.save(); f.result();
+  const direction = f.read(join(f.work, 'brand-direction.html'));
+  for (const [tag, level, role, expected] of [['h1', 'display', 'heading', 32], ['h2', 'heading', 'heading', 25], ['h3', 'subheading', 'heading', 20], ['body', 'body', 'body', 17]]) {
+    const rule = direction.match(new RegExp(`(?:^|[}>;])${tag}\\{([^}]*)\\}`))[1];
+    assert.match(rule, new RegExp(`"opsz" ${expected}(?:;|,)`));
+    assert.ok(rule.includes(`var(--text-${level})`));
+    const working = SCALE.base * SCALE.ratio ** SCALE.levels[level];
+    assert.equal(Math.abs(expected - working), Math.min(...Object.values(b.type[role].sizes).map(s => Math.abs(s.size - working))));
+  }
+});
+
+for (const custom of [false, true]) test(`relock relocates only moved verification anchors, preserving outcomes (custom archive: ${custom})`, () => {
+  const f = fixture('org'); mkdirSync(join(f.root, 'work/onboarding'), { recursive: true });
+  const verification = join(f.root, 'work/onboarding/verification.md');
+  const old = '| V4 | about | other | An old claim | [V4] | about.md | old | read | no | - | located | Verified | - |';
+  const negative = '## Negative claims\n\n| V9 | Earlier absence | - | old | yes | reader | located |\n';
+  writeFileSync(verification, '## Claims\n\n| Row | Key | Class | Claim | Anchor | Bound file | Cites | Mechanism | Exactness | Second mechanism | Outcome | Label | Search |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n' + old + '\n\n' + negative);
+  if (custom) {
+    writeFileSync(join(f.root, 'AGENTS.md'), 'Archive home: archives/brand\n');
+    f.answers.paths = { archive: 'archives/brand' }; f.save();
+  }
+  f.result();
+  const before = f.read(verification), designBefore = f.read();
+  const result = run([...f.argv, '--replace']);
+  const archive = result.archives.find(a => a.path === f.design).archive.slice(f.root.length + 1);
+  const rows = text => text.split('\n').filter(l => /^\| V\d+ \| design \|/.test(l));
+  const after = f.read(verification);
+  for (const row of rows(before)) {
+    const anchor = row.split('|')[5].trim(); assert.ok(designBefore.includes(anchor));
+    assert.ok(after.includes(row.replace('| design.md |', '| ' + archive + ' |')), anchor + ' must resolve to archive with every other cell unchanged');
+  }
+  assert.ok(after.includes(old)); assert.ok(after.includes(negative));
+  assert.ok(rows(after).some(r => r.includes('| design.md |')));
+  run([...f.argv, '--replace']);
+  for (const row of rows(before)) assert.ok(f.read(verification).includes(row.replace('| design.md |', '| ' + archive + ' |')));
+});
+
+for (const type of ['personal', 'org', 'client', 'department']) test(`${type}: every lock claim cites its recorded answer as well as its source field`, () => {
+  const f = fixture(type); f.answers.off = ['natural']; f.save();
+  const result = f.result(), design = f.read();
+  const citation = (text, id, field) => {
+    const line = design.split('\n').find(l => l.startsWith(text));
+    assert.ok(line, text);
+    assert.ok(line.includes(`memory/answers/${f.answers.answerNumbers.file}`), line);
+    assert.ok(line.includes(`; ${id};`) || line.includes(`: ${id};`), line);
+    assert.ok(line.includes(field), line);
+  };
+  citation('I build useful things', 'J2b', '#sentence');
+  citation('Useful, not ornamental', 'J2b', '#words.0.word');
+  citation('Keep Useful', 'J2b', '#words.0.not');
+  const ids = ['mode','feel','history','strength','technology','style','posture','mood','place'];
+  ids.forEach((id, i) => citation(`T${i+1}:`, `T${i+1}`, `#taps.${id}`));
+  citation('Natural and strong', 'J3a', '#readBack.text');
+  citation('Dropped from the steer:', 'J3b', '#off.0');
+  citation('Whole look picked:', 'L4', '#looks.0');
+  citation('Round 1:', 'C6', '#rounds.0.steer');
+  citation('Complete at the lock.', 'K1', '#lock.question');
+  citation('light ground:', 'C6', '#boards.0.palette.light.ground');
+  citation('light ground:', 'K1', '#boards.0.palette.light.ground');
+  if (type !== 'personal') for (const [prefix, id, field] of [['For:', 'O1', 'audience'], ['Promise:', 'O2', 'promise'], ['Final say:', 'O3', 'finalSay']]) citation(prefix, id, `#${field}`);
+  const rules = design.split('\n').filter(l => /\((?:Firsthand|Research inference):/.test(l));
+  for (const line of rules) assert.match(line, /(?:;|:) [A-Z][0-9][a-z0-9]*;.*memory\/answers\/[^;]+design answers\.md/, line);
+  assert.ok(result.readBack.claims > 90); assert.ok(!result.unusedAnswerFields.includes('answerNumbers'));
+  const direction = f.read(join(f.work, 'brand-direction.html'));
+  assert.ok(direction.includes(`L4; memory/answers/${f.answers.answerNumbers.file}`));
+});
+
+test('carried place cites only P12 and its dated voice record, never T9', () => {
+  const f = fixture(); f.answers.carried = { place: { file: '2026-11-01 V3 voice answers.md', question: 'P12' } }; f.save(); f.result();
+  const line = f.read().split('\n').find(l => l.startsWith("Place, from the voice coach's"));
+  assert.ok(line.includes('; P12; memory/answers/2026-11-01 V3 voice answers.md'), line);
+  assert.ok(line.includes('#taps.place'), line); assert.doesNotMatch(line, /T9/);
+});
+
+test('recorded look and board numbers come from the saved map, with same-page picks retained', () => {
+  const f = fixture(); f.answers.looks.push('look:humanist/olive-paper/stitch', 'look:lively/plum-peach/riso');
+  f.answers.answerNumbers.looks = ['L4', 'L4', 'L9'];
+  f.answers.rounds.push({ question: 'Later board page', steer: 'Keep it quiet' });
+  f.answers.answerNumbers.rounds = ['C6', 'C11']; f.answers.answerNumbers.board = 'C11'; f.save(); f.result();
+  const lines = f.read().split('\n').filter(l => l.startsWith('Whole look picked:'));
+  for (const [i, id] of ['L4', 'L4', 'L9'].entries()) assert.ok(lines[i].includes(`; ${id}; memory/answers/${f.answers.answerNumbers.file}`));
+  assert.match(f.read().split('\n').find(l => l.startsWith('Later board page:')), /; C11;/);
+  assert.match(f.read().split('\n').find(l => l.startsWith('light ground:')), /; C11;/);
+});
+
+test('lock refuses missing, malformed or incomplete answer maps before writing', () => {
+  for (const mutate of [
+    a => { delete a.answerNumbers; },
+    a => { a.answerNumbers.file = 'design answers.md'; },
+    a => { a.answerNumbers.file = '../2026-11-02 design answers.md'; },
+    a => { a.answerNumbers.board = 'C0'; },
+    a => { a.answerNumbers.looks = []; },
+    a => { a.answerNumbers.looks = ['C4']; },
+    a => { a.answerNumbers.rounds = ['C6', 'C7']; },
+    a => { a.answerNumbers.rounds = ['Round 1']; },
+    a => { a.answerNumbers.extra = 'L1'; },
+  ]) {
+    const f = fixture(); mutate(f.answers); f.save();
+    assert.throws(f.result, /answerNumbers/); assert.equal(existsSync(f.design), false);
+  }
+});
+test('legacy layout explicitly records the absence of an authorised numbered record', () => {
+  const f = fixture(); f.answers.answerNumbers = null; f.save();
+  const result = f.result(); assert.equal(result.state, 'complete');
+  assert.doesNotMatch(f.read(), /memory\/answers\//); assert.match(f.read(), /Firsthand: Test Person/);
+  assert.ok(f.read().includes('#sentence')); assert.ok(!result.unusedAnswerFields.includes('answerNumbers'));
+});
+for (const type of ['org', 'client', 'department']) test(`${type}: numbered lock citations retain a passing G10`, () => {
+  const f = fixture(type);
+  writeFileSync(join(f.root, 'AGENTS.md'), `---\nroot: Test Brand\ntype: ${type}\n---\n\n## Provides\n- design: design.md\n`);
+  mkdirSync(join(f.root, 'work/onboarding'), { recursive: true });
+  writeFileSync(join(f.root, 'work/onboarding/run-record.md'), '### Who confirms and on what basis\nname: Test Respondent\n');
+  mkdirSync(join(f.root, 'answers'));
+  writeFileSync(join(f.root, 'answers', f.answers.answerNumbers.file), '| J2b | Sentence and words |\n| O1 | Audience |\n| O2 | Promise |\n| O3 | Final say |\n| C6 | Board page |\n| L4 | Looks page |\n| K1 | Lock |\n');
+  f.result();
+  const gates = process.env.BUILD_BRAND_GATES || resolve(dirname(script), '../../Onboard Root/gates.sh');
+  const harness = readFileSync(gates, 'utf8').replace('MEM="$ROOT/memory"', 'MEM="$ROOT"');
+  const checked = spawnSync('bash', ['-s', '--', '--gate', 'G10', f.root], { input: harness, encoding: 'utf8' });
+  assert.equal(checked.status, 0, checked.stdout + checked.stderr); assert.match(checked.stdout, /PASS +G10/);
+});

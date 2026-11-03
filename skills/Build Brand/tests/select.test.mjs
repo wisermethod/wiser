@@ -6,10 +6,11 @@ import {join,dirname,resolve} from 'node:path';
 import {tmpdir} from 'node:os';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
+import {boardRefusal} from '../scripts/refusals.mjs';
 import {select,tapDials,ground,score,run,ENERGIES} from '../scripts/select.mjs';
 import {assemble,LIBRARY,AXES,partPositions} from '../scripts/assemble.mjs';
 import {runContactSheet} from '../../../tools/Contact Sheet/scripts/contact-sheet.js';
-import {operator,firstStrategy} from './select-fixtures.mjs';
+import {boardOperator as operator,boardFirstStrategy as firstStrategy,lookActions, looksAnswers} from './select-fixtures.mjs';
 import {checkForm} from '../../../tools/Form/scripts/format.js';
 const library=JSON.parse(readFileSync(LIBRARY)),data=JSON.parse(readFileSync(new URL('../parts/taps.json',import.meta.url)));
 const work=mkdtempSync(join(tmpdir(),'brand-selection-tests-'));
@@ -43,32 +44,32 @@ for(const [label,fixture]of [['operator',operator],['First Strategy',firstStrate
     assert.equal(runContactSheet(['build','--spec',spec,'--output',html]).itemCount,12);
   });
   test(`${label} whole looks have six distinct leaders and six exact one-dial contrasts with four plain grounds`,()=>{
-    const a=fixture(),r=select('looks',a);assert.equal(r.looks.length,12);assert.equal(r.options.length,12);
+    const a=fixture(),r=select('looks',looksAnswers(a));assert.equal(r.looks.length,12);assert.equal(r.options.length,12);
     assert.deepEqual(r.looks.map(l=>l.kind),[...Array(6).fill('top'),...Array(6).fill('contrast')]);
     const plain=r.selection.boards.map((b,i)=>b.graphicSet.pattern?.strength.light===0&&b.graphicSet.pattern?.strength.dark===0?i+1:null).filter(Boolean);
     assert.deepEqual(plain,[2,5,8,11]);assert.equal(new Set(r.options.map(o=>o.value)).size,12);
     assert.equal(new Set(r.looks.map(l=>l.palette)).size,12);
     for(const field of ['pairing','graphicSet'])assert.equal(new Set(r.looks.slice(0,6).map(l=>l[field])).size,6);
     for(const look of r.looks.slice(6))assert.equal(Object.keys(AXES).filter(k=>look.positions[k]!==r.looks[0].positions[k]).length,1);
-    for(const [i,option]of r.options.entries()){assert.equal(option.value,r.looks[i].value);assert.equal(option.label,`Look ${i+1}`);assert.deepEqual(Object.keys(option),['value','label','board']);assert.deepEqual(option.board.pairing,r.selection.boards[i].pairing);assert.deepEqual(option.board.palette,r.selection.boards[i].palette);assert.deepEqual(option.board.graphicSet,r.selection.boards[i].graphicSet);}
-    const picked=r.looks.slice(0,2),boosted=select('round1',{...a,looks:picked.map(l=>l.value)});
+    for(const [i,option]of r.options.entries()){assert.equal(option.value,r.looks[i].value);assert.equal(option.label,r.looks[i].label.replaceAll(' / ', ', '));assert.deepEqual(Object.keys(option),['value','label','board']);assert.deepEqual(option.board.pairing,r.selection.boards[i].pairing);assert.deepEqual(option.board.palette,r.selection.boards[i].palette);assert.deepEqual(option.board.graphicSet,r.selection.boards[i].graphicSet);}
+    const picked=r.looks.slice(0,2),boosted=select('round1',{...a,looks:picked.map(l=>l.value),looksShown:r.looks});
     for(const [axis,[neg,pos]]of Object.entries(AXES))assert.equal(boosted.dials[axis]-r.dials[axis],picked.reduce((n,l)=>n+(l.positions[axis]===pos?1:l.positions[axis]===neg?-1:0),0));
   });
   test(`${label} looks CLI output is an unchanged valid boards option list`,()=>{
-    const a=fixture(),input=path('looks-answers.json');writeFileSync(input,JSON.stringify(a));
+    const a=looksAnswers(fixture()),input=path('looks-answers.json');writeFileSync(input,JSON.stringify(a));
     const r=run(['looks','--answers',input,'--check']),before=structuredClone(r.options);
-    const form={title:'Step 3: how it should look',brand:{name:a.name,initials:r.selection.boards[0].initials,sentence:a.sentence,body:a.body,words:a.words},questions:[{id:'looks',type:'boards',view:'look',label:'Which of these feel like you? Pick two or three.',pick:3,min:2,options:r.options}]};
+    const form={title:'Step 3: how it should look',brand:{name:a.name,initials:r.selection.boards[0].initials,sentence:a.sentence,body:a.body,words:a.words},questions:[{id:'looks',type:'boards',view:'look',label:'Which of these feel like you? Pick up to three.',pick:3,min:2,options:r.options}],actions:lookActions()};
     assert.deepEqual(checkForm(form),{ok:true,problems:[]});assert.deepEqual(r.options,before);
   });
 }
 test('operator and First Strategy dial arithmetic retains small nudges exactly',()=>{
-  assert.deepEqual(tapDials(operator(),data).dials,{classicContemporary:1,quietBold:2,warmCool:2,playfulSerious:1,handGeometric:1,softStrong:1});
-  assert.deepEqual(tapDials(firstStrategy(),data).dials,{classicContemporary:2,quietBold:-2,warmCool:2,playfulSerious:0,handGeometric:1,softStrong:-1});
+  assert.deepEqual(tapDials(operator(),data).dials,{classicContemporary:0.5,quietBold:1,warmCool:2,playfulSerious:2,handGeometric:0,softStrong:1});
+  assert.deepEqual(tapDials(firstStrategy(),data).dials,{classicContemporary:1.5,quietBold:-3,warmCool:2,playfulSerious:1,handGeometric:0,softStrong:-1});
   assert.equal(tapDials(operator(),data).darkLed,2.5);
 });
 test('read-back off option, pole, dial and dark-led part drop their contributions before ranking',()=>{
   const a=operator(),base=tapDials(a,data);
-  const without=tapDials({...a,off:['mechanical']},data);assert.equal(without.dials.handGeometric,0);assert.equal(without.dials.warmCool,base.dials.warmCool-1);assert.equal(without.dials.playfulSerious,base.dials.playfulSerious-1);
+  const without=tapDials({...a,off:['engineered']},data);assert.equal(without.dials.handGeometric,base.dials.handGeometric-1);assert.equal(without.dials.warmCool,base.dials.warmCool-1);assert.equal(without.dials.playfulSerious,base.dials.playfulSerious-1);
   assert.equal(tapDials({...a,off:['quietBold']},data).dials.quietBold,0);
   assert.equal(tapDials({...a,off:['strong']},data).dials.softStrong,-1);
   assert.equal(select('round1',{...a,off:['darkLed']}).darkLed,0);
@@ -80,7 +81,7 @@ test('unsteered comparison zeros every dial, follows library order and has five 
   assert.deepEqual(a.selection.groups.map(g=>g.label),['First set','Second set','Third set']);
   assert.ok(a.selection.boards.every(b=>!b.recommendation));assert.deepEqual(new Set(a.selection.boards.map(b=>b.energy)),new Set(ENERGIES));
   assert.deepEqual(a.selection.boards.map(b=>[b.palette.id,b.pairing.id,b.graphicSet.id]),b.selection.boards.map(b=>[b.palette.id,b.pairing.id,b.graphicSet.id]));
-  assert.equal(a.selection.boards[0].pairing.id,library.pairings[0].id);assert.equal(a.selection.boards[0].palette.id,library.palettes[0].id);assert.equal(a.selection.boards[0].graphicSet.id,library.graphics[0].id);
+  assert.equal(a.selection.boards[0].pairing.id,library.pairings[0].id);assert.equal(a.selection.boards[0].palette.id,library.palettes.find(p=>!boardRefusal(library,{pairing:{id:library.pairings[0].id},palette:{id:p.id}})).id);assert.equal(a.selection.boards[0].graphicSet.id,library.graphics[0].id);
 });
 test('same inputs produce byte-identical selection, spares and replacement report',()=>{
   assert.equal(JSON.stringify(select('round1',operator())),JSON.stringify(select('round1',operator())));
@@ -93,8 +94,8 @@ test('a known contrast refusal is replaced by the next ranked spare without weak
   assert.equal(checked.selection.boards[2].graphicSet.id,'drafting');assert.ok(!checked.selection.boards[2].palette.overrides);
 });
 test('checked whole-look ids remain valid boosts even if Contact Sheet replaced an unchecked leader',()=>{
-  const a=firstStrategy(),looks=select('looks',a,{check:true});assert.ok(looks.replacements.every(r=>r.replacement));
-  const r=select('round1',{...a,looks:looks.looks.slice(0,2).map(l=>l.value)});assert.ok(Object.values(r.wholeLookBoosts).some(n=>n!==0));
+  const a=firstStrategy(),looks=select('looks',looksAnswers(a),{check:true});assert.ok(looks.replacements.every(r=>r.replacement));
+  const r=select('round1',{...a,looks:looks.looks.slice(0,2).map(l=>l.value),looksShown:looks.looks});assert.ok(Object.values(r.wholeLookBoosts).some(n=>n!==0));
 });
 test('kept logo and font are absolute in output, fixed on every board, with board zero first and twelve total',()=>{
   const input=path('answers.json'),output=path('selection.json'),mark=path('mark.svg');
@@ -153,7 +154,7 @@ test('as-it-is variations still move one or two parts and exclude history across
   assert.deepEqual(first,select('variations',{...a,picks,shown,steer}));
 });
 test('variations apply off before ranking, and keep explicit steer as the next instruction',()=>{
-  const a=operator(),shown=select('round1',a).selection.boards,picks=[shown[0]],off=['mechanical','quietBold','darkLed'];
+  const a=operator(),shown=select('round1',a).selection.boards,picks=[shown[0]],off=['engineered','quietBold','darkLed'];
   const r=select('variations',{...a,picks,shown,off,steer:{softStrong:-1}}),expected=tapDials({...a,off},data);
   assertVariations(r,picks,shown);assert.equal(r.dials.quietBold,0);assert.equal(r.darkLed,0);
   assert.equal(r.dials.warmCool,expected.dials.warmCool);assert.equal(r.dials.handGeometric,expected.dials.handGeometric);
@@ -168,7 +169,8 @@ for(const [label,fixture]of [['operator',operator],['First Strategy',firstStrate
   assert.equal(r.dials.warmCool,tapDials(a,data).dials.warmCool-3);assert.equal(r.darkLed,0);
 });
 test('fresh checked page covers bright before an angle constrained to classic pairings',()=>{
-  const a=firstStrategy(),shown=select('round1',a).selection.boards;
+  // History Not sure keeps the classic-to-current dial at 2, strong enough to constrain an angle, as before the taps of 2026-11-02.
+  const a={...firstStrategy(),taps:{...firstStrategy().taps,history:'history-unsure'}},shown=select('round1',a).selection.boards;
   const r=select('variations',{...a,picks:[],shown,off:['quietBold'],steer:{warmCool:-1}},{check:true});
   assert.equal(r.selection.boards.length,12);
   assert.deepEqual(new Set(r.selection.boards.map(b=>b.energy)),new Set(ENERGIES));
@@ -241,13 +243,15 @@ test('bolder variations seek the next louder same-temperature recipe and report 
   for(const b of r.selection.boards){const p=palette(b.palette.id);assert.equal(p.temperature,palette(pick.palette.id).temperature);assert.equal(p.paletteLoudness,Math.min(3,palette(pick.palette.id).paletteLoudness+1));}
   const loud=select('round1',operator()).selection.boards[0],ceiling=select('variations',{...operator(),picks:[loud],shown:[loud],steer:{quietBold:1}});assert.ok(ceiling.notes.some(n=>n.includes('ceiling')));
 });
-test('taps data has all nine closed option sets, neutral options, Mechanical line and complete looks rule',()=>{
-  assert.deepEqual(data.questions.map(q=>q.options.length),[3,5,4,4,5,5,5,5,6]);assert.equal(new Set(data.questions.flatMap(q=>q.options.map(o=>o.id))).size,42);
-  assert.equal(data.questions[1].options[0].description,'Precise and engineered');assert.match(data.wholeLooks.rule,/exactly one aggregate position/);
-  for(const q of data.questions)for(const option of q.options){assert.ok(option.id&&option.label);if(['Not sure','Either','Balanced','None of these','Light'].includes(option.label))assert.deepEqual(option.nudges,{});}
+test('taps data has all nine closed option sets, neutral options, Engineered line and complete looks rule',()=>{
+  assert.deepEqual(data.questions.map(q=>q.options.length),[3,5,4,4,5,5,5,5,5]);assert.equal(new Set(data.questions.flatMap(q=>q.options.map(o=>o.id))).size,41);
+  assert.equal(data.questions[1].options[0].description,'Precise and industrial');
+  assert.deepEqual(data.questions.flatMap(q=>q.options.filter(o=>o.shown===false).map(o=>o.id)),['feel-unsure','place-none']);
+  assert.deepEqual(data.questions.map(q=>q.options.filter(o=>o.shown!==false).length),[3,4,4,4,5,5,5,5,4]);assert.match(data.wholeLooks.rule,/exactly one aggregate position/);
+  for(const q of data.questions)for(const option of q.options){assert.ok(option.id&&option.label);if(['Not sure','Either','Balanced','None of these','No preference','Light'].includes(option.label))assert.deepEqual(option.nudges,{});}
 });
 test('neutral and extreme valid tap patterns still yield complete pages',()=>{
-  const patterns=[data.questions.map(q=>q.options.at(-1).id),data.questions.map(q=>q.options[0].id),['dark','natural','rooted','soft-graceful','kitchenaid','patagonia','subaru','anthropologie','spa']];
+  const patterns=[data.questions.map(q=>q.options.at(-1).id),data.questions.map(q=>q.options[0].id),['dark','natural','rooted','soft-graceful','kitchenaid','patagonia','toyota','anthropologie','spa']];
   for(const ids of patterns){const a=operator();a.taps=Object.fromEntries(data.questions.map((q,i)=>[q.id,ids[i]]));const r=select('round1',a);assert.equal(r.selection.boards.length,12);assert.deepEqual(new Set(r.selection.boards.map(b=>b.energy)),new Set(ENERGIES));}
 });
 test('help/import are inert, unknown flags fail with empty stdout before files are opened',()=>{
@@ -313,4 +317,126 @@ test('variations CLI reads full picks/history and writes an assemblable checked 
   const r=JSON.parse(c.stdout);assert.equal(r.command,'variations');assert.equal(r.checks.enabled,true);
   assertVariations(r,shown.slice(0,2),shown);
   assert.deepEqual(JSON.parse(readFileSync(output)),r.selection);assert.equal(assemble(r.selection,library).boards.length,8);
+});
+
+for(const command of ['round1','variations']) test(`${command} Review replaces only a blocked slot and returns a deterministic ready form`,()=>{
+  const a=operator(),shown=select('round1',a).selection.boards;
+  const input=command==='round1'?a:{...a,picks:[shown[0]],shown,steer:{}};
+  const original=select(command,input,{check:true}),blocked=original.selection.boards[0];
+  const retry={...input,avoid:[blocked],pageDisplayed:true,displayedBoards:original.selection.boards},before=JSON.stringify(retry);
+  const result=select(command,retry,{check:true});
+  assert.equal(JSON.stringify(retry),before);assert.notDeepEqual(result.selection.boards[0],blocked);
+  assert.equal(JSON.stringify(result.selection.boards.slice(1)),JSON.stringify(original.selection.boards.slice(1)));
+  const oldSpec=assemble(original.selection,library),newSpec=assemble(result.selection,library);
+  assert.equal(JSON.stringify(newSpec.boards.slice(1)),JSON.stringify(oldSpec.boards.slice(1)));
+  assert.ok(result.form);assert.deepEqual(checkForm(result.form),{ok:true,problems:[]});
+  const rest=structuredClone(result.form);rest.questions[0].options[0]=original.form.questions[0].options[0];
+  assert.equal(JSON.stringify(rest),JSON.stringify(original.form));
+  if(command==='round1')assertRound(result,input);else assertVariations(result,input.picks,input.shown);
+  assert.ok(result.replacements.some(r=>r.slot===1&&r.reason==='Blocked by Review'));
+  assert.equal(JSON.stringify(result),JSON.stringify(select(command,retry,{check:true})));
+  assert.ok(result.selection.boards.every(b=>designKey(b)!==designKey(blocked)));
+  assert.deepEqual(select(command,{...retry,avoid:[]}).selection,original.selection);
+});
+test('one checked Review retry replaces boards 4 and 12 and preserves every other board byte-for-byte',()=>{
+  const input=path('two-blocked-answers.json');writeFileSync(input,JSON.stringify(operator()));
+  const original=run(['round1','--answers',input,'--check']),numbers=[4,12];
+  const avoid=numbers.map(number=>original.selection.boards.find(b=>b.number===number));
+  assert.ok(avoid.every(Boolean));
+  const retry={...operator(),avoid,pageDisplayed:true,displayedBoards:original.selection.boards},before=JSON.stringify(retry);writeFileSync(input,before);
+  const result=run(['round1','--answers',input,'--check']);
+  assert.equal(readFileSync(input,'utf8'),before);assert.equal(result.checks.enabled,true);
+  const oldSpec=assemble(original.selection,library),newSpec=assemble(result.selection,library);
+  for(const [i,board]of original.selection.boards.entries()){
+    if(numbers.includes(board.number)){
+      assert.notEqual(designKey(result.selection.boards[i]),designKey(board));
+      assert.ok(result.replacements.some(r=>r.slot===board.number&&r.reason==='Blocked by Review'));
+    }else{
+      assert.equal(JSON.stringify(result.selection.boards[i]),JSON.stringify(board));
+      assert.equal(JSON.stringify(newSpec.boards[i]),JSON.stringify(oldSpec.boards[i]));
+      assert.equal(JSON.stringify(result.form.questions[0].options[i]),JSON.stringify(original.form.questions[0].options[i]));
+    }
+  }
+  assert.ok(result.selection.boards.every(b=>!avoid.some(blocked=>designKey(b)===designKey(blocked))));
+  assert.deepEqual(checkForm(result.form),{ok:true,problems:[]});assertRound(result,retry);
+  assert.equal(JSON.stringify(result),JSON.stringify(run(['round1','--answers',input,'--check'])));
+});
+test('Review retries accumulate blocked spares and plainly report an exhausted slot',()=>{
+  const a=operator(),avoid=[],original=select('round1',a);let result=original,exhausted=false;
+  for(let n=0;n<=16;n++) {
+    avoid.push(result.selection.boards[0]);
+    try {
+      result=select('round1',{...a,avoid,pageDisplayed:true,displayedBoards:original.selection.boards});
+      assert.equal(JSON.stringify(result.selection.boards.slice(1)),JSON.stringify(original.selection.boards.slice(1)));
+      assert.ok(!avoid.some(b=>designKey(b)===designKey(result.selection.boards[0])));
+    } catch(e) {assert.match(e.message,/slot 1 exhausted.*ranked spare/);exhausted=true;break;}
+  }
+  assert.ok(avoid.length>1,'exercise at least one passing replacement');assert.ok(exhausted);
+  assert.throws(()=>select('round1',{...a,pageDisplayed:true,avoid:[original.selection.boards[0]]}),/displayedBoards/);
+  assert.throws(()=>select('looks',looksAnswers({...a,avoid:[]})),/only board pages/);
+
+});
+
+test('Review can replace board zero without moving fixed assets or any alternative',()=>{
+  const a={...operator(),kept:{palette:{id:'navy-gold'}}},original=select('round1',a,{check:true});
+  const input={...a,avoid:[original.selection.boards[0]],pageDisplayed:true,displayedBoards:original.selection.boards},r=select('round1',input,{check:true});
+  assert.equal(r.selection.boards[0].number,0);assert.equal(r.selection.boards[0].zero,true);
+  assert.notEqual(designKey(r.selection.boards[0]),designKey(original.selection.boards[0]));
+  assert.equal(r.selection.boards[0].palette.id,'navy-gold');
+  assert.equal(JSON.stringify(r.selection.boards.slice(1)),JSON.stringify(original.selection.boards.slice(1)));
+  assert.ok(r.replacements.some(x=>x.slot===0&&x.reason==='Blocked by Review'));assert.ok(r.form);
+  assert.equal(JSON.stringify(r),JSON.stringify(select('round1',input,{check:true})));
+});
+
+test('checked Review retries keep zero and numbered replacements distinct with fixed colours intact',()=>{
+  const a={...operator(),kept:{palette:{overrides:{light:{hairline:'#b9b9b9'},dark:{hairline:'#777777'}}}}};
+  const original=select('round1',a,{check:true}),input=path('zero-and-one-answers.json');
+  const verify=(r,numbers)=>{
+    const keys=r.selection.boards.map(designKey);assert.equal(new Set(keys).size,keys.length,'every live board has a distinct look');
+    const oldSpec=assemble(original.selection,library),newSpec=assemble(r.selection,library);
+    for(const [i,board]of r.selection.boards.entries()){
+      assert.deepEqual(board.palette.overrides,a.kept.palette.overrides);
+      if(!numbers.includes(board.number)){
+        assert.equal(JSON.stringify(board),JSON.stringify(original.selection.boards[i]));
+        assert.equal(JSON.stringify(newSpec.boards[i]),JSON.stringify(oldSpec.boards[i]));
+        assert.equal(JSON.stringify(r.form.questions[0].options[i]),JSON.stringify(original.form.questions[0].options[i]));
+      }
+    }
+    assert.equal(r.checks.enabled,true);assert.deepEqual(checkForm(r.form),{ok:true,problems:[]});
+  };
+  const retry=(avoid,page=original)=>{writeFileSync(input,JSON.stringify({...a,avoid,pageDisplayed:true,displayedBoards:page.selection.boards}));return run(['round1','--answers',input,'--check']);};
+  verify(retry(original.selection.boards.slice(0,2)),[0,1]);
+  // Earlier zero-only refusals can leave the numbered slot's first fitting
+  // spare at the head of zero's queue. Exercise that collision, not just the
+  // first retry where diversity happens to keep the two queues apart.
+  const target=select('round1',{...a,avoid:[original.selection.boards[1]],pageDisplayed:true,displayedBoards:original.selection.boards},{check:true}).selection.boards[1];
+  const avoid=[];let zeroPage=original;
+  for(let n=0;n<16&&designKey(zeroPage.selection.boards[0])!==designKey(target);n++){
+    avoid.push(zeroPage.selection.boards[0]);
+    zeroPage=select('round1',{...a,avoid,pageDisplayed:true,displayedBoards:original.selection.boards},{check:true});
+  }
+  assert.equal(designKey(zeroPage.selection.boards[0]),designKey(target),'the live zero reaches the numbered slot spare');
+  const both=[...avoid,original.selection.boards[1]],result=retry(both);verify(result,[0,1]);
+  for(const number of [0,1])assert.notEqual(designKey(result.selection.boards[number]),designKey(original.selection.boards[number]));
+  // Only a numbered refusal is newly added to the accumulated retry.
+  const number=4,later=retry([...both,result.selection.boards.find(b=>b.number===number)],result);verify(later,[0,1,number]);
+  const replacement=later.selection.boards.find(b=>b.number===number);
+  assert.notEqual(designKey(replacement),designKey(result.selection.boards.find(b=>b.number===number)));
+  assert.notEqual(designKey(replacement),designKey(later.selection.boards[0]));
+  for(const [i,board]of result.selection.boards.entries())if(board.number!==number)assert.equal(JSON.stringify(later.selection.boards[i]),JSON.stringify(board));
+});
+
+test('Review reports avoid.0 when no unique unblocked zero spare remains',()=>{
+  const a={...operator(),kept:{palette:{id:'navy-gold'}}},original=select('round1',a),avoid=[];
+  let result=original,exhausted=false;
+  for(let n=0;n<=16;n++){
+    avoid.push(result.selection.boards[0]);
+    try{
+      result=select('round1',{...a,avoid,pageDisplayed:true,displayedBoards:original.selection.boards});
+      assert.equal(JSON.stringify(result.selection.boards.slice(1)),JSON.stringify(original.selection.boards.slice(1)));
+      assert.equal(result.selection.boards[0].palette.id,'navy-gold');
+      assert.ok(result.selection.boards.slice(1).every(b=>designKey(b)!==designKey(result.selection.boards[0])));
+    }catch(e){assert.match(e.message,/avoid\.0: slot 0 exhausted.*ranked spare/);exhausted=true;break;}
+  }
+  assert.ok(avoid.length>1);assert.ok(exhausted);
 });

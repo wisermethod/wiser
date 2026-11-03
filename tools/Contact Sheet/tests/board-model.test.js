@@ -5,7 +5,8 @@ import { readFileSync } from 'node:fs';
 import { extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { validateBrandBoards } from '../scripts/brand-boards.js';
+import { wcag, validateBrandBoards } from '../scripts/brand-boards.js';
+import { BRAND_BOARD_CSS } from '../scripts/brand-board-style.js';
 import { renderBrandBoards } from '../scripts/brand-board-view.js';
 import { BOARD_LAYOUT, createBoardModel, DEFAULT_MARK_CAPTION, PUBLIC_FONT_FILES } from '../scripts/board-model.js';
 
@@ -199,4 +200,22 @@ test('Rendered fixtures agree with the model, without overflow at card and phone
       assert.ok(result.headline >= (width === 390 ? BOARD_LAYOUT.phone.headlineMin : BOARD_LAYOUT.card.headlineMin));
     }
   }
+});
+
+test('Board link focus uses reading ink with at least 3:1 against the ground in both modes',()=>{
+  assert.match(BRAND_BOARD_CSS,/\.board-button:focus-visible\{outline:3px solid var\(--text\);outline-offset:4px\}/);
+  const library=JSON.parse(readFileSync(new URL('../../../skills/Build Brand/parts/parts.json',import.meta.url)));
+  let oldFailures=0;
+  for(const palette of library.palettes) for(const mode of ['light','dark']) {
+    const c=palette[mode];if(wcag(c.onPop,c.ground)<3)oldFailures++;
+    assert.ok(wcag(c.text,c.ground)>=3,`${palette.id}/${mode}`);
+  }
+  assert.ok(oldFailures>0,'the original currentColor outline must fail on these grounds');
+});
+test('Simple caption is rendered in both modes and ordinary boards keep the lock caption',()=>{
+  const spec=fixture(),caption='These initials hold the place of a logo. Ask for a logo any time.';
+  spec.boards[0].content.markCaption=caption;
+  const valid=validate(spec),model=createBoardModel(valid),html=renderBrandBoards(valid);
+  assert.equal(model.boards[0].markCaption,caption);assert.ok(html.split(caption).length>=3);
+  assert.equal(createBoardModel(validate(fixture())).boards[0].markCaption,DEFAULT_MARK_CAPTION);assert.ok(html.includes(DEFAULT_MARK_CAPTION));
 });

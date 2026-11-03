@@ -10,6 +10,8 @@
 #
 #   gates.sh <root path>              run every gate
 #   gates.sh --gate G6 <root path>    run one gate
+#   gates.sh --gate G9 --file <bound file> <root path>
+#                                    limit a file gate to one bound markdown file
 #   gates.sh --json <root path>       one JSON object per line, plus a summary
 #   gates.sh --short <root path>      the personal-path file gates only; chosen on its
 #                                     own for a personal root with no run record
@@ -27,11 +29,16 @@ export LC_ALL
 
 usage() {
   cat <<USAGE
-usage: $PROG [--json] [--gate <id>] <root path>
+usage: $PROG [--json] [--gate <id>] [--file <bound file>] <root path>
 
   --gate <id>   run a single gate (G0 G1 G2 G3 G4 G5a G5b G5c G6 G6b G7 G8
                 G9 G10 G11 G11b G12 G13 G13b G14 G15 G16 G17 G18 G19 G20 G21)
   --json        print one JSON object per gate, then a summary object
+  --file <bound file>
+                limit --gate to one existing bound markdown file, relative to
+                the root or absolute. Supported: G5a G5c G9 G10 G11 G11b G13
+                G13b G14 G18 G19. G13/G13b/G14 require voice.md. G19 checks
+                that file's paths only; credentials and other bindings wait.
   --short       run the personal-path file gates only (automatic for a personal
                 root that keeps no run record)
   --list        list the gates and exit
@@ -43,6 +50,9 @@ USAGE
 JSON=0
 SHORT=0
 ONE_GATE=""
+FILE_SCOPE=""
+ONLY_FILE=""
+FILE_SCOPE_SEEN=0
 ROOT=""
 
 while [ $# -gt 0 ]; do
@@ -53,6 +63,16 @@ while [ $# -gt 0 ]; do
       if [ $# -lt 2 ]; then echo "$PROG: --gate needs an id" >&2; exit 2; fi
       ONE_GATE="$2"; shift 2 ;;
     --gate=*) ONE_GATE="${1#--gate=}"; shift ;;
+    --file|--file=*)
+      if [ "$FILE_SCOPE_SEEN" = "1" ]; then echo "$PROG: duplicate --file" >&2; exit 2; fi
+      FILE_SCOPE_SEEN=1
+      case "$1" in
+        --file)
+          if [ $# -lt 2 ]; then echo "$PROG: --file needs a bound file" >&2; exit 2; fi
+          FILE_SCOPE="$2"; shift 2 ;;
+        *) FILE_SCOPE="${1#--file=}"; shift ;;
+      esac
+      case "$FILE_SCOPE" in ''|-*) echo "$PROG: --file needs a bound file" >&2; exit 2 ;; esac ;;
     --list) LIST_ONLY=1; shift ;;
     -h|--help) usage; exit 0 ;;
     --) shift; break ;;
@@ -300,7 +320,7 @@ list_any() {
 # and never a zArchive/ directory: an archived copy is a record of what a file
 # was, kept by standards/conventions.md Archives before a rewrite, not a bound
 # file, and an archived template stub still holds its prompt lines.
-bound_files() {
+all_bound_files() {
   [ -d "$MEM" ] || return 0
   # Pruned by find rather than filtered by grep: a pattern built from $MEM breaks on
   # a path holding a regex character, and a bare /zArchive/ match would drop every
@@ -310,6 +330,48 @@ bound_files() {
   local mem_glob
   mem_glob=$(printf '%s' "$MEM" | sed 's/[][*?\\]/\\&/g')
   find "$MEM" \( -path "$mem_glob/secrets" -o -path "$mem_glob/answers" -o -name zArchive \) -prune -o -type f -name '*.md' -print 2>/dev/null | sort
+}
+
+bound_files() {
+  if [ -n "$ONLY_FILE" ]; then printf '%s\n' "$ONLY_FILE"; else all_bound_files; fi
+}
+
+# File scope is opt-in for a single file gate. Validate against the same
+# population it normally checks, before a gate can turn a bad path into SKIP.
+if [ -n "$FILE_SCOPE" ]; then
+  case "$ONE_GATE" in
+    G5a|G5c|G9|G10|G11|G11b|G13|G13b|G14|G18|G19) ;;
+    *) echo "$PROG: --file requires --gate with a supported file gate; see --help" >&2; exit 2 ;;
+  esac
+  case "$FILE_SCOPE" in
+    "$ROOT"/*) _file_rel=${FILE_SCOPE#"$ROOT"/} ;;
+    "$ROOT_PHYS"/*) _file_rel=${FILE_SCOPE#"$ROOT_PHYS"/} ;;
+    *) _file_rel=$FILE_SCOPE ;;
+  esac
+  if ! under_root "$_file_rel"; then
+    echo "$PROG: --file $FILE_SCOPE $_ur_why" >&2; exit 2
+  fi
+  if ! all_bound_files | grep -qxF "$ROOT/$_file_rel"; then
+    echo "$PROG: --file is not an existing bound markdown file: $FILE_SCOPE" >&2; exit 2
+  fi
+  ONLY_FILE="$ROOT/$_file_rel"
+  case "$ONE_GATE" in
+    G13|G13b|G14)
+      if [ "$ONLY_FILE" != "$MEM/voice.md" ]; then
+        echo "$PROG: --file for $ONE_GATE must select $(rel "$MEM/voice.md")" >&2; exit 2
+      fi ;;
+  esac
+fi
+
+# Only the bound design's standalone state declaration is structural prose.
+# Read the Provides path so a custom design filename receives the same rule.
+is_bound_design() {
+  local binding expected
+  binding=$(section_body "$AGENTS" "## Provides" 2>/dev/null | sed -nE 's/^ {0,3}-[[:space:]]+design:[[:space:]]*//p' | head -1 | sed -E 's/[[:space:]]+$//;s/^`//;s/`$//')
+  [ -n "$binding" ] && under_root "$binding" || return 1
+  expected=$_ur_res
+  under_root "$(rel "$1")" || return 1
+  [ "$_ur_res" = "$expected" ]
 }
 
 # ---------------------------------------------------------------- awk library
@@ -337,8 +399,67 @@ strip_preamble() {
   ' "$1"
 }
 
+# Build Brand checked this voice section at its lock. Blank it through the
+# next ## heading or EOF, preserving line numbers; other bound files pass through.
+without_brand_note() {
+  if [ "$1" != "$MEM/voice.md" ]; then cat "$1"; return; fi
+  awk '
+    {
+      t=$0; sub(/[[:space:]]+$/, "", t)
+      if(t ~ /^## /) brand = (t == "## From your brand")
+      print brand ? "" : $0
+    }
+  ' "$1"
+}
+
 AWK_LIB='
 function trim(s){ sub(/^[ \t]+/,"",s); sub(/[ \t]+$/,"",s); return s }
+# Only these parentheticals carry a citation rather than another claim.
+function citation_paren(   path){
+  path="(memory|work|sources|todos|inbox|zArchive)/[A-Za-z0-9._~ /-]+"
+  return "\\([ \t]*((Firsthand|Secondhand|Public statement|Research inference|Working need):[^()]+|" path "|`" path "`)[ \t]*\\)"
+}
+function sentence_opener(word){
+  return index(" the this that these those a an it its their his her our your my we they he she there here what when where which who whom whose how why if unless because although though while after before since until once every each all both any some no none one two three four five next last other another such same both either neither not never do does did is are was were be been being has have had can could might must shall should would about above across against among around at by for from in into of off on onto over per through to under upon with within without and or but so yet for nor as than then thus hence therefore however moreover furthermore instead rather still also only just even ", " " tolower(word) " ")>0
+}
+function claim_sentences(line,S,   n,k,nw,AW,lastw,nextw,m,tmp){
+  n=split(line,S,/\. /)
+  # A dotted abbreviation is not a full stop. Splitting on ". " cuts
+  # "e.g. Example Ltd." in half and reports the orphan as an unanchored
+  # sentence while the anchor sits on the other half. Rejoin any
+  # fragment whose last token is a dotted abbreviation or a single
+  # initial, unless the next fragment begins with a sentence opener.
+  k=1
+  while(k<n){
+    nw=split(S[k],AW,/[ \t]+/)
+    lastw=AW[nw]
+    nextw=trim(S[k+1]); sub(/^[^A-Za-z]+/,"",nextw); sub(/[^A-Za-z].*$/,"",nextw)
+    if(!(nextw ~ /^[A-Z]/ && sentence_opener(nextw)) && (lastw ~ /^[A-Za-z](\.[A-Za-z])+$/ || lastw ~ /^[A-Z]$/ || lastw ~ /^(Mr|Mrs|Ms|Dr|Prof|Inc|Ltd|Co|St|No|vs|etc|Jr|Sr)$/)){
+      S[k]=S[k] ". " S[k+1]
+      for(m=k+1;m<n;m++) S[m]=S[m+1]
+      n--
+    } else k++
+  }
+  # An anchor after the full stop, with only citation parentheticals
+  # between, belongs to the sentence before it. Pull both back.
+  for(k=2;k<=n;k++){
+    tmp=S[k]
+    while(match(tmp,"^[ \t]*(" citation_paren() "[ \t]*)*\\[V[0-9]+\\]")){
+      S[k-1]=S[k-1] " " substr(tmp,RSTART,RLENGTH)
+      tmp=substr(tmp,RSTART+RLENGTH)
+    }
+    S[k]=tmp
+  }
+  return n
+}
+function snippet(s,   n){
+  if(length(s)<=90) return s
+  # LC_ALL=C counts bytes. Retreat past UTF-8 continuation bytes so the
+  # diagnostic never ends partway through a character.
+  n=90
+  while(n>0 && substr(s,n+1,1) ~ /[\200-\277]/) n--
+  return substr(s,1,n) "..."
+}
 function isrow(line){ return (trim(line) ~ /^\|/) }
 function is_sep(line,   t){
   t=trim(line)
@@ -1046,7 +1167,7 @@ gate_G5a() {
       if ! grep -qx "$id" "$TMPD/g5a-rows.txt" 2>/dev/null; then
         add_fail "$r line $ln: anchor [$id] has no row in verification.md '## Claims' or '## Negative claims'"
       fi
-    done < <(grep -onE '\[V[0-9]+\]' "$f" 2>/dev/null | sort -u -t: -k1,1n -k2,2)
+    done < <(without_brand_note "$f" | grep -onE '\[V[0-9]+\]' 2>/dev/null | sort -u -t: -k1,1n -k2,2)
   done < <(bound_files)
 
   # Backward: every candidate load-bearing sentence carries an anchor.
@@ -1056,12 +1177,10 @@ gate_G5a() {
     while IFS= read -r msg; do
       [ -n "$msg" ] || continue
       add_fail "$r $msg"
-    done < <(awk -v rootname="$ROOTNAME" "$AWK_LIB"'
+    done < <(without_brand_note "$f" | awk -v rootname="$ROOTNAME" -v is_design="$(is_bound_design "$f" && echo 1 || echo 0)" "$AWK_LIB"'
     BEGIN{
       nr=split(tolower(rootname),RW,/[^a-z0-9'\'']+/)
       for(q=1;q<=nr;q++) if(RW[q]!="") ROOTW[RW[q]]=1
-      no=split("the this that these those a an it its their his her our your my we they he she there here what when where which who whom whose how why if unless because although though while after before since until once every each all both any some no none one two three four five next last other another such same both either neither not never do does did is are was were be been being has have had can could might must shall should would about above across against among around at by for from in into of off on onto over per through to under upon with within without and or but so yet for nor as than then thus hence therefore however moreover furthermore instead rather still also only just even",OP," ")
-      for(q=1;q<=no;q++) OPENER[OP[q]]=1
     }
     { L[NR]=$0 }
     END{
@@ -1073,37 +1192,13 @@ gate_G5a() {
         if(inpre) continue
         t=trim(line)
         if(t=="") continue
+        if(is_design && t ~ /^State:[ \t]+(provisional|complete)[ \t\r]*$/) continue
         if(t ~ /^#/) continue                      # heading
         if(t ~ /^\|/) continue                     # table row: G11b and G13b own tables
         if(t ~ /^\*.*\*$/) continue                # prompt line
         if(is_sep(t)) continue                     # table separator
         if(isrow(t) && i<NR && is_sep(L[i+1])) continue   # table header
-        n=split(line,S,/\. /)
-        # A dotted abbreviation is not a full stop. Splitting on ". " cuts
-        # "e.g. Example Ltd." in half and reports the orphan as an unanchored
-        # sentence while the anchor sits on the other half. Rejoin any
-        # fragment whose last token is a dotted abbreviation or a single
-        # initial, which is what the split left behind when it ate the dot.
-        k=1
-        while(k<n){
-          nw=split(S[k],AW,/[ \t]+/)
-          lastw=AW[nw]
-          if(lastw ~ /^[A-Za-z](\.[A-Za-z])+$/ || lastw ~ /^[A-Z]$/ || lastw ~ /^(Mr|Mrs|Ms|Dr|Prof|Inc|Ltd|Co|St|No|vs|etc|Jr|Sr)$/){
-            S[k]=S[k] ". " S[k+1]
-            for(m=k+1;m<n;m++) S[m]=S[m+1]
-            n--
-          } else k++
-        }
-        # an anchor written after the full stop belongs to the sentence
-        # before it, so pull it back before testing.
-        for(k=2;k<=n;k++){
-          tmp=S[k]
-          while(match(tmp,/^[ \t]*\[V[0-9]+\]/)){
-            S[k-1]=S[k-1] " " substr(tmp,RSTART,RLENGTH)
-            tmp=substr(tmp,RSTART+RLENGTH)
-          }
-          S[k]=tmp
-        }
+        n=claim_sentences(line,S)
         for(k=1;k<=n;k++){
           s=trim(S[k])
           if(s=="") continue
@@ -1138,7 +1233,7 @@ gate_G5a() {
             w1=W[1]
             gsub(/^[("\x27`\[]+/,"",w1)
             gsub(/[)"\x27`\].,;:!?]+$/,"",w1)
-            if(w1 ~ /^[A-Z][A-Za-z\x27-]+$/ && !OPENER[tolower(w1)] \
+            if(w1 ~ /^[A-Z][A-Za-z\x27-]+$/ && !sentence_opener(w1) \
                && !(ROOTW[tolower(w1)] && index(tolower(s),tolower(rootname))>0)) cand=1
           }
           for(w=2;w<=nb;w++){
@@ -1157,12 +1252,11 @@ gate_G5a() {
           if(low ~ /ahead of|[a-z]er than/) cand=1
           if(!cand) continue
           if(s ~ /\[V[0-9]+\]/) continue
-          disp=s
-          if(length(disp)>90) disp=substr(disp,1,90) "..."
+          disp=snippet(s)
           printf "line %d: candidate load-bearing sentence carries no [V<n>] anchor: %s\n", i, disp
         }
       }
-    }' "$f")
+    }')
   done < <(bound_files)
 }
 
@@ -1256,7 +1350,7 @@ gate_G5c() {
       if [ "$isproh" = "1" ] && { [ "$second" = "-" ] || [ -z "$second" ]; }; then
         add_fail "$(rel "$VERIF"): negative row $nrow (anchor $anchor) anchors a prohibition but 'Second reader' is '-'"
       fi
-    done < <(awk -v US="$US" -v NEG="$NEG_GRAMMAR" "$AWK_LIB"'
+    done < <(awk -v US="$US" -v NEG="$NEG_GRAMMAR" -v is_design="$(is_bound_design "$f" && echo 1 || echo 0)" "$AWK_LIB"'
     { L[NR]=$0 }
     END{
       inpre=0
@@ -1267,19 +1361,12 @@ gate_G5c() {
         if(inpre) continue
         t=trim(line)
         if(t=="") continue
+        if(is_design && t ~ /^State:[ \t]+(provisional|complete)[ \t\r]*$/) continue
         if(t ~ /^#/) continue
         if(t ~ /^\*.*\*$/) continue
         if(is_sep(t)) continue
         if(isrow(t) && i<NR && is_sep(L[i+1])) continue
-        n=split(line,S,/\. /)
-        for(k=2;k<=n;k++){
-          tmp=S[k]
-          while(match(tmp,/^[ \t]*\[V[0-9]+\]/)){
-            S[k-1]=S[k-1] " " substr(tmp,RSTART,RLENGTH)
-            tmp=substr(tmp,RSTART+RLENGTH)
-          }
-          S[k]=tmp
-        }
+        n=claim_sentences(line,S)
         for(k=1;k<=n;k++){
           s=trim(S[k]); if(s=="") continue
           low=tolower(s)
@@ -1288,7 +1375,7 @@ gate_G5c() {
           if(match(s,/\[V[0-9]+\]/)) anchor=substr(s,RSTART+1,RLENGTH-2)
           proh=0
           if(low ~ /must not|never|may not|forbidden|prohibited|do not/) proh=1
-          disp=s; if(length(disp)>90) disp=substr(disp,1,90) "..."
+          disp=snippet(s)
           printf "%d%s%s%s%d%s%s\n", i, US, anchor, US, proh, US, disp
         }
       }
@@ -1348,7 +1435,9 @@ gate_G6() {
       continue
     fi
     if [ ! -s "$TMPD/g6.txt" ]; then
-      add_fail "$r: '## Must-reach list' has no rows"
+      if ! section_body "$f" "## Must-reach list" | grep -qiE '(^|[.!?][[:space:]]+)(Must-reach items:[[:space:]]+none[.;]|The must-reach (list|enumeration) is empty[.;])'; then
+        add_fail "$r: '## Must-reach list' has no rows and no explicit empty enumeration"
+      fi
       continue
     fi
     while IFS="$US" read -r ln item kind text disp where; do
@@ -1400,7 +1489,7 @@ gate_G6() {
 # existing. Widening narrows that hole. It cannot close it: no keyword list is
 # the set of all prohibitions. run-log.md states the residual rather than
 # claiming this gate catches omission in general.
-CONSTRAINT_GRAMMAR='must not|may not|must only|may only|only |never|not permitted|permitted only|prohibited|forbidden|do not|cannot|shall not|no [a-z]+ may|restricted|require[sd]? approval|sign-?off|approval|cleared|clearance|embargo|compliance|regulat|legal|confidential|under nda|not for|internal only|do not share|fee|retainer|term of|pricing|priced|invoice|scope of work|deliverable count|review note|reviewer|comment|tracked change|redline|struck out'
+CONSTRAINT_GRAMMAR='(^|[^[:alnum:]_])(must not|may not|must only|may only|only|never|not permitted|permitted only|prohibited|forbidden|do not|cannot|shall not|no [a-z]+ may|restricted|require[sd]? approval|sign-?off|approvals?|cleared|clearance|embargo|compliance|regulat[[:alpha:]]*|legal|confidential(ity)?|under nda|not for|internal only|do not share|fees?|retainer|term of|pricing|priced|invoices?|scope of work|deliverable count|review notes?|reviewers?|comments?|tracked changes?|redline|struck out)([^[:alnum:]_]|$)'
 
 gate_G6b() {
   if [ ! -d "$SRC_DIR" ]; then
@@ -1519,11 +1608,11 @@ gate_G9() {
     while IFS= read -r hit; do
       [ -n "$hit" ] || continue
       add_fail "$r line ${hit%%:*}: a prompt line survives (^\\*.*\\*\$)"
-    done < <(strip_preamble "$f" | grep -nE '^\*.*\*$' 2>/dev/null)
+    done < <(without_brand_note "$f" | strip_preamble - | grep -nE '^\*.*\*$' 2>/dev/null)
     # (b) and (c). The prompt-line scan above strips the preamble; this one
     # must too, or fenced instruction reads as a section body. strip_preamble
     # blanks its lines rather than removing them, so line numbers still match.
-    strip_preamble "$f" > "$TMPD/g9body.txt"
+    without_brand_note "$f" | strip_preamble - > "$TMPD/g9body.txt"
     while IFS= read -r msg; do
       [ -n "$msg" ] || continue
       add_fail "$r $msg"
@@ -1649,7 +1738,7 @@ gate_G10() {
   for af in "$MEM/answers"/*.md; do
     [ -f "$af" ] || continue
     [ "$(basename "$af")" = "AGENTS.md" ] && continue
-    awk '{ l=$0; sub(/^[ \t]*\|/, "", l); n=split(l, c, "|"); if (n<2) next; v=c[1]; gsub(/^[ \t]+|[ \t]+$/, "", v); if (v ~ /^[WYPRHSAXF][0-9]+[a-z]?$/) print v }' "$af"
+    awk '{ l=$0; sub(/^[ \t]*\|/, "", l); n=split(l, c, "|"); if (n<2) next; v=c[1]; gsub(/^[ \t]+|[ \t]+$/, "", v); if (v ~ /^[WYPRHSAXFBCGJKLOT][0-9]+[a-z]?$/) print v }' "$af"
   done | sort -u > "$TMPD/g10-answer-ids.txt"
   bf=$(bound_files | wc -l | tr -d ' ')
   if [ "$bf" -eq 0 ]; then
@@ -1675,6 +1764,9 @@ gate_G10() {
       fi
       case "$name" in
         Firsthand)
+          # The observer is the first segment; answer numbers and source paths
+          # after a comma or semicolon are citation details, not a name.
+          observer=$(printf '%s' "$payload" | sed 's/[,;].*$//;s/^[[:space:]]*//;s/[[:space:]]*$//')
           # Round 1 replaced a document blacklist with a name-shape test, and
           # round 2 showed a shape test is not a person test: "Category Review",
           # "Review Board" and "Account Owner" all have the shape. No regex
@@ -1682,18 +1774,18 @@ gate_G10() {
           # checked against the people this run actually recorded: the person
           # rows of the must-reach lists and the interview's who-confirms
           # answer. An observer nobody wrote down is not an observer.
-          if [ "$SHORT" = "1" ] && [ -n "$OWNER_LC" ] && [ "$(printf '%s' "$payload" | cut -d, -f1 | sed 's/[[:space:]]*$//' | tr 'A-Z' 'a-z')" = "$OWNER_LC" ]; then
+          if [ "$SHORT" = "1" ] && [ -n "$OWNER_LC" ] && [ "$(printf '%s' "$observer" | tr 'A-Z' 'a-z')" = "$OWNER_LC" ]; then
             # The root's owner, by owner_name's name, whatever its shape: a
             # mononym or a non-Latin name is a person all the same.
             :
-          elif printf '%s' "$payload" | tr 'A-Z' 'a-z' | grep -qE "$DOC_GRAMMAR"; then
+          elif printf '%s' "$observer" | tr 'A-Z' 'a-z' | grep -qE "$DOC_GRAMMAR"; then
             add_fail "$r line $ln: (Firsthand: $payload) names a document as the observer"
-          elif ! printf '%s' "$payload" | grep -qE "$PERSON_GRAMMAR"; then
+          elif ! printf '%s' "$observer" | grep -qE "$PERSON_GRAMMAR"; then
             add_fail "$r line $ln: (Firsthand: $payload) does not name a person who observed it; firsthand names an observer, never a document or a role alone"
-          elif printf '%s' "$payload" | grep -qE "$NONPERSON_TAIL"; then
+          elif printf '%s' "$observer" | grep -qE "$NONPERSON_TAIL"; then
             add_fail "$r line $ln: (Firsthand: $payload) names a role, a body, or a document, not the person who observed it"
           elif [ -s "$TMPD/people.txt" ]; then
-            pn=$(printf '%s' "$payload" | grep -oE "$PERSON_GRAMMAR" | sed 's/^[^A-Za-z]*//' | head -1)
+            pn=$(printf '%s' "$observer" | grep -oE "$PERSON_GRAMMAR" | sed 's/^[^A-Za-z]*//' | head -1)
             if [ -n "$pn" ] && ! grep -qixF "$pn" "$TMPD/people.txt"; then
               add_fail "$r line $ln: (Firsthand: $payload) names '$pn', who is not recorded as a person anywhere in this run; a firsthand observer appears in the must-reach person rows or in who-confirms"
             fi
@@ -1711,7 +1803,7 @@ gate_G10() {
           # of those rows, an E<n> beside it or not.
           ids=""
           if [ "$ROOT_TYPE" = "personal" ]; then
-            ids=$(printf '%s' "$payload" | grep -oE '(^|[^A-Za-z0-9])[WYPRHSAXF][0-9]+[a-z]?([^A-Za-z0-9]|$)' | grep -oE '[WYPRHSAXF][0-9]+[a-z]?')
+            ids=$(printf '%s' "$payload" | tr -cs 'A-Za-z0-9' '\n' | grep -E '^[WYPRHSAXFBCGJKLOT][0-9]+[a-z]?$')
           fi
           if [ -n "$ids" ]; then
             missing=""
@@ -1737,6 +1829,7 @@ gate_G10() {
   # carried over from a run on an earlier question bank, or a sample nobody
   # recorded, is caught.
   # Newest is the latest date, then the highest V<n> on that date (C14 names).
+  if [ -n "$ONLY_FILE" ] && [ "$ONLY_FILE" != "$MEM/voice.md" ]; then return; fi
   : > "$TMPD/g10-voice-ids.txt"
   newest=""; best=""
   for af in "$MEM/answers"/*" voice answers.md"; do
@@ -1871,7 +1964,13 @@ $out
 G11BEOF
   done < <(bound_files)
   if [ "$found_any" -eq 0 ] && [ -z "$G_FAILS" ]; then
-    if [ "$SHORT" = "1" ]; then add_note "no figures heading under memory; not applicable on the personal path"; else set_skip "no figures heading and no table with a Figure column under $(rel "$MEM")"; fi
+    if [ "$SHORT" = "1" ]; then
+      add_note "no figures heading under memory; not applicable on the personal path"
+    elif [ -n "$ONLY_FILE" ]; then
+      add_note "no figures heading and no table with a Figure column in $(rel "$ONLY_FILE"); not applicable"
+    else
+      set_skip "no figures heading and no table with a Figure column under $(rel "$MEM")"
+    fi
   fi
 }
 
@@ -1979,7 +2078,7 @@ gate_G13() {
         for(i=1;i<=n;i++) if($0 ~ "(^|[^a-z])" a[i] "([^a-z]|$)") out = out (out==""?"":", ") a[i]
         print out }')
     add_fail "$(rel "$VOICE") line $ln: closed-list adjective(s) '$words' used as a bare trait: $txt"
-  done < <(grep -nEi "(^|[^A-Za-z])($BARE_ADJ)([^A-Za-z]|\$)" "$VOICE" 2>/dev/null)
+  done < <(without_brand_note "$VOICE" | grep -nEi "(^|[^A-Za-z])($BARE_ADJ)([^A-Za-z]|\$)" 2>/dev/null)
 }
 
 # ---- G13b The routing table resolves the root's deliverables ------------
@@ -2076,6 +2175,15 @@ gate_G14() {
   # does not. "name: account owner / basis: account owner" passed before.
   van=$(kv "$VOICE" "voice-authority-name")
   vab=$(kv "$VOICE" "voice-authority-basis")
+  # Source citations can repeat the authority without being the basis itself.
+  basis_plain=$(printf '%s' "$vab" | awk "$AWK_LIB"'
+    {
+      gsub(/\[[^]]*\]\([^)]*\)/, "")
+      gsub(citation_paren(), "")
+      gsub(/\[V[0-9]+\]/, "")
+      sub(/^[[:space:]]+/, ""); sub(/[[:space:].,;:!?]+$/, "")
+      print
+    }')
   if [ -n "$van" ]; then
     if [ "$SHORT" = "1" ] && [ -n "$OWNER_LC" ] && [ "$(printf '%s' "$van" | tr 'A-Z' 'a-z')" = "$OWNER_LC" ]; then
       : # the root's owner, by owner_name's name, whatever its shape
@@ -2098,25 +2206,31 @@ gate_G14() {
     # that in words the domain list does not contain.
     owner="$OWNER_LC"
     if [ "$SHORT" = "1" ] && [ -n "$owner" ] && [ "$(printf '%s' "$van" | tr 'A-Z' 'a-z')" = "$owner" ]; then
-      lab=$(printf '%s' "$vab" | tr 'A-Z' 'a-z')
-      if [ -z "$vab" ] || [ "$lab" = "$owner" ]; then
+      lab=$(printf '%s' "$basis_plain" | tr 'A-Z' 'a-z')
+      if [ -z "$basis_plain" ] || [ "$lab" = "$owner" ]; then
         add_fail "$(rel "$VOICE"): 'voice-authority-basis' is empty or repeats the name; say that this is the owner's own voice"
       else
         add_note "the root's owner is the authority on their own voice; no domain of authority is owed"
       fi
     elif [ -n "$vab" ]; then
       lan=$(printf '%s' "$van" | tr 'A-Z' 'a-z')
-      lab=$(printf '%s' "$vab" | tr 'A-Z' 'a-z')
+      lab=$(printf '%s' "$basis_plain" | tr 'A-Z' 'a-z')
       if [ "$lan" = "$lab" ]; then
         add_fail "$(rel "$VOICE"): 'voice-authority-basis' repeats the name and records no basis for authority in any domain"
-      elif printf '%s' "$lab" | grep -qF "$lan"; then
-        add_fail "$(rel "$VOICE"): 'voice-authority-basis' only restates the name and records no basis for authority in any domain"
       else
         # A basis has to name what the authority rests on, not assert that it
         # exists. "she signs off" and "is the right person" are assertions.
-        nw=$(printf '%s' "$vab" | wc -w | tr -d ' ')
+        nw=$(printf '%s' "$basis_plain" | wc -w | tr -d ' ')
         if [ "${nw:-0}" -lt 6 ]; then
           add_fail "$(rel "$VOICE"): 'voice-authority-basis: $vab' is too thin to be a basis; name the domain and what the authority rests on"
+        elif printf '%s' "$lab" | grep -qE '(^|[^a-z])confirm(ing|s)([^a-z]|$)'; then
+          # Confirmation is a basis only when a role names a domain. Check
+          # this clause before the older basis words, which can occur in a
+          # negation too (for example "not confirming any authority here").
+          if printf '%s' "$lab" | grep -qE '(^|[^a-z])not[[:space:]]+confirm(ing|s)([^a-z]|$)' ||
+             ! printf '%s' "$lab" | grep -qE '(^|[^a-z])(lead|leader|head|director|manager|owner|editor|officer|chief|supervisor|chair|president|founder|partner|coordinator|principal|administrator|custodian|delegate|representative|steward)[[:space:]]+confirm(ing|s)[[:space:]]+[^[:space:]]+[[:space:]]+[^[:space:]]+'; then
+            add_fail "$(rel "$VOICE"): 'voice-authority-basis: $vab' needs a role immediately before confirming or confirms, at least two domain words after it, and no not immediately before the verb"
+          fi
         elif ! printf '%s' "$lab" | grep -qE "(sign-?off|approv|owns|accountab|responsib|authorit|mandate|named in|appointed|delegat|holds|remit|per the|under the|section|brief|contract|policy|role of|as the)"; then
           add_fail "$(rel "$VOICE"): 'voice-authority-basis: $vab' asserts authority without naming what it rests on"
         fi
@@ -2129,7 +2243,9 @@ gate_G14() {
   fi
   basis=$(kv "$VOICE" "voice-authority-basis")
   fb=$(kv "$VOICE" "voice-authority-fallback")
-  if printf '%s %s' "$basis" "$fb" | tr 'A-Z' 'a-z' | grep -q 'fallback'; then
+  # An explicit denial is not a fallback declaration. Keep other fallback
+  # mentions subject to their existing outstanding-signoff requirement.
+  if printf '%s %s' "$basis" "$fb" | tr 'A-Z' 'a-z' | sed -E 's/(^|[^a-z])not[[:space:]]+a[[:space:]]+fallback([^a-z]|$)/\1\2/g' | grep -q 'fallback'; then
     s=$(kv "$VOICE" "voice-authority-fallback-signoff")
     [ -n "$s" ] || add_fail "$(rel "$VOICE"): the authority is a fallback but 'voice-authority-fallback-signoff:' is missing or empty"
   fi
@@ -2226,6 +2342,28 @@ gate_G16() {
         t="$ROOT/$p"
         if [ ! -f "$t" ]; then
           add_fail "$(rel "$AUDIT") line $ln: finding $fid is disputed but '$p' does not exist under the root"
+        elif is_bound_design "$t" &&
+             grep -qE '^Complete at the lock[.] Colour and lettering are settled[.] Lock: .*[#]lock[.]question' "$t" &&
+             grep -qF '(Working need: lock.mjs SCALE)' "$t"; then
+          # lock.mjs owns this bound design. Neither the audit nor an accepted
+          # relock may hand-edit it to insert a dispute label. Both durable
+          # records must preserve the same finding; a relock changes neither.
+          for record in "$AUDIT" "$OPER"; do
+            if [ ! -f "$record" ] || ! awk -v id="$fid" '
+              function finding(s, at, before, after) {
+                if(id=="") return 0
+                while((at=index(s,id))>0) {
+                  before=at==1?"":substr(s,at-1,1); after=substr(s,at+length(id),1)
+                  if(before !~ /[[:alnum:]_]/ && after !~ /[[:alnum:]_]/) return 1
+                  s=substr(s,at+length(id))
+                }
+                return 0
+              }
+              index($0,"(Disputed:")>0 && finding($0) {f=1}
+              END{exit(f?0:1)}' "$record"; then
+              add_fail "$(rel "$AUDIT") line $ln: finding $fid disputes a lock-owned design but $(rel "$record") carries no '(Disputed: ... $fid' entry"
+            fi
+          done
         elif ! awk -v id="$fid" 'index($0,"(Disputed:")>0 && index($0,id)>0 {f=1} END{exit(f?0:1)}' "$t"; then
           add_fail "$(rel "$AUDIT") line $ln: finding $fid is disputed but $p carries no '(Disputed: ... $fid' entry"
         fi
@@ -2578,7 +2716,14 @@ gate_G17() {
 
 # ---- G18 No placeholder token survives ----------------------------------
 gate_G18() {
-  hits=$(grep -rInE '\[name\]|\[Competitor\]' "$ROOT" 2>/dev/null | awk -F: '{print $1":"$2}' | sort -u)
+  # In a POSIX bracket expression, ] is literal in the first position and
+  # - in the last. Exclude code prefixes while retaining standalone prose.
+  placeholder='(^|[^]A-Za-z0-9_)-])\[(name|Competitor)\]'
+  if [ -n "$ONLY_FILE" ]; then
+    hits=$(grep -nE "$placeholder" "$ONLY_FILE" 2>/dev/null | cut -d: -f1 | while IFS= read -r ln; do printf '%s:%s\n' "$ONLY_FILE" "$ln"; done)
+  else
+    hits=$(grep -rInE "$placeholder" "$ROOT" 2>/dev/null | awk -F: '{print $1":"$2}' | sort -u)
+  fi
   [ -n "$hits" ] || return
   while IFS= read -r h; do
     [ -n "$h" ] || continue
@@ -2596,7 +2741,7 @@ gate_G18() {
       add_note "$r line $ln: placeholder token, listed as an exception in the close report"
       continue
     fi
-    add_fail "$r line $ln: a placeholder token ([name] or [Competitor]) survives and is not listed as an exception in the close report"
+    add_fail "$r line $ln: a placeholder token (name or Competitor) survives and is not listed as an exception in the close report"
   done <<G18EOF
 $hits
 G18EOF
@@ -2610,36 +2755,57 @@ gate_G19() {
     while IFS= read -r f; do
       [ -n "$f" ] || continue
       r=$(rel "$f")
-      while IFS= read -r rec; do
-        [ -n "$rec" ] || continue
-        ln=${rec%%:*}
-        tok=$(printf '%s' "$rec" | sed 's/^[0-9]*://')
+      while IFS="$US" read -r ln tok joins; do
         [ -n "$tok" ] || continue
-        if ! under_root "$tok"; then
-          add_fail "$r line $ln: path '$tok' $_ur_why"
-          continue
+        if under_root "$tok"; then
+          path_error="does not resolve under the root"
+        else
+          path_error="$_ur_why"
         fi
-        target="$ROOT/$tok"
-        if [ ! -e "$target" ]; then
-          add_fail "$r line $ln: path '$tok' does not resolve under the root"
-        fi
-      done < <(awk '
+        # A plain-text path may continue through spaces. Try each longer
+        # join on this line, retaining containment checks for every candidate.
+        # A resolving directory cannot swallow a following filename. Defer
+        # accepting it until the next join reveals that word, or the line ends.
+        resolved=0; directory=""
+        while IFS= read -r candidate; do
+          [ -n "$candidate" ] || continue
+          if [ -n "$directory" ]; then
+            nextword=${candidate#"$directory "}
+            if ! printf '%s\n' "$nextword" | grep -qE '^[^[:space:]/]+\.[[:alnum:]]+$'; then
+              resolved=1
+              break
+            fi
+            directory=""; tok="$candidate"
+          fi
+          if under_root "$candidate" && [ -e "$ROOT/$candidate" ]; then
+            if [ -d "$ROOT/$candidate" ]; then
+              directory="$candidate"
+            else
+              resolved=1
+              break
+            fi
+          fi
+        done < <(printf '%s\n' "$tok" "$joins" | tr "$US" '\n')
+        [ -z "$directory" ] || resolved=1
+        [ "$resolved" = "1" ] || add_fail "$r line $ln: path '$tok' $path_error"
+      done < <(awk -v US="$US" '
       function trim(s){ sub(/^[ \t]+/,"",s); sub(/[ \t]+$/,"",s); return s }
       function clean(t){
         gsub(/^[("\[<]+/,"",t)
         gsub(/[)"\]>.,;:!?]+$/,"",t)
         return t
       }
-      function emit(t,   lt){
+      function emit(t,nextword,whole,   lt,j,candidate,joins){
+        candidate=t
         t=clean(t)
         if(t=="") return
         if(index(t,"://")>0) return
         if(index(t,"/")==0) return
-        if(t ~ /[ \t]/) return
+        if(!whole && t ~ /[ \t]/) return
         lt=tolower(t)
         if(lt=="n/a" || lt=="and/or" || lt=="he/she" || lt=="yes/no" || lt=="either/or") return
         if(t ~ /^[0-9]+\/[0-9]+$/) return
-        if(t !~ /^[A-Za-z0-9._~\/-]+$/) return
+        if(!whole && t !~ /^[A-Za-z0-9._~\/-]+$/) return
         if(t !~ /[A-Za-z0-9]/) return
         # This gate asks one question: does a path this root names exist in
         # this root? So only a root-relative path is its business. The first
@@ -2650,8 +2816,12 @@ gate_G19() {
         # standards of the composed plugin (standards/conventions.md), which
         # correctly do not resolve under a client root and never should.
         if(t !~ /^(\.\/)?(memory|work|sources|todos|inbox|zArchive)\//) return
-        seen[t]=1
-        print NR ":" t
+        joins=""
+        if(nextword>0) for(j=nextword;j<=n;j++){
+          candidate=candidate " " W[j]
+          joins=joins US clean(candidate)
+        }
+        printf "%d%s%s%s\n", NR, US, t, joins
       }
       {
         line=$0
@@ -2662,17 +2832,20 @@ gate_G19() {
         rest=line
         while(match(rest,/`[^`]+`/)){
           span=substr(rest,RSTART+1,RLENGTH-2)
-          emit(span)
+          emit(span,0,1)
           rest=substr(rest,1,RSTART-1) " " substr(rest,RSTART+RLENGTH)
         }
         n=split(rest,W,/[ \t]+/)
-        for(i=1;i<=n;i++) emit(W[i])
-      }' "$f" | sort -u -t: -k1,1n -k2,2)
+        for(i=1;i<=n;i++) emit(W[i],i+1)
+      }' "$f" | sort -u -t "$US" -k1,1n -k2,2)
     done < <(bound_files)
   else
     add_note "no bound files under $(rel "$MEM"): the path clause did not run"
   fi
 
+  # A phase's file check does not certify the rest of the root's bindings or
+  # credential store. The unscoped close still runs both clauses below.
+  if [ -n "$ONLY_FILE" ]; then return; fi
   if [ -d "$SECRETS" ]; then
     n=0
     while IFS= read -r cf; do

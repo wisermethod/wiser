@@ -16,15 +16,15 @@
   "questions": [
     {"id":"mode","question":"Do you prefer light mode or dark mode?","options":[
       {"id":"light","label":"Light","nudges":{}},
-      {"id":"dark","label":"Dark","nudges":{"contemporary":0.5,"darkLed":1}},
+      {"id":"dark","label":"Dark","nudges":{"darkLed":1}},
       {"id":"mode-either","label":"Either","nudges":{}}
     ]},
     {"id":"feel","question":"Which feels closest to how your brand should feel?","options":[
-      {"id":"mechanical","label":"Mechanical","description":"Precise and engineered","nudges":{"geometric":1,"cool":1,"serious":1}},
+      {"id":"engineered","label":"Engineered","description":"Precise and industrial","nudges":{"geometric":1,"cool":1,"serious":1}},
       {"id":"natural","label":"Natural","nudges":{"hand":1,"warm":1,"soft":1}},
       {"id":"suit-and-tie","label":"Suit and tie","nudges":{"classic":1,"serious":1,"quiet":1}},
       {"id":"playful-creative","label":"Playful and creative","nudges":{"playful":1,"bold":1,"warm":1}},
-      {"id":"feel-unsure","label":"Not sure","nudges":{}}
+      {"id":"feel-unsure","label":"No preference","shown":false,"nudges":{}}
     ]},
     {"id":"history","question":"How much history should your brand feel like it has?","options":[
       {"id":"rooted","label":"Rooted, like it's been trusted for generations","nudges":{"classic":1}},
@@ -56,24 +56,23 @@
       {"id":"tesla","label":"Tesla","nudges":{"contemporary":1,"bold":1,"cool":1,"darkLed":0.5}},
       {"id":"porsche","label":"Porsche","nudges":{"classic":1,"bold":1,"geometric":1}},
       {"id":"ford","label":"Ford","nudges":{"classic":1,"serious":1}},
-      {"id":"subaru","label":"Subaru","nudges":{"warm":1,"playful":1,"natural":1}},
+      {"id":"toyota","label":"Toyota","nudges":{"warm":1,"playful":1,"natural":1}},
       {"id":"posture-none","label":"None of these","nudges":{}}
     ]},
     {"id":"mood","question":"Choose the one brand that most reflects the direction you're going for. (4 of 4)","options":[
       {"id":"restoration-hardware","label":"Restoration Hardware","nudges":{"classic":1,"quiet":1,"darkLed":1}},
       {"id":"anthropologie","label":"Anthropologie","nudges":{"warm":1,"hand":1,"playful":1,"soft":1}},
-      {"id":"ikea","label":"Ikea","nudges":{"contemporary":1,"playful":1,"geometric":1,"brightColour":1}},
-      {"id":"ethan-allen","label":"Ethan Allen","nudges":{"classic":1,"warm":1,"quiet":1}},
+      {"id":"ikea","label":"Ikea","nudges":{"utility":1,"playful":1,"geometric":1,"brightColour":1}},
+      {"id":"2modern","label":"2Modern","nudges":{"contemporary":1,"fashionable":1,"sleek":1}},
       {"id":"mood-none","label":"None of these","nudges":{}}
     ]},
     {"id":"place","question":"Where would your clients feel most at home with you?","options":[
       {"id":"spa","label":"A calm spa","nudges":{"soft":1,"quiet":1,"warm":1}},
       {"id":"hotel-lobby","label":"A nice hotel lobby","nudges":{"quiet":1,"classic":1,"polished":1}},
-      {"id":"coffee-shop","label":"A coffee shop","nudges":{"warm":1,"playful":1,"casual":1}},
-      {"id":"design-studio","label":"A buzzing design studio","nudges":{"contemporary":1,"bold":1,"playful":1}},
-      {"id":"workshop","label":"A workshop with tools on the wall","nudges":{"strong":1,"hand":1,"serious":1}},
-      {"id":"place-none","label":"None of these","nudges":{}}
+      {"id":"coffee-shop","label":"A coffee shop","nudges":{"warm":1,"approachable":1,"casual":1}},
+      {"id":"design-workshop","label":"A design workshop","nudges":{"contemporary":1,"hand":1,"creative":1}},
+      {"id":"place-none","label":"No preference","shown":false,"nudges":{}}
     ]}
   ],
-  "ignoredNudges": ["natural", "polished", "casual"]
+  "ignoredNudges": ["natural", "polished", "casual", "approachable", "creative", "utility", "fashionable", "sleek"]
 }

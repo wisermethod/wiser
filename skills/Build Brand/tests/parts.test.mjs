@@ -18,8 +18,14 @@ const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const rgb = hex => hex.slice(1).match(/../g).map(n => parseInt(n, 16));
 
 test('locked paper-orange recipe and drawn graphic set retain their exact content', () => {
-  // Ranking metadata was added; the approved colours and geometry stay exact.
-  const visual = part => { const { tags, softStrongReason, ...unchanged } = part; return unchanged; };
+  // Ranking metadata and everyday swatch names may change; the approved
+  // colours, roles, shares and geometry retain the original pinned content.
+  const swatchNames = { ground:'Page base', panel:'Inset field', text:'Reading ink', deep:'Deep field', mark:'Drawing ink', pop:'Action fill', smallPrint:'Detail ink' };
+  const visual = part => {
+    const { tags, softStrongReason, ...unchanged } = structuredClone(part);
+    for (const list of [unchanged.swatches, ...Object.values(unchanged.modeSwatches ?? {})].filter(Boolean)) for (const s of list) s.name = swatchNames[s.key];
+    return unchanged;
+  };
   assert.equal(hash(JSON.stringify(visual(palette('paper-orange')))), '28cc8b687dc826f7514c6081857aa2dff2a104b82e28f51bcbc8a74a003a215b');
   assert.equal(hash(JSON.stringify(visual(graphic('drawn')))), '3f4b50e46afe24f602a523468a4310d17c315ba33153761793a6d399811f0c13');
 });
@@ -109,7 +115,7 @@ test('adjustment history ends at every changed role value and contains concrete 
 
 const noteOrder = {
   newspaper:['Covered By Your Grace','Caveat'], 'friendly-serif':['Kalam','Nothing You Could Do'],
-  'sharp-serif':['Covered By Your Grace','Architects Daughter'], marker:['Kalam','Covered By Your Grace'],
+  'sharp-serif':['Covered By Your Grace','Architects Daughter'], marker:['Shantell Sans','Kalam'],
   humanist:['Kalam','Nothing You Could Do'], 'high-contrast':['Architects Daughter','Covered By Your Grace'],
   expressive:['Gochi Hand','Covered By Your Grace']
 };
@@ -211,7 +217,7 @@ test('reviewed dark patterns have substantial cells and explicit visible strengt
 });
 
 test('parts index documents every current id, the new face, and no stale recipe or pairing',()=>{
-  const doc=readFileSync(resolve(parts,'parts.md'),'utf8');
+  const doc=readFileSync(resolve(parts,'catalogue.md'),'utf8');
   for(const key of ['palettes','pairings','graphics','containers'])for(const p of library[key])assert.ok(doc.includes(`| ${p.id} |`),p.id);
   assert.ok(doc.includes('| Literata |'));assert.ok(!/\| (?:book|white-emerald|DM Serif Display) \|/.test(doc));
   assert.ok(!/#[a-f\d]{6}\b/i.test(doc));
@@ -227,4 +233,12 @@ test('all 49 ranked parts carry six closed positions and a soft-to-strong reason
   }
   assert.equal(count,49);assert.equal(pairing('chunky').tags.softStrong,'soft');
   for(const p of library.palettes)assert.equal(p.tags.warmCool,p.temperature);
+});
+
+test('retired marker keeps Shantell Sans only in its margin-note role',()=>{
+  assert.equal(library.fonts['Shantell Sans'].role,'handwriting');
+  const p=pairing('marker');assert.equal(p.selectable,false);assert.equal(p.type.heading.family,'Instrument Sans');assert.equal(p.handwriting[0].family,'Shantell Sans');
+  assert.equal(p.type.body.family,'Instrument Sans');assert.ok(library.fonts[p.type.body.family]);
+  assert.deepEqual(p.type.body.weights,[400,700]);assert.ok(!p.type.body.variations);
+  for(const size of Object.values(p.type.body.sizes))assert.equal(size.variations,null);
 });
