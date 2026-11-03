@@ -4,6 +4,13 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.03, November 3, 2026
+
+- Book Publisher's EPUB now passes EPUBCheck when your config sets no publisher or description: an empty field is left out instead of written blank. When EPUBCheck is installed, every EPUB build runs it, stops on any error and names it, and lists warnings without stopping; when it is not installed, the build says plainly that it did not run. (49ab62f, 2082c72)
+- Your EPUB keeps one identifier from build to build: an ebook ISBN from the new `isbn.ebook` setting, an identifier you set in `epub.identifier`, or, with neither, one made from the title and authors. Before, every build got a new random identifier, so a store or a reader's library could take an updated EPUB for a different book. (49ab62f, 2082c72)
+- The EPUB's publication date and copyright line now come only from the new `publication_date` and `rights` settings, and are left out when you have not set them. Before, the date was the day of the build and the tool wrote its own copyright line from the year and the authors' names. A `subtitle` in your config now reaches the EPUB's own details too. (49ab62f, 2082c72)
+- `build` now refuses a chapter file name that `validate` refuses, such as one without a leading number, naming the file before anything is typeset. Before, `build` would print it. An EPUB build with no `source.assets` now finds pictures in the `assets` folder beside your chapters instead of stopping with an error. (49ab62f, 8f0768c)
+
 ## v2026.11.02.6, November 2, 2026
 
 - Book Publisher's printed edge tabs now run 0.125 in past the trim into a bleed, as KDP and IngramSpark ask for, and every page of the print PDF records its trim and bleed. The bleed is added on the outer, top and bottom edges only when the book prints a tab, and the build reports whether it did, so you can pick the matching upload setting; `trim.bleed` turns it on or off. The eight tab positions now fit any page height, with half an inch above the first and below the last. Before, tabs were sized for a 10-inch page and stopped at the trim. (8d3e8ae, 48d9d01, e97fe45, 5f5a746)
