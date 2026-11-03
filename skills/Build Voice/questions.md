@@ -334,4 +334,4 @@ Asked with the third version, after two returns, in place of A2, and carrying th
 
 [name] is their folder's name, as `skills/Onboard Root/`'s close says it.
 
-> Your voice is saved in your [name] folder. Whenever you have something you wrote and like, bring it to me and ask me to tune your voice using it.
+> Your personal writing style (we call it 'voice') is saved in your [name] folder. Whenever you have something you wrote and like, bring it to me and ask me to tune your voice using it.
