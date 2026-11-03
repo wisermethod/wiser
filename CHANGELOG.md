@@ -4,6 +4,21 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.03.2, November 3, 2026
+
+- Building a look and feel now happens in one sitting, in the chat, in about twelve minutes: a few quick taps, twelve whole looks to pick from, then a page of whole brands with your name on each. "Show me more" makes new ones from the boards you picked, and "Lock this board in" finishes it, writing your design file and colour and lettering settings there and then. A logo, a short guide and the other offers come only when you ask. Before, it wrote a brand plan and finished in a later session. (4bc397ae, 9f408ee4, dec87544, e44f3bc7, df22fd33, c35f8f04)
+- An organisation, a client or a department takes one short step more: Wiser drafts who it serves and what it promises for a tap, and asks who has the final say on its look. Where neither draft fits, it asks "In a sentence, who does [org] serve?" or "In a sentence, what does [org] promise them?". (4bc397ae, cb8be95f)
+- A brand you already have is recorded in three steps: you drop your files or give your website, Wiser asks only what they leave open, and you check it once. Asking afterwards for your brand shown on a sample card and banner shows your recorded brand on one card and one banner. (9f408ee4, cb8be95f)
+- The place question is asked once. The voice coach now offers "A design workshop" among its places, the same four the brand asks about, and the brand uses your answer from the coach rather than asking again. (68d96e18, 792bde85, 0b44a5d7)
+- The taste questions were revised: "Engineered: Precise and industrial" replaces Mechanical, Toyota replaces Subaru, 2Modern replaces Ethan Allen, and the feel and place questions show four options each. (2010eda2)
+- A page of brands never offers the combinations the design check rules out: a cream ground with a high-contrast serif and a terracotta accent, a near-black ground with one acid-green or vermilion accent, or handwriting set as headings or body text. A board the check stops is replaced before you see the page. (7f4e3643, 976171a4, 481da75f, 4a082496)
+- A look you were shown and passed over no longer comes back as a close match or a recommendation; recommendations come from boards that share parts with the looks you picked. (481da75f, 4a082496)
+- First-run setup now reads as a sequence: after the voice coach, "Your personal writing style (we call it 'voice') is saved in your [name] folder.", then "Next up is building a design look for you." Before, the design question opened "Last, how your work should look", and setup counted as finished before the look was built. (b560e9e7, 5236b206)
+- An industry folder's Record my look now says about 2 minutes and shows no step count. (cb8be95f)
+- At the lock, Wiser may offer a short note for how you write, so your words match the look; it is added only if you keep it, and a later voice rebuild keeps it as it is. (c35f8f04, cb8be95f)
+- A simple brand's page no longer mentions locking a board: "These initials hold the place of a logo. Ask for a logo any time." (f9f32b63)
+- On the board page, "See it full size" shows a visible focus outline, and colours carry everyday names whose labels stay readable on dark colours. (f9f32b63, 976171a4, 481da75f)
+
 ## v2026.11.03, November 3, 2026
 
 - Book Publisher's EPUB now passes EPUBCheck when your config sets no publisher or description: an empty field is left out instead of written blank. When EPUBCheck is installed, every EPUB build runs it, stops on any error and names it, and lists warnings without stopping; when it is not installed, the build says plainly that it did not run. (49ab62f, 2082c72)
