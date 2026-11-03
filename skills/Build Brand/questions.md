@@ -70,7 +70,7 @@ First card, one question at a time, drafts from the organisation's about:
 - Close: nearly, show me a small change
 - Not quite: show me a different take
 
-Close or Not quite: "Which is closer?", two redrafts, and "Neither: I'll say it in a sentence" last. Feeds Foundation and the brief.
+Close or Not quite: "Which is closer?", two redrafts, and "Neither: I'll say it in a sentence" last. On Neither, the audience card asks "In a sentence, who does [org] serve?" and the promise card "In a sentence, what does [org] promise them?". Feeds Foundation and the brief.
 
 Second card's own why: "So I know who should see it."
 
@@ -146,9 +146,11 @@ A second Close gives one more pair; afterwards the options are:
 - Keep the first one
 - I'll say it in a sentence
 
-Neither, or I'll say it in a sentence, brings one plain message, and the reply is the sentence the member keeps:
+Neither, or I'll say it in a sentence, brings one plain message:
 
 > In your own words, then: in a sentence, what do you do?
+
+After the own-words reply, keep the member's sentence and draft three to five word/boundary pairs from it, then show the existing sentence-and-pairs screen with its Is that you? question. That's it keeps the sentence and pairs; Close or Not quite redrafts as above.
 
 Typing is offered, never needed. The sentence and pairs fill Words; boundaries fill Prohibitions and Never. Promise and the picture rule, "When a photograph is used", are drafted, not asked; the picture rule appears on every board and is adopted with the lock. Ghost Writer checks once at the lock, not these offers.
 
@@ -199,15 +201,15 @@ Paged card:
 
 > Choose the one brand that most reflects the direction you're going for.
 
-Chat buttons and the question tool:
-
-> Choose the one brand that most reflects the direction you're going for (1 of 4).
-
 - Apple
 - Bose
 - KitchenAid
 - Craftsman
 - None of these
+
+Chat buttons and the question tool:
+
+> Choose the one brand that most reflects the direction you're going for (1 of 4).
 
 ### T6
 
@@ -215,15 +217,15 @@ Paged card:
 
 > Choose the one brand that most reflects the direction you're going for.
 
-Chat buttons and the question tool:
-
-> Choose the one brand that most reflects the direction you're going for (2 of 4).
-
 - Patagonia
 - Lululemon
 - J Crew
 - Brooks Brothers
 - None of these
+
+Chat buttons and the question tool:
+
+> Choose the one brand that most reflects the direction you're going for (2 of 4).
 
 ### T7
 
@@ -231,15 +233,15 @@ Paged card:
 
 > Choose the one brand that most reflects the direction you're going for.
 
-Chat buttons and the question tool:
-
-> Choose the one brand that most reflects the direction you're going for (3 of 4).
-
 - Tesla
 - Porsche
 - Ford
 - Toyota
 - None of these
+
+Chat buttons and the question tool:
+
+> Choose the one brand that most reflects the direction you're going for (3 of 4).
 
 ### T8
 
@@ -247,15 +249,15 @@ Paged card:
 
 > Choose the one brand that most reflects the direction you're going for.
 
-Chat buttons and the question tool:
-
-> Choose the one brand that most reflects the direction you're going for (4 of 4).
-
 - Restoration Hardware
 - Anthropologie
 - Ikea
 - 2Modern
 - None of these
+
+Chat buttons and the question tool:
+
+> Choose the one brand that most reflects the direction you're going for (4 of 4).
 
 ### T9
 
@@ -527,7 +529,7 @@ Only after the confirmed write:
 >
 > When you want one of these, just ask: your brand shown on a sample card and banner, a refreshed logo, or a one-page guide.
 
-These are later offers, never an automatic board round or a budget extension. A later sample-card-and-banner request uses `paths/brief-boards.md`, B11 for its one pick, then stops. Drafting an adopted sentence uses `writing.md` Sentences the person adopts, never a deleted router step.
+These are later offers, never an automatic board round or a budget extension. A later sample-card-and-banner request uses `paths/brief-boards.md` to render the recorded brand; only when both colour and lettering are absent does its single pick use B11. Drafting an adopted sentence uses `writing.md` Sentences the person adopts, never a deleted router step.
 
 ### Record my look close
 
@@ -541,6 +543,6 @@ The brand-folder branch does not use P1 to P5. Do not ask the retired five-axis 
 
 ## Retained brief voice comparison
 
-The brand-folder path uses this record in place of `writing.md` Voice check's F9 interview and gap-budget rule; it does not run in the full sitting. Compare the chosen words with answered voice rules and save both source passages at F9. A conflict is not an open heading: ask no new question and use none of G1 to G5. Record a reconciliation only from supplied material, an answer to a permitted open-heading gap, or a correction the member gives at B8; never add a conflict question to either step.
+The brand-folder path uses this record through `writing.md` Voice check; it does not run in the full sitting. Compare the chosen words with answered voice rules and save both source passages at F9. A conflict is not an open heading: ask no new question and use none of G1 to G5. Record a reconciliation only from supplied material, an answer to a permitted open-heading gap, or a correction the member gives at B8; never add a conflict question to either step.
 
 Keep the writing rule in force for language and leave a disputed visual requirement out until reconciled. Where the member has already changed the brand words, save that correction and use only the revised words. Where they have explicitly retained a difference between writing and appearance, save the agreed visual rule with its F9 citation. Otherwise leave the disputed words unconfirmed and label the heading only if empty. No disagreement: record that result without asking. No answered voice or governing rule: save an empty F9 answer with status skipped and the reason the comparison is unavailable; no invented member line. Never change the voice file here.

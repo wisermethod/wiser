@@ -2227,9 +2227,9 @@ gate_G14() {
           # Confirmation is a basis only when a role names a domain. Check
           # this clause before the older basis words, which can occur in a
           # negation too (for example "not confirming any authority here").
-          if printf '%s' "$lab" | grep -qE '(^|[^a-z])not[^a-z].*confirm(ing|s)([^a-z]|$)' ||
+          if printf '%s' "$lab" | grep -qE '(^|[^a-z])not[[:space:]]+confirm(ing|s)([^a-z]|$)' ||
              ! printf '%s' "$lab" | grep -qE '(^|[^a-z])(lead|leader|head|director|manager|owner|editor|officer|chief|supervisor|chair|president|founder|partner|coordinator|principal|administrator|custodian|delegate|representative|steward)[[:space:]]+confirm(ing|s)[[:space:]]+[^[:space:]]+[[:space:]]+[^[:space:]]+'; then
-            add_fail "$(rel "$VOICE"): 'voice-authority-basis: $vab' needs a role immediately before confirming or confirms, at least two domain words after it, and no not before the verb"
+            add_fail "$(rel "$VOICE"): 'voice-authority-basis: $vab' needs a role immediately before confirming or confirms, at least two domain words after it, and no not immediately before the verb"
           fi
         elif ! printf '%s' "$lab" | grep -qE "(sign-?off|approv|owns|accountab|responsib|authorit|mandate|named in|appointed|delegat|holds|remit|per the|under the|section|brief|contract|policy|role of|as the)"; then
           add_fail "$(rel "$VOICE"): 'voice-authority-basis: $vab' asserts authority without naming what it rests on"
@@ -2243,7 +2243,9 @@ gate_G14() {
   fi
   basis=$(kv "$VOICE" "voice-authority-basis")
   fb=$(kv "$VOICE" "voice-authority-fallback")
-  if printf '%s %s' "$basis" "$fb" | tr 'A-Z' 'a-z' | grep -q 'fallback'; then
+  # An explicit denial is not a fallback declaration. Keep other fallback
+  # mentions subject to their existing outstanding-signoff requirement.
+  if printf '%s %s' "$basis" "$fb" | tr 'A-Z' 'a-z' | sed -E 's/(^|[^a-z])not[[:space:]]+a[[:space:]]+fallback([^a-z]|$)/\1\2/g' | grep -q 'fallback'; then
     s=$(kv "$VOICE" "voice-authority-fallback-signoff")
     [ -n "$s" ] || add_fail "$(rel "$VOICE"): the authority is a fallback but 'voice-authority-fallback-signoff:' is missing or empty"
   fi
@@ -2340,6 +2342,28 @@ gate_G16() {
         t="$ROOT/$p"
         if [ ! -f "$t" ]; then
           add_fail "$(rel "$AUDIT") line $ln: finding $fid is disputed but '$p' does not exist under the root"
+        elif is_bound_design "$t" &&
+             grep -qE '^Complete at the lock[.] Colour and lettering are settled[.] Lock: .*[#]lock[.]question' "$t" &&
+             grep -qF '(Working need: lock.mjs SCALE)' "$t"; then
+          # lock.mjs owns this bound design. Neither the audit nor an accepted
+          # relock may hand-edit it to insert a dispute label. Both durable
+          # records must preserve the same finding; a relock changes neither.
+          for record in "$AUDIT" "$OPER"; do
+            if [ ! -f "$record" ] || ! awk -v id="$fid" '
+              function finding(s, at, before, after) {
+                if(id=="") return 0
+                while((at=index(s,id))>0) {
+                  before=at==1?"":substr(s,at-1,1); after=substr(s,at+length(id),1)
+                  if(before !~ /[[:alnum:]_]/ && after !~ /[[:alnum:]_]/) return 1
+                  s=substr(s,at+length(id))
+                }
+                return 0
+              }
+              index($0,"(Disputed:")>0 && finding($0) {f=1}
+              END{exit(f?0:1)}' "$record"; then
+              add_fail "$(rel "$AUDIT") line $ln: finding $fid disputes a lock-owned design but $(rel "$record") carries no '(Disputed: ... $fid' entry"
+            fi
+          done
         elif ! awk -v id="$fid" 'index($0,"(Disputed:")>0 && index($0,id)>0 {f=1} END{exit(f?0:1)}' "$t"; then
           add_fail "$(rel "$AUDIT") line $ln: finding $fid is disputed but $p carries no '(Disputed: ... $fid' entry"
         fi

@@ -105,6 +105,26 @@ CONTRACT_EDITS['Locking a board'].push(
   ["Each rule cites the answers JSON and question/field, or the assembled spec's board field.", "Each rule cites its numbered answer in the dated record and the answers JSON field or assembled spec's board field, as Answer numbers specifies."]
 );
 CONTRACT_EDITS['Locking a board'].push(["  \"rounds\": [{\"question\": \"Round 1, questions 1 to 4\", \"steer\": \"Warmer; as it is; stronger; more current\"}],", "  \"rounds\": [{\"question\": \"Round 1, questions 1 to 4\", \"steer\": \"Warmer; as it is; stronger; more current\"}],\n  \"answerNumbers\": {\"file\": \"2026-11-02 design answers.md\", \"looks\": [], \"rounds\": [\"C1\"], \"board\": \"C1\"},"]);
+// 2026-11-03, M5.4 whole-release review: retire marker's old character
+// description and scope personal Foundation citations to their actual answers.
+CONTRACT_EDITS['Pairings'].push([
+  'Bouncing pen strokes carry a loose and openly playful voice.',
+  'Retired from selection; Instrument Sans holds both text roles, with the former pen face kept for margin notes only.'
+]);
+CONTRACT_EDITS['Locking a board'].push([
+  'audience O1, promise O2, final say O3;',
+  'personal audience and promise use their ids in `answerNumbers`; O1, O2 and O3 apply only to an organisation, client or department;'
+]);
+// 2026-11-03, M5.4: displayed replacement recommendations are page-wide.
+CONTRACT_EDITS['Selection from answers'].push([
+  'preserving every other board byte, fixed asset and page constraint; an unrelated avoid record cannot select a slot by number.',
+  'preserving fixed assets, page constraints and every other board byte except Close recommendation flags, which are reset on the first two boards sharing two picked-look parts in page order; an unrelated avoid record cannot select a slot by number.'
+]);
+// 2026-11-03, M5.4: selection requires the kept word/boundary pairs.
+CONTRACT_EDITS['Selection from answers'].push([
+  '| `words` | Required array of `{word, not}` objects, both non-empty single lines; an empty array omits the panel |',
+  '| `words` | Required non-empty array of `{word, not}` objects, both non-empty single lines; empty words are refused before selection |'
+]);
 function edited(text, heading) {
   for (const [from, to] of CONTRACT_EDITS[heading] ?? []) { assert.equal(text.split(from).length, 2, `contract edit not found once in the archive: ${heading}`); text = text.replace(from, to); }
   return text;

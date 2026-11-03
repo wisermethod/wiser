@@ -30,7 +30,7 @@ function build(s) {
 }
 test.after(() => rmSync(work,{recursive:true,force:true}));
 
-test('brief and simple paths check the shared refusal before showing any assembled board', () => {
+test('newly chosen quick-path looks check the shared refusal before display', () => {
   for(const file of ['brief-boards.md','simple.md']) {
     const instructions=readFileSync(new URL(`../paths/${file}`,import.meta.url),'utf8');
     assert.match(instructions,/assemble\.mjs[^\n]*--check-rules/);

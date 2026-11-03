@@ -166,6 +166,13 @@ for (const type of ['org', 'client', 'department']) test(`${type}: the responden
     assert.equal(existsSync(f.design), false);
   }
 });
+test('the brand direction sets each face name in its own face and lists Foundation with its answer numbers', () => {
+  const f = fixture('org'); f.result();
+  const direction = f.read(join(f.work, 'brand-direction.html'));
+  for (const role of ['heading', 'body']) assert.match(direction, new RegExp(`<h3 style="font-family:var\\(--font-${role}\\)">`));
+  const table = direction.split('Where each choice comes from')[1];
+  for (const id of ['O1', 'O2', 'O3']) assert.match(table, new RegExp(`\\b${id}\\b`), id);
+});
 test('organisation requires audience, promise and final say', () => { for (const k of ['audience', 'promise', 'finalSay']) { const f = fixture('org'); delete f.answers[k]; f.save(); assert.throws(f.result, new RegExp(k)); } });
 test('complete existing design refuses; --replace archives bytes and numbers versions', () => {
   const f = fixture(); f.result(); const first = f.read(); assert.throws(f.result, /complete design already exists/);
@@ -306,6 +313,42 @@ test('a personal lock derives Foundation from the recorded J2b sentence and pass
   const good=check();assert.equal(good.status,0,good.stdout+good.stderr);assert.match(good.stdout,/PASS +G10/);
   writeFileSync(join(f.root,'answers',f.answers.answerNumbers.file),'| Number | Answer |\n|---|---|\n| J2a | Other answer |\n');
   const missing=check();assert.equal(missing.status,1);assert.match(missing.stdout,/J2b that no file in memory\/answers\/ records/);
+});
+
+test('M5.4 item 12: personal answerNumbers reject organisation-only O1 and O2 before publication', () => {
+  for (const field of ['audience', 'promise']) for (const id of ['O1', 'O2']) {
+    const f = fixture(); f.answers[field] = 'A sourced personal statement.';
+    f.answers.answerNumbers[field] = id; f.save();
+    assert.throws(f.result, /answerNumbers.*O1 and O2.*personal/);
+    assert.equal(existsSync(f.design), false);
+  }
+  const f = fixture(); f.answers.audience = 'A sourced personal statement.';
+  f.answers.answerNumbers.audience = 'J2b'; f.save();
+  assert.equal(f.result().state, 'complete');
+  assert.match(f.read(), /J2b/);
+});
+
+test('M5.4 item 14: G16 accepts actual lock output and a caller relock preserves both dispute records', () => {
+  const f = fixture('org');
+  writeFileSync(join(f.root, 'AGENTS.md'), '---\nroot: Test Organisation\ntype: org\n---\n\n## Provides\n- design: design.md\n');
+  f.result(); const prior = f.read();
+  const onboarding = join(f.root, 'work/onboarding'); mkdirSync(onboarding);
+  const audit = '# Audit\n\n## Findings\n\n| Finding | Disposition | Deciding check | Where checker looked | Bound file entry |\n|---|---|---|---|---|\n| A4 | disputed | Both searches disagree | Words | design.md |\n\n(Disputed: audit.md A4; producer and auditor searches disagree about Words.)\n';
+  const operating = '# Open items\n\n(Disputed: audit.md A4; design.md Words; owner: Dana Reyes; status: needed.)\n';
+  writeFileSync(join(onboarding, 'audit.md'), audit); writeFileSync(join(onboarding, 'operating-file.md'), operating);
+  const gates = process.env.BUILD_BRAND_GATES || resolve(dirname(script), '../../Onboard Root/gates.sh');
+  const harness = readFileSync(gates, 'utf8').replace('MEM="$ROOT/memory"', 'MEM="$ROOT"');
+  const check = () => {
+    const r = spawnSync('bash', ['-s', '--', '--gate', 'G16', f.root], { input: harness, encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stdout + r.stderr); assert.match(r.stdout, /PASS +G16/);
+  };
+  check();
+  const result = run([...f.argv, '--replace', '--caller']);
+  assert.equal(f.read(result.archives.find(a => a.path === f.design).archive), prior);
+  assert.equal(f.read(join(onboarding, 'audit.md')), audit);
+  assert.equal(f.read(join(onboarding, 'operating-file.md')), operating);
+  assert.doesNotMatch(f.read(), /\(Disputed:/);
+  check();
 });
 
 test('the documented provisional state line permits locking a fully populated provisional file without --replace', () => {

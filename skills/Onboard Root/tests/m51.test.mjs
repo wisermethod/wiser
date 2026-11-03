@@ -218,9 +218,9 @@ for (const [name, basis, fails = false] of [
   }, fails);
 });
 
-test('phase summary writes both close records in Phase 9 before its harness and reserves Phase 10 for handover', () => {
+test('phase summary starts the operating file in Phase 3, completes it in Phase 9 and reserves Phase 10 for handover', () => {
   const skill = readFileSync(join(here, '../SKILL.md'), 'utf8').split('## The full path\n')[1].split('\n## ')[0];
-  assert.match(skill, /Phase 9 writes the operating file and close report before (?:running )?(?:its|the|the same) `?gates\.sh`?/);
+  assert.match(skill, /Phase 3 starts the operating file, and Phase 9 completes it and writes the close report before running the same `gates\.sh`/);
   assert.match(skill, /Phase 10 hands over/);
   const full = readFileSync(join(here, '../full-path.md'), 'utf8');
   assert.match(full, /does not say this\. \(Firsthand: Dana Reyes\) \[V3\]/);

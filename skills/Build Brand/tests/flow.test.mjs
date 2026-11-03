@@ -127,7 +127,7 @@ test('brand-folder hosts use the whole drop line and retain their own computer f
 test('brand-folder voice conflicts are recorded without a new question or gap slot',()=>{
   const brief=read('paths/brief.md'), comparison=bank.split('## Retained brief voice comparison\n')[1];
   assert.match(brief,/A voice conflict is not a gap question and uses none of these five slots/);
-  assert.match(brief,/replaces `\.\.\/writing\.md` Voice check's F9 interview and gap-budget rule: ask no new question/);
+  assert.match(brief,/`\.\.\/writing\.md` Voice check records F9 without a member question or gap slot/);
   assert.match(router,/It records conflicts without a new question or a gap slot/);
   assert.match(comparison,/save both source passages at F9/);
   assert.match(comparison,/ask no new question and use none of G1 to G5/);
@@ -160,12 +160,16 @@ test('brand-folder path records received material, live gaps, read-back and comp
   assert.ok(!/B0 \|/.test(retained));
 });
 
-test('brief boards take one pick, the bank caption, no dark-screen question or later round',()=>{
+test('recorded-brand samples use one page; only an absent colour and type takes a pick',()=>{
   const briefBoards=read('paths/brief-boards.md');
-  assert.match(briefBoards,/exactly one board/);assert.match(briefBoards,/record the pick and stop/);
-  assert.match(briefBoards,/bank's initials caption/);assert.match(briefBoards,/No closing question/);
-  assert.match(briefBoards,/no dark-screen question/);
-  assert.ok(!/monogram|next round|Can the person see|End each full board by asking/i.test(briefBoards));
+  const [samples,choice]=briefBoards.split('## Only when neither colour nor lettering was recorded');
+  assert.match(samples,/one sample card and one banner/);
+  assert.match(samples,/simple-brand caption/);assert.match(samples,/no board is locked/);
+  assert.match(samples,/no dark-screen question/i);assert.match(samples,/closing question on a board/);
+  assert.match(samples,/`design.md` stays complete/);assert.doesNotMatch(samples,/B11/);
+  assert.match(choice,/no colour and no lettering at all/);
+  assert.match(choice,/existing Step 4 pick question and B11/);
+  assert.match(choice,/Record the one pick at B11/);assert.match(choice,/Ask no second choice/);
 });
 
 test('organisation overlay adds its step and all seven progress lines',()=>{
@@ -237,7 +241,7 @@ test('each approved gap line is used where its gap happens, and no file still ca
   for(const [text,phrase] of [[org,"organisation thin-record sentence"],[sitting,'already saved the thin-record answer at `organisation.md` Who it\'s for'],[sitting,"own-words line"],[sitting,"`mode-either`, `feel-unsure`, `history-unsure`, `strength-unsure`, `technology-none`, `style-none`, `posture-none`, `mood-none` or `place-none`"],[sitting,"As it is is 0, and so is a tap left unanswered"],[sitting,"every-look line"],[sitting,"every-direction line"],[sitting,"own-page line"],[sitting,"design-check line"],[boards,"design-check line"],[router,"design-check line"],[lock,"one-word line"],[lock,"organisation offers line"],[lock,"saying nothing of it to the member"],[writing,"Say nothing of it to the member"],[industry,"Record my look close"]])assert.ok(text.includes(phrase),phrase);
   for(const [text,stale] of [[org,'keep that as a gap'],[sitting,'missing-tap recovery'],[sitting,'disclosure sentence'],[boards,'no fixed disclosure'],[lock,'core word has no fixed'],[lock,'flag the missing offer'],[writing,'voice-absence disclosure line'],[industry,'no fixed industry close'],[bank,'not a full alternate offer']])assert.ok(!text.includes(stale),stale);
   for(const heading of ['### Record my look close'])assert.ok(bank.includes(heading),heading);
-  for(const [text,phrase] of [[sitting,'not appended to the looks history a second time'],[sitting,'not appended to board `shown` a second time and does not take Review again'],[sitting,'a check problem on `brand.logo`'],[sitting,'"logo and fonts" only where the font-file refusal comes with a kept logo the card would refuse too'],[sitting,'sent without a pick (`null`)'],[sitting,'never a no-preference fill'],[org,'Can answered about not support the audience draft or the promise draft?'],[org,"bank's organisation offers line"],[lock,'say no sentence line; any changed pair still takes its one-word line']])assert.ok(text.includes(phrase),phrase);
+  for(const [text,phrase] of [[sitting,'not appended to the looks history a second time'],[sitting,'not appended to board `shown` a second time and does not take Review again'],[sitting,'a check problem on `brand.logo`'],[sitting,'"logo and fonts" only where the font-file refusal comes with a kept logo the card would refuse too'],[sitting,'sent without a pick (`null`)'],[sitting,'never a no-preference fill'],[org,'Can answered about not support the audience draft or the promise draft?'],[org,"bank's organisation offers line"],[lock,'A changed pair alone says no sentence line']])assert.ok(text.includes(phrase),phrase);
   for(const [text,stale] of [[sitting,'Do not turn a skipped answer into a preference'],[org,'page-to-share phrase in the bank'],[lock,'go to Done after recording any pair-only correction'],[router,'under the retained rule']])assert.ok(!text.includes(stale),stale);
 });
 

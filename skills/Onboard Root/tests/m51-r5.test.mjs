@@ -44,7 +44,7 @@ for (const [basis, fails] of [
 test('G14 row describes the role, both verbs, two words and the negation refusal', () => {
   const row = path.split('\n').find(s => s.startsWith('| G14 '));
   assert.match(row, /role word immediately before/); assert.match(row, /`confirming` or `confirms`/);
-  assert.match(row, /two words after/); assert.match(row, /`not` before/);
+  assert.match(row, /two words after/); assert.match(row, /`not` immediately before/);
 });
 
 test('Phase 7 scopes every design exit gate even when the voice still has a prompt', () => {

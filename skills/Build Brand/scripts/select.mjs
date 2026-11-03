@@ -52,7 +52,8 @@ false: exclude every avoid key and build one fresh page with avoid empty.
 For a displayed page, save pageDisplayed: true and its complete selection.boards
 as displayedBoards in the answers file before waiting; resume retains both.
 Only avoided keys on that saved page select slots for ranked replacements;
-every other displayed board stays byte-identical. Accumulate older blocked
+unblocked displayed boards retain every other byte. Close recommendation flags
+are reset in page order after replacement. Accumulate older blocked
 records in avoid, never in shown. An exhausted displayed slot or an unfillable
 unseen rebuild reports its own failure. Board zero keeps its fixed assets. Four new boards per
 pick, together in pick order. picks: [] requests a fresh Round 1 page with
@@ -96,6 +97,7 @@ export function validateAnswers(a, data, library, command) {
   if(own(a,'type')&&!['personal','org','client','department'].includes(a.type)) fail('type','use personal, org, client or department');
   text(a.name,'name'); text(a.sentence,'sentence');
   array(a.words,'words');
+  if(!a.words.length) fail('words','supply at least one chosen word/boundary pair');
   for(const w of a.words) { object(w,['word','not'],'words'); text(w.word,'words.word');text(w.not,'words.not'); }
   object(a.taps,data.questions.map(q=>q.id),'taps');
   for(const q of data.questions) if(!q.options.some(o=>o.id===a.taps[q.id])) fail(`taps.${q.id}`,'choose an option id from taps.json');
@@ -776,7 +778,14 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
         replacements.push({slot:0,group:groups[0].id,refused:summary(zeroCandidate),reason:'Blocked by Review',replacement:summary(next)});
       }
     }
-    if(roundPage&&!unsteered&&pickedLooks.length&&!boards.some(b=>!b.zero&&b.group==='close'&&nearPicked(b))) notes.push('No Close board shares two parts with a picked look; no recommendation is available.');
+    // Replacement order must not decide the stars. Recompute them in the
+    // displayed page's order after every replaced slot has its final parts.
+    // All other bytes of unblocked records stay as they were saved.
+    if(a.pageDisplayed&&a.avoid?.length&&roundPage) {
+      for(const b of boards) if(b.group==='close') delete b.recommendation;
+      if(!unsteered) for(const b of boards.filter(b=>!b.zero&&b.group==='close'&&nearPicked(b)).slice(0,2)) b.recommendation=b.why;
+    }
+    if(roundPage&&!unsteered&&pickedLooks.length&&!boards.some(b=>b.recommendation)) notes.push('No Close board shares two parts with a picked look; no recommendation is available.');
     if(unseenRetry) {
       notes.unshift('Unseen page rebuilt; all blocked boards excluded. Review the rebuilt page before showing.');
       replacements.unshift(...blockedRecords.map(b=>({slot:b.number,group:b.group,refused:{pairing:b.pairing.id,palette:b.palette.id,graphicSet:b.graphicSet.id},reason:'Blocked by Review; unseen page rebuilt',replacement:null})));
