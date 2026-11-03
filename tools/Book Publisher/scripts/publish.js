@@ -703,8 +703,13 @@ function validateConfig(config) {
     } else if (before.length) {
       if (config.contents.enabled !== true) errors.push('contents.before requires contents.enabled: true');
       if (config.source?._chaptersPath && existsSync(config.source._chaptersPath)) {
-        const files = getChapterFiles(config.source._chaptersPath, config.source?.exclude ?? []);
-        if (before.some((name, i) => name !== files[i] || !statSync(join(config.source._chaptersPath, name)).isFile())) {
+        // A chapter name outside the grammar is a config error like any other,
+        // reported with the rest; the order check needs a valid order.
+        let files = null;
+        try {
+          files = getChapterFiles(config.source._chaptersPath, config.source?.exclude ?? []);
+        } catch (error) { errors.push(...error.message.split('\n')); }
+        if (files && before.some((name, i) => name !== files[i] || !statSync(join(config.source._chaptersPath, name)).isFile())) {
           errors.push('contents.before must name the manuscript\'s first files in their existing sorted order');
         }
       }
