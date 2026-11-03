@@ -4,6 +4,13 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.03.3, November 3, 2026
+
+- The voice coach's quick taps are plain questions about you, each with three or four answers to tap, in place of screens that set two lines side by side to choose between. The first asks how it shows in your writing when you see things differently from most people in your field: you call it out, you show a better way, you build on common ground, or it depends on who's reading. (51a97a95)
+- The coach no longer asks how a friend would describe the way you talk, or how you treat a phrase everyone in your field uses. (51a97a95)
+- For your first post, the coach offers who it could be for, drawn from what you said about your work, such as the people who come to you, people looking to hire someone who does what you do, or people curious about it, beside "Anyone: a general audience", and you tap one. Before, you typed who should read it. (51a97a95)
+- The voice for an organisation, a client or a department, built from its own writing, keeps no answers file: each answer goes straight to where it is used. A department whose parent organisation's voice is not built yet is told the comparison is thin rather than that the two match. (51a97a95)
+
 ## v2026.11.03.2, November 3, 2026
 
 - Building a look and feel now happens in one sitting, in the chat, in about twelve minutes: a few quick taps, twelve whole looks to pick from, then a page of whole brands with your name on each. "Show me more" makes new ones from the boards you picked, and "Lock this board in" finishes it, writing your design file and colour and lettering settings there and then. A logo, a short guide and the other offers come only when you ask. Before, it wrote a brand plan and finished in a later session. (4bc397ae, 9f408ee4, dec87544, e44f3bc7, df22fd33, c35f8f04)
