@@ -89,7 +89,7 @@ for(const [label,fixture,expected,keptExpected] of fixtures) {
     for(const r of [two,three]) {
       assert.ok(r.checks.attempts>=12);
       assert.ok(r.replacements.every(refusal=>refusal.reason&&refusal.replacement));
-      const boosted=select('round1',{...a,looks:r.looks.slice(0,2).map(l=>l.value)});
+      const boosted=select('round1',{...a,looks:r.looks.slice(0,2).map(l=>l.value),looksShown:[...one.looks,...two.looks,...three.looks]});
       for(const [axis,[neg,pos]] of Object.entries(AXES)) assert.equal(boosted.wholeLookBoosts[axis],r.looks.slice(0,2).reduce((n,l)=>n+(l.positions[axis]===pos?1:l.positions[axis]===neg?-1:0),0));
     }
   });

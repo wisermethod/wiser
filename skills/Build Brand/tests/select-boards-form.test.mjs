@@ -5,7 +5,7 @@ import {mkdtempSync,readFileSync,writeFileSync,rmSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {select,formLogo} from '../scripts/select.mjs';
-import {operator,firstStrategy} from './select-fixtures.mjs';
+import {boardOperator as operator,boardFirstStrategy as firstStrategy, looksAnswers} from './select-fixtures.mjs';
 import {checkForm} from '../../../tools/Form/scripts/format.js';
 import {BOARD_KEYS,resolveBoards} from '../../../tools/Form/scripts/boards.js';
 const refs=['pairing','palette','graphicSet','container','primaryMode'];

@@ -75,7 +75,9 @@ test('the shared answers projection is accepted by selection with identical fiel
   const { validateAnswers } = await import('../scripts/select.mjs');
   const taps = JSON.parse(readFileSync(join(parts, 'taps.json'))), f = fixture();
   f.answers.off = ['softStrong', 'warm', 'natural'];
+  f.answers.looks = ['look-' + sha256('soft-serif/paper-orange/drawn').slice(0,32)];
   const shared = Object.fromEntries(['name', 'sentence', 'words', 'taps', 'off', 'looks'].map((k) => [k, f.answers[k]]));
+  shared.looksShown = [{value:f.answers.looks[0],pairing:'soft-serif',palette:'paper-orange',graphicSet:'drawn'}];
   assert.deepEqual(validateAnswers(structuredClone(shared), taps, library, 'round1'), shared);
   f.save(); f.result(); assert.match(f.read(), /Dropped from the steer: softStrong, warm, natural/);
 });

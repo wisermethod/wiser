@@ -17,7 +17,7 @@ test('generated board library is current and portable without Node, DOM or impor
  assert.doesNotThrow(()=>vm.runInContext(source.replace(/\bexport /g,''),context));
 });
 for(const [name,get]of Object.entries(tapSets))test(`twelve-board ${name}: checked Round 1 fits and is admitted by the schema`,()=>{
- const a=get(),f=formFromSelection(a,select('round1',a,{check:true}).selection),before=copy(f);
+ const a=get(),f=formFromSelection(a,select('round1',{...a,looksShown:[]},{check:true}).selection),before=copy(f);
  assert.equal(f.questions[0].options.length,12);assert.deepEqual(checkForm(f),{ok:true,problems:[]});assert.deepEqual(f,before);
  const bytes=Buffer.byteLength(JSON.stringify(f));assert.ok(bytes<65536,String(bytes));
  assert.equal(z.fromJSONSchema(formJsonSchema()).safeParse(f).success,true);

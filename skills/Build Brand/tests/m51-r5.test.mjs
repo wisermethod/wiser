@@ -6,7 +6,7 @@ import { assemble, LIBRARY } from '../scripts/assemble.mjs';
 import { assembleCore } from '../scripts/assemble-core.mjs';
 import { validateBrandBoards } from '../../../tools/Contact Sheet/scripts/brand-boards.js';
 import { renderBrandBoards } from '../../../tools/Contact Sheet/scripts/brand-board-view.js';
-import { operator } from './select-fixtures.mjs';
+import { boardOperator as operator , looksAnswers} from './select-fixtures.mjs';
 import { board, selection, matchingPairing } from './selections.mjs';
 import { extname } from 'node:path';
 
@@ -15,7 +15,7 @@ const roleWords = /paragraphs|names|primary action|drawings|gestures|main page|l
 const lists = p => [p.swatches, ...Object.values(p.modeSwatches ?? {}), ...Object.values(p.chips ?? {})];
 for (const ground of ['#171B18', '#201B1A']) test(`refusal names only the blocking near-black cluster for ${ground}, without a kept pairing`, () => {
   const a = { ...operator(), kept: { palette: { overrides: Object.fromEntries(['light', 'dark'].map(mode => [mode, { ground, pop: '#EE4828', mark: '#EE4828' }])) } } };
-  for (const command of ['looks', 'round1']) assert.throws(() => select(command, a), error => {
+  for (const command of ['looks', 'round1']) assert.throws(() => select(command, command==='looks'?looksAnswers(a):a), error => {
     assert.match(error.message, /rule refusal prevents a complete page: refused cluster near-black-single-acid-or-vermilion \(light\)/);
     assert.doesNotMatch(error.message, /marker|cream-serif/);
     assert.equal((error.message.match(/refused cluster/g) ?? []).length, 1); return true;

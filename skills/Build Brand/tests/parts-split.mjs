@@ -72,6 +72,33 @@ for (const [heading, changes] of Object.entries({
 })) {
   (CONTRACT_EDITS[heading] ??= []).push(...changes);
 }
+// 2026-11-02, M5.1 retry review: required looks history and persisted displayed boards.
+CONTRACT_EDITS['Selection from answers'].push(...[
+  [
+    "Carry every displayed looks page in `looksShown`.",
+    "Require `looksShown` on `round1` and `variations`: carry every displayed looks page, or an empty array only when none was displayed."
+  ],
+  [
+    "Recommendations come only from boards carrying a picked look's parts; tap scores alone do not qualify one.",
+    "Recommendations go to the first two Close boards sharing at least two of a picked look's three parts (pairing, palette, graphic set), wherever they occur in Close; tap scores alone do not qualify one. With picks, at least one is recommended unless no Close board shares two parts with a picked look; that absence is explained in `notes`."
+  ],
+  [
+    "| `looksShown` | `round1` and `variations`: all displayed whole-look records or Form options, separate from board `shown`; include every picked look |",
+    "| `looksShown` | Required on `round1` and `variations`: all displayed whole-look records or Form options, separate from board `shown`; include every picked look; empty only when none was displayed |"
+  ],
+  [
+    "| `pageDisplayed` | Optional boolean, default false: true preserves a displayed page on Review retry; false permits rebuilding an unseen page after slot exhaustion |",
+    "| `pageDisplayed` | Optional boolean, default false: false rebuilds an unseen page with every avoided key excluded; true starts from saved `displayedBoards` and replaces only avoided slots |\n| `displayedBoards` | Required when `pageDisplayed` is true: the complete displayed `selection.boards` records, saved unchanged in the command input before waiting and reloaded on resume |"
+  ],
+  [
+    "\"off\": [], \"looks\": [], \"kept\": {}",
+    "\"off\": [], \"looks\": [], \"looksShown\": [], \"kept\": {}"
+  ],
+  [
+    "Try those numbered slots first, deterministically from their ranked spares, preserving all other board bytes, fixed assets and page constraints; the returned `form` is ready as usual. Set `pageDisplayed: true` when the page was displayed: a slot with no passing unblocked spare fails with its number and exhaustion reason. For an unseen page, leave `pageDisplayed` false: if a slot exhausts its spares, rebuild the whole page from the same answers, excluding all blocked boards, then run Review again before display.",
+    "For an unseen page, leave `pageDisplayed` false: exclude every avoided board key and build one fresh page from the same answers with `avoid` empty, without recursion, then run Review again before display. For a displayed page, persist `pageDisplayed: true` and its complete returned `selection.boards` as `displayedBoards` in that command's answers file before waiting. Resume retains both fields. Retries start from those saved boards and replace only slots whose displayed keys are avoided, deterministically from ranked spares, preserving every other board byte, fixed asset and page constraint; an unrelated avoid record cannot select a slot by number. A slot with no passing unblocked spare fails with its number and exhaustion reason. The returned `form` is ready as usual."
+  ]
+]);
 function edited(text, heading) {
   for (const [from, to] of CONTRACT_EDITS[heading] ?? []) { assert.equal(text.split(from).length, 2, `contract edit not found once in the archive: ${heading}`); text = text.replace(from, to); }
   return text;

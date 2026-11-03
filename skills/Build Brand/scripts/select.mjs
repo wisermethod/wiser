@@ -42,15 +42,19 @@ otherwise return twelve unshown looks, preferring less-shown parts.
 variations answers: picks (0 to 3 full board records), shown (all boards already
 shown in this sitting), steer (warmCool, quietBold, softStrong,
 classicContemporary: -1, 0 or 1), and off as for round1.
-round1/variations: optional avoid, full blocked board records from this same
-page. Rerun with the same inputs and flags; only blocked slots change, from
-ranked spares. Accumulate blocked replacements in avoid, never in shown.
-pageDisplayed defaults to false: an exhausted slot rebuilds the unseen page
-with blocked boards excluded. Use true to preserve a displayed page's other
-slots and report slot exhaustion instead. looksShown carries separate full
-looks history for round1/variations; passed-over triples stay out of Close,
-and recommendations carry only picked looks' parts. A failed rebuild reports
-that it cannot fill a complete page; board zero keeps its fixed assets. Four new boards per
+round1/variations: looksShown is required: all displayed whole-look records
+or Form options, separate from board shown; empty only if none was displayed.
+Passed-over triples stay out of Close; the first Close boards sharing two of a
+picked look's three parts carry up to two recommendations. With picks but no
+such Close board, notes explain why no recommendation is available.
+Optional avoid holds full blocked board records. pageDisplayed defaults to
+false: exclude every avoid key and build one fresh page with avoid empty.
+For a displayed page, save pageDisplayed: true and its complete selection.boards
+as displayedBoards in the answers file before waiting; resume retains both.
+Only avoided keys on that saved page select slots for ranked replacements;
+every other displayed board stays byte-identical. Accumulate older blocked
+records in avoid, never in shown. An exhausted displayed slot or an unfillable
+unseen rebuild reports its own failure. Board zero keeps its fixed assets. Four new boards per
 pick, together in pick order. picks: [] requests a fresh Round 1 page with
 shown excluded and the steer applied. Comments are read by the session into
 steer/off; free text is not accepted. All answers fields: parts/parts.md.`;
@@ -88,7 +92,7 @@ function part(library, kind, id) {
   return found[0];
 }
 export function validateAnswers(a, data, library, command) {
-  object(a,['type','name','sentence','words','taps','off','looks','kept','body','photoRules','heroPhrase','picks','steer','shown','avoid','looksShown','pageDisplayed'],'answers');
+  object(a,['type','name','sentence','words','taps','off','looks','kept','body','photoRules','heroPhrase','picks','steer','shown','avoid','looksShown','pageDisplayed','displayedBoards'],'answers');
   if(own(a,'type')&&!['personal','org','client','department'].includes(a.type)) fail('type','use personal, org, client or department');
   text(a.name,'name'); text(a.sentence,'sentence');
   array(a.words,'words');
@@ -128,6 +132,7 @@ export function validateAnswers(a, data, library, command) {
   object(a.steer??{},STEER,'steer');
   for(const [axis,value] of Object.entries(a.steer??{})) if(![-1,0,1].includes(value)) fail(`steer.${axis}`,'use -1, 0 or 1');
   if(command==='round1' && ['picks','steer','shown'].some(k=>own(a,k))) fail(command,'picks, steer and shown belong to looks or variations');
+  if(command!=='looks'&&!own(a,'looksShown')) fail('looksShown','required; supply every displayed whole look, or an empty array when none was displayed');
   if(own(a,'looksShown')) {
     if(command==='looks') fail('looksShown','use shown for whole-look pages');
     array(a.looksShown,'looksShown');
@@ -135,6 +140,19 @@ export function validateAnswers(a, data, library, command) {
     for(const id of a.looks??[]) if(!a.looksShown.some(look=>look.value===id)) fail('looksShown','must include every picked look');
   }
   if(own(a,'pageDisplayed')&&typeof a.pageDisplayed!=='boolean') fail('pageDisplayed','use true or false');
+  if(a.pageDisplayed||own(a,'displayedBoards')) {
+    if(command==='looks') fail('displayedBoards','only board pages support displayed-page retries');
+    if(!a.pageDisplayed) fail('displayedBoards','requires pageDisplayed: true');
+    array(a.displayedBoards,'displayedBoards');
+    const roundPage=command==='round1'||!a.picks?.length,zero=roundPage&&Object.keys(kept).length?1:0;
+    const count=roundPage?12:(a.picks?.length??0)*4;
+    if(a.displayedBoards.length!==count) fail('displayedBoards','supply the complete displayed selection.boards');
+    for(const [i,b] of a.displayedBoards.entries()) {
+      object(b,Object.keys(b??{}),'displayedBoards');
+      const number=i+1-zero,group=roundPage?GROUPS[Math.min(2,Math.floor((number-1)/4))]?.id:`pick-${Math.floor(i/4)+1}`;
+      if(b.number!==number||b.group!==(number===0?'close':group)||!!b.zero!==(number===0)) fail('displayedBoards','keep the displayed board numbers, groups and zero record unchanged');
+    }
+  }
   if(own(a,'avoid')) {
     if(command==='looks') fail('avoid','only board pages support Review replacements');
     array(a.avoid,'avoid'); unique(a.avoid.map(b=>JSON.stringify(stable(b))),'avoid');
@@ -532,8 +550,12 @@ function checkFactory(a,library,selectionDir,replacements) {
 }
 // All choices, including spares, obey the prefix's constraints. Refusals never
 // reserve a palette or consume an energy. Subsequent slots see the replacement.
-function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),check=false,selectionDir=process.cwd(),unsteered=false}={},refusal=boardRefusal,excluded=new Set()) {
+function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),check=false,selectionDir=process.cwd(),unsteered=false}={},refusal=boardRefusal) {
   const a=validateAnswers(copy(answers),data,library,command);
+  const unseenRetry=!a.pageDisplayed&&!!a.avoid?.length;
+  const excluded=new Set(unseenRetry?a.avoid.map(boardKey):[]);
+  const blockedRecords=a.avoid??[];
+  if(unseenRetry) a.avoid=[];
   const refused=board=>refusal(library,board);
   if(!['looks','round1','variations'].includes(command)) fail(command,'unknown command');
   if(unsteered&&command!=='round1') fail('--unsteered','only applies to round1');
@@ -542,6 +564,7 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
   // Picks are full records: validate all fields through the existing assembler,
   // before any ranking or check. Kept assets remain fixed in later rounds.
   if(command==='variations') for(const b of [...a.picks,...a.shown]) assemble(page(a,[b],[{id:b.group,label:b.group}]),library,{selectionDir});
+  if(a.pageDisplayed) assemble(page(a,a.displayedBoards,command==='round1'||!a.picks.length?GROUPS:a.picks.map((b,i)=>({id:`pick-${i+1}`,label:`Variations of board ${b.number}`}))),library,{selectionDir});
   let pool=candidates(library,state,a,refused);
   const boosts=blank(),pickedLooks=[];
   for(const id of a.looks??[]) {
@@ -555,13 +578,36 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
   pool=candidates(library,state,a,refused);
   const triple=b=>[b.pairing.id,b.palette.id,b.graphicSet.id].join('/');
   const pickedParts=new Set(pickedLooks.map(c=>triple(makeBoard(library,a,c,1,'close'))));
+  // A Close board is near a picked look when it shares at least two of its three parts; only those are recommended.
+  const pickedTriples=pickedLooks.map(c=>{const x=makeBoard(library,a,c,1,'close');return [x.pairing.id,x.palette.id,x.graphicSet.id];});
+  const nearPicked=b=>{const t=[b.pairing.id,b.palette.id,b.graphicSet.id];return pickedTriples.some(p=>p.filter((v,i)=>v===t[i]).length>=2);};
   const passedOver=new Set((a.looksShown??[]).filter(look=>!(a.looks??[]).includes(look.value)).map(look=>triple(makeBoard(library,a,shownLook(look,library,a.kept),1,'close'))).filter(id=>!pickedParts.has(id)));
   const checker=check?checkFactory(a,library,selectionDir,replacements):null;
-  const chosen=[],spares=[],seen=new Set([...(a.shown??[]),...(a.picks??[])].map(boardKey));
+  const displayedKeys=new Set((a.displayedBoards??[]).map(boardKey));
+  const chosen=[],spares=[],seen=new Set([...(a.shown??[]),...(a.picks??[])].map(boardKey).filter(key=>!a.pageDisplayed||!displayedKeys.has(key)));
   const roundPage=command==='round1'||(command==='variations'&&!a.picks.length);
   let groups=copy(GROUPS);
   const accept=(c,group,number,base)=>!excluded.has(boardKey(makeBoard(library,a,c,number,group,base)))&&!refused(makeBoard(library,a,c,number,group,base))&&(!checker||checker.accept(c,group,number,base));
   const finishReplacement=(start,c)=>{ for(const r of replacements.slice(start)) r.replacement=summary(c); };
+  const rankedSpares=(eligible,next)=>{
+    const index=a.pageDisplayed?eligible.findIndex(c=>c.identity===next.identity):eligible.indexOf(next);
+    const remaining=eligible.slice(index+1);
+    if(!a.pageDisplayed) return remaining.slice(0,16);
+    const unique=new Set();
+    return remaining.filter(c=>{if(unique.has(c.identity))return false;unique.add(c.identity);return true;}).slice(0,16);
+  };
+  const displayedCandidate=number=>{
+    const b=a.displayedBoards.find(b=>b.number===number);
+    const c=effective({...info(library,part(library,'palettes',b.palette.id),part(library,'pairings',b.pairing.id),part(library,'graphics',b.graphicSet.id),state.dials),mode:b.primaryMode,container:b.container,base:b,group:b.group},a,library);
+    c.partPositions=partPositions(library,b);c.positions=positions(c.partPositions);
+    c.identity=boardKey(b);
+    c.ground=ground(b.palette.overrides?.[b.primaryMode]?.ground??c.actualPalette[b.primaryMode].ground);
+    if(!roundPage) {
+      const parent=a.picks[Number(b.group.slice(5))-1];
+      c.parent=parent.number;c.changedParts=BOARD_PARTS.filter(field=>partKey(b,field)!==partKey(parent,field));
+    }
+    return c;
+  };
   try {
     if(command==='looks') {
       groups=[{id:'looks',label:'Whole looks'}];
@@ -593,7 +639,7 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
           const available=(state.darkLed&&group.id==='close'&&slot<2?darkPool:nativePool).filter(c=>!seen.has(c.identity)&&!excluded.has(c.identity)&&(group.id!=='close'||!passedOver.has(triple(makeBoard(library,a,c,1,'close')))));
           const remainingEnergies=new Set([...freshNative,...available].map(c=>c.palette.energy));
           const exhausted=missing.filter(e=>!remainingEnergies.has(e));
-          if(exhausted.length) fail('round1',`energy ${exhausted.join(', ')} is exhausted: no unshown board remains`);
+          if(exhausted.length&&!a.pageDisplayed) fail('round1',`energy ${exhausted.join(', ')} is exhausted: no unshown board remains`);
           const angleEnergies=new Set(freshNative.filter(c=>!strongest.length||!chosen.length||strongest.filter(k=>c.positions[k]!=='either'&&chosen[0].positions[k]!=='either'&&c.positions[k]!==chosen[0].positions[k]).length===1).map(c=>c.palette.energy));
           const early=missing.filter(e=>!angleEnergies.has(e));
           const ranked=available.filter(c=>{
@@ -607,11 +653,11 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
           const preferred=ranked.filter(c=>!pairings.has(c.pairing.id));
           const fallback=ranked.filter(c=>pairings.has(c.pairing.id)&&!chosen.some(x=>x.group===group.id&&x.pairing.id===c.pairing.id));
           const eligible=[...preferred,...fallback],start=replacements.length;
-          const next=eligible.find(c=>accept(c,group.id,chosen.length+1));
+          const next=a.pageDisplayed?displayedCandidate(chosen.length+1):eligible.find(c=>accept(c,group.id,chosen.length+1));
           if(!next) fail(`round1.${group.id}.${slot+1}`,'no passing board meets the diversity, energy and one-strong-dial constraints');
           finishReplacement(start,next);chosen.push({...next,group:group.id});
           seen.add(next.identity);
-          spares.push(eligible.slice(eligible.indexOf(next)+1,eligible.indexOf(next)+17));
+          spares.push(rankedSpares(eligible,next));
           if(pairings.has(next.pairing.id)) notes.push(`Board ${chosen.length} reuses an earlier pairing to keep colour and graphic variety.`);
           palettes.add(next.palette.id);pairings.add(next.pairing.id);graphics.add(next.graphicSet.id);
           if(group.id==='close') {groundFamilies.add(next.ground.family);darks+=Number(next.ground.dark);}
@@ -657,66 +703,50 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
         ranked.sort((a,b)=>a.distance-b.distance||b.score-a.score||a.order-b.order);
         for(let slot=0;slot<4;slot++) {
           const eligible=ranked.filter(c=>!seen.has(c.identity)),start=replacements.length,number=chosen.length+1;
-          const next=eligible.find(c=>accept(c,groups[pickIndex].id,number,base));
+          const next=a.pageDisplayed?displayedCandidate(number):eligible.find(c=>accept(c,groups[pickIndex].id,number,base));
           if(!next) fail('variations',`no passing new one-or-two-part variation remains for pick ${pickIndex+1}`);
           finishReplacement(start,next);chosen.push({...next,group:groups[pickIndex].id});
-          spares.push(eligible.slice(eligible.indexOf(next)+1,eligible.indexOf(next)+17));seen.add(next.identity);
+          spares.push(rankedSpares(eligible,next));seen.add(next.identity);
         }
         if(a.steer?.quietBold===1&&seed.palette.paletteLoudness===3&&seed.typeLoudness===3) notes.push(`Picked board ${base.number} is already at the loudness ceiling; no louder library step exists.`);
       }
     }
+    let boards=[];
     const slotBoard=(c,i)=>{
       const b=makeBoard(library,a,c,i+1,c.group??groups[0].id,c.base);
       if(roundPage) {
         const why=unsteered?'A whole look in library order.':alignedWhy(c,a,data);
         b.why=why??'Another angle on your chosen direction.';
-        if(!unsteered&&i<2&&why&&pickedParts.has(triple(b))) b.recommendation=why;
+        const earlier=chosen.slice(0,i).filter(c=>c.group==='close'&&nearPicked(makeBoard(library,a,c,1,'close',c.base))).length;
+        const recommended=a.pageDisplayed?boards.filter(b=>b.number!==i+1&&b.recommendation).length:earlier;
+        if(!unsteered&&b.group==='close'&&recommended<2&&nearPicked(b)) b.recommendation=b.why;
       }
       return b;
     };
-    let boards=chosen.map(slotBoard);
+    boards=a.pageDisplayed?copy(a.displayedBoards):chosen.map(slotBoard);
     const kept=a.kept??{};
     const zeroBoard=c=>{const b=makeBoard(library,a,c,0,groups[0].id);b.zero=true;b.name='What you are keeping';b.why='Your kept assets, held on every board.';return b;};
-    if(Object.keys(kept).length&&roundPage) {
+    if(Object.keys(kept).length&&roundPage&&!a.pageDisplayed) {
       const zero=zeroBoard(chosen[0]);
       if(checker&&!accept(chosen[0],groups[0].id,0)) fail('board zero','kept assets cannot build; supply usable assets rather than relaxing them');
       boards.unshift(zero);
       notes.push('Board zero shows the supplied assets on the closest library setting; unprovided parts of an existing brand are not reconstructed.');
     }
-    // Review retries replay the original page and try named slots first.
-    // Full returned records bind a retry to these inputs, not a later page.
-    if(a.avoid?.length) {
-      const blocked=new Set([...excluded,...a.avoid.map(boardKey)]),same=(x,y)=>JSON.stringify(stable(x))===JSON.stringify(stable(y));
-      const zeroCandidate=chosen[0],zeroSpares=[...spares[0]];
-      const belongs=b=>{
-        const zero=b.number===0,i=zero?0:b.number-1,c=chosen[i];
-        return c&&(!zero||boards.some(b=>b.zero))&&[c,...spares[i]].some(candidate=>same(zero?zeroBoard(candidate):slotBoard({...candidate,group:c.group,base:c.base},i),b));
-      };
-      const local=a.avoid.filter(belongs),pending=a.avoid.filter(b=>!belongs(b));
-      if(!local.length||pending.length&&a.pageDisplayed) fail('avoid','record does not belong to this page and its ranked spares; keep the same inputs and flags');
-      const rebuild=slot=>{
-        if(a.pageDisplayed) fail(`avoid.${slot}`,`slot ${slot} exhausted: no passing unblocked ranked spare preserves the rest of this page`);
-        const omitted=new Set([...excluded,...local.map(boardKey)]);
-        let result;
-        try { result=selectPage(command,{...a,avoid:pending},{library,data,check,selectionDir,unsteered},refusal,omitted); }
-        catch(error) {
-          if(/does not belong/.test(error.message)) throw error;
-          fail('avoid',`unseen page rebuilt after slot ${slot} exhausted, but cannot fill a complete page: ${error.message}`);
-        }
-        result.notes.unshift(`Unseen page rebuilt after slot ${slot} exhausted; all blocked boards excluded. Review the rebuilt page before showing.`);
-        result.replacements.unshift(...local.map(b=>({slot:b.number,group:b.group,refused:{pairing:b.pairing.id,palette:b.palette.id,graphicSet:b.graphicSet.id},reason:'Blocked by Review; unseen page rebuilt',replacement:copy(result.positions[Math.max(0,b.number-1)])})));
-        result.checks.attempts+=checker?.attempts??0;
-        return result;
-      };
+    // A displayed page starts with its saved records. Only an avoided key
+    // on that page can select a slot; accumulated older refusals just exclude.
+    if(a.pageDisplayed&&a.avoid?.length) {
+      const blocked=new Set(a.avoid.map(boardKey));
+      const avoided=b=>a.avoid.some(old=>old.number===b.number&&boardKey(old)===boardKey(b));
+      const zeroCandidate=boards[0].zero?displayedCandidate(0):null,zeroSpares=[...spares[0]];
       const fits=(c,i)=>{
         const b=slotBoard(c,i);
         if(blocked.has(boardKey(b))||[...(a.shown??[]),...(a.picks??[]),...boards.filter(x=>x.number!==b.number)].some(x=>boardKey(x)===boardKey(b))) return false;
         if(!roundPage) return true;
         const proposed=chosen.map((old,j)=>j===i?c:old);
-        if(new Set(proposed.map(x=>x.palette.id)).size!==proposed.length) return false;
+        if(!kept.palette?.id&&new Set(proposed.map(x=>x.palette.id)).size!==proposed.length) return false;
         for(const g of groups) {
           const members=proposed.filter(x=>x.group===g.id);
-          if(new Set(members.map(x=>x.graphicSet.id)).size!==members.length||new Set(members.map(x=>x.pairing.id)).size!==members.length) return false;
+          if(new Set(members.map(x=>x.graphicSet.id)).size!==members.length||(!kept.pairing&&new Set(members.map(x=>x.pairing.id)).size!==members.length)) return false;
         }
         if(!kept.palette?.id&&ENERGIES.some(e=>!proposed.some(x=>x.palette.energy===e))) return false;
         const fixedGround=!!kept.palette?.id||['light','dark'].some(mode=>own(kept.palette?.overrides?.[mode]??{},'ground'));
@@ -726,26 +756,30 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
         return unsteered||!strong.length||proposed.filter(x=>x.group==='angle').every(x=>strong.filter(k=>x.positions[k]!=='either'&&proposed[0].positions[k]!=='either'&&x.positions[k]!==proposed[0].positions[k]).length===1);
       };
       for(let i=0;i<chosen.length;i++) {
-        if(!a.avoid.some(b=>b.number===i+1)) continue;
+        if(!avoided(boards.find(b=>b.number===i+1))) continue;
         const previous=chosen[i],start=replacements.length;
-        const next=spares[i].map(c=>({...c,group:previous.group,base:previous.base})).find(c=>fits(c,i)&&accept(c,c.group,i+1,c.base));
-        if(!next) return rebuild(i+1);
+        const next=spares[i].map(c=>({...c,...(roundPage?{container:CONTAINERS[c.graphicSet.id]}:{}),group:previous.group,base:previous.base})).find(c=>fits(c,i)&&accept(c,c.group,i+1,c.base));
+        if(!next) fail(`avoid.${i+1}`,`slot ${i+1} exhausted: no passing unblocked ranked spare preserves the rest of this page`);
         finishReplacement(start,next);
         replacements.push({slot:i+1,group:previous.group,refused:summary(previous),reason:'Blocked by Review',replacement:summary(next)});
         chosen[i]=next;boards[boards.findIndex(b=>b.number===i+1)]=slotBoard(next,i);
         spares[i]=spares[i].filter(c=>{const b=slotBoard({...c,group:previous.group,base:previous.base},i);return !blocked.has(boardKey(b))&&boardKey(b)!==boardKey(boards.find(b=>b.number===i+1));});
       }
-      if(a.avoid.some(b=>b.number===0)) {
+      if(zeroCandidate&&avoided(boards[0])) {
         const start=replacements.length;
         const next=zeroSpares.find(c=>{
           const key=boardKey(zeroBoard(c));
           return !blocked.has(key)&&!boards.some(b=>b.number!==0&&boardKey(b)===key)&&accept(c,groups[0].id,0);
         });
-        if(!next) { if(a.pageDisplayed) fail('avoid.0','slot 0 exhausted: no passing unblocked ranked spare retains the fixed assets'); return rebuild(0); }
+        if(!next) fail('avoid.0','slot 0 exhausted: no passing unblocked ranked spare retains the fixed assets');
         finishReplacement(start,next);boards[0]=zeroBoard(next);
         replacements.push({slot:0,group:groups[0].id,refused:summary(zeroCandidate),reason:'Blocked by Review',replacement:summary(next)});
       }
-      if(pending.length) fail('avoid','record does not belong to this page and its ranked spares; keep the same inputs and flags');
+    }
+    if(roundPage&&!unsteered&&pickedLooks.length&&!boards.some(b=>!b.zero&&b.group==='close'&&nearPicked(b))) notes.push('No Close board shares two parts with a picked look; no recommendation is available.');
+    if(unseenRetry) {
+      notes.unshift('Unseen page rebuilt; all blocked boards excluded. Review the rebuilt page before showing.');
+      replacements.unshift(...blockedRecords.map(b=>({slot:b.number,group:b.group,refused:{pairing:b.pairing.id,palette:b.palette.id,graphicSet:b.graphicSet.id},reason:'Blocked by Review; unseen page rebuilt',replacement:null})));
     }
     const selection=page(a,boards,groups);
     const result={command,selection,dials:state.dials,wholeLookBoosts:boosts,darkLed:state.darkLed,brightColour:state.brightColour,ignoredNudges:state.ignored,positions:chosen.map(summary),spares:spares.map((list,i)=>({slot:i+1,ranked:list.map(summary)})),replacements,checks:{enabled:check,attempts:checker?.attempts??0},notes};
@@ -760,11 +794,15 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
     }
     if(command!=='looks') Object.assign(result,boardsForm(a,selection,selectionDir,command));
     return result;
+  } catch(error) {
+    if(unseenRetry) throw Error(`avoid: unseen page rebuilt, but cannot fill a complete page: ${error.message}`);
+    throw error;
   } finally { checker?.close(); }
 }
 export function select(command,answers,options={}) {
   try { return selectPage(command,answers,options); }
   catch(error) {
+    if(error.message.includes('unseen page rebuilt')) throw error;
     if(!/no passing|library exhausted|no unshown board remains|slot \d+ exhausted|kept assets cannot build/.test(error.message)) throw error;
     // If clearing history restores a legal page, history is exhausted. The
     // ordinary library refusals must not disguise that as a new rule failure.

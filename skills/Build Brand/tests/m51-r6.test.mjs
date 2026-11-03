@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { LIBRARY } from '../scripts/assemble.mjs';
 import { select } from '../scripts/select.mjs';
-import { operator } from './select-fixtures.mjs';
+import { boardOperator as operator , looksAnswers} from './select-fixtures.mjs';
 const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 const triple = b => [b.pairing.id, b.palette.id, b.graphicSet.id].join('/');
 // Synthetic Dana fixture: r4 run 2's answers and all twelve displayed looks.
@@ -124,15 +124,19 @@ test('Dana Round 1 never revives an unpicked look in Close or recommends it', ()
   const picked = new Set(dana.looksShown.filter(l => dana.looks.includes(l.value)).map(l => [l.pairing,l.palette,l.graphicSet].join('/')));
   const rejected = new Set(dana.looksShown.filter(l => !dana.looks.includes(l.value)).map(l => [l.pairing,l.palette,l.graphicSet].join('/')));
   assert.equal(result.selection.boards.length, 12);
+  const pickedTriples = [...picked].map(t => t.split('/')), near = b => pickedTriples.some(p => p.filter((v, i) => v === triple(b).split('/')[i]).length >= 2);
+  const matching = result.selection.boards.filter(b => b.group === 'close' && near(b));
+  if (matching.length) assert.ok(result.selection.boards.some(b => b.recommendation));
+  else assert.match(result.notes.join('\n'), /No Close board shares two parts with a picked look/);
   for (const b of result.selection.boards) {
     if (b.group === 'close' || b.recommendation) assert.ok(!rejected.has(triple(b)), triple(b));
-    if (b.recommendation) assert.ok(picked.has(triple(b)), triple(b));
+    if (b.recommendation) assert.ok(near(b), triple(b));
   }
   assert.equal(JSON.stringify(dana), before);
   assert.deepEqual(result, select('round1', dana));
 });
 
-test('an unseen Review page rebuilds after slot exhaustion, excluding every blocked board', () => {
+test('an unseen Review retry builds one fresh page, excluding every blocked board', () => {
   const a = operator(), avoid = []; let result = select('round1', a, {check:true}), rebuilt;
   for (let i = 0; i < 18; i++) {
     avoid.push(result.selection.boards[0]);
@@ -143,7 +147,7 @@ test('an unseen Review page rebuilds after slot exhaustion, excluding every bloc
   assert.ok(rebuilt, 'exhausted ranked spares must rebuild the unseen page');
   assert.equal(rebuilt.selection.boards.length, 12); assert.ok(rebuilt.form);
   assert.deepEqual(rebuilt, select('round1', { ...a, avoid, pageDisplayed: false }, {check:true}));
-  assert.throws(() => select('round1', { ...a, avoid, pageDisplayed: true }, {check:true}), /slot 1 exhausted/);
+  assert.deepEqual(select('round1', { ...a, avoid, pageDisplayed: true, displayedBoards: rebuilt.selection.boards }, {check:true}).selection.boards, rebuilt.selection.boards);
   avoid.push(rebuilt.selection.boards[0]);
   assert.ok(select('round1', { ...a, avoid, pageDisplayed: false }, {check:true}).selection.boards.every(b => !avoid.some(old => JSON.stringify([old.pairing,old.palette,old.graphicSet,old.container,old.primaryMode]) === JSON.stringify([b.pairing,b.palette,b.graphicSet,b.container,b.primaryMode]))));
 });
@@ -153,8 +157,8 @@ test('Assembly documents the rule gate used by both quick paths', () => {
   assert.match(assembly, /`--check-rules`/);
   assert.doesNotMatch(assembly, /There are no other flags/);
 });
-test('records make the brief path B2 and B3 file-settled answers the explicit exception', () => {
-  assert.match(read('records.md'), /B2 and B3[^.]*rows[^.]*answers they settle/);
+test('records make every brief path B1 to B7 file-settled answer the explicit exception', () => {
+  assert.match(read('records.md'), /B1 to B7[^.]*rows[^.]*answers they settle/);
 });
 test('lock instructions specify the confirmed one-line statement without the question or options', () => {
   for (const path of ['lock.md','parts/parts.md']) assert.match(read(path), /`readBack.text`[^.]*confirmed read-back statement alone[^.]*one line[^.]*without the question or its options/);
@@ -173,7 +177,7 @@ test('an unseen variations page plainly reports when rebuilding cannot fill the 
 });
 
 test('whole-look Form options also exclude passed-over triples and empty picks recommend nothing', () => {
-  const a = operator(), looks = select('looks', a);
+  const a = operator(), looks = select('looks',looksAnswers( a));
   const answers = { ...a, looks: [looks.options[0].value], looksShown: looks.options };
   const passed = new Set(looks.options.slice(1).map(o => triple(o.board)));
   for (const b of select('round1', answers).selection.boards) if (b.group === 'close' || b.recommendation) assert.ok(!passed.has(triple(b)));

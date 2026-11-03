@@ -10,7 +10,7 @@ import {boardRefusal} from '../scripts/refusals.mjs';
 import {select,tapDials,ground,score,run,ENERGIES} from '../scripts/select.mjs';
 import {assemble,LIBRARY,AXES,partPositions} from '../scripts/assemble.mjs';
 import {runContactSheet} from '../../../tools/Contact Sheet/scripts/contact-sheet.js';
-import {operator,firstStrategy,lookActions} from './select-fixtures.mjs';
+import {boardOperator as operator,boardFirstStrategy as firstStrategy,lookActions, looksAnswers} from './select-fixtures.mjs';
 import {checkForm} from '../../../tools/Form/scripts/format.js';
 const library=JSON.parse(readFileSync(LIBRARY)),data=JSON.parse(readFileSync(new URL('../parts/taps.json',import.meta.url)));
 const work=mkdtempSync(join(tmpdir(),'brand-selection-tests-'));
@@ -44,7 +44,7 @@ for(const [label,fixture]of [['operator',operator],['First Strategy',firstStrate
     assert.equal(runContactSheet(['build','--spec',spec,'--output',html]).itemCount,12);
   });
   test(`${label} whole looks have six distinct leaders and six exact one-dial contrasts with four plain grounds`,()=>{
-    const a=fixture(),r=select('looks',a);assert.equal(r.looks.length,12);assert.equal(r.options.length,12);
+    const a=fixture(),r=select('looks',looksAnswers(a));assert.equal(r.looks.length,12);assert.equal(r.options.length,12);
     assert.deepEqual(r.looks.map(l=>l.kind),[...Array(6).fill('top'),...Array(6).fill('contrast')]);
     const plain=r.selection.boards.map((b,i)=>b.graphicSet.pattern?.strength.light===0&&b.graphicSet.pattern?.strength.dark===0?i+1:null).filter(Boolean);
     assert.deepEqual(plain,[2,5,8,11]);assert.equal(new Set(r.options.map(o=>o.value)).size,12);
@@ -52,11 +52,11 @@ for(const [label,fixture]of [['operator',operator],['First Strategy',firstStrate
     for(const field of ['pairing','graphicSet'])assert.equal(new Set(r.looks.slice(0,6).map(l=>l[field])).size,6);
     for(const look of r.looks.slice(6))assert.equal(Object.keys(AXES).filter(k=>look.positions[k]!==r.looks[0].positions[k]).length,1);
     for(const [i,option]of r.options.entries()){assert.equal(option.value,r.looks[i].value);assert.equal(option.label,r.looks[i].label.replaceAll(' / ', ', '));assert.deepEqual(Object.keys(option),['value','label','board']);assert.deepEqual(option.board.pairing,r.selection.boards[i].pairing);assert.deepEqual(option.board.palette,r.selection.boards[i].palette);assert.deepEqual(option.board.graphicSet,r.selection.boards[i].graphicSet);}
-    const picked=r.looks.slice(0,2),boosted=select('round1',{...a,looks:picked.map(l=>l.value)});
+    const picked=r.looks.slice(0,2),boosted=select('round1',{...a,looks:picked.map(l=>l.value),looksShown:r.looks});
     for(const [axis,[neg,pos]]of Object.entries(AXES))assert.equal(boosted.dials[axis]-r.dials[axis],picked.reduce((n,l)=>n+(l.positions[axis]===pos?1:l.positions[axis]===neg?-1:0),0));
   });
   test(`${label} looks CLI output is an unchanged valid boards option list`,()=>{
-    const a=fixture(),input=path('looks-answers.json');writeFileSync(input,JSON.stringify(a));
+    const a=looksAnswers(fixture()),input=path('looks-answers.json');writeFileSync(input,JSON.stringify(a));
     const r=run(['looks','--answers',input,'--check']),before=structuredClone(r.options);
     const form={title:'Step 3: how it should look',brand:{name:a.name,initials:r.selection.boards[0].initials,sentence:a.sentence,body:a.body,words:a.words},questions:[{id:'looks',type:'boards',view:'look',label:'Which of these feel like you? Pick up to three.',pick:3,min:2,options:r.options}],actions:lookActions()};
     assert.deepEqual(checkForm(form),{ok:true,problems:[]});assert.deepEqual(r.options,before);
@@ -94,8 +94,8 @@ test('a known contrast refusal is replaced by the next ranked spare without weak
   assert.equal(checked.selection.boards[2].graphicSet.id,'drafting');assert.ok(!checked.selection.boards[2].palette.overrides);
 });
 test('checked whole-look ids remain valid boosts even if Contact Sheet replaced an unchecked leader',()=>{
-  const a=firstStrategy(),looks=select('looks',a,{check:true});assert.ok(looks.replacements.every(r=>r.replacement));
-  const r=select('round1',{...a,looks:looks.looks.slice(0,2).map(l=>l.value)});assert.ok(Object.values(r.wholeLookBoosts).some(n=>n!==0));
+  const a=firstStrategy(),looks=select('looks',looksAnswers(a),{check:true});assert.ok(looks.replacements.every(r=>r.replacement));
+  const r=select('round1',{...a,looks:looks.looks.slice(0,2).map(l=>l.value),looksShown:looks.looks});assert.ok(Object.values(r.wholeLookBoosts).some(n=>n!==0));
 });
 test('kept logo and font are absolute in output, fixed on every board, with board zero first and twelve total',()=>{
   const input=path('answers.json'),output=path('selection.json'),mark=path('mark.svg');
@@ -323,7 +323,7 @@ for(const command of ['round1','variations']) test(`${command} Review replaces o
   const a=operator(),shown=select('round1',a).selection.boards;
   const input=command==='round1'?a:{...a,picks:[shown[0]],shown,steer:{}};
   const original=select(command,input,{check:true}),blocked=original.selection.boards[0];
-  const retry={...input,avoid:[blocked]},before=JSON.stringify(retry);
+  const retry={...input,avoid:[blocked],pageDisplayed:true,displayedBoards:original.selection.boards},before=JSON.stringify(retry);
   const result=select(command,retry,{check:true});
   assert.equal(JSON.stringify(retry),before);assert.notDeepEqual(result.selection.boards[0],blocked);
   assert.equal(JSON.stringify(result.selection.boards.slice(1)),JSON.stringify(original.selection.boards.slice(1)));
@@ -336,14 +336,14 @@ for(const command of ['round1','variations']) test(`${command} Review replaces o
   assert.ok(result.replacements.some(r=>r.slot===1&&r.reason==='Blocked by Review'));
   assert.equal(JSON.stringify(result),JSON.stringify(select(command,retry,{check:true})));
   assert.ok(result.selection.boards.every(b=>designKey(b)!==designKey(blocked)));
-  assert.deepEqual(select(command,{...input,avoid:[]}),select(command,input));
+  assert.deepEqual(select(command,{...retry,avoid:[]}).selection,original.selection);
 });
 test('one checked Review retry replaces boards 4 and 12 and preserves every other board byte-for-byte',()=>{
   const input=path('two-blocked-answers.json');writeFileSync(input,JSON.stringify(operator()));
   const original=run(['round1','--answers',input,'--check']),numbers=[4,12];
   const avoid=numbers.map(number=>original.selection.boards.find(b=>b.number===number));
   assert.ok(avoid.every(Boolean));
-  const retry={...operator(),avoid},before=JSON.stringify(retry);writeFileSync(input,before);
+  const retry={...operator(),avoid,pageDisplayed:true,displayedBoards:original.selection.boards},before=JSON.stringify(retry);writeFileSync(input,before);
   const result=run(['round1','--answers',input,'--check']);
   assert.equal(readFileSync(input,'utf8'),before);assert.equal(result.checks.enabled,true);
   const oldSpec=assemble(original.selection,library),newSpec=assemble(result.selection,library);
@@ -366,20 +366,20 @@ test('Review retries accumulate blocked spares and plainly report an exhausted s
   for(let n=0;n<=16;n++) {
     avoid.push(result.selection.boards[0]);
     try {
-      result=select('round1',{...a,avoid,pageDisplayed:true});
+      result=select('round1',{...a,avoid,pageDisplayed:true,displayedBoards:original.selection.boards});
       assert.equal(JSON.stringify(result.selection.boards.slice(1)),JSON.stringify(original.selection.boards.slice(1)));
       assert.ok(!avoid.some(b=>designKey(b)===designKey(result.selection.boards[0])));
     } catch(e) {assert.match(e.message,/slot 1 exhausted.*ranked spare/);exhausted=true;break;}
   }
   assert.ok(avoid.length>1,'exercise at least one passing replacement');assert.ok(exhausted);
-  assert.throws(()=>select('round1',{...a,avoid:[{...original.selection.boards[0],name:'Changed record'}]}),/does not belong to this page/);
-  assert.throws(()=>select('looks',{...a,avoid:[]}),/only board pages/);
+  assert.throws(()=>select('round1',{...a,pageDisplayed:true,avoid:[original.selection.boards[0]]}),/displayedBoards/);
+  assert.throws(()=>select('looks',looksAnswers({...a,avoid:[]})),/only board pages/);
 
 });
 
 test('Review can replace board zero without moving fixed assets or any alternative',()=>{
   const a={...operator(),kept:{palette:{id:'navy-gold'}}},original=select('round1',a,{check:true});
-  const input={...a,avoid:[original.selection.boards[0]]},r=select('round1',input,{check:true});
+  const input={...a,avoid:[original.selection.boards[0]],pageDisplayed:true,displayedBoards:original.selection.boards},r=select('round1',input,{check:true});
   assert.equal(r.selection.boards[0].number,0);assert.equal(r.selection.boards[0].zero,true);
   assert.notEqual(designKey(r.selection.boards[0]),designKey(original.selection.boards[0]));
   assert.equal(r.selection.boards[0].palette.id,'navy-gold');
@@ -404,22 +404,22 @@ test('checked Review retries keep zero and numbered replacements distinct with f
     }
     assert.equal(r.checks.enabled,true);assert.deepEqual(checkForm(r.form),{ok:true,problems:[]});
   };
-  const retry=avoid=>{writeFileSync(input,JSON.stringify({...a,avoid}));return run(['round1','--answers',input,'--check']);};
+  const retry=(avoid,page=original)=>{writeFileSync(input,JSON.stringify({...a,avoid,pageDisplayed:true,displayedBoards:page.selection.boards}));return run(['round1','--answers',input,'--check']);};
   verify(retry(original.selection.boards.slice(0,2)),[0,1]);
   // Earlier zero-only refusals can leave the numbered slot's first fitting
   // spare at the head of zero's queue. Exercise that collision, not just the
   // first retry where diversity happens to keep the two queues apart.
-  const target=select('round1',{...a,avoid:[original.selection.boards[1]]},{check:true}).selection.boards[1];
+  const target=select('round1',{...a,avoid:[original.selection.boards[1]],pageDisplayed:true,displayedBoards:original.selection.boards},{check:true}).selection.boards[1];
   const avoid=[];let zeroPage=original;
   for(let n=0;n<16&&designKey(zeroPage.selection.boards[0])!==designKey(target);n++){
     avoid.push(zeroPage.selection.boards[0]);
-    zeroPage=select('round1',{...a,avoid},{check:true});
+    zeroPage=select('round1',{...a,avoid,pageDisplayed:true,displayedBoards:original.selection.boards},{check:true});
   }
   assert.equal(designKey(zeroPage.selection.boards[0]),designKey(target),'the live zero reaches the numbered slot spare');
   const both=[...avoid,original.selection.boards[1]],result=retry(both);verify(result,[0,1]);
   for(const number of [0,1])assert.notEqual(designKey(result.selection.boards[number]),designKey(original.selection.boards[number]));
   // Only a numbered refusal is newly added to the accumulated retry.
-  const number=4,later=retry([...both,result.selection.boards.find(b=>b.number===number)]);verify(later,[0,1,number]);
+  const number=4,later=retry([...both,result.selection.boards.find(b=>b.number===number)],result);verify(later,[0,1,number]);
   const replacement=later.selection.boards.find(b=>b.number===number);
   assert.notEqual(designKey(replacement),designKey(result.selection.boards.find(b=>b.number===number)));
   assert.notEqual(designKey(replacement),designKey(later.selection.boards[0]));
@@ -432,7 +432,7 @@ test('Review reports avoid.0 when no unique unblocked zero spare remains',()=>{
   for(let n=0;n<=16;n++){
     avoid.push(result.selection.boards[0]);
     try{
-      result=select('round1',{...a,avoid,pageDisplayed:true});
+      result=select('round1',{...a,avoid,pageDisplayed:true,displayedBoards:original.selection.boards});
       assert.equal(JSON.stringify(result.selection.boards.slice(1)),JSON.stringify(original.selection.boards.slice(1)));
       assert.equal(result.selection.boards[0].palette.id,'navy-gold');
       assert.ok(result.selection.boards.slice(1).every(b=>designKey(b)!==designKey(result.selection.boards[0])));

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {select} from '../scripts/select.mjs';
 import {assemble,LIBRARY} from '../scripts/assemble.mjs';
-import {operator,harbor} from './select-fixtures.mjs';
+import {boardOperator as operator,boardHarbor as harbor, looksAnswers} from './select-fixtures.mjs';
 import {boardRefusal} from '../scripts/refusals.mjs';
 import {board,selection} from './selections.mjs';
 const library=JSON.parse(readFileSync(LIBRARY));
@@ -16,7 +16,7 @@ for(const [name,ground,accent,pairing] of [
 ]) test(`selector refuses ${name} before checks, including fixed roles`,()=>{
   const a={...operator(),kept:{pairing,palette:{overrides:Object.fromEntries(['light','dark'].map(m=>[m,{ground,pop:accent,mark:accent}]))}}};
   const cluster=pairing==='high-contrast'?'cream-serif-terracotta':'near-black-single-acid-or-vermilion';
-  for(const command of ['looks','round1']) for(const check of [false,true]) assert.throws(()=>select(command,a,{check}),new RegExp(`rule refusal.*refused cluster ${cluster}`));
+  for(const command of ['looks','round1']) for(const check of [false,true]) assert.throws(()=>select(command,command==='looks'?looksAnswers(a):a,{check}),new RegExp(`rule refusal.*refused cluster ${cluster}`));
   // Removing only the dated refusal data restores these same candidates.
   const allowed=select('round1',a,{library:{...library,refusedClusters:[]}});
   assert.equal(allowed.selection.boards.length,12);
@@ -26,7 +26,7 @@ test('all selected roles avoid handwriting, including donors and variations',()=
   const handwritten=new Set(['Shantell Sans',...library.pairings.flatMap(p=>p.handwriting.map(f=>f.family))]);
   const a=operator();
   const round=select('round1',a);
-  const pages=[select('looks',a),round,select('variations',{...a,picks:round.selection.boards.slice(0,3),shown:round.selection.boards})];
+  const pages=[select('looks',looksAnswers(a)),round,select('variations',{...a,picks:round.selection.boards.slice(0,3),shown:round.selection.boards})];
   for(const page of pages) for(const b of assemble(page.selection,library).boards) for(const role of ['heading','body']) assert.ok(!handwritten.has(b.type[role].family),`${role}: ${b.type[role].family}`);
   for(const role of ['headingFrom','bodyFrom']) {
     const changed=structuredClone(library);changed.pairings.find(p=>p.id==='condensed').type[role==='headingFrom'?'heading':'body']=structuredClone(library.pairings[0].handwriting[0]);
@@ -60,14 +60,14 @@ test('every library palette is audited against each cluster in both modes and ev
 });
 
 test('a short unshown looks page names the rule that removed its twelfth palette',()=>{
-  const a=operator(),first=select('looks',a,{library:{...library,refusedClusters:[]}});
+  const a=operator(),first=select('looks',looksAnswers(a),{library:{...library,refusedClusters:[]}});
   const ids=new Set(first.selection.boards.map(b=>b.palette.id));
   const limited=structuredClone(library);
   limited.palettes=limited.palettes.filter(p=>ids.has(p.id));
   limited.palettes[0].dark={...limited.palettes[0].dark,ground:'#201B1A',pop:'#EE4828',mark:'#EE4828'};
   for(const shown of [[],first.looks.slice(0,1)]) {
-    assert.equal(select('looks',{...a,shown},{library:{...limited,refusedClusters:[]}}).looks.length,12);
-    assert.throws(()=>select('looks',{...a,shown},{library:limited}),/rule refusal.*near-black-single-acid-or-vermilion/);
+    assert.equal(select('looks',looksAnswers({...a,shown}),{library:{...limited,refusedClusters:[]}}).looks.length,12);
+    assert.throws(()=>select('looks',looksAnswers({...a,shown}),{library:limited}),/rule refusal.*near-black-single-acid-or-vermilion/);
   }
 });
 
@@ -77,7 +77,7 @@ test('rule refusals are routed separately from both history exhaustion messages'
 });
 
 test('look labels name the actual lettering, colours and shapes without altering their cards',()=>{
-  const r=select('looks',operator());
+  const r=select('looks',looksAnswers(operator()));
   for(const [i,option] of r.options.entries()) {
     const b=r.selection.boards[i];
     for(const [kind,id] of [['pairings',b.pairing.id],['palettes',b.palette.id],['graphics',b.graphicSet.id]]) assert.ok(option.label.includes(library[kind].find(p=>p.id===id).name),option.label);
@@ -96,8 +96,8 @@ test('simple assembly marks inherited face specimens as samples and preserves so
 
 
 test('run 4 warm/natural taps fill checked looks and Round 1 without a cluster or handwriting primary',()=>{
-  const a=harbor(),looks=select('looks',a,{check:true});
-  const round=select('round1',{...a,looks:looks.looks.slice(0,3).map(l=>l.value)},{check:true});
+  const a=harbor(),looks=select('looks',looksAnswers(a),{check:true});
+  const round=select('round1',{...a,looks:looks.looks.slice(0,3).map(l=>l.value),looksShown:looks.looks},{check:true});
   const noteFaces=new Set(library.pairings.flatMap(p=>p.handwriting.map(f=>f.family)));
   for(const page of [looks,round]) {
     assert.equal(page.selection.boards.length,12);assert.ok(page.checks.attempts>=12);

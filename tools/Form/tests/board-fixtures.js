@@ -22,6 +22,6 @@ export function formFromSelection(answers,selection,{pick=3,actions=true}={}) {
 }
 let cached;
 export function boardForm() {
-  if(!cached){const a=operator();cached=formFromSelection(a,select('round1',a,{check:true}).selection);}
+  if(!cached){const a={...operator(),looksShown:[]};cached=formFromSelection(a,select('round1',a,{check:true}).selection);}
   return structuredClone(cached);
 }

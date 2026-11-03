@@ -23,3 +23,9 @@ export const lookActions = () => [
 export const harbor = () => ({...operator(),type:'org',name:'Sample Clinic',
   taps:{mode:'light',feel:'natural',history:'established-current',strength:'soft-graceful',technology:'apple',style:'patagonia',posture:'toyota',mood:'anthropologie',place:'spa'}
 });
+
+// Board commands require explicit whole-look history, even when no looks ran.
+export const boardOperator = () => ({...operator(), looksShown: []});
+export const boardFirstStrategy = () => ({...firstStrategy(), looksShown: []});
+export const boardHarbor = () => ({...harbor(), looksShown: []});
+export const looksAnswers = ({looksShown, ...answers}) => answers;

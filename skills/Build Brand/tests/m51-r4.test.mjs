@@ -6,7 +6,7 @@ import { select } from '../scripts/select.mjs';
 import { assemble, LIBRARY } from '../scripts/assemble.mjs';
 import { createBoardModel } from '../../../tools/Contact Sheet/scripts/board-model.js';
 import { validateBrandBoards } from '../../../tools/Contact Sheet/scripts/brand-boards.js';
-import { operator, firstStrategy, harbor } from './select-fixtures.mjs';
+import { boardOperator as operator, boardFirstStrategy as firstStrategy, boardHarbor as harbor , looksAnswers} from './select-fixtures.mjs';
 import { board, selection, matchingPairing } from './selections.mjs';
 
 const library = JSON.parse(readFileSync(LIBRARY));
@@ -19,9 +19,9 @@ function uniqueLabels(result) {
   }
 }
 for (const get of [operator, firstStrategy, harbor]) test(`every ${get.name} page has distinct labels, including one-pick variations`, () => {
-  const a = get(), looks = select('looks', a), round = select('round1', a);
+  const a = get(), looks = select('looks',looksAnswers( a)), round = select('round1', a);
   uniqueLabels(looks); uniqueLabels(round);
-  uniqueLabels(select('looks', { ...a, shown: looks.looks }));
+  uniqueLabels(select('looks',looksAnswers( { ...a, shown: looks.looks })));
   uniqueLabels(select('variations', { ...a, picks: [], shown: round.selection.boards, steer: {} }));
   for (const count of [1, 2, 3]) for (const steer of [{}, { warmCool: 1, quietBold: -1 }]) {
     const r = select('variations', { ...a, picks: round.selection.boards.slice(0, count), shown: round.selection.boards, steer });
