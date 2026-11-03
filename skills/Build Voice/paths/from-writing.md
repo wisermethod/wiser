@@ -4,7 +4,7 @@ For org, client, department and industry roots, after `SKILL.md` Steps 1. Paths 
 
 ## Steps
 
-**2. Fix what voice means for that type.** The owning root's AGENTS.md governs what its voice means; the table in `SKILL.md` What Voice Means Here adds the evidence filter and the confirming authority. If the voice the requester actually wants belongs to a different root, the file to build is that root's, so return to `SKILL.md` Steps 1. For a department, read the parent organization's bound voice before deriving; unreachable, note the comparison as thin and do not claim the register differs. Where it was readable, the finished file states each derived trait or stated rule that differs, with the evidence, or that the register does not differ.
+**2. Fix what voice means for that type.** The owning root's AGENTS.md governs what its voice means; the table in `SKILL.md` What Voice Means Here adds the evidence filter and the confirming authority. If the voice the requester actually wants belongs to a different root, the file to build is that root's, so return to `SKILL.md` Steps 1. For a department, read the parent organization's bound voice before deriving; unreachable, or not yet built by the test in `SKILL.md` Steps 1 (every section still prompt lines, or a label written when voice was not built), note the comparison as thin, say which, and claim neither that the register differs nor that it does not. Where it was readable and built, the finished file states each derived trait or stated rule that differs, with the evidence, or that the register does not differ; a section the parent left under its own evidence-gap label is named as not compared.
 
 **3. Ask what the outputs are for, before any evidence is gathered.** A subject with more than one register is derived wrongly unless you ask which one the work needs. The question, in the subject's own terms: what will this root actually produce, and who reads it? Take a list of real deliverables and the reader of each, not a category.
 
@@ -13,6 +13,8 @@ The answer weights step 4. A root whose outputs speak to consumers derives from 
 This question is not deferrable. It is one question and it gates the derivation, and deferring it means deriving from the wrong corpus and finding out from a rejected deliverable.
 
 - Answered: record it where the run keeps its interview record, and continue.
+
+**No answers file.** This path keeps no voice answers file (`standards/user-root.md` C14) and never gives its questions numbers. Each answer goes where its own step puts it: this step's into the outputs list full onboarding already keeps, one output type per line, and into `## Routing Table` at step 8; a rule from step 5 into the file as step 5 says, or step 6 where it contradicts evidence; step 10's into the authority lines and the register decision and its confirmation that step 9 states. Asked through `skills/Ask in a Form/`, the answers come back by question id, with no answers file to write.
 - Answered for some deliverables and not others: derive for the ones named, and carry the rest into step 8 as unrouted.
 - Not answerable at all: do not pick a register by default and do not let type stand in for the answer. Derive only what holds across every candidate register, name the register decision as outstanding with the person who owns it, and close the voice key provisional, with the refusal on deliverable writes scoped to voice-dependent work rather than to the whole root.
 

@@ -1,6 +1,6 @@
 ---
 standard: user-root
-version: 0.11.1
+version: 0.11.2
 description: One declared user-root tree and the clauses used to score its layout
 ---
 
@@ -114,7 +114,7 @@ Optional, and absent by default. A root may declare that no session which has re
 
 Answer files live at `memory/answers/`. Provides does not bind that directory or the files in it. The C3 row is the declaration. This clause is the grammar.
 
-One answers file per run. A voice run writes `YYYY-MM-DD voice answers.md`. A design run writes `YYYY-MM-DD design answers.md`. The date is the day the run writes the file. If that name is already there, the run does not overwrite it. It writes the next free name, `YYYY-MM-DD V2 voice answers.md` or `YYYY-MM-DD V2 design answers.md`, and so on.
+One answers file per run. A voice coach run writes `YYYY-MM-DD voice answers.md`. A design run writes `YYYY-MM-DD design answers.md`. The date is the day the run writes the file. If that name is already there, the run does not overwrite it. It writes the next free name, `YYYY-MM-DD V2 voice answers.md` or `YYYY-MM-DD V2 design answers.md`, and so on.
 
 Each answers file is one table. The columns are question number, question bank version, what was shown, the answer, and status. Status is answered, skipped, or in between. A skipped row leaves the answer empty. An in-between row says so and may carry the words the member added. The question bank version is the name and version the skill that asked states. This clause does not define that version.
 
@@ -128,7 +128,7 @@ A root whose directory holds no answers file scores present on this clause (vacu
 
 The router cites this clause and restates none of it.
 
-The skill that builds `voice.md` writes the voice answers file. The skill that writes `design.md` writes the design answers file. Housekeeping creates a missing `memory/answers/` and copies `memory/answers/AGENTS.md` from `system/templates/User Root Template/` where the root has none. It writes no answers file and no bound file. Copying that router is a create. It does not replace the root `AGENTS.md`.
+Build Voice's coach, on a personal root, writes the voice answers file; on every other root type Build Voice writes none. The skill that writes `design.md` writes the design answers file. Housekeeping creates a missing `memory/answers/` and copies `memory/answers/AGENTS.md` from `system/templates/User Root Template/` where the root has none. It writes no answers file and no bound file. Copying that router is a create. It does not replace the root `AGENTS.md`.
 
 While the root's stamp is below row 4, a skill that would write an answers file offers the named ask **update root** first and does not create `memory/answers/` itself, and it does not apply the plan; C1 and the constitution's named ask own that comparison. Where the person declines, or the update is not applied, the skill writes no answers file and goes on with the rest of its run, and the bound files it writes stand. The answers are then not kept anywhere, and they are not filed under `work/onboarding/`.
 

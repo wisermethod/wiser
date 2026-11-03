@@ -1,8 +1,8 @@
 # The interview
 
-What the coach says and asks, in the order `paths/coach.md` runs it. A tapped question is asked with the app's question tool where it has one: each option a button, and where an option below has words after a colon, the words before it are the button and the words after it are the line under it. Where the app has none, one question per message, its options lettered, answered with a letter. A question that says pick any takes more than one of its options: with the question tool, as its multiple choice; with none, answered with one or more letters. A typed question is a plain message, one at a time. The codes (S, W, P, R, F, A) are the question numbers the answers file records and `voice.md` cites, and each sample the person gives is numbered E1 onward. Bank version for every row: `Build Voice bank 8`.
+What the coach says and asks, in the order `paths/coach.md` runs it. A tapped question is asked with the app's question tool where it has one: each option a button, and where an option below has words after a colon, the words before it are the button and the words after it are the line under it. Where the app has none, one question per message, its options lettered, answered with a letter. A question that says pick any takes more than one of its options: with the question tool, as its multiple choice; with none, answered with one or more letters. A typed question is a plain message, one at a time. The codes (S, W, P, R, F, A) are the question numbers the answers file records and `voice.md` cites, and each sample the person gives is numbered E1 onward. Bank version for every row: `Build Voice bank 9`.
 
-Each question says what it **feeds**. A line in quotation marks after a pick is the exact line that pick writes into `voice.md` `## How They Write`, copied word for word. A pair or tap the person's samples settled is not asked, and a screen left with no question is not shown, nor the line said before it.
+Each question says what it **feeds**. A line in quotation marks after a pick is the exact line that pick writes into `voice.md` `## How They Write`, copied word for word. A tap the person's samples settled is not asked, and a screen left with no question is not shown, nor the line said before it.
 
 ## S1. Your writing (tapped)
 
@@ -21,7 +21,7 @@ Yes:
 
 > Great! You can give me those samples now. Either give me some URLs, drop the sample files directly here in chat, or paste the writing in chat.
 
-Each piece that arrives is a sample, numbered E1 onward, or on from an earlier file's highest E, read and filed as `paths/coach.md` step 2 says. Feeds: the portrait, the pieces, `## How They Write`, and every pair or tap the samples settle.
+Each piece that arrives is a sample, numbered E1 onward, or on from an earlier file's highest E, read and filed as `paths/coach.md` step 2 says. Feeds: the portrait, the pieces, `## How They Write`, and every tap the samples settle.
 
 Where a piece cannot be read, said once in the run, naming each piece that could not be read, and then wait for their answer:
 
@@ -41,13 +41,13 @@ Said with S1's No line.
 
 > What do you do, and what do people come to you for? A few words is plenty, like "I teach chemistry, and people ask me to explain things simply."
 
-Feeds: the portrait, never with their role or title; P3's detail; `about.md` `## Key Facts`, written by Onboard Root.
+Feeds: the portrait, never with their role or title; F2a's readers; `about.md` `## Key Facts`, written by Onboard Root.
 
 ## W2 (typed)
 
 > What's one thing about your work, or your world, you wish more people knew? An example helps, if one comes to mind.
 
-"None" or a skip is a fine answer. Feeds: the portrait's angle; `about.md` `## Personality`; the wording of P1, P2 and P3; the piece on their topic at F2.
+"None" or a skip is a fine answer. Feeds: the portrait's angle; `about.md` `## Personality`; F2a's readers; the piece on their topic at F2.
 
 ### W2a (typed)
 
@@ -59,44 +59,54 @@ Feeds: whatever W2 feeds, made concrete.
 
 ## Screen 1 (tapped)
 
-Said before it, leaving out its last two sentences where the screen asks no pair:
+Said before it:
 
-> Now some quick taps. These are simple: just pick the one you'd actually say, not the one that sounds better. "Both" is a real answer.
+> Now some quick taps. These are simple: just pick what's true of you, not what sounds better.
 
-**How every pair is written.** Each pair is written from the person's own answer named under it; where that answer makes more than one point, from the first point it makes. Copy one stretch of what they said onto both sides, in their words, with their facts and their hedges, and change only the one thing the pair names: P1 the frame, P2 the order of their example and their point, P3 one detail of their own. Every word on either side is theirs except P1's frame and what a sentence needs to be whole. A side that leaves something out uses only words already in that stretch, and neither side changes who did what. Both sides pass the floor. Where the pair would need a second change, or anything they did not say, a fact, number, name, hedge, feeling, joke or image, the pair is not asked: it writes nothing, and a screen asks only the pairs their answers give. A pair never puts words in their mouth. The answers file records both lines shown.
+P1 to P3, P6 to P8 and P10 to P12 are the same for everyone. P7 and P10 to P12 are asked on every run, and the rest on every run whose samples did not settle them; each line a tap writes covers only the moment its question names. A skip writes nothing. Typed instead of tapped, an answer that plainly matches an option writes that option's line, "depends" being the option that starts Depends; one that matches none, such as "only about my own mistakes", writes one line in their words, for the same moment, cited with the tap's number.
 
-Every pair is worded **"Which would you actually say?"** and has four options: its A line, its B line, **Both sound like me**, and **Neither**. With the app's question tool each line is its own whole button, with no letter and nothing under it; with none, the four are lettered as every question is. Both writes the pair's Both line. Neither, or a skip, writes nothing. Typed instead of tapped, "both" or "depends" is Both, "neither" is Neither, and "not sure" or "skip" is a skip.
+### P1. Seeing it differently
 
-### P1. Disagreeing
+> When you see things differently from most people in your field, how does it show in your writing?
 
-From W2's point, in their words. A says it outright; B puts the same words as their own view, with "I think" or "I'd". Where W2 gave no point, or that stretch already says they are sure, such as "I know", it is not asked.
+- I call it out: name what's wrong and why
+- I show a better way: no argument, just the alternative
+- I build on common ground: start where we agree
+- Depends on who's reading
 
 Writes:
-- A: "When disagreeing, says so outright, then gives the reason."
-- B: "When disagreeing, puts it as their own view, then gives the reason."
-- Both: "When disagreeing, says so outright or as their own view, as the piece needs."
+- I call it out: "Challenges the usual view openly: names what's wrong and why."
+- I show a better way: "Shows a better way rather than arguing with the usual one."
+- I build on common ground: "Starts from what the reader already agrees with, and rarely picks a fight."
+- Depends on who's reading: "Challenges the usual view, shows a better way, or builds on common ground, as the reader needs."
 
 ### P2. Explaining
 
-From W2's point and the example they gave with it, both in their words. A leads with the example, then the point; B leads with the point, then the example. Where W2 gave no example, or the example is not a case of the point, it is not asked.
+> When you explain something, where do you start?
+
+- With an example: then what it shows
+- With the point: then an example
+- Depends on the piece
 
 Writes:
-- A: "When explaining, starts from one concrete case, then the point."
-- B: "When explaining, starts from the point, then the case that shows it."
-- Both: "When explaining, starts from the case or the point, as the piece needs."
+- With an example: "When explaining, starts from one concrete case, then the point."
+- With the point: "When explaining, starts from the point, then the case that shows it."
+- Depends on the piece: "When explaining, starts from the case or the point, as the piece needs."
 
-### P3. Your own experience
+### P3. Your own story
 
-From W2's point and one detail of their own they gave in W1 or W2: the place they work, the people they work with, a thing they do. A makes the point with that detail; B is the same sentence without it. Never a stock opener such as "I've found", "I notice", "In my work" or "To me". Where they gave no such detail, it is not asked.
+> When you make a point, do you bring in your own story?
+
+- Often: a moment from my own work or life
+- Rarely: I keep it on the subject
+- Depends on the piece
 
 Writes:
-- A: "Makes a point through their own experience when they have a true one to tell."
-- B: "Keeps the point on the subject rather than on themselves."
-- Both: "Uses their own experience or keeps to the subject, as the piece needs."
+- Often: "Makes a point through their own experience when they have a true one to tell."
+- Rarely: "Keeps the point on the subject rather than on themselves."
+- Depends on the piece: "Uses their own experience or keeps to the subject, as the piece needs."
 
 ### P6. Humour
-
-P6 to P12 are not pairs: each is the same for everyone. P7 and P10 to P12 are asked on every run, and P6, P8 and P9 on every run whose samples did not settle them; each line it writes covers only the moment its question names. A skip writes nothing. Typed instead of tapped, an answer that plainly matches an option writes that option's line; one that matches none, such as "only about my own mistakes", writes one line in their words, for the same moment, cited with the tap's number.
 
 > What kind of humor shows up in your writing? Pick any.
 
@@ -113,15 +123,9 @@ Writes one line for each kind picked; None picked with anything else counts as N
 
 The answers file records every option picked, in this order, separated by semicolons.
 
-## W3 (typed)
-
-> How would a friend describe the way you talk? Their words, not the polite version.
-
-Feeds: the portrait's sentence on how they come across; `about.md` `## Personality`.
-
 ## W4 (typed)
 
-> And what would you hate to sound like? A word or phrase that makes you wince is perfect.
+> What would you hate to sound like? A word or phrase that makes you wince is perfect.
 
 Feeds: `## Prohibitions`, as concrete phrases or moves; `about.md` `## Personality`.
 
@@ -147,21 +151,6 @@ Said before it, where it asks more than one question:
 Where the samples left it only one:
 
 > One more tap.
-
-### P9. The stock phrase
-
-> Your field has a phrase everyone uses that you find a bit ridiculous. In writing, would you poke fun at it?
-
-- Yes, happily
-- Only with people who'd get it
-- No, I'd just never use it
-- My field doesn't really have one
-
-Writes:
-- Yes, happily: "Will poke fun at a stock phrase of their field, rather than only leave it out."
-- Only with people who'd get it: "Pokes fun at a stock phrase of their field only for readers in that field, and otherwise leaves it out."
-- No, I'd just never use it: "Leaves the stock phrases of their field out quietly rather than mocking them."
-- My field doesn't really have one: nothing.
 
 ### P7. What they'd love to hear
 
@@ -269,7 +258,7 @@ On Close, but or Not quite, they say what to change, in the free-text answer or 
 
 ## F2. The first piece (tapped)
 
-Where W2 gave a point, F2 is not asked: the piece is the short post on what they wish people knew, and F2a asks its post line, after this line:
+Where W2 gave a point, F2 is not asked: the piece is the short post on what they wish people knew, and F2a asks who it is for, after this line:
 
 > Now let's have a little fun with your first piece: a short post on the thing you wish more people knew.
 
@@ -283,10 +272,20 @@ Otherwise:
 
 Skipped: a short note saying what they do, from W1; where W1 was skipped too, there is nothing to write from, and the run stops by `paths/coach.md` step 8.
 
-## F2a (typed)
+## F2a (tapped for the post, typed otherwise)
 
-One sentence that gives the piece what it needs, asked by the piece:
-- The post: "Who should read it, and what should they take away? A sentence is plenty."
+For the post, a tap; its takeaway is W2's point, so it is not asked. Write the readers in three frames, filled from W1's own words, W2a counting as W2: first, the people W1 says come to them, or, where it names no one, the people who buy what they make or do; then "People looking to hire" someone who does their work; then "People curious about" their work. Name their work as W1 does. Where two frames would name the same people, show one. Never a group, a role or a place their answers give no sign of beyond these frames.
+
+> Who should this post be for?
+
+- the first reader
+- the second reader
+- the third reader
+- Anyone: a general audience
+
+Pick one. Where fewer than two can be written, ask instead, typed: "Who should read it? A few words is plenty." The answers file records the readers shown and the one picked; typed in place of a tap, their words are the reader.
+
+For every other piece, one sentence that gives the piece what it needs, typed, asked by the piece:
 - Something I'm working on: "What is it, and who's it for? A sentence is plenty."
 - The meeting email: "Who's it to, and what's the meeting about?"
 - The thank-you note: "Who's it for, and what did they do?"
