@@ -387,3 +387,29 @@ test('direction maps each working size to the nearest locked cut for its own rol
     assert.equal(Math.abs(expected - working), Math.min(...Object.values(b.type[role].sizes).map(s => Math.abs(s.size - working))));
   }
 });
+
+for (const custom of [false, true]) test(`relock relocates only moved verification anchors, preserving outcomes (custom archive: ${custom})`, () => {
+  const f = fixture('org'); mkdirSync(join(f.root, 'work/onboarding'), { recursive: true });
+  const verification = join(f.root, 'work/onboarding/verification.md');
+  const old = '| V4 | about | other | An old claim | [V4] | about.md | old | read | no | - | located | Verified | - |';
+  const negative = '## Negative claims\n\n| V9 | Earlier absence | - | old | yes | reader | located |\n';
+  writeFileSync(verification, '## Claims\n\n| Row | Key | Class | Claim | Anchor | Bound file | Cites | Mechanism | Exactness | Second mechanism | Outcome | Label | Search |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n' + old + '\n\n' + negative);
+  if (custom) {
+    writeFileSync(join(f.root, 'AGENTS.md'), 'Archive home: archives/brand\n');
+    f.answers.paths = { archive: 'archives/brand' }; f.save();
+  }
+  f.result();
+  const before = f.read(verification), designBefore = f.read();
+  const result = run([...f.argv, '--replace']);
+  const archive = result.archives.find(a => a.path === f.design).archive.slice(f.root.length + 1);
+  const rows = text => text.split('\n').filter(l => /^\| V\d+ \| design \|/.test(l));
+  const after = f.read(verification);
+  for (const row of rows(before)) {
+    const anchor = row.split('|')[5].trim(); assert.ok(designBefore.includes(anchor));
+    assert.ok(after.includes(row.replace('| design.md |', '| ' + archive + ' |')), anchor + ' must resolve to archive with every other cell unchanged');
+  }
+  assert.ok(after.includes(old)); assert.ok(after.includes(negative));
+  assert.ok(rows(after).some(r => r.includes('| design.md |')));
+  run([...f.argv, '--replace']);
+  for (const row of rows(before)) assert.ok(f.read(verification).includes(row.replace('| design.md |', '| ' + archive + ' |')));
+});

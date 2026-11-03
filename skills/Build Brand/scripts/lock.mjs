@@ -369,8 +369,21 @@ function verifyDocument(doc, verification, designPath) {
   return verification.replace(/(^## Claims\s*\n)([\s\S]*?)(?=^## |$(?![\s\S]))/m, (_, h, body) => `${h}${body.trimEnd()}\n${rows.join('\n')}\n\n`);
 }
 
+// Retained rows follow anchors into the exact archive created by publication.
+// Every other cell, including Outcome, remains byte-for-byte unchanged.
+function relocateClaims(verification, oldDesign, designPath, archivePath) {
+  return verification.replace(/(^## Claims\s*\n)([\s\S]*?)(?=^## |$(?![\s\S]))/m, (_, heading, body) => heading + body.split('\n').map(line => {
+    const cells=line.split(/(?<!\\)\|/);
+    if(cells.length<8||!/^V\d+$/.test(cells[1].trim())) return line;
+    const anchor=cells[5].trim(), bound=cells[6].trim().replace(/^`|`$/g,'').replace(/\\(.)/g,'$1');
+    if(bound!==designPath||!/^\[V\d+\]$/.test(anchor)||!oldDesign.includes(anchor)) return line;
+    cells[6]=cells[6].replace(cells[6].trim(),md(archivePath));
+    return cells.join('|');
+  }).join('\n'));
+}
+
 // Publication is rollback-capable, with complete old bytes archived before replacement.
-function publish(entries, archiveHome) {
+function publish(entries, archiveHome, prepare = e => e.bytes) {
   const staged = [], published = [], archived = [];
   try {
     for (const e of entries) {
@@ -385,6 +398,11 @@ function publish(entries, archiveHome) {
         do { archive = screen(join(folder, `${day} V${n++} - ${basename(e.path)}`), true); } while (existing(archive));
         // Exclusive creation prevents colliding sessions from overwriting an archive.
         writeFileSync(archive, readFileSync(e.path), { flag: 'wx' }); archived.push({ path: e.path, archive });
+      }
+      const bytes=prepare(e,archived);
+      if(bytes!==e.bytes) {
+        writeFileSync(e.temp,bytes);
+        entries.find(entry=>entry.path===e.path).bytes=bytes;
       }
       renameSync(e.temp, e.path); published.push(e);
     }
@@ -487,7 +505,12 @@ export function run(argv) {
     if (identities.has(id)) fail('path', 'output paths alias each other'); identities.add(id);
     for (const input of inputs) { const source = existing(input); if (input === e.path || (source && st && source.dev === st.dev && source.ino === st.ino)) fail('path', 'output aliases an input'); }
   }
-  const archives = publish(entries, archiveHome);
+  const archives = publish(entries, archiveHome, (entry, archived) => {
+    const saved=archived.find(item=>item.path===design);
+    return entry.path===verification&&saved&&oldDesign
+      ? relocateClaims(entry.bytes,oldDesign,relative(root,design).split(sep).join('/'),relative(root,saved.archive).split(sep).join('/'))
+      : entry.bytes;
+  });
   return { state: 'complete', files: entries.map((e) => ({ path: e.path, bytes: Buffer.byteLength(e.bytes) })), headings: headingReport, archives, readBack: { claims: doc.claims.length, outcome: 'passed' }, unusedAnswerFields: Object.keys(a).filter((k) => !['name', 'sentence', 'words', 'taps', 'off', 'readBack', 'looks', 'rounds', 'type', 'assets', 'audience', 'promise', 'finalSay', 'lock', 'unavailable', 'provenance', 'paths', 'carried'].includes(k)), elapsedMs: Number((performance.now() - started).toFixed(3)) };
 }
 export function main(argv = process.argv.slice(2)) {

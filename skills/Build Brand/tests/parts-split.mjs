@@ -32,6 +32,46 @@ const CONTRACT_EDITS = {
   ],
   'Selection from answers': [["The caller appends each displayed page's full `selection.boards` records to `shown` before asking for the next round.", "The caller appends each displayed page's full `selection.boards` records to `shown` before asking for the next round. For a Review-blocked page, rerun the same `round1` or `variations` command with the same inputs and flags plus `avoid`, an array of the full blocked `selection.boards` records. Accumulate any blocked replacement records there too. Only those numbered slots are replaced, deterministically from their ranked spares, preserving all other board bytes, fixed assets and page constraints; the returned `form` is ready as usual. A slot with no passing unblocked spare fails with its number and exhaustion reason, never a partial page. Board zero uses the first alternative's ranked spares for its unfixed setting, retaining every fixed asset. Rejected boards were never displayed and never enter `shown`; append only the page actually displayed."], ['"feel": "mechanical"', '"feel": "engineered"'], ['"place": "design-studio"', '"place": "design-workshop"']],
 };
+// 2026-11-02, M5.1 final e2e fixes: read-back statement, relock anchors,
+// --check-rules, picked-look exclusions and unseen Review page rebuilds.
+for (const [heading, changes] of Object.entries({
+  "Locking a board": [
+    [
+      "The full confirmed read-back sentence is lock-only `readBack.text`; the selector uses its corrections in `off`, not that prose.",
+      "Lock-only `readBack.text` is the confirmed read-back statement alone, one line, without the question or its options; the selector uses its corrections in `off`, not that prose."
+    ],
+    [
+      "`readBack` requires the confirmed verbatim `text` and `confirmed: true`.",
+      "`readBack` requires that confirmed one-line statement as verbatim `text` and `confirmed: true`."
+    ],
+    [
+      "Old verification and negative-claim rows are preserved.",
+      "Old verification and negative-claim rows are preserved; each retained Claims row whose anchor moved from the replaced design points to the actual archived file, with its outcome and every other cell unchanged."
+    ]
+  ],
+  "Assembly": [
+    [
+      "`--library` optionally selects an absolute library JSON beside its fonts; `help`, `--help` and `-h` open no files. There are no other flags, installs, configuration or network calls.",
+      "`--library` optionally selects an absolute library JSON beside its fonts. Optional `--check-rules` refuses retired pairings, primary handwriting and dated refused clusters, including kept overrides and donor faces; use it on quick-path boards before Contact Sheet. `help`, `--help` and `-h` open no files. There are no installs, configuration or network calls."
+    ]
+  ],
+  "Selection from answers": [
+    [
+      "| `looks` | Optional unique array of up to three whole-look option values from `looks`, default empty |",
+      "| `looks` | Optional unique array of up to three whole-look option values from `looks`, default empty |\n| `looksShown` | `round1` and `variations`: all displayed whole-look records or Form options, separate from board `shown`; include every picked look |\n| `pageDisplayed` | Optional boolean, default false: true preserves a displayed page on Review retry; false permits rebuilding an unseen page after slot exhaustion |"
+    ],
+    [
+      "Only those numbered slots are replaced, deterministically from their ranked spares, preserving all other board bytes, fixed assets and page constraints; the returned `form` is ready as usual. A slot with no passing unblocked spare fails with its number and exhaustion reason, never a partial page.",
+      "Try those numbered slots first, deterministically from their ranked spares, preserving all other board bytes, fixed assets and page constraints; the returned `form` is ready as usual. Set `pageDisplayed: true` when the page was displayed: a slot with no passing unblocked spare fails with its number and exhaustion reason. For an unseen page, leave `pageDisplayed` false: if a slot exhausts its spares, rebuild the whole page from the same answers, excluding all blocked boards, then run Review again before display. If even the rebuilt page cannot be filled, report that inability plainly, never a partial page."
+    ],
+    [
+      "The answers JSON is one object with these closed fields:",
+      "Carry every displayed looks page in `looksShown`. A look shown and not picked, its exact pairing, palette and graphic set, never returns in Round 1's Close group or as a recommendation. Recommendations come only from boards carrying a picked look's parts; tap scores alone do not qualify one. With no picked looks, there are no recommendations.\n\nThe answers JSON is one object with these closed fields:"
+    ]
+  ]
+})) {
+  (CONTRACT_EDITS[heading] ??= []).push(...changes);
+}
 function edited(text, heading) {
   for (const [from, to] of CONTRACT_EDITS[heading] ?? []) { assert.equal(text.split(from).length, 2, `contract edit not found once in the archive: ${heading}`); text = text.replace(from, to); }
   return text;

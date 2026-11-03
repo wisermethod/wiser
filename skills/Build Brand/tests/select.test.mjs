@@ -366,7 +366,7 @@ test('Review retries accumulate blocked spares and plainly report an exhausted s
   for(let n=0;n<=16;n++) {
     avoid.push(result.selection.boards[0]);
     try {
-      result=select('round1',{...a,avoid});
+      result=select('round1',{...a,avoid,pageDisplayed:true});
       assert.equal(JSON.stringify(result.selection.boards.slice(1)),JSON.stringify(original.selection.boards.slice(1)));
       assert.ok(!avoid.some(b=>designKey(b)===designKey(result.selection.boards[0])));
     } catch(e) {assert.match(e.message,/slot 1 exhausted.*ranked spare/);exhausted=true;break;}
@@ -432,7 +432,7 @@ test('Review reports avoid.0 when no unique unblocked zero spare remains',()=>{
   for(let n=0;n<=16;n++){
     avoid.push(result.selection.boards[0]);
     try{
-      result=select('round1',{...a,avoid});
+      result=select('round1',{...a,avoid,pageDisplayed:true});
       assert.equal(JSON.stringify(result.selection.boards.slice(1)),JSON.stringify(original.selection.boards.slice(1)));
       assert.equal(result.selection.boards[0].palette.id,'navy-gold');
       assert.ok(result.selection.boards.slice(1).every(b=>designKey(b)!==designKey(result.selection.boards[0])));

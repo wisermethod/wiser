@@ -45,7 +45,12 @@ classicContemporary: -1, 0 or 1), and off as for round1.
 round1/variations: optional avoid, full blocked board records from this same
 page. Rerun with the same inputs and flags; only blocked slots change, from
 ranked spares. Accumulate blocked replacements in avoid, never in shown.
-An exhausted slot fails explicitly; board zero keeps its fixed assets. Four new boards per
+pageDisplayed defaults to false: an exhausted slot rebuilds the unseen page
+with blocked boards excluded. Use true to preserve a displayed page's other
+slots and report slot exhaustion instead. looksShown carries separate full
+looks history for round1/variations; passed-over triples stay out of Close,
+and recommendations carry only picked looks' parts. A failed rebuild reports
+that it cannot fill a complete page; board zero keeps its fixed assets. Four new boards per
 pick, together in pick order. picks: [] requests a fresh Round 1 page with
 shown excluded and the steer applied. Comments are read by the session into
 steer/off; free text is not accepted. All answers fields: parts/parts.md.`;
@@ -83,7 +88,7 @@ function part(library, kind, id) {
   return found[0];
 }
 export function validateAnswers(a, data, library, command) {
-  object(a,['type','name','sentence','words','taps','off','looks','kept','body','photoRules','heroPhrase','picks','steer','shown','avoid'],'answers');
+  object(a,['type','name','sentence','words','taps','off','looks','kept','body','photoRules','heroPhrase','picks','steer','shown','avoid','looksShown','pageDisplayed'],'answers');
   if(own(a,'type')&&!['personal','org','client','department'].includes(a.type)) fail('type','use personal, org, client or department');
   text(a.name,'name'); text(a.sentence,'sentence');
   array(a.words,'words');
@@ -123,6 +128,13 @@ export function validateAnswers(a, data, library, command) {
   object(a.steer??{},STEER,'steer');
   for(const [axis,value] of Object.entries(a.steer??{})) if(![-1,0,1].includes(value)) fail(`steer.${axis}`,'use -1, 0 or 1');
   if(command==='round1' && ['picks','steer','shown'].some(k=>own(a,k))) fail(command,'picks, steer and shown belong to looks or variations');
+  if(own(a,'looksShown')) {
+    if(command==='looks') fail('looksShown','use shown for whole-look pages');
+    array(a.looksShown,'looksShown');
+    for(const look of a.looksShown) shownLook(look,library,a.kept);
+    for(const id of a.looks??[]) if(!a.looksShown.some(look=>look.value===id)) fail('looksShown','must include every picked look');
+  }
+  if(own(a,'pageDisplayed')&&typeof a.pageDisplayed!=='boolean') fail('pageDisplayed','use true or false');
   if(own(a,'avoid')) {
     if(command==='looks') fail('avoid','only board pages support Review replacements');
     array(a.avoid,'avoid'); unique(a.avoid.map(b=>JSON.stringify(stable(b))),'avoid');
@@ -520,7 +532,7 @@ function checkFactory(a,library,selectionDir,replacements) {
 }
 // All choices, including spares, obey the prefix's constraints. Refusals never
 // reserve a palette or consume an energy. Subsequent slots see the replacement.
-function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),check=false,selectionDir=process.cwd(),unsteered=false}={},refusal=boardRefusal) {
+function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),check=false,selectionDir=process.cwd(),unsteered=false}={},refusal=boardRefusal,excluded=new Set()) {
   const a=validateAnswers(copy(answers),data,library,command);
   const refused=board=>refusal(library,board);
   if(!['looks','round1','variations'].includes(command)) fail(command,'unknown command');
@@ -531,20 +543,24 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
   // before any ranking or check. Kept assets remain fixed in later rounds.
   if(command==='variations') for(const b of [...a.picks,...a.shown]) assemble(page(a,[b],[{id:b.group,label:b.group}]),library,{selectionDir});
   let pool=candidates(library,state,a,refused);
-  const boosts=blank();
+  const boosts=blank(),pickedLooks=[];
   for(const id of a.looks??[]) {
     const look=pool.find(c=>lookId(c)===id); if(!look) fail('looks',`unknown whole look ${id}; use a value from the looks output`);
+    pickedLooks.push(look);
     if(!unsteered) for(const [axis,[neg,pos]] of Object.entries(AXES)) boosts[axis]+=look.positions[axis]===pos?1:look.positions[axis]===neg?-1:0;
   }
   if(command==='looks'&&(a.looks??[]).length) fail('looks','picks belong to round1, not the initial looks command');
   if(command!=='looks') for(const axis of Object.keys(AXES)) state.dials[axis]+=boosts[axis];
   if(command==='variations'||(command==='looks'&&a.shown?.length)) for(const [axis,value] of Object.entries(a.steer??{})) state.dials[axis]+=value*3;
   pool=candidates(library,state,a,refused);
+  const triple=b=>[b.pairing.id,b.palette.id,b.graphicSet.id].join('/');
+  const pickedParts=new Set(pickedLooks.map(c=>triple(makeBoard(library,a,c,1,'close'))));
+  const passedOver=new Set((a.looksShown??[]).filter(look=>!(a.looks??[]).includes(look.value)).map(look=>triple(makeBoard(library,a,shownLook(look,library,a.kept),1,'close'))).filter(id=>!pickedParts.has(id)));
   const checker=check?checkFactory(a,library,selectionDir,replacements):null;
   const chosen=[],spares=[],seen=new Set([...(a.shown??[]),...(a.picks??[])].map(boardKey));
   const roundPage=command==='round1'||(command==='variations'&&!a.picks.length);
   let groups=copy(GROUPS);
-  const accept=(c,group,number,base)=>!refused(makeBoard(library,a,c,number,group,base))&&(!checker||checker.accept(c,group,number,base));
+  const accept=(c,group,number,base)=>!excluded.has(boardKey(makeBoard(library,a,c,number,group,base)))&&!refused(makeBoard(library,a,c,number,group,base))&&(!checker||checker.accept(c,group,number,base));
   const finishReplacement=(start,c)=>{ for(const r of replacements.slice(start)) r.replacement=summary(c); };
   try {
     if(command==='looks') {
@@ -573,8 +589,8 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
           // Cover energies that cannot occur on the opposite strong dial
           // before reaching the angle group (for example bright/classic).
           const beforeAngle=8-chosen.length;
-          const freshNative=nativePool.filter(c=>!seen.has(c.identity));
-          const available=(state.darkLed&&group.id==='close'&&slot<2?darkPool:nativePool).filter(c=>!seen.has(c.identity));
+          const freshNative=nativePool.filter(c=>!seen.has(c.identity)&&!excluded.has(c.identity));
+          const available=(state.darkLed&&group.id==='close'&&slot<2?darkPool:nativePool).filter(c=>!seen.has(c.identity)&&!excluded.has(c.identity)&&(group.id!=='close'||!passedOver.has(triple(makeBoard(library,a,c,1,'close')))));
           const remainingEnergies=new Set([...freshNative,...available].map(c=>c.palette.energy));
           const exhausted=missing.filter(e=>!remainingEnergies.has(e));
           if(exhausted.length) fail('round1',`energy ${exhausted.join(', ')} is exhausted: no unshown board remains`);
@@ -654,7 +670,7 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
       if(roundPage) {
         const why=unsteered?'A whole look in library order.':alignedWhy(c,a,data);
         b.why=why??'Another angle on your chosen direction.';
-        if(!unsteered&&i<2&&why) b.recommendation=why;
+        if(!unsteered&&i<2&&why&&pickedParts.has(triple(b))) b.recommendation=why;
       }
       return b;
     };
@@ -667,16 +683,31 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
       boards.unshift(zero);
       notes.push('Board zero shows the supplied assets on the closest library setting; unprovided parts of an existing brand are not reconstructed.');
     }
-    // Review retries replay the original page, then replace only named slots.
+    // Review retries replay the original page and try named slots first.
     // Full returned records bind a retry to these inputs, not a later page.
     if(a.avoid?.length) {
-      const blocked=new Set(a.avoid.map(boardKey)),same=(x,y)=>JSON.stringify(stable(x))===JSON.stringify(stable(y));
+      const blocked=new Set([...excluded,...a.avoid.map(boardKey)]),same=(x,y)=>JSON.stringify(stable(x))===JSON.stringify(stable(y));
       const zeroCandidate=chosen[0],zeroSpares=[...spares[0]];
-      for(const b of a.avoid) {
+      const belongs=b=>{
         const zero=b.number===0,i=zero?0:b.number-1,c=chosen[i];
-        if(!c||(zero&&!boards.some(b=>b.zero))||![c,...spares[i]].some(candidate=>same(zero?zeroBoard(candidate):slotBoard({...candidate,group:c.group,base:c.base},i),b)))
-          fail('avoid','record does not belong to this page and its ranked spares; keep the same inputs and flags');
-      }
+        return c&&(!zero||boards.some(b=>b.zero))&&[c,...spares[i]].some(candidate=>same(zero?zeroBoard(candidate):slotBoard({...candidate,group:c.group,base:c.base},i),b));
+      };
+      const local=a.avoid.filter(belongs),pending=a.avoid.filter(b=>!belongs(b));
+      if(!local.length||pending.length&&a.pageDisplayed) fail('avoid','record does not belong to this page and its ranked spares; keep the same inputs and flags');
+      const rebuild=slot=>{
+        if(a.pageDisplayed) fail(`avoid.${slot}`,`slot ${slot} exhausted: no passing unblocked ranked spare preserves the rest of this page`);
+        const omitted=new Set([...excluded,...local.map(boardKey)]);
+        let result;
+        try { result=selectPage(command,{...a,avoid:pending},{library,data,check,selectionDir,unsteered},refusal,omitted); }
+        catch(error) {
+          if(/does not belong/.test(error.message)) throw error;
+          fail('avoid',`unseen page rebuilt after slot ${slot} exhausted, but cannot fill a complete page: ${error.message}`);
+        }
+        result.notes.unshift(`Unseen page rebuilt after slot ${slot} exhausted; all blocked boards excluded. Review the rebuilt page before showing.`);
+        result.replacements.unshift(...local.map(b=>({slot:b.number,group:b.group,refused:{pairing:b.pairing.id,palette:b.palette.id,graphicSet:b.graphicSet.id},reason:'Blocked by Review; unseen page rebuilt',replacement:copy(result.positions[Math.max(0,b.number-1)])})));
+        result.checks.attempts+=checker?.attempts??0;
+        return result;
+      };
       const fits=(c,i)=>{
         const b=slotBoard(c,i);
         if(blocked.has(boardKey(b))||[...(a.shown??[]),...(a.picks??[]),...boards.filter(x=>x.number!==b.number)].some(x=>boardKey(x)===boardKey(b))) return false;
@@ -698,7 +729,7 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
         if(!a.avoid.some(b=>b.number===i+1)) continue;
         const previous=chosen[i],start=replacements.length;
         const next=spares[i].map(c=>({...c,group:previous.group,base:previous.base})).find(c=>fits(c,i)&&accept(c,c.group,i+1,c.base));
-        if(!next) fail(`avoid.${i+1}`,`slot ${i+1} exhausted: no passing unblocked ranked spare preserves the rest of this page`);
+        if(!next) return rebuild(i+1);
         finishReplacement(start,next);
         replacements.push({slot:i+1,group:previous.group,refused:summary(previous),reason:'Blocked by Review',replacement:summary(next)});
         chosen[i]=next;boards[boards.findIndex(b=>b.number===i+1)]=slotBoard(next,i);
@@ -710,10 +741,11 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
           const key=boardKey(zeroBoard(c));
           return !blocked.has(key)&&!boards.some(b=>b.number!==0&&boardKey(b)===key)&&accept(c,groups[0].id,0);
         });
-        if(!next) fail('avoid.0','slot 0 exhausted: no passing unblocked ranked spare retains the fixed assets');
+        if(!next) { if(a.pageDisplayed) fail('avoid.0','slot 0 exhausted: no passing unblocked ranked spare retains the fixed assets'); return rebuild(0); }
         finishReplacement(start,next);boards[0]=zeroBoard(next);
         replacements.push({slot:0,group:groups[0].id,refused:summary(zeroCandidate),reason:'Blocked by Review',replacement:summary(next)});
       }
+      if(pending.length) fail('avoid','record does not belong to this page and its ranked spares; keep the same inputs and flags');
     }
     const selection=page(a,boards,groups);
     const result={command,selection,dials:state.dials,wholeLookBoosts:boosts,darkLed:state.darkLed,brightColour:state.brightColour,ignoredNudges:state.ignored,positions:chosen.map(summary),spares:spares.map((list,i)=>({slot:i+1,ranked:list.map(summary)})),replacements,checks:{enabled:check,attempts:checker?.attempts??0},notes};
