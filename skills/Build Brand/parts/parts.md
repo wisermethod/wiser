@@ -40,6 +40,7 @@ The overlap with `select.mjs` is **`name`, `sentence`, `words`, `taps`, `off` an
   "looks": [],
   "assets": [],
   "rounds": [{"question": "Round 1, questions 1 to 4", "steer": "Warmer; as it is; stronger; more current"}],
+  "answerNumbers": {"file": "2026-11-02 design answers.md", "looks": [], "rounds": ["C1"], "board": "C1"},
   "lock": {
     "confirmed": true, "board": 1, "question": "Lock, step 6",
     "contactSheetPassed": true,
@@ -58,11 +59,30 @@ Each kept asset has `path` (absolute or relative to the root), `kind` (for examp
 
 For a legacy record that genuinely lacks a read-back, whole looks, rounds or picture rule, omit the absent field and supply a specific reason at `unavailable.readBack`, `unavailable.looks`, `unavailable.rounds` or `unavailable.photoRules`. This explicitly labels that absence; silent omission refuses the run. Missing picture rules are labelled in design and omitted from the brand direction. This allowance does not cover missing names, words, taps or organisation answers. Where the caller is relaying a record, optional `provenance: {"register":"Secondhand","by":"the named source or relay"}` preserves its register; `Firsthand` and `Public statement` are also accepted. For every non-personal type, `provenance: {register, by}` is required, naming the person who answered, never defaulting to the organisation or department. Only a personal brand defaults to `Firsthand` with the member's name. The JSON file and field remain cited in place. A supplied `unavailable` reason is evidence of absence in this input, not a claim that a member answered that question.
 
+### Answer numbers
+
+Lock-only `answerNumbers` names the saved C14 record and the page numbers the session actually recorded. It is required; never infer them from array indexes. For example:
+
+```json
+"answerNumbers": {
+  "file": "2026-11-02 V2 design answers.md",
+  "looks": ["L2", "L2", "L4"],
+  "rounds": ["C1", "C3"],
+  "board": "C3"
+}
+```
+
+`file` is the dated design answers filename, including its V number where present. `looks` has one `L<n>` page number per picked `looks` entry, retaining duplicates for picks on the same page. `rounds` has one `C<n>` page number per `rounds` entry. Both are empty for absent legacy records. `board` is the `C<n>` page containing the locked board. Numbers may skip pages; the script never renumbers them. For personal optional sourced `audience` or `promise`, also give that field's recorded answer number in this map; do not invent an O1 or O2 question on the personal path. The non-personal answers use O1, O2 and O3.
+
+Each design claim cites its numbered answer in `memory/answers/<file>` as well as the existing JSON source field: sentence and word/boundary pairs J2b; audience O1, promise O2, final say O3; taps T1 to T9; read-back J3a; dropped `off` parts J3b; picked looks and board rounds their mapped L and C numbers; kept assets J1; the lock K1. A carried place cites P12 in its dated voice answers file instead of T9. Board-derived rules cite the mapped boards page and K1 beside the exact spec fields. Working needs keep their script citation. These numbered citations also travel into the direction's provenance table and the verification Cites column; source-field read-back still checks the actual values separately.
+
+Only the existing legacy-layout exception in `../records.md`, where no answers shelf is authorised and no numbered record was written, uses explicit `answerNumbers: null`. It keeps firsthand source-field citations rather than inventing a dated record or answer numbers. Omission is refused.
+
 ### Lock outputs and read-back
 
 The four outputs are the resolved `--design` path, and `palette.css`, `typography.css`, `brand-direction.html` under `--work`, beside the boards as Build Brand keeps its direction and the colour/type skills keep their work. No new root shelf or design-system file is created. Settings can be filed elsewhere only by resolving a different declared brand work directory before the call.
 
-- Design has the twelve headings in the template's order, its provenance preamble, and complete state at the lock. Each rule cites the answers JSON and question/field, or the assembled spec's board field. Inferences cite their derivation; fixed scale and rhythm claims cite `(Working need: lock.mjs SCALE)`, never a sourcing register; gaps use `standards/conventions.md` labels. A separate source-field traversal checks every rendered claim before publication. On an existing full-onboarding root, every claim, including the lock state, receives an unused `[V<n>]` anchor and a located row in the existing Claims table; the lock supplies `design-source`. Old verification and negative-claim rows are preserved; each retained Claims row whose anchor moved from the replaced design points to the actual archived file, with its outcome and every other cell unchanged. This is deterministic field/value checking, not a claim of independent human or model review.
+- Design has the twelve headings in the template's order, its provenance preamble, and complete state at the lock. Each rule cites its numbered answer in the dated record and the answers JSON field or assembled spec's board field, as Answer numbers specifies. Inferences cite their derivation; fixed scale and rhythm claims cite `(Working need: lock.mjs SCALE)`, never a sourcing register; gaps use `standards/conventions.md` labels. A separate source-field traversal checks every rendered claim before publication. On an existing full-onboarding root, every claim, including the lock state, receives an unused `[V<n>]` anchor and a located row in the existing Claims table; the lock supplies `design-source`. Old verification and negative-claim rows are preserved; each retained Claims row whose anchor moved from the replaced design points to the actual archived file, with its outcome and every other cell unchanged. This is deterministic field/value checking, not a claim of independent human or model review.
 - Colour settings retain `--locked-light-<role>` and `--locked-dark-<role>`, with camelCase roles converted to kebab-case as in the existing colour output. Every declaration names its job and source field. `--brand-<role>` aliases select the primary mode, explicit `[data-theme="light"]` or `[data-theme="dark"]`, and system dark mode. `--brand-pop` is the pop colour. No inferred OKLCH scales, semantic statuses or additional colours are produced.
 - Lettering settings retain `--font-heading`, `--font-body`, `--text-caption`, `--text-body`, `--text-subheading`, `--text-heading`, `--text-display`, weights, line heights and rhythm names from the existing type output. Font files are referenced locally with `@font-face`, not fetched or copied; licences and source fields are comments. Optional handwriting is notes-only. Restore a missing locked font before locking. The single fixed scale is 16px × 1.25^step: caption 12.8px, body 16px, subheading 20px, heading 25px, display 31.25px. Above-body sizes use equal-bound rem `clamp()` values, so the scale remains fixed and respects the reader's root font size. Light line heights are 1.4, 1.5, 1.35, 1.2, 1.1 respectively; dark adds 0.05. Weights come from the board's size records. The ratio and rhythm are labelled working needs, not member choices. Use `.type-on-dark` for light text on a dark or saturated field even in light mode; essential UI stays at 1rem. A fuller responsive system is built when work first needs one.
 - The brand direction is responsive HTML in Build Brand's section order, with each face's name set in that face, the adopted sentence and promise unchanged, exact look answers, colour names/roles/shares where present, and a closing provenance table. Unrecorded temperature descriptions, invented tensions, and unsupported picture sections are omitted. Licence and file mechanics belong in the settings/design, not the direction's designer-facing sections.

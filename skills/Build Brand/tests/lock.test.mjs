@@ -21,6 +21,7 @@ function fixture(type = 'personal') {
   const face = (role) => { const f = structuredClone(pairing.type[role]); f.files = f.files.map((file) => ({ ...file, path: resolve(parts, file.path) })); return f; };
   const spec = { layout: 'board', boards: [{ number: 1, name: 'Kept board', primaryMode: 'light', buttonRadius: 4, palette: structuredClone(Object.fromEntries(['light', 'dark', 'swatches'].map((k) => [k, palette[k]]))), type: { heading: face('heading'), body: face('body') }, graphics: structuredClone(graphics), content: { brandName: 'Test Person', sentence: 'I build useful things.', body: 'A supplied line.', photoRules: 'Show people using what they make.', never: ['posed stock photographs'] }, words: [{ word: 'Useful', not: 'ornamental' }, { word: 'Clear', not: 'academic' }], monogram: { initials: 'TP', container: '<svg/>' } }] };
   const answers = { type, name: 'Test Person', sentence: spec.boards[0].content.sentence, words: structuredClone(spec.boards[0].words), taps: { mode: 'light', feel: 'natural', history: 'established-current', strength: 'strong-solid', technology: 'craftsman', style: 'patagonia', posture: 'toyota', mood: 'ikea', place: 'design-workshop' }, readBack: { text: 'Natural and strong, like Patagonia.', confirmed: true }, off: [], looks: ['look:soft-serif/paper-orange/drawn'], rounds: [{ question: 'Round 1', steer: 'Warmer; as it is; stronger; more current' }], assets: [], lock: { confirmed: true, board: 1, question: 'F18', specSha256: '', contactSheetPassed: true } };
+  answers.answerNumbers = { file: '2026-11-02 V2 design answers.md', looks: ['L4'], rounds: ['C6'], board: 'C6' };
   if (type !== 'personal') Object.assign(answers, { audience: 'People who make things.', promise: 'Useful things that last.', finalSay: 'Me, and others should see it', provenance: { register: 'Firsthand', by: 'Test Respondent' } });
   const specPath = join(root, 'board.json'), answersPath = join(root, 'answers.json'), design = join(root, 'design.md'), work = join(root, 'work/brand');
   function save() { const bytes = JSON.stringify(spec); writeFileSync(specPath, bytes); answers.lock.specSha256 = sha256(bytes); writeFileSync(answersPath, JSON.stringify(answers)); }
@@ -98,7 +99,7 @@ test('placeholder initials never become a mark', () => {
   const f = fixture(); f.result(); assert.match(f.read(), /## Mark\n\n\[Not available: a logo is offered after the lock\]/);
 });
 test('explicit legacy labels permit absent records; direction omits unsupported Pictures', () => {
-  const f = fixture(); for (const k of ['readBack', 'rounds', 'looks']) delete f.answers[k]; delete f.spec.boards[0].content.photoRules;
+  const f = fixture(); for (const k of ['readBack', 'rounds', 'looks']) delete f.answers[k]; f.answers.answerNumbers.looks = []; f.answers.answerNumbers.rounds = []; delete f.spec.boards[0].content.photoRules;
   f.answers.unavailable = { readBack: 'read-back not supplied', rounds: 'round answers not supplied', looks: 'whole looks not supplied', photoRules: 'the supplied locked board states no picture rule' };
   f.save(); f.result(); for (const reason of Object.values(f.answers.unavailable)) assert.ok(f.read().includes(reason));
   assert.doesNotMatch(f.read(join(f.work, 'brand-direction.html')), /<h2>Pictures<\/h2>/);
@@ -258,6 +259,7 @@ test('onboarding G10/G19 accept the lock fixture with its bound shelf relocated,
   // in-memory harness copy: the G10/G19 gate bodies remain byte-for-byte intact.
   writeFileSync(join(f.root, 'AGENTS.md'), '---\nroot: Test Person\ntype: personal\n---\n');
   Object.assign(f.answers, { audience: 'People making useful things.', promise: 'Useful things that last.' });
+  Object.assign(f.answers.answerNumbers, { audience: 'J2b', promise: 'J2b' });
   f.answers.carried = { place: { file: '2026-11-02 V2 voice answers.md', question: 'P12' } };
   f.save(); f.result();
   const gates = process.env.BUILD_BRAND_GATES || resolve(dirname(script), '../../Onboard Root/gates.sh');
@@ -276,6 +278,7 @@ test('onboarding G10/G19 accept the lock fixture with its bound shelf relocated,
   // existence by G19. The relocated shelf never opens a file through it.
   mkdirSync(join(f.root, 'answers'));
   writeFileSync(join(f.root, 'answers', f.answers.carried.place.file), '| P12 | A design workshop |\n');
+  writeFileSync(join(f.root, 'answers', f.answers.answerNumbers.file), '| J2b | Recorded sentence and words |\n');
   symlinkSync('.', join(f.root, 'memory'));
   for (const gate of ['G10', 'G19']) {
     const checked = spawnSync('bash', ['-s', '--', '--gate', gate, f.root], { input: relocated, encoding: 'utf8' });
@@ -293,7 +296,7 @@ test('a personal lock derives Foundation from the recorded J2b sentence and pass
   const f=fixture();
   writeFileSync(join(f.root,'AGENTS.md'),'---\nroot: Test Person\ntype: personal\n---\n');
   mkdirSync(join(f.root,'answers'));
-  writeFileSync(join(f.root,'answers/design answers.md'),`| Number | Answer |\n|---|---|\n| J2b | ${f.answers.sentence} |\n`);
+  writeFileSync(join(f.root,'answers',f.answers.answerNumbers.file),`| Number | Answer |\n|---|---|\n| J2b | ${f.answers.sentence} |\n`);
   f.result();
   assert.equal(f.answers.audience,undefined);assert.equal(f.answers.promise,undefined);
   assert.equal((f.read().match(/Research inference: J2b;/g)||[]).length,2);
@@ -301,7 +304,7 @@ test('a personal lock derives Foundation from the recorded J2b sentence and pass
   const harness=readFileSync(gates,'utf8').replace('MEM="$ROOT/memory"','MEM="$ROOT"');
   const check=()=>spawnSync('bash',['-s','--','--gate','G10',f.root],{input:harness,encoding:'utf8'});
   const good=check();assert.equal(good.status,0,good.stdout+good.stderr);assert.match(good.stdout,/PASS +G10/);
-  writeFileSync(join(f.root,'answers/design answers.md'),'| Number | Answer |\n|---|---|\n| J2a | Other answer |\n');
+  writeFileSync(join(f.root,'answers',f.answers.answerNumbers.file),'| Number | Answer |\n|---|---|\n| J2a | Other answer |\n');
   const missing=check();assert.equal(missing.status,1);assert.match(missing.stdout,/J2b that no file in memory\/answers\/ records/);
 });
 
@@ -414,4 +417,88 @@ for (const custom of [false, true]) test(`relock relocates only moved verificati
   assert.ok(rows(after).some(r => r.includes('| design.md |')));
   run([...f.argv, '--replace']);
   for (const row of rows(before)) assert.ok(f.read(verification).includes(row.replace('| design.md |', '| ' + archive + ' |')));
+});
+
+for (const type of ['personal', 'org', 'client', 'department']) test(`${type}: every lock claim cites its recorded answer as well as its source field`, () => {
+  const f = fixture(type); f.answers.off = ['natural']; f.save();
+  const result = f.result(), design = f.read();
+  const citation = (text, id, field) => {
+    const line = design.split('\n').find(l => l.startsWith(text));
+    assert.ok(line, text);
+    assert.ok(line.includes(`memory/answers/${f.answers.answerNumbers.file}`), line);
+    assert.ok(line.includes(`; ${id};`) || line.includes(`: ${id};`), line);
+    assert.ok(line.includes(field), line);
+  };
+  citation('I build useful things', 'J2b', '#sentence');
+  citation('Useful, not ornamental', 'J2b', '#words.0.word');
+  citation('Keep Useful', 'J2b', '#words.0.not');
+  const ids = ['mode','feel','history','strength','technology','style','posture','mood','place'];
+  ids.forEach((id, i) => citation(`T${i+1}:`, `T${i+1}`, `#taps.${id}`));
+  citation('Natural and strong', 'J3a', '#readBack.text');
+  citation('Dropped from the steer:', 'J3b', '#off.0');
+  citation('Whole look picked:', 'L4', '#looks.0');
+  citation('Round 1:', 'C6', '#rounds.0.steer');
+  citation('Complete at the lock.', 'K1', '#lock.question');
+  citation('light ground:', 'C6', '#boards.0.palette.light.ground');
+  citation('light ground:', 'K1', '#boards.0.palette.light.ground');
+  if (type !== 'personal') for (const [prefix, id, field] of [['For:', 'O1', 'audience'], ['Promise:', 'O2', 'promise'], ['Final say:', 'O3', 'finalSay']]) citation(prefix, id, `#${field}`);
+  const rules = design.split('\n').filter(l => /\((?:Firsthand|Research inference):/.test(l));
+  for (const line of rules) assert.match(line, /(?:;|:) [A-Z][0-9][a-z0-9]*;.*memory\/answers\/[^;]+design answers\.md/, line);
+  assert.ok(result.readBack.claims > 90); assert.ok(!result.unusedAnswerFields.includes('answerNumbers'));
+  const direction = f.read(join(f.work, 'brand-direction.html'));
+  assert.ok(direction.includes(`L4; memory/answers/${f.answers.answerNumbers.file}`));
+});
+
+test('carried place cites only P12 and its dated voice record, never T9', () => {
+  const f = fixture(); f.answers.carried = { place: { file: '2026-11-01 V3 voice answers.md', question: 'P12' } }; f.save(); f.result();
+  const line = f.read().split('\n').find(l => l.startsWith("Place, from the voice coach's"));
+  assert.ok(line.includes('; P12; memory/answers/2026-11-01 V3 voice answers.md'), line);
+  assert.ok(line.includes('#taps.place'), line); assert.doesNotMatch(line, /T9/);
+});
+
+test('recorded look and board numbers come from the saved map, with same-page picks retained', () => {
+  const f = fixture(); f.answers.looks.push('look:humanist/olive-paper/stitch', 'look:lively/plum-peach/riso');
+  f.answers.answerNumbers.looks = ['L4', 'L4', 'L9'];
+  f.answers.rounds.push({ question: 'Later board page', steer: 'Keep it quiet' });
+  f.answers.answerNumbers.rounds = ['C6', 'C11']; f.answers.answerNumbers.board = 'C11'; f.save(); f.result();
+  const lines = f.read().split('\n').filter(l => l.startsWith('Whole look picked:'));
+  for (const [i, id] of ['L4', 'L4', 'L9'].entries()) assert.ok(lines[i].includes(`; ${id}; memory/answers/${f.answers.answerNumbers.file}`));
+  assert.match(f.read().split('\n').find(l => l.startsWith('Later board page:')), /; C11;/);
+  assert.match(f.read().split('\n').find(l => l.startsWith('light ground:')), /; C11;/);
+});
+
+test('lock refuses missing, malformed or incomplete answer maps before writing', () => {
+  for (const mutate of [
+    a => { delete a.answerNumbers; },
+    a => { a.answerNumbers.file = 'design answers.md'; },
+    a => { a.answerNumbers.file = '../2026-11-02 design answers.md'; },
+    a => { a.answerNumbers.board = 'C0'; },
+    a => { a.answerNumbers.looks = []; },
+    a => { a.answerNumbers.looks = ['C4']; },
+    a => { a.answerNumbers.rounds = ['C6', 'C7']; },
+    a => { a.answerNumbers.rounds = ['Round 1']; },
+    a => { a.answerNumbers.extra = 'L1'; },
+  ]) {
+    const f = fixture(); mutate(f.answers); f.save();
+    assert.throws(f.result, /answerNumbers/); assert.equal(existsSync(f.design), false);
+  }
+});
+test('legacy layout explicitly records the absence of an authorised numbered record', () => {
+  const f = fixture(); f.answers.answerNumbers = null; f.save();
+  const result = f.result(); assert.equal(result.state, 'complete');
+  assert.doesNotMatch(f.read(), /memory\/answers\//); assert.match(f.read(), /Firsthand: Test Person/);
+  assert.ok(f.read().includes('#sentence')); assert.ok(!result.unusedAnswerFields.includes('answerNumbers'));
+});
+for (const type of ['org', 'client', 'department']) test(`${type}: numbered lock citations retain a passing G10`, () => {
+  const f = fixture(type);
+  writeFileSync(join(f.root, 'AGENTS.md'), `---\nroot: Test Brand\ntype: ${type}\n---\n\n## Provides\n- design: design.md\n`);
+  mkdirSync(join(f.root, 'work/onboarding'), { recursive: true });
+  writeFileSync(join(f.root, 'work/onboarding/run-record.md'), '### Who confirms and on what basis\nname: Test Respondent\n');
+  mkdirSync(join(f.root, 'answers'));
+  writeFileSync(join(f.root, 'answers', f.answers.answerNumbers.file), '| J2b | Sentence and words |\n| O1 | Audience |\n| O2 | Promise |\n| O3 | Final say |\n| C6 | Board page |\n| L4 | Looks page |\n| K1 | Lock |\n');
+  f.result();
+  const gates = process.env.BUILD_BRAND_GATES || resolve(dirname(script), '../../Onboard Root/gates.sh');
+  const harness = readFileSync(gates, 'utf8').replace('MEM="$ROOT/memory"', 'MEM="$ROOT"');
+  const checked = spawnSync('bash', ['-s', '--', '--gate', 'G10', f.root], { input: harness, encoding: 'utf8' });
+  assert.equal(checked.status, 0, checked.stdout + checked.stderr); assert.match(checked.stdout, /PASS +G10/);
 });

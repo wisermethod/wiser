@@ -183,6 +183,25 @@ function validate(spec, a, bytes, tapData) {
   if (a.rounds) a.rounds.forEach((r, i) => { closed(r, ['question', 'steer'], `rounds.${i}`); str(r.question, `rounds.${i}.question`); str(r.steer, `rounds.${i}.steer`); });
   if (a.type !== 'personal') for (const k of ['audience', 'promise', 'finalSay']) str(a[k], k);
   if (a.type === 'personal') for (const k of ['audience', 'promise']) if (a[k] != null) str(a[k], k);
+  // Fixed bank ids are known here; page ids and the dated record come from
+  // the saved sitting, never from positions in a filtered picks array.
+  if (!own(a, 'answerNumbers')) fail('answerNumbers', 'supply the recorded answer map (null only for the legacy layout with no authorised answers record)');
+  if (a.answerNumbers !== null) {
+    const numbers = closed(a.answerNumbers, ['file', 'looks', 'rounds', 'board', 'audience', 'promise'], 'answerNumbers');
+    if (!/^\d{4}-\d{2}-\d{2}( V[2-9]\d*| V1\d+)? design answers\.md$/.test(String(numbers.file))) fail('answerNumbers.file', 'name the dated design answers record as C14 gives it');
+    if (!/^C[1-9]\d*$/.test(String(numbers.board))) fail('answerNumbers.board', 'name the recorded boards page containing the locked pick');
+    for (const [field, prefix] of [['looks', 'L'], ['rounds', 'C']]) {
+      arr(numbers[field], `answerNumbers.${field}`);
+      if (numbers[field].length !== (a[field] || []).length) fail(`answerNumbers.${field}`, 'supply one recorded page number per entry, retaining same-page picks');
+      for (const id of numbers[field]) if (!new RegExp(`^${prefix}[1-9]\\d*$`).test(id)) fail(`answerNumbers.${field}`, `use recorded ${prefix}<n> page numbers`);
+    }
+    for (const field of ['audience', 'promise']) {
+      if (own(numbers, field)) {
+        if (a.type !== 'personal' || !/^[A-Z][1-9]\d*[a-z]?$/.test(numbers[field])) fail(`answerNumbers.${field}`, 'only personal sourced statements may name their recorded answer number');
+      }
+      if (a.type === 'personal' && a[field] && !numbers[field]) fail(`answerNumbers.${field}`, 'name the answer recorded for this sourced personal statement');
+    }
+  }
   arr(a.assets, 'assets').forEach((asset, i) => { closed(asset, ['path', 'governs', 'kind'], `assets.${i}`); for (const k of ['path', 'governs', 'kind']) str(asset[k], `assets.${i}.${k}`); });
   str(b.name, 'board.name'); num(b.buttonRadius, 'buttonRadius', 0, 100);
   if (!['light', 'dark'].includes(b.primaryMode)) fail('primaryMode', 'use light or dark');
@@ -257,14 +276,31 @@ function makeDocuments(spec, a, index, paths, tapData) {
   const ref = (r) => r.source === 'script' ? 'lock.mjs#SCALE' : `${r.source === 'spec' ? paths.spec : paths.answers}#${r.field}`;
   const tap = (n) => { const q = tapData.questions[n - 1]; const o = q.options.find((v) => v.id === a.taps[q.id]); return { id: q.id, value: a.taps[q.id], label: o.description ? `${o.label}: ${o.description}` : o.label }; };
   const register = a.provenance ? `${a.provenance.register}: ${a.provenance.by}` : `Firsthand: ${a.name}`;
+  const answerRefs = (r) => {
+    const numbers = a.answerNumbers;
+    if (!numbers || r.source === 'script') return [];
+    const record = `memory/answers/${numbers.file}`, cite = (id) => [id, record];
+    if (r.source === 'spec') return [numbers.board, 'K1', record];
+    const [field, index] = r.field.split('.');
+    if (field === 'carried' || (field === 'taps' && index === 'place' && a.carried)) return ['P12', `memory/answers/${a.carried.place.file}`];
+    if (field === 'looks' || field === 'rounds') return cite(numbers[field][Number(index)]);
+    if (field === 'taps') return cite(`T${tapData.questions.findIndex(q => q.id === index) + 1}`);
+    const id = { sentence: 'J2b', words: 'J2b', audience: a.type === 'personal' ? numbers.audience : 'O1', promise: a.type === 'personal' ? numbers.promise : 'O2', finalSay: 'O3', readBack: 'J3a', off: 'J3b', assets: 'J1', lock: 'K1' }[field];
+    return id ? cite(id) : [];
+  };
+  const citation = (refs, inference = false) => {
+    if (refs.every(r => r.source === 'script')) return 'Working need: lock.mjs SCALE';
+    const answers = [...new Set(refs.flatMap(answerRefs))];
+    const prefix = inference && a.answerNumbers ? 'Research inference: ' : `${register}; `;
+    return prefix + [...answers, ...refs.map(ref)].join('; ');
+  };
+
   const sections = Object.fromEntries(HEADINGS.map((h) => [h, []]));
   const add = (heading, text, refs, inference = false) => {
-    const source = refs.map(ref).join('; ');
-    const citation = refs.every((r) => r.source === 'script') ? 'Working need: lock.mjs SCALE' : inference ? `Research inference: J2b; ${source}` : `${register}; ${source}`;
-    const claim = { heading, text, refs, citation }; claims.push(claim); sections[heading].push(claim);
+    const claim = { heading, text, refs, citation: citation(refs, inference) }; claims.push(claim); sections[heading].push(claim);
   };
   const label = (heading, reason) => sections[heading].push({ label: `[Not available: ${reason}]` });
-  const status = { heading: 'Lock', text: `Complete at the lock. Colour and lettering are settled. Lock: ${a.lock.question}.`, refs: [A('lock.question')], citation: `${register}; ${ref(A('lock.question'))}` };
+  const status = { heading: 'Lock', text: `Complete at the lock. Colour and lettering are settled. Lock: ${a.lock.question}.`, refs: [A('lock.question')], citation: citation([A('lock.question')]) };
   claims.push(status);
   for (const mode of ['light', 'dark']) for (const [role, description] of Object.entries(ROLES)) add('Color', `${mode} ${role}: ${b.palette[mode][role]}. ${description}.`, [S(`palette.${mode}.${role}`)]);
   add('Color', `Use ${b.primaryMode} first; both modes are settled. Colour settings: ${paths.palette}.`, [S('primaryMode')]);
@@ -363,7 +399,7 @@ function verifyDocument(doc, verification, designPath) {
   const rows = [];
   for (const c of doc.claims) {
     c.anchor = `V${next++}`;
-    const cites = c.refs.map((r) => r.source === 'script' ? 'lock.mjs SCALE' : doc.ref(r)).join('; ');
+    const cites = c.citation;
     rows.push(`| ${c.anchor} | design | ${c.heading === 'Lock' ? 'design-source' : 'other'} | ${md(c.text)} | [${c.anchor}] | ${md(designPath)} | ${md(cites)} | source field traversal | yes | rendered value read-back | located | Verified | - |`);
   }
   return verification.replace(/(^## Claims\s*\n)([\s\S]*?)(?=^## |$(?![\s\S]))/m, (_, h, body) => `${h}${body.trimEnd()}\n${rows.join('\n')}\n\n`);
@@ -511,7 +547,7 @@ export function run(argv) {
       ? relocateClaims(entry.bytes,oldDesign,relative(root,design).split(sep).join('/'),relative(root,saved.archive).split(sep).join('/'))
       : entry.bytes;
   });
-  return { state: 'complete', files: entries.map((e) => ({ path: e.path, bytes: Buffer.byteLength(e.bytes) })), headings: headingReport, archives, readBack: { claims: doc.claims.length, outcome: 'passed' }, unusedAnswerFields: Object.keys(a).filter((k) => !['name', 'sentence', 'words', 'taps', 'off', 'readBack', 'looks', 'rounds', 'type', 'assets', 'audience', 'promise', 'finalSay', 'lock', 'unavailable', 'provenance', 'paths', 'carried'].includes(k)), elapsedMs: Number((performance.now() - started).toFixed(3)) };
+  return { state: 'complete', files: entries.map((e) => ({ path: e.path, bytes: Buffer.byteLength(e.bytes) })), headings: headingReport, archives, readBack: { claims: doc.claims.length, outcome: 'passed' }, unusedAnswerFields: Object.keys(a).filter((k) => !['name', 'sentence', 'words', 'taps', 'off', 'readBack', 'looks', 'rounds', 'type', 'assets', 'audience', 'promise', 'finalSay', 'lock', 'unavailable', 'provenance', 'paths', 'carried', 'answerNumbers'].includes(k)), elapsedMs: Number((performance.now() - started).toFixed(3)) };
 }
 export function main(argv = process.argv.slice(2)) {
   try { const result = run(argv); process.stdout.write((typeof result === 'string' ? result : JSON.stringify(result)) + '\n'); }

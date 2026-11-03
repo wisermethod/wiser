@@ -63,3 +63,16 @@ test('the placeholder hand check gives the exact G18 pattern and code-prefix rul
   assert.ok(line.includes('`' + pattern + '`'), line);
   assert.match(line, /G18/); assert.match(line, /code-prefix/);
 });
+
+for (const personal of [false, true]) test(`G11b passes a scoped design with no figures as not applicable (personal: ${personal})`, () => {
+  const row = gate('G11b', {}, { file: 'shelf/design.md', personal });
+  assert.match(row.detail, /not applicable/);
+});
+test('scoped G11b still checks figure tables and does not inspect other bound files', () => {
+  const invalid = '## Figures\n| Figure |\n|---|\n| 12 |\n';
+  gate('G11b', { 'shelf/voice.md': invalid }, { file: 'shelf/design.md' });
+  gate('G11b', { 'shelf/design.md': invalid }, { file: 'shelf/design.md', fails: true });
+  const valid = '## Figures\n| Figure | Unit | Denominator | Tool | Window | Label | Source |\n|---|---|---|---|---|---|---|\n| 1 | item | all items | counter | 2026-11-02 | Verified | sources/note.txt |\n';
+  const row = gate('G11b', { 'shelf/design.md': valid }, { file: 'shelf/design.md' });
+  assert.doesNotMatch(row.detail, /not applicable/);
+});

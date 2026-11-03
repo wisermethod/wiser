@@ -1964,7 +1964,13 @@ $out
 G11BEOF
   done < <(bound_files)
   if [ "$found_any" -eq 0 ] && [ -z "$G_FAILS" ]; then
-    if [ "$SHORT" = "1" ]; then add_note "no figures heading under memory; not applicable on the personal path"; else set_skip "no figures heading and no table with a Figure column under $(rel "$MEM")"; fi
+    if [ "$SHORT" = "1" ]; then
+      add_note "no figures heading under memory; not applicable on the personal path"
+    elif [ -n "$ONLY_FILE" ]; then
+      add_note "no figures heading and no table with a Figure column in $(rel "$ONLY_FILE"); not applicable"
+    else
+      set_skip "no figures heading and no table with a Figure column under $(rel "$MEM")"
+    fi
   fi
 }
 
