@@ -218,7 +218,7 @@ Exit: G13, G13b, G14.
 
 ### Phase 7: Design
 
-`memory/design.md` is how this root's outputs look, documents, decks, and images, where `memory/voice.md` is how they sound; presentation-producing skills read it. Unlike about and voice it does not block onboarding. Ask the requester once, as taps where the app offers a question tool, the way Two paths in `SKILL.md` asks the type, in these words: **"Last, how your work should look. Do you already have a look you'd like me to record, or shall we build one together?"** Where the request already answers it, take that answer and ask nothing.
+`memory/design.md` is how this root's outputs look, documents, decks, and images, where `memory/voice.md` is how they sound; presentation-producing skills read it. Unlike about and voice it does not block onboarding. Say **"Next up is building a design look for [org]."**, [org] the root's own name, then ask the requester once, as taps where the app offers a question tool, the way Two paths in `SKILL.md` asks the type, in these words: **"Do you already have a look you'd like me to record, or shall we build one together?"** Where the request already answers it, take that answer and ask nothing.
 
 - **We have a brand. I'll give it to you to record.**
 - **We want to build a look and feel for our work.**
