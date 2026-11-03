@@ -334,6 +334,53 @@ $endif$
 \usepackage{array}
 \usepackage{calc}  % For \real in Pandoc table column widths
 
+% The page builder can leave \maxdepth below its height goal. In paragraph
+% columns that depth can include a row's last baseline, not just descenders.
+% Without a continuation foot, the final strut is safe below the baseline;
+% reserve only the excess page depth. A real foot needs the whole allowance.
+% Use longtable's foot budget even on an already started page (changing
+% \maxdepth there would be too late). Preserve the original final foot so a
+% table that ends here adds no space to the next text.
+\makeatletter
+\newdimen\bookpublishertablereserve
+\newdimen\bookpublishertablepadding
+\AddToHook{env/longtable/begin}[bookpublishertablebottom]{%
+  \let\bookpublisherLTstart\LT@start
+  \def\LT@start{%
+    \bookpublishertablereserve=\maxdepth
+    \ifvoid\LT@foot
+      \advance\bookpublishertablereserve-\dp\@arstrutbox
+      \ifdim\bookpublishertablereserve>\z@
+        % The empty budget box must not activate longtable's zero-depth
+        % policy for real feet: retain the normal depth on fresh pages too.
+        \csname tl_if_in:NnTF\endcsname\bookpublisherLTstart{\maxdepth\z@}{%
+          \csname tl_replace_once:Nnn\endcsname\bookpublisherLTstart{\maxdepth\z@}{}%
+        }{\PackageError{Book Publisher}{Cannot reserve table page depth}{Unsupported longtable start}}%
+      \fi
+    \fi
+    \ifdim\bookpublishertablereserve>\z@
+      \ifvoid\LT@lastfoot
+        \ifvoid\LT@foot
+          \setbox\LT@lastfoot\vbox{}%
+        \else
+          \setbox\LT@lastfoot\copy\LT@foot
+        \fi
+      \fi
+      \bookpublishertablepadding=-\ht\LT@foot
+      \setbox\LT@foot\vbox{\box\LT@foot\kern\bookpublishertablereserve}%
+      \advance\bookpublishertablepadding\ht\LT@foot
+      % The first-row fit test already counts that row's complete depth.
+      % Keep its existing decision; only continuation breaks need the budget.
+      \csname tl_if_in:NnTF\endcsname\bookpublisherLTstart{\advance\dimen@\ht\LT@foot}{%
+        \csname tl_replace_once:Nnn\endcsname\bookpublisherLTstart{\advance\dimen@\ht\LT@foot}{%
+          \advance\dimen@\ht\LT@foot
+          \advance\dimen@-\bookpublishertablepadding}%
+      }{\PackageError{Book Publisher}{Cannot preserve table start spacing}{Unsupported longtable start}}%
+    \fi
+    \bookpublisherLTstart}%
+}
+\makeatother
+
 %% =============================================================================
 %% LISTS
 %% =============================================================================
