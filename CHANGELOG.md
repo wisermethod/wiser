@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.03.4, November 3, 2026
+
+- Book Publisher keeps every table row inside the page's bottom margin: a row that would end below the text block now moves to the next page, with the table's header repeated. Before, a row that wrapped onto a second line could end a fraction of a point below the margin at some page sizes, such as 5.25 by 8 inches. A row that would end within about a point of the bottom moves too. (3d2ecf8, 0b0e5c1)
+
 ## v2026.11.03.3, November 3, 2026
 
 - The voice coach's quick taps are plain questions about you, each with three or four answers to tap, in place of screens that set two lines side by side to choose between. The first asks how it shows in your writing when you see things differently from most people in your field: you call it out, you show a better way, you build on common ground, or it depends on who's reading. (51a97a95)
