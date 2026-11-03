@@ -217,7 +217,7 @@ function makeDocuments(spec, a, index, paths, tapData) {
   const sections = Object.fromEntries(HEADINGS.map((h) => [h, []]));
   const add = (heading, text, refs, inference = false) => {
     const source = refs.map(ref).join('; ');
-    const citation = refs.every((r) => r.source === 'script') ? 'Working need: lock.mjs SCALE' : inference ? `Research inference: ${source}` : `${register}; ${source}`;
+    const citation = refs.every((r) => r.source === 'script') ? 'Working need: lock.mjs SCALE' : inference ? `Research inference: J2b; ${source}` : `${register}; ${source}`;
     const claim = { heading, text, refs, citation }; claims.push(claim); sections[heading].push(claim);
   };
   const label = (heading, reason) => sections[heading].push({ label: `[Not available: ${reason}]` });

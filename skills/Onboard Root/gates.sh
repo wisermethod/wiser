@@ -1674,7 +1674,7 @@ gate_G10() {
   for af in "$MEM/answers"/*.md; do
     [ -f "$af" ] || continue
     [ "$(basename "$af")" = "AGENTS.md" ] && continue
-    awk '{ l=$0; sub(/^[ \t]*\|/, "", l); n=split(l, c, "|"); if (n<2) next; v=c[1]; gsub(/^[ \t]+|[ \t]+$/, "", v); if (v ~ /^[WYPRHSAXF][0-9]+[a-z]?$/) print v }' "$af"
+    awk '{ l=$0; sub(/^[ \t]*\|/, "", l); n=split(l, c, "|"); if (n<2) next; v=c[1]; gsub(/^[ \t]+|[ \t]+$/, "", v); if (v ~ /^[WYPRHSAXFBCGJKLOT][0-9]+[a-z]?$/) print v }' "$af"
   done | sort -u > "$TMPD/g10-answer-ids.txt"
   bf=$(bound_files | wc -l | tr -d ' ')
   if [ "$bf" -eq 0 ]; then
@@ -1700,6 +1700,9 @@ gate_G10() {
       fi
       case "$name" in
         Firsthand)
+          # The observer is the first segment; answer numbers and source paths
+          # after a comma or semicolon are citation details, not a name.
+          observer=$(printf '%s' "$payload" | sed 's/[,;].*$//;s/^[[:space:]]*//;s/[[:space:]]*$//')
           # Round 1 replaced a document blacklist with a name-shape test, and
           # round 2 showed a shape test is not a person test: "Category Review",
           # "Review Board" and "Account Owner" all have the shape. No regex
@@ -1707,18 +1710,18 @@ gate_G10() {
           # checked against the people this run actually recorded: the person
           # rows of the must-reach lists and the interview's who-confirms
           # answer. An observer nobody wrote down is not an observer.
-          if [ "$SHORT" = "1" ] && [ -n "$OWNER_LC" ] && [ "$(printf '%s' "$payload" | cut -d, -f1 | sed 's/[[:space:]]*$//' | tr 'A-Z' 'a-z')" = "$OWNER_LC" ]; then
+          if [ "$SHORT" = "1" ] && [ -n "$OWNER_LC" ] && [ "$(printf '%s' "$observer" | tr 'A-Z' 'a-z')" = "$OWNER_LC" ]; then
             # The root's owner, by owner_name's name, whatever its shape: a
             # mononym or a non-Latin name is a person all the same.
             :
-          elif printf '%s' "$payload" | tr 'A-Z' 'a-z' | grep -qE "$DOC_GRAMMAR"; then
+          elif printf '%s' "$observer" | tr 'A-Z' 'a-z' | grep -qE "$DOC_GRAMMAR"; then
             add_fail "$r line $ln: (Firsthand: $payload) names a document as the observer"
-          elif ! printf '%s' "$payload" | grep -qE "$PERSON_GRAMMAR"; then
+          elif ! printf '%s' "$observer" | grep -qE "$PERSON_GRAMMAR"; then
             add_fail "$r line $ln: (Firsthand: $payload) does not name a person who observed it; firsthand names an observer, never a document or a role alone"
-          elif printf '%s' "$payload" | grep -qE "$NONPERSON_TAIL"; then
+          elif printf '%s' "$observer" | grep -qE "$NONPERSON_TAIL"; then
             add_fail "$r line $ln: (Firsthand: $payload) names a role, a body, or a document, not the person who observed it"
           elif [ -s "$TMPD/people.txt" ]; then
-            pn=$(printf '%s' "$payload" | grep -oE "$PERSON_GRAMMAR" | sed 's/^[^A-Za-z]*//' | head -1)
+            pn=$(printf '%s' "$observer" | grep -oE "$PERSON_GRAMMAR" | sed 's/^[^A-Za-z]*//' | head -1)
             if [ -n "$pn" ] && ! grep -qixF "$pn" "$TMPD/people.txt"; then
               add_fail "$r line $ln: (Firsthand: $payload) names '$pn', who is not recorded as a person anywhere in this run; a firsthand observer appears in the must-reach person rows or in who-confirms"
             fi
@@ -1736,7 +1739,7 @@ gate_G10() {
           # of those rows, an E<n> beside it or not.
           ids=""
           if [ "$ROOT_TYPE" = "personal" ]; then
-            ids=$(printf '%s' "$payload" | grep -oE '(^|[^A-Za-z0-9])[WYPRHSAXF][0-9]+[a-z]?([^A-Za-z0-9]|$)' | grep -oE '[WYPRHSAXF][0-9]+[a-z]?')
+            ids=$(printf '%s' "$payload" | tr -cs 'A-Za-z0-9' '\n' | grep -E '^[WYPRHSAXFBCGJKLOT][0-9]+[a-z]?$')
           fi
           if [ -n "$ids" ]; then
             missing=""

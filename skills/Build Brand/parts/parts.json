@@ -466,7 +466,7 @@
     },
     "Shantell Sans": {
       "folder": "fonts/Shantell Sans",
-      "role": "text",
+      "role": "handwriting",
       "licence": "SIL Open Font License 1.1",
       "licenceFile": "fonts/Shantell Sans/OFL.txt",
       "sourceUrl": "https://github.com/google/fonts/tree/45e3d5269e4a17d823f6d84470bc084dc5ae46f6/ofl/shantellsans",
@@ -2555,7 +2555,8 @@
         "body": "Trial regular reading weight where supplied; 72px specimen, 17px reading sizes and line heights follow the board fixture. The specimen uses bold 700 to show supporting emphasis explicitly; reading uses 400. Normal width and reduced bounce serve reading.",
         "notes": "Curated note order after review; each family retains its bundled three-size settings."
       },
-      "softStrongReason": "Slender, incisive titles meet compact and practical reading text. Read from the heading forms; weight alone does not decide softness."
+      "softStrongReason": "Slender, incisive titles meet compact and practical reading text. Read from the heading forms; weight alone does not decide softness.",
+      "displayStyle": "high-contrast-serif"
     },
     {
       "id": "chunky",
@@ -2764,6 +2765,94 @@
       },
       "type": {
         "heading": {
+          "family": "Instrument Sans",
+          "description": "Open forms and restrained details keep longer passages easy to follow.",
+          "weights": [
+            400,
+            700
+          ],
+          "licence": "SIL Open Font License 1.1",
+          "sample": "A clear line leaves room for the next thought.",
+          "sizes": {
+            "display": {
+              "size": 72,
+              "lineHeight": 1,
+              "tracking": -0.02,
+              "weight": 700,
+              "variations": null
+            },
+            "middle": {
+              "size": 17,
+              "lineHeight": 1.55,
+              "tracking": 0,
+              "weight": 400,
+              "variations": null
+            },
+            "small": {
+              "size": 17,
+              "lineHeight": 1.5,
+              "tracking": 0,
+              "weight": 400,
+              "variations": null
+            }
+          },
+          "files": [
+            {
+              "path": "fonts/Instrument Sans/InstrumentSans-Latin.woff2",
+              "weight": [
+                400,
+                700
+              ],
+              "style": "normal"
+            }
+          ]
+        },
+        "body": {
+          "family": "Instrument Sans",
+          "description": "Open forms and restrained details keep longer passages easy to follow.",
+          "weights": [
+            400,
+            700
+          ],
+          "licence": "SIL Open Font License 1.1",
+          "sample": "A clear line leaves room for the next thought.",
+          "sizes": {
+            "display": {
+              "size": 72,
+              "lineHeight": 1,
+              "tracking": -0.02,
+              "weight": 700,
+              "variations": null
+            },
+            "middle": {
+              "size": 17,
+              "lineHeight": 1.55,
+              "tracking": 0,
+              "weight": 400,
+              "variations": null
+            },
+            "small": {
+              "size": 17,
+              "lineHeight": 1.5,
+              "tracking": 0,
+              "weight": 400,
+              "variations": null
+            }
+          },
+          "files": [
+            {
+              "path": "fonts/Instrument Sans/InstrumentSans-Latin.woff2",
+              "weight": [
+                400,
+                700
+              ],
+              "style": "normal"
+            }
+          ]
+        }
+      },
+      "handwriting": [
+        {
           "family": "Shantell Sans",
           "description": "Uneven strokes and adjustable bounce put the trace of a pen into type.",
           "weights": [
@@ -2819,51 +2908,6 @@
             }
           ]
         },
-        "body": {
-          "family": "Instrument Sans",
-          "description": "Open forms and restrained details keep longer passages easy to follow.",
-          "weights": [
-            400,
-            700
-          ],
-          "licence": "SIL Open Font License 1.1",
-          "sample": "A clear line leaves room for the next thought.",
-          "sizes": {
-            "display": {
-              "size": 72,
-              "lineHeight": 1,
-              "tracking": -0.02,
-              "weight": 700,
-              "variations": null
-            },
-            "middle": {
-              "size": 17,
-              "lineHeight": 1.55,
-              "tracking": 0,
-              "weight": 400,
-              "variations": null
-            },
-            "small": {
-              "size": 17,
-              "lineHeight": 1.5,
-              "tracking": 0,
-              "weight": 400,
-              "variations": null
-            }
-          },
-          "files": [
-            {
-              "path": "fonts/Instrument Sans/InstrumentSans-Latin.woff2",
-              "weight": [
-                400,
-                700
-              ],
-              "style": "normal"
-            }
-          ]
-        }
-      },
-      "handwriting": [
         {
           "family": "Kalam",
           "description": "Soft, separate pen strokes make a short note feel relaxed.",
@@ -2902,45 +2946,6 @@
               "style": "normal"
             }
           ]
-        },
-        {
-          "family": "Covered By Your Grace",
-          "description": "Narrow upright strokes fit an energetic aside into a small space.",
-          "weights": [
-            400
-          ],
-          "licence": "SIL Open Font License 1.1",
-          "sample": "A small thought in the margin.",
-          "sizes": {
-            "display": {
-              "size": 47.2,
-              "lineHeight": 1.15,
-              "tracking": 0,
-              "weight": 400,
-              "variations": null
-            },
-            "middle": {
-              "size": 30.68,
-              "lineHeight": 1.15,
-              "tracking": 0,
-              "weight": 400,
-              "variations": null
-            },
-            "small": {
-              "size": 20.06,
-              "lineHeight": 1.35,
-              "tracking": 0,
-              "weight": 400,
-              "variations": null
-            }
-          },
-          "files": [
-            {
-              "path": "fonts/Covered By Your Grace/CoveredByYourGrace-Latin.woff2",
-              "weight": 400,
-              "style": "normal"
-            }
-          ]
         }
       ],
       "settingsProvenance": {
@@ -2949,7 +2954,8 @@
         "body": "Curated Instrument Sans reading face; 72px specimen, 17px reading sizes and line heights retained. The specimen uses bold 700; reading uses 400.",
         "notes": "Curated note order after review; each family retains its bundled three-size settings."
       },
-      "softStrongReason": "Bouncing pen strokes carry a loose and openly playful voice. Read from the heading forms; weight alone does not decide softness."
+      "softStrongReason": "Bouncing pen strokes carry a loose and openly playful voice. Read from the heading forms; weight alone does not decide softness.",
+      "selectable": false
     },
     {
       "id": "poster",
@@ -3727,7 +3733,8 @@
         "body": "Trial regular reading weight where supplied; 72px specimen, 17px reading sizes and line heights follow the board fixture. The specimen uses bold 700 to show supporting emphasis explicitly; reading uses 400. Normal width and reduced bounce serve reading.",
         "notes": "Curated note order after review; each family retains its bundled three-size settings."
       },
-      "softStrongReason": "Sculptural thick and thin strokes stand above clean, balanced reading text. Read from the heading forms; weight alone does not decide softness."
+      "softStrongReason": "Sculptural thick and thin strokes stand above clean, balanced reading text. Read from the heading forms; weight alone does not decide softness.",
+      "displayStyle": "high-contrast-serif"
     },
     {
       "id": "expressive",
@@ -9836,6 +9843,98 @@
         "softStrong": "strong"
       },
       "softStrongReason": "Rough-edged seals and inked rings leave a firm impression."
+    }
+  ],
+  "refusedClusters": [
+    {
+      "id": "cream-serif-terracotta",
+      "source": {
+        "file": "experts/Creative Director/EXPERT.md",
+        "section": "Prohibited Defaults Taxonomy, Whole-layout clusters",
+        "recorded": "2026-07-27",
+        "decision": "2026-11-02",
+        "expectedToAge": true
+      },
+      "ground": {
+        "near": "#F4F1EA",
+        "maxRgbDistance": 24
+      },
+      "displayStyle": "high-contrast-serif",
+      "accents": {
+        "roles": [
+          "pop",
+          "mark"
+        ],
+        "match": "any",
+        "bands": [
+          {
+            "hue": [
+              5,
+              25
+            ],
+            "saturation": [
+              0.4,
+              1
+            ],
+            "lightness": [
+              0.25,
+              0.65
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-black-single-acid-or-vermilion",
+      "source": {
+        "file": "experts/Creative Director/EXPERT.md",
+        "section": "Prohibited Defaults Taxonomy, Whole-layout clusters",
+        "recorded": "2026-07-27",
+        "decision": "2026-11-02",
+        "expectedToAge": true
+      },
+      "ground": {
+        "near": "#000000",
+        "maxRgbDistance": 75
+      },
+      "accents": {
+        "roles": [
+          "pop",
+          "mark"
+        ],
+        "match": "all",
+        "maxRgbDistance": 80,
+        "bands": [
+          {
+            "hue": [
+              70,
+              110
+            ],
+            "saturation": [
+              0.6,
+              1
+            ],
+            "lightness": [
+              0.4,
+              0.7
+            ]
+          },
+          {
+            "hue": [
+              0,
+              25
+            ],
+            "saturation": [
+              0.65,
+              1
+            ],
+            "lightness": [
+              0.35,
+              0.65
+            ]
+          }
+        ]
+      }
     }
   ]
 }

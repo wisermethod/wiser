@@ -6,6 +6,7 @@ import {join,dirname,resolve} from 'node:path';
 import {tmpdir} from 'node:os';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
+import {boardRefusal} from '../scripts/refusals.mjs';
 import {select,tapDials,ground,score,run,ENERGIES} from '../scripts/select.mjs';
 import {assemble,LIBRARY,AXES,partPositions} from '../scripts/assemble.mjs';
 import {runContactSheet} from '../../../tools/Contact Sheet/scripts/contact-sheet.js';
@@ -50,7 +51,7 @@ for(const [label,fixture]of [['operator',operator],['First Strategy',firstStrate
     assert.equal(new Set(r.looks.map(l=>l.palette)).size,12);
     for(const field of ['pairing','graphicSet'])assert.equal(new Set(r.looks.slice(0,6).map(l=>l[field])).size,6);
     for(const look of r.looks.slice(6))assert.equal(Object.keys(AXES).filter(k=>look.positions[k]!==r.looks[0].positions[k]).length,1);
-    for(const [i,option]of r.options.entries()){assert.equal(option.value,r.looks[i].value);assert.equal(option.label,`Look ${i+1}`);assert.deepEqual(Object.keys(option),['value','label','board']);assert.deepEqual(option.board.pairing,r.selection.boards[i].pairing);assert.deepEqual(option.board.palette,r.selection.boards[i].palette);assert.deepEqual(option.board.graphicSet,r.selection.boards[i].graphicSet);}
+    for(const [i,option]of r.options.entries()){assert.equal(option.value,r.looks[i].value);assert.equal(option.label,r.looks[i].label.replaceAll(' / ', ', '));assert.deepEqual(Object.keys(option),['value','label','board']);assert.deepEqual(option.board.pairing,r.selection.boards[i].pairing);assert.deepEqual(option.board.palette,r.selection.boards[i].palette);assert.deepEqual(option.board.graphicSet,r.selection.boards[i].graphicSet);}
     const picked=r.looks.slice(0,2),boosted=select('round1',{...a,looks:picked.map(l=>l.value)});
     for(const [axis,[neg,pos]]of Object.entries(AXES))assert.equal(boosted.dials[axis]-r.dials[axis],picked.reduce((n,l)=>n+(l.positions[axis]===pos?1:l.positions[axis]===neg?-1:0),0));
   });
@@ -80,7 +81,7 @@ test('unsteered comparison zeros every dial, follows library order and has five 
   assert.deepEqual(a.selection.groups.map(g=>g.label),['First set','Second set','Third set']);
   assert.ok(a.selection.boards.every(b=>!b.recommendation));assert.deepEqual(new Set(a.selection.boards.map(b=>b.energy)),new Set(ENERGIES));
   assert.deepEqual(a.selection.boards.map(b=>[b.palette.id,b.pairing.id,b.graphicSet.id]),b.selection.boards.map(b=>[b.palette.id,b.pairing.id,b.graphicSet.id]));
-  assert.equal(a.selection.boards[0].pairing.id,library.pairings[0].id);assert.equal(a.selection.boards[0].palette.id,library.palettes[0].id);assert.equal(a.selection.boards[0].graphicSet.id,library.graphics[0].id);
+  assert.equal(a.selection.boards[0].pairing.id,library.pairings[0].id);assert.equal(a.selection.boards[0].palette.id,library.palettes.find(p=>!boardRefusal(library,{pairing:{id:library.pairings[0].id},palette:{id:p.id}})).id);assert.equal(a.selection.boards[0].graphicSet.id,library.graphics[0].id);
 });
 test('same inputs produce byte-identical selection, spares and replacement report',()=>{
   assert.equal(JSON.stringify(select('round1',operator())),JSON.stringify(select('round1',operator())));

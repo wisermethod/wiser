@@ -242,3 +242,42 @@ for (const gate of ['G5a', 'G5c']) {
     }
   }
 }
+
+for (const separator of [',', ';']) test(`G10: a registered observer permits citation details after ${separator}`, () => {
+  runGate('G10', {
+    'voice-fixture/voice.md': `## Facts\nA confirmed fact. (Firsthand: Priya Shah${separator} Q4, memory/answers/2026-11-02 design answers.md)\n`,
+    'work/onboarding/run-record.md': '### Who confirms and on what basis\nPriya Shah confirms clinic communications.\n',
+  });
+});
+for (const observer of ['Category Report', 'Marketing Director', 'Unknown Person']) test(`G10: citation details cannot disguise ${observer}`, () => {
+  runGate('G10', {
+    'voice-fixture/voice.md': `## Facts\nA claim. (Firsthand: ${observer}, Priya Shah, Q4, sources/brief.md)\n`,
+    'work/onboarding/run-record.md': '### Who confirms and on what basis\nPriya Shah confirms clinic communications.\n',
+  }, true);
+});
+for (const code of ['B1', 'C2', 'G3', 'J2b', 'K1', 'L2', 'O2', 'T9']) {
+  for (const recorded of [true, false]) test(`G10: personal brand ${code} ${recorded ? 'has' : 'lacks'} a recorded answer row`, () => {
+    const row=runGate('G10', {
+      'AGENTS.md': '---\nroot: Test Person\ntype: personal\n---\n',
+      'voice-fixture/design.md': `## Foundation\nA derived rule. (Research inference: ${code}; work/answers.json#sentence)\n`,
+      'voice-fixture/answers/design answers.md': `| Number | Answer |\n|---|---|\n| ${recorded ? code : 'P1'} | A recorded answer |\n`,
+    }, !recorded);
+    if (!recorded) assert.match(row.detail,/no file in memory\/answers\/ records/);
+  });
+}
+
+test('Phase 3 starts the operating record before G7 and Phase 9 completes it before the harness', () => {
+  const full=readFileSync(join(here,'../full-path.md'),'utf8');
+  const three=full.split('### Phase 3: Verification')[1].split('### Phase 4:')[0];
+  const nine=full.split('### Phase 9: Close, per key')[1].split('### Phase 10:')[0];
+  assert.match(three,/Start `work\/onboarding\/operating-file\.md`[^\n]*gaps known/);
+  assert.match(nine,/Complete `work\/onboarding\/operating-file\.md`[^\n]*before the harness/);
+});
+
+for (const payload of ['J2b,K1', 'E1; J2b,K1', 'J2b K1']) test(`G10: a recorded answer cannot hide the unrecorded adjacent code in ${payload}`, () => {
+  runGate('G10', {
+    'AGENTS.md': '---\nroot: Test Person\ntype: personal\n---\n',
+    'voice-fixture/design.md': `## Foundation\nA derived rule. (Research inference: ${payload})\n`,
+    'voice-fixture/answers/design answers.md': '| Number | Answer |\n|---|---|\n| J2b | A recorded answer |\n',
+  }, true);
+});

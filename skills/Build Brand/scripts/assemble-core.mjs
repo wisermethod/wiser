@@ -76,6 +76,7 @@ export function assembleCore(selection, library, { resolveFont = (face) => copy(
       if (typeof choice === 'string') {
         donors[role] = lookup(library, 'pairings', choice, where);
         type[role] = resolveFont(donors[role].type[role], `${at}.type.${role}`, library);
+        if (!type[role].sample.startsWith('Sample: ')) type[role].sample = `Sample: ${type[role].sample}`;
       } else {
         donors[role] = pairing;
         type[role] = resolveSuppliedFont(choice, pairing.type[role], b.content?.sentence, where);

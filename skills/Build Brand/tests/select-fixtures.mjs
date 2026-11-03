@@ -18,3 +18,8 @@ export const lookActions = () => [
   {value:'one',label:'Only this one works for me',needs:'one',note:'and make my boards'},
   {value:'use',label:'Use these',needs:'some',note:'and make my boards'}
 ];
+
+// Round 2 run 4's warm/natural taps; invented name and content stay in operator().
+export const harbor = () => ({...operator(),type:'org',name:'Sample Clinic',
+  taps:{mode:'light',feel:'natural',history:'established-current',strength:'soft-graceful',technology:'apple',style:'patagonia',posture:'toyota',mood:'anthropologie',place:'spa'}
+});

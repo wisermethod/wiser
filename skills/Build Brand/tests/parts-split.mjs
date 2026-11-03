@@ -9,8 +9,13 @@ import assert from 'node:assert/strict';
 // 2026-11-02, M4 review: --caller leaves onboarding state to its caller.
 // 2026-11-02, M5.1: lock working needs, T numbers, respondent provenance,
 // marker reading face and Review replacements.
+// 2026-11-02, M5.1 second e2e round: retire marker from selection, keep
+// Shantell Sans only in notes, and document the one dated cluster data list.
 const CONTRACT_EDITS = {
-  'Pairings': [["| Shantell Sans | Shantell Sans |", "| Shantell Sans | Instrument Sans |"]],
+  'Pairings': [["| Shantell Sans | Shantell Sans |", "| Shantell Sans | Instrument Sans |"],
+    ["| marker | Drawn rhythm | Shantell Sans | Instrument Sans | Kalam, Covered By Your Grace |", "| marker | Drawn rhythm | Instrument Sans | Instrument Sans | Shantell Sans, Kalam |"],
+    ["Softness is independent of weight: chunky remains bold and soft.", "Softness is independent of weight: chunky remains bold and soft. The marker pairing is retired from selection (`selectable: false`); its former Shantell Sans heading is retained only as a margin-note alternative, with Instrument Sans in both text roles. The selector reads the dated `refusedClusters` list in `parts.json` before ranking: ground RGB distance, accent HSL bands and a pairing's `displayStyle` determine refusals in both modes, including kept overrides and donor faces. The list cites Creative Director's dated whole-layout taxonomy and is expected to age; change the cluster rules there only."],
+  ],
   'Locking a board': [
     ["Q1 to Q9 correspond", "T1 to T9 correspond"],
     ["Otherwise answers are sourced as `Firsthand` with the member's name.", "For every non-personal type, `provenance: {register, by}` is required, naming the person who answered, never defaulting to the organisation or department. Only a personal brand defaults to `Firsthand` with the member's name."],

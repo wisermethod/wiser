@@ -286,3 +286,29 @@ test('onboarding G10/G19 accept the lock fixture with its bound shelf relocated,
   assert.equal(negative.status, 1);assert.equal((negative.stdout.match(/names no E<n> evidence row/g) || []).length, 6);
   writeFileSync(f.design, good);
 });
+
+test('a personal lock derives Foundation from the recorded J2b sentence and passes G10', () => {
+  const f=fixture();
+  writeFileSync(join(f.root,'AGENTS.md'),'---\nroot: Test Person\ntype: personal\n---\n');
+  mkdirSync(join(f.root,'answers'));
+  writeFileSync(join(f.root,'answers/design answers.md'),`| Number | Answer |\n|---|---|\n| J2b | ${f.answers.sentence} |\n`);
+  f.result();
+  assert.equal(f.answers.audience,undefined);assert.equal(f.answers.promise,undefined);
+  assert.equal((f.read().match(/Research inference: J2b;/g)||[]).length,2);
+  const gates=process.env.BUILD_BRAND_GATES||resolve(dirname(script),'../../Onboard Root/gates.sh');
+  const harness=readFileSync(gates,'utf8').replace('MEM="$ROOT/memory"','MEM="$ROOT"');
+  const check=()=>spawnSync('bash',['-s','--','--gate','G10',f.root],{input:harness,encoding:'utf8'});
+  const good=check();assert.equal(good.status,0,good.stdout+good.stderr);assert.match(good.stdout,/PASS +G10/);
+  writeFileSync(join(f.root,'answers/design answers.md'),'| Number | Answer |\n|---|---|\n| J2a | Other answer |\n');
+  const missing=check();assert.equal(missing.status,1);assert.match(missing.stdout,/J2b that no file in memory\/answers\/ records/);
+});
+
+test('the documented provisional state line permits locking a fully populated provisional file without --replace', () => {
+  const writing=readFileSync(new URL('../writing.md',import.meta.url),'utf8');
+  const sitting=readFileSync(new URL('../paths/sitting.md',import.meta.url),'utf8');
+  const line=writing.match(/`(State: provisional)`/)?.[1];
+  assert.ok(line,'writing must give the exact state line');assert.ok(sitting.includes('`'+line+'`'));
+  const f=fixture();f.result();const provisional=f.read().replace(/^#.*\n/,`# Provisional design\n\n${line}\n`);
+  writeFileSync(f.design,provisional);assert.equal(designState(provisional),'incomplete');
+  assert.equal(f.result().state,'complete');
+});

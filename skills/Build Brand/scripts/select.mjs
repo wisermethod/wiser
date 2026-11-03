@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { assemble, canonical, LIBRARY, AXES, partPositions } from './assemble.mjs';
+import { boardRefusal } from './refusals.mjs';
 import { checkForm } from '../../../tools/Form/scripts/format.js';
 
 const SKILL = realpathSync(resolve(dirname(fileURLToPath(import.meta.url)), '..'));
@@ -184,7 +185,7 @@ function info(library,palette,pairing,graphicSet,dials,order=0) {
   const parts=partPositions(library,{palette:{id:palette.id},pairing:{id:pairing.id},graphicSet:{id:graphicSet.id}});
   return {palette,pairing,graphicSet,order,positions:positions(parts),partPositions:parts,score:Object.values(parts).reduce((sum,t)=>sum+score(t,dials),0)};
 }
-function candidates(library,state,headingFrom) {
+function candidates(library,state,a,headingFrom) {
   const result=[]; let order=0;
   const donor=typeof headingFrom==='string'?part(library,'pairings',headingFrom):null;
   for(const pairing of library.pairings) for(const palette of library.palettes) for(const graphicSet of library.graphics) {
@@ -192,6 +193,7 @@ function candidates(library,state,headingFrom) {
     const heading=donor??pairing;
     if(Math.abs(heading.tags.typeLoudness-palette.paletteLoudness)>1 || (palette.paletteLoudness===3&&(heading.tags.typeCut!=='contemporary'||heading.tags.typeLoudness<2))) continue;
     const c=info(library,palette,pairing,graphicSet,state.dials,n);
+    if(boardRefusal(library,makeBoard(a,c,1,'probe'))) continue;
     c.score+=palette.energy==='bright'?state.brightColour:0;
     result.push(c);
   }
@@ -518,7 +520,7 @@ export function select(command, answers, {library=load(LIBRARY),data=load(TAPS),
   // Picks are full records: validate all fields through the existing assembler,
   // before any ranking or check. Kept assets remain fixed in later rounds.
   if(command==='variations') for(const b of [...a.picks,...a.shown]) assemble(page(a,[b],[{id:b.group,label:b.group}]),library,{selectionDir});
-  let pool=candidates(library,state);
+  let pool=candidates(library,state,a);
   const boosts=blank();
   for(const id of a.looks??[]) {
     const look=pool.find(c=>lookId(c)===id); if(!look) fail('looks',`unknown whole look ${id}; use a value from the looks output`);
@@ -527,12 +529,12 @@ export function select(command, answers, {library=load(LIBRARY),data=load(TAPS),
   if(command==='looks'&&(a.looks??[]).length) fail('looks','picks belong to round1, not the initial looks command');
   if(command!=='looks') for(const axis of Object.keys(AXES)) state.dials[axis]+=boosts[axis];
   if(command==='variations'||(command==='looks'&&a.shown?.length)) for(const [axis,value] of Object.entries(a.steer??{})) state.dials[axis]+=value*3;
-  pool=candidates(library,state);
+  pool=candidates(library,state,a);
   const checker=check?checkFactory(a,library,selectionDir,replacements):null;
   const chosen=[],spares=[],seen=new Set([...(a.shown??[]),...(a.picks??[])].map(boardKey));
   const roundPage=command==='round1'||(command==='variations'&&!a.picks.length);
   let groups=copy(GROUPS);
-  const accept=(c,group,number,base)=>!checker||checker.accept(c,group,number,base);
+  const accept=(c,group,number,base)=>!boardRefusal(library,makeBoard(a,c,number,group,base))&&(!checker||checker.accept(c,group,number,base));
   const finishReplacement=(start,c)=>{ for(const r of replacements.slice(start)) r.replacement=summary(c); };
   try {
     if(command==='looks') {
@@ -600,7 +602,7 @@ export function select(command, answers, {library=load(LIBRARY),data=load(TAPS),
         // A fixed heading is not a new type choice just because the backing
         // pairing id changes. Keep its pairing, body and donor reference intact.
         const fixedPairing=a.kept?.pairing??(headingFrom?base.pairing.id:null);
-        const variationPool=headingFrom?candidates(library,state,headingFrom):pool;
+        const variationPool=headingFrom?candidates(library,state,a,headingFrom):pool;
         const ranked=[],modes=a.kept?.primaryMode?[a.kept.primaryMode]:['light','dark'];
         const containers=base.markFile||a.kept?.markFile?[undefined]:library.containers.map(c=>c.id);
         for(const c of variationPool) {
@@ -612,6 +614,7 @@ export function select(command, answers, {library=load(LIBRARY),data=load(TAPS),
             if(partChanges+Number(mode!==base.primaryMode)+Number(container!==base.container)>2) continue;
             const candidate=effective({...c,mode,container,base,parent:base.number},a,library);
             const board=makeBoard(a,candidate,1,groups[pickIndex].id,base);
+            if(boardRefusal(library,board)) continue;
             candidate.changedParts=BOARD_PARTS.filter(field=>partKey(board,field)!==partKey(base,field));
             if(!candidate.changedParts.length||candidate.changedParts.length>2) continue;
             candidate.identity=boardKey(board);
@@ -708,7 +711,8 @@ export function select(command, answers, {library=load(LIBRARY),data=load(TAPS),
       result.looks=chosen.map((c,i)=>({value:lookId(c),label:`${c.pairing.name} / ${c.palette.name} / ${c.graphicSet.name}`,kind:c.kind,...summary(c)}));
       result.options=result.looks.map((look,i)=>{
         const b=boards[i];
-        return {value:look.value,label:`Look ${i+1}`,board:{pairing:copy(b.pairing),palette:copy(b.palette),graphicSet:copy(b.graphicSet),primaryMode:b.primaryMode,...(b.container?{container:b.container}:{}),handwriting:b.handwriting,buttonRadius:b.buttonRadius}};
+        const names=[part(library,'pairings',b.pairing.id).name,part(library,'palettes',b.palette.id).name,part(library,'graphics',b.graphicSet.id).name];
+        return {value:look.value,label:names.join(', '),board:{pairing:copy(b.pairing),palette:copy(b.palette),graphicSet:copy(b.graphicSet),primaryMode:b.primaryMode,...(b.container?{container:b.container}:{}),handwriting:b.handwriting,buttonRadius:b.buttonRadius}};
       });
       // Associate every rejected look with the actual passing choice for its slot.
     }

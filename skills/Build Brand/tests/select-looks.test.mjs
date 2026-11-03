@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {select,tapDials,run} from '../scripts/select.mjs';
+import {boardRefusal} from '../scripts/refusals.mjs';
 import {LIBRARY,AXES} from '../scripts/assemble.mjs';
 import {checkForm} from '../../../tools/Form/scripts/format.js';
 import {operator,firstStrategy,lookActions} from './select-fixtures.mjs';
@@ -14,12 +15,13 @@ const hash=value=>createHash('sha256').update(value).digest('hex');
 const identity=c=>`${c.pairing}/${c.palette}/${c.graphicSet}`;
 // Original hashes predate pagination; kept-asset hashes predate the steer fix.
 // Both cover full JSON, including spares and checked refusals/replacements.
-// Pinned on the taps of 2026-11-02 (brand flow M2.9); a change to taps.json's nudges moves them.
+// Re-pinned 2026-11-02, M5.1 round 2: refused clusters, retired marker and descriptive labels.
+// Every pin also asserts the page shape, refusals, history and Form contract.
 const fixtures=[
-  ['operator',operator,['4f09a66bd92d82d6e548fb277f9ddbe1a0564fbc8019be7a40ad696bd60773b7','d9f4cb8c741232d14bc8b3f3bdbc2f997bb9cf6de1ae92c7b9798e3e7819ab18'],
-    ['c086a817f2d11d51bffc32895573808347e39519493016447bfa51a1c4021600','a95bc4f1801892ac4510a7d7af69261ccb1ad72f334e4b5de9d08bd2117b3247']],
-  ['First Strategy',firstStrategy,['ed0cfd91de146514d3f2d9593d426bdb447c01479c10c444095656c6a61c59c2','6cf07d40d29a9d8fedb36bd2fb56ec6dedbd8e138125a16eee369a687fe1254d'],
-    ['7c89ec67e1edd496707ce7adbe0778c16671b9029ad0bf3db8f801a51ffc9cd9','b38eef768d1b9e11b8ce83d0d1ed7888fbb081d5a5ab4ccb4be6903a2450a1dc']]
+  ['operator',operator,['2145241f997b547f621befce6a3c2bb7345ec209eb4fabee739b44d300c71c6f','25686b218c24f69ce01b10d948b30de0bf715020569b52b468fc2946e683faff'],
+    ['a3f5a8ac100d55c8b04eda5a27979b2df375a9458040109d1c75edfcd3f76968','9f576445964ecaf0c5ea4497ebabf6e93b7a25392c53e2f0a56ec22712e0ea8b']],
+  ['First Strategy',firstStrategy,['bf9797de549263749188dc505934951dc83efce7919651c7edb08e6bebabbd00','8ca215282fe8c6fe7baa993506307c61bee1d892812ca79de8af793a6e14314f'],
+    ['fc9bab5ae223e0d2011cd477cc767e85df14131d36761fdc14cc92e7288c0cac','2f76f631ca3a40381295b67c56a0c029aec2d461a33558902c2fb01229cc0fb2']]
 ];
 function assertPage(r,a,history=[]) {
   assert.equal(r.looks.length,12);assert.equal(r.options.length,12);
@@ -43,6 +45,7 @@ function assertPage(r,a,history=[]) {
     assert.equal(b.graphicSet.id,r.looks[i].graphicSet);
     assert.deepEqual(r.options[i].board.graphicSet,b.graphicSet);
   }
+  for(const b of r.selection.boards) assert.equal(boardRefusal(library,b),null);
   if(r.checks.enabled) {
     const before=JSON.stringify(r.options);
     const form={title:'Step 3: how it should look',brand:{name:a.name,initials:r.selection.boards[0].initials,sentence:a.sentence,body:a.body,words:a.words},questions:[{id:'looks',type:'boards',view:'look',label:'Which of these feel like you? Pick up to three.',pick:3,min:2,options:r.options}],actions:lookActions()};
@@ -54,7 +57,8 @@ function assertPage(r,a,history=[]) {
 function assertFirstPage(a,expected) {
   const steer={warmCool:1,quietBold:-1,softStrong:1,classicContemporary:-1};
   for(const check of [false,true]) {
-    const first=JSON.stringify(select('looks',a,{check}));
+    const page=select('looks',a,{check});assertPage(page,a);
+    const first=JSON.stringify(page);
     assert.equal(hash(first),expected[Number(check)]);
     for(const history of [{},{shown:[]}]) for(const direction of [{},{steer:{}},{steer}]) {
       assert.equal(JSON.stringify(select('looks',{...a,...history,...direction},{check})),first,
@@ -139,10 +143,10 @@ test('page 2 checks report only winning-prefix refusals and their exact replacem
   const two=select('looks',{...a,shown:one.looks},{library:patterned,check:true});
   assertPage(two,a,one.looks);
   // These refusals occurred under the winning prefix. Earlier prefixes hit
-  // another 73 refusals before backtracking; none belongs in this report.
+  // additional refusals before backtracking; none belongs in this report.
   assert.deepEqual(two.replacements.map(r=>[r.slot,identity(r.refused),identity(r.replacement)]),[
-    ...['newspaper','warm-grotesque','chunky','humanist','soft-serif'].map(pairing=>
-      [6,`${pairing}/forest-coral/editorial`,'newspaper/paper-orange/geometric']),
+    ...['newspaper','chunky','humanist','soft-serif'].map(pairing=>
+      [6,`${pairing}/forest-coral/editorial`,'newspaper/draft-paper/geometric']),
     [9,'humanist/stone-cobalt/stitch','friendly-serif/stone-cobalt/drafting'],
     [9,'friendly-serif/stone-cobalt/stamp','friendly-serif/stone-cobalt/drafting']
   ]);
@@ -164,6 +168,7 @@ function allLooks() {
   const result=[];
   for(const p of library.pairings) for(const c of library.palettes) for(const g of library.graphics) {
     if(Math.abs(p.tags.typeLoudness-c.paletteLoudness)>1||(c.paletteLoudness===3&&(p.tags.typeCut!=='contemporary'||p.tags.typeLoudness<2))) continue;
+    if(boardRefusal(library,{pairing:{id:p.id},palette:{id:c.id}})) continue;
     const look={pairing:p.id,palette:c.id,graphicSet:g.id};
     result.push({...look,value:'look-'+hash(identity(look)).slice(0,32)});
   }
@@ -173,7 +178,8 @@ test('exhaustion plainly names the library and remaining unshown count rather th
   const a=operator(),all=allLooks();
   assert.throws(()=>select('looks',{...a,shown:all}),/looks: library exhausted: only 0 unshown looks remain; twelve are required/);
   assert.throws(()=>select('looks',{...a,shown:all.slice(11)}),/library exhausted: only 11 unshown looks remain/);
-  const remaining=new Set(library.palettes.slice(0,11).map(p=>p.id));
+  const remaining=new Set([...new Set(all.map(l=>l.palette))].slice(0,11));
+  assert.equal(remaining.size,11);
   assert.throws(()=>select('looks',{...a,shown:all.filter(l=>!remaining.has(l.palette))}),/library exhausted.*11 unshown palette recipes.*twelve distinct palettes/);
   // Many unshown triples and palettes remain, but one graphic cannot supply
   // the six distinct leaders. This exercises constraint exhaustion as well.
@@ -183,11 +189,12 @@ test('checked exhaustion accounts for leaders that can only pass in plain-ground
   const tags=Object.fromEntries(Object.keys(AXES).map(axis=>[axis,'either']));
   const limited={...library,
     pairings:library.pairings.slice(0,6).map(p=>({...p,tags:{...p.tags,...tags,typeLoudness:2,typeCut:'contemporary'}})),
-    palettes:library.palettes.slice(0,12).map((p,i)=>({...p,tags:{...p.tags,...tags,softStrong:i<6?'soft':'strong'}})),
+    palettes:library.palettes.filter(p=>!boardRefusal(library,{pairing:{id:'warm-grotesque'},palette:{id:p.id}})).slice(0,12).map((p,i)=>({...p,tags:{...p.tags,...tags,softStrong:i<6?'soft':'strong'}})),
     graphics:library.graphics.slice(0,6).map((g,i)=>({...g,tags:{...g.tags,...tags},pattern:{...g.pattern,
       svg:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 5H10" stroke="{{text}}"/></svg>',
       strength:{light:i<3?1:0,dark:i<3?1:0}}}))
   };
+  assert.equal(limited.palettes.length,12,'fixture needs twelve permitted palettes before check exhaustion');
   const look={pairing:limited.pairings[0].id,palette:limited.palettes[0].id,graphicSet:limited.graphics[0].id};
   const shown=[{...look,value:'look-'+hash(identity(look)).slice(0,32)}];
   // Three required graphic sets cannot put text over their full-strength
