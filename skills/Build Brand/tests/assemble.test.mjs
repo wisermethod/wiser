@@ -30,6 +30,31 @@ function build(s) {
 }
 test.after(() => rmSync(work,{recursive:true,force:true}));
 
+test('brief and simple paths check the shared refusal before showing any assembled board', () => {
+  for(const file of ['brief-boards.md','simple.md']) {
+    const instructions=readFileSync(new URL(`../paths/${file}`,import.meta.url),'utf8');
+    assert.match(instructions,/assemble\.mjs[^\n]*--check-rules/);
+    assert.match(instructions,/boardRefusal/);
+  }
+  for(const [label,change,reason] of [
+    ['cream',b=>{b.pairing.id='high-contrast';},/cream-serif-terracotta/],
+    ['black',b=>{b.palette.overrides={dark:{ground:'#171B18',pop:'#BCF427',mark:'#BCF427'}};},/near-black-single-acid-or-vermilion/],
+    ['handwriting',b=>{b.pairing.headingFrom={file:library.pairings[0].type.heading.files[0].path,family:'Shantell Sans',weight:400};},/handwriting Shantell Sans cannot set heading/],
+    ['retired',b=>{b.pairing.id='marker';},/pairing marker is retired/]
+  ]) {
+    const s=select(),input=path(label),output=path('refused');change(s.boards[0]);
+    // The supplied-font fixture needs a real local file, but the policy must
+    // refuse its primary handwriting role before any output is created.
+    if(label==='handwriting') s.boards[0].pairing.headingFrom.file=resolve(dirname(LIBRARY),s.boards[0].pairing.headingFrom.file);
+    writeFileSync(input,JSON.stringify(s));
+    assert.throws(()=>run(['--selection',input,'--output',output,'--check-rules']),reason);
+    assert.equal(existsSync(output),false);
+  }
+  const input=path('replacement'),output=path('allowed');writeFileSync(input,JSON.stringify(select()));
+  assert.equal(run(['--check-rules','--selection',input,'--output',output]).boards,1);
+  assert.equal(JSON.parse(readFileSync(output)).boards.length,1);
+});
+
 test('selection assembles and Contact Sheet builds it, with absolute local fonts', () => {
   const {spec,result}=build(select());
   assert.equal(result.itemCount,1);

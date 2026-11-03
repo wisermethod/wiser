@@ -312,3 +312,78 @@ test('the documented provisional state line permits locking a fully populated pr
   writeFileSync(f.design,provisional);assert.equal(designState(provisional),'incomplete');
   assert.equal(f.result().state,'complete');
 });
+
+
+test('m51-r3: lock retains every role and size axis, fallback and optical sizing with source read-back', () => {
+  const f = fixture(), b = f.spec.boards[0];
+  b.type.heading = structuredClone(library.pairings.find(p => p.id === 'soft-serif').type.heading);
+  b.type.heading.files = b.type.heading.files.map(file => ({ ...file, path: resolve(parts, file.path) }));
+  b.type.heading.opticalSizing = 'auto';
+  b.type.heading.sizes.display.opticalSizing = 'none';
+  b.type.body.variations = { wght: 411, opsz: 18 };
+  for (const size of Object.values(b.type.body.sizes)) size.variations = null;
+  b.type.body.sizes.display.variations = { wght: 711, opsz: 32 };
+  b.type.handwriting = structuredClone(b.type.body);
+  b.type.handwriting.variations = { slnt: -8.5 };
+  f.save(); const result = f.result();
+  assert.equal(result.readBack.outcome, 'passed');
+  const css = f.read(join(f.work, 'typography.css')), direction = f.read(join(f.work, 'brand-direction.html')), design = f.read();
+  for (const [role, face] of Object.entries(b.type)) {
+    for (const [size, settings] of Object.entries({ default: face, ...face.sizes })) {
+      const axes = settings.variations ?? face.variations;
+      const optical = settings.opticalSizing ?? face.opticalSizing;
+      const field = `boards.0.type.${role}${size === 'default' ? '' : `.sizes.${size}`}`;
+      const selector = `.type-${role}-${size}`;
+      for (const output of [css, direction]) {
+        const start = output.indexOf(`${selector} {`);
+        assert.ok(start >= 0, selector);
+        const rule = output.slice(start, output.indexOf('}', start));
+        for (const [axis, value] of Object.entries(axes || {})) assert.ok(rule.includes(`"${axis}" ${value}`), `${selector}: ${axis} ${value}`);
+        if (optical) assert.ok(rule.includes(`font-optical-sizing: ${optical};`), selector);
+      }
+      for (const [axis, value] of Object.entries(settings.variations || {})) {
+        for (const output of [css, direction, design]) assert.ok(output.includes(`${field}.variations.${axis}`), `${field}.${axis}`);
+        assert.ok(design.includes(`"${axis}" ${value}`));
+      }
+      if (settings.opticalSizing) for (const output of [css, direction, design]) assert.ok(output.includes(`${field}.opticalSizing`));
+      if (size !== 'default') assert.ok(direction.includes(`class="type-${role}-${size}"`), selector);
+    }
+  }
+  assert.match(direction, /body\{[^}]*font-variation-settings:[^}]*"wght" 411/);
+  assert.match(direction, /h1\{[^}]*font-variation-settings:[^}]*"opsz" 72/);
+  assert.doesNotMatch(direction.match(/h1\{[^}]*\}/)[0], /"opsz" 144/);
+  assert.match(direction, /h2\{[^}]*font-variation-settings:[^}]*"opsz" 36/);
+  assert.match(direction, /h3\{[^}]*font-variation-settings:[^}]*"WONK" 0/);
+});
+
+test('m51-r3: malformed axes and optical sizing fail before lock publication', () => {
+  for (const [change, reason] of [
+    [b => { b.type.heading.variations = { bad: 1 }; }, /variations/],
+    [b => { b.type.body.sizes.small.variations = { opsz: '18' }; }, /variations/],
+    [b => { b.type.heading.opticalSizing = 'none; color:red'; }, /opticalSizing/],
+    [b => { b.type.heading.sizes.middle.opticalSizing = 'invalid'; }, /opticalSizing/],
+  ]) {
+    const f = fixture(); change(f.spec.boards[0]); f.save();
+    assert.throws(f.result, reason); assert.equal(existsSync(f.design), false);
+  }
+});
+
+
+test('direction maps each working size to the nearest locked cut for its own role', () => {
+  const f = fixture(), b = f.spec.boards[0];
+  for (const [role, sizes] of Object.entries({ heading: [32, 20, 25], body: [17, 40, 10] })) {
+    for (const [i, size] of ['display', 'middle', 'small'].entries()) {
+      b.type[role].sizes[size].size = sizes[i];
+      b.type[role].sizes[size].variations = { opsz: sizes[i], wght: 400 + i };
+    }
+  }
+  f.save(); f.result();
+  const direction = f.read(join(f.work, 'brand-direction.html'));
+  for (const [tag, level, role, expected] of [['h1', 'display', 'heading', 32], ['h2', 'heading', 'heading', 25], ['h3', 'subheading', 'heading', 20], ['body', 'body', 'body', 17]]) {
+    const rule = direction.match(new RegExp(`(?:^|[}>;])${tag}\\{([^}]*)\\}`))[1];
+    assert.match(rule, new RegExp(`"opsz" ${expected}(?:;|,)`));
+    assert.ok(rule.includes(`var(--text-${level})`));
+    const working = SCALE.base * SCALE.ratio ** SCALE.levels[level];
+    assert.equal(Math.abs(expected - working), Math.min(...Object.values(b.type[role].sizes).map(s => Math.abs(s.size - working))));
+  }
+});

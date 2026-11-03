@@ -15,7 +15,8 @@ for(const [name,ground,accent,pairing] of [
   ['near-black and vermilion','#201B1A','#EE4828','warm-grotesque']
 ]) test(`selector refuses ${name} before checks, including fixed roles`,()=>{
   const a={...operator(),kept:{pairing,palette:{overrides:Object.fromEntries(['light','dark'].map(m=>[m,{ground,pop:accent,mark:accent}]))}}};
-  for(const command of ['looks','round1']) assert.throws(()=>select(command,a),/no passing|exhausted|refused/);
+  const cluster=pairing==='high-contrast'?'cream-serif-terracotta':'near-black-single-acid-or-vermilion';
+  for(const command of ['looks','round1']) for(const check of [false,true]) assert.throws(()=>select(command,a,{check}),new RegExp(`rule refusal.*refused cluster ${cluster}`));
   // Removing only the dated refusal data restores these same candidates.
   const allowed=select('round1',a,{library:{...library,refusedClusters:[]}});
   assert.equal(allowed.selection.boards.length,12);
@@ -29,8 +30,50 @@ test('all selected roles avoid handwriting, including donors and variations',()=
   for(const page of pages) for(const b of assemble(page.selection,library).boards) for(const role of ['heading','body']) assert.ok(!handwritten.has(b.type[role].family),`${role}: ${b.type[role].family}`);
   for(const role of ['headingFrom','bodyFrom']) {
     const changed=structuredClone(library);changed.pairings.find(p=>p.id==='condensed').type[role==='headingFrom'?'heading':'body']=structuredClone(library.pairings[0].handwriting[0]);
-    assert.throws(()=>select('round1',{...a,kept:{[role]:'condensed'}},{library:changed}),/no passing|exhausted|refused/);
+    assert.throws(()=>select('round1',{...a,kept:{[role]:'condensed'}},{library:changed}),new RegExp(`rule refusal.*handwriting .* cannot set ${role==='headingFrom'?'heading':'body'}`));
   }
+});
+
+test('paper-orange with an ordinary pairing remains available outside the near-black cluster',()=>{
+  assert.equal(library.pairings.find(p=>p.id==='warm-grotesque').displayStyle,undefined);
+  assert.equal(boardRefusal(library,board(library)),null);
+});
+
+test('every library palette is audited against each cluster in both modes and every selectable pairing',()=>{
+  assert.equal(library.palettes.length,25);
+  const hits={};
+  for(const cluster of library.refusedClusters) {
+    hits[cluster.id]=[];
+    for(const palette of library.palettes) for(const pairing of library.pairings.filter(p=>p.selectable!==false)) for(const mode of ['light','dark']) {
+      const b={palette:{id:palette.id,overrides:{[mode==='light'?'dark':'light']:{ground:'#808080'}}},pairing:{id:pairing.id}};
+      const reason=boardRefusal({...library,refusedClusters:[cluster]},b);
+      if(reason) {
+        assert.equal(reason,`refused cluster ${cluster.id} (${mode})`);
+        hits[cluster.id].push(`${palette.id}/${pairing.id}/${mode}`);
+      }
+    }
+  }
+  assert.deepEqual(hits,{
+    'cream-serif-terracotta':['paper-orange','white-vermilion','navy-coral'].flatMap(id=>['sharp-serif','high-contrast'].map(p=>`${id}/${p}/light`)),
+    'near-black-single-acid-or-vermilion':[]
+  });
+});
+
+test('a short unshown looks page names the rule that removed its twelfth palette',()=>{
+  const a=operator(),first=select('looks',a,{library:{...library,refusedClusters:[]}});
+  const ids=new Set(first.selection.boards.map(b=>b.palette.id));
+  const limited=structuredClone(library);
+  limited.palettes=limited.palettes.filter(p=>ids.has(p.id));
+  limited.palettes[0].dark={...limited.palettes[0].dark,ground:'#201B1A',pop:'#EE4828',mark:'#EE4828'};
+  for(const shown of [[],first.looks.slice(0,1)]) {
+    assert.equal(select('looks',{...a,shown},{library:{...limited,refusedClusters:[]}}).looks.length,12);
+    assert.throws(()=>select('looks',{...a,shown},{library:limited}),/rule refusal.*near-black-single-acid-or-vermilion/);
+  }
+});
+
+test('rule refusals are routed separately from both history exhaustion messages',()=>{
+  const path=readFileSync(new URL('../paths/sitting.md',import.meta.url),'utf8');
+  assert.match(path,/rule refusal[^\n]*cluster[^\n]*handwriting[^\n]*every-look[^\n]*every-direction/);
 });
 
 test('look labels name the actual lettering, colours and shapes without altering their cards',()=>{

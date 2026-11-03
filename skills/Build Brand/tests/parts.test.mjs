@@ -18,8 +18,14 @@ const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const rgb = hex => hex.slice(1).match(/../g).map(n => parseInt(n, 16));
 
 test('locked paper-orange recipe and drawn graphic set retain their exact content', () => {
-  // Ranking metadata was added; the approved colours and geometry stay exact.
-  const visual = part => { const { tags, softStrongReason, ...unchanged } = part; return unchanged; };
+  // Ranking metadata and everyday swatch names may change; the approved
+  // colours, roles, shares and geometry retain the original pinned content.
+  const swatchNames = { ground:'Page base', panel:'Inset field', text:'Reading ink', deep:'Deep field', mark:'Drawing ink', pop:'Action fill', smallPrint:'Detail ink' };
+  const visual = part => {
+    const { tags, softStrongReason, ...unchanged } = structuredClone(part);
+    for (const list of [unchanged.swatches, ...Object.values(unchanged.modeSwatches ?? {})].filter(Boolean)) for (const s of list) s.name = swatchNames[s.key];
+    return unchanged;
+  };
   assert.equal(hash(JSON.stringify(visual(palette('paper-orange')))), '28cc8b687dc826f7514c6081857aa2dff2a104b82e28f51bcbc8a74a003a215b');
   assert.equal(hash(JSON.stringify(visual(graphic('drawn')))), '3f4b50e46afe24f602a523468a4310d17c315ba33153761793a6d399811f0c13');
 });

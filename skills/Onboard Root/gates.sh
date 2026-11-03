@@ -10,6 +10,8 @@
 #
 #   gates.sh <root path>              run every gate
 #   gates.sh --gate G6 <root path>    run one gate
+#   gates.sh --gate G9 --file <bound file> <root path>
+#                                    limit a file gate to one bound markdown file
 #   gates.sh --json <root path>       one JSON object per line, plus a summary
 #   gates.sh --short <root path>      the personal-path file gates only; chosen on its
 #                                     own for a personal root with no run record
@@ -27,11 +29,16 @@ export LC_ALL
 
 usage() {
   cat <<USAGE
-usage: $PROG [--json] [--gate <id>] <root path>
+usage: $PROG [--json] [--gate <id>] [--file <bound file>] <root path>
 
   --gate <id>   run a single gate (G0 G1 G2 G3 G4 G5a G5b G5c G6 G6b G7 G8
                 G9 G10 G11 G11b G12 G13 G13b G14 G15 G16 G17 G18 G19 G20 G21)
   --json        print one JSON object per gate, then a summary object
+  --file <bound file>
+                limit --gate to one existing bound markdown file, relative to
+                the root or absolute. Supported: G5a G5c G9 G10 G11 G11b G13
+                G13b G14 G18 G19. G13/G13b/G14 require voice.md. G19 checks
+                that file's paths only; credentials and other bindings wait.
   --short       run the personal-path file gates only (automatic for a personal
                 root that keeps no run record)
   --list        list the gates and exit
@@ -43,6 +50,9 @@ USAGE
 JSON=0
 SHORT=0
 ONE_GATE=""
+FILE_SCOPE=""
+ONLY_FILE=""
+FILE_SCOPE_SEEN=0
 ROOT=""
 
 while [ $# -gt 0 ]; do
@@ -53,6 +63,16 @@ while [ $# -gt 0 ]; do
       if [ $# -lt 2 ]; then echo "$PROG: --gate needs an id" >&2; exit 2; fi
       ONE_GATE="$2"; shift 2 ;;
     --gate=*) ONE_GATE="${1#--gate=}"; shift ;;
+    --file|--file=*)
+      if [ "$FILE_SCOPE_SEEN" = "1" ]; then echo "$PROG: duplicate --file" >&2; exit 2; fi
+      FILE_SCOPE_SEEN=1
+      case "$1" in
+        --file)
+          if [ $# -lt 2 ]; then echo "$PROG: --file needs a bound file" >&2; exit 2; fi
+          FILE_SCOPE="$2"; shift 2 ;;
+        *) FILE_SCOPE="${1#--file=}"; shift ;;
+      esac
+      case "$FILE_SCOPE" in ''|-*) echo "$PROG: --file needs a bound file" >&2; exit 2 ;; esac ;;
     --list) LIST_ONLY=1; shift ;;
     -h|--help) usage; exit 0 ;;
     --) shift; break ;;
@@ -300,7 +320,7 @@ list_any() {
 # and never a zArchive/ directory: an archived copy is a record of what a file
 # was, kept by standards/conventions.md Archives before a rewrite, not a bound
 # file, and an archived template stub still holds its prompt lines.
-bound_files() {
+all_bound_files() {
   [ -d "$MEM" ] || return 0
   # Pruned by find rather than filtered by grep: a pattern built from $MEM breaks on
   # a path holding a regex character, and a bare /zArchive/ match would drop every
@@ -310,6 +330,48 @@ bound_files() {
   local mem_glob
   mem_glob=$(printf '%s' "$MEM" | sed 's/[][*?\\]/\\&/g')
   find "$MEM" \( -path "$mem_glob/secrets" -o -path "$mem_glob/answers" -o -name zArchive \) -prune -o -type f -name '*.md' -print 2>/dev/null | sort
+}
+
+bound_files() {
+  if [ -n "$ONLY_FILE" ]; then printf '%s\n' "$ONLY_FILE"; else all_bound_files; fi
+}
+
+# File scope is opt-in for a single file gate. Validate against the same
+# population it normally checks, before a gate can turn a bad path into SKIP.
+if [ -n "$FILE_SCOPE" ]; then
+  case "$ONE_GATE" in
+    G5a|G5c|G9|G10|G11|G11b|G13|G13b|G14|G18|G19) ;;
+    *) echo "$PROG: --file requires --gate with a supported file gate; see --help" >&2; exit 2 ;;
+  esac
+  case "$FILE_SCOPE" in
+    "$ROOT"/*) _file_rel=${FILE_SCOPE#"$ROOT"/} ;;
+    "$ROOT_PHYS"/*) _file_rel=${FILE_SCOPE#"$ROOT_PHYS"/} ;;
+    *) _file_rel=$FILE_SCOPE ;;
+  esac
+  if ! under_root "$_file_rel"; then
+    echo "$PROG: --file $FILE_SCOPE $_ur_why" >&2; exit 2
+  fi
+  if ! all_bound_files | grep -qxF "$ROOT/$_file_rel"; then
+    echo "$PROG: --file is not an existing bound markdown file: $FILE_SCOPE" >&2; exit 2
+  fi
+  ONLY_FILE="$ROOT/$_file_rel"
+  case "$ONE_GATE" in
+    G13|G13b|G14)
+      if [ "$ONLY_FILE" != "$MEM/voice.md" ]; then
+        echo "$PROG: --file for $ONE_GATE must select $(rel "$MEM/voice.md")" >&2; exit 2
+      fi ;;
+  esac
+fi
+
+# Only the bound design's standalone state declaration is structural prose.
+# Read the Provides path so a custom design filename receives the same rule.
+is_bound_design() {
+  local binding expected
+  binding=$(section_body "$AGENTS" "## Provides" 2>/dev/null | sed -nE 's/^ {0,3}-[[:space:]]+design:[[:space:]]*//p' | head -1 | sed -E 's/[[:space:]]+$//;s/^`//;s/`$//')
+  [ -n "$binding" ] && under_root "$binding" || return 1
+  expected=$_ur_res
+  under_root "$(rel "$1")" || return 1
+  [ "$_ur_res" = "$expected" ]
 }
 
 # ---------------------------------------------------------------- awk library
@@ -1115,7 +1177,7 @@ gate_G5a() {
     while IFS= read -r msg; do
       [ -n "$msg" ] || continue
       add_fail "$r $msg"
-    done < <(without_brand_note "$f" | awk -v rootname="$ROOTNAME" "$AWK_LIB"'
+    done < <(without_brand_note "$f" | awk -v rootname="$ROOTNAME" -v is_design="$(is_bound_design "$f" && echo 1 || echo 0)" "$AWK_LIB"'
     BEGIN{
       nr=split(tolower(rootname),RW,/[^a-z0-9'\'']+/)
       for(q=1;q<=nr;q++) if(RW[q]!="") ROOTW[RW[q]]=1
@@ -1130,6 +1192,7 @@ gate_G5a() {
         if(inpre) continue
         t=trim(line)
         if(t=="") continue
+        if(is_design && t ~ /^State:[ \t]+(provisional|complete)[ \t\r]*$/) continue
         if(t ~ /^#/) continue                      # heading
         if(t ~ /^\|/) continue                     # table row: G11b and G13b own tables
         if(t ~ /^\*.*\*$/) continue                # prompt line
@@ -1287,7 +1350,7 @@ gate_G5c() {
       if [ "$isproh" = "1" ] && { [ "$second" = "-" ] || [ -z "$second" ]; }; then
         add_fail "$(rel "$VERIF"): negative row $nrow (anchor $anchor) anchors a prohibition but 'Second reader' is '-'"
       fi
-    done < <(awk -v US="$US" -v NEG="$NEG_GRAMMAR" "$AWK_LIB"'
+    done < <(awk -v US="$US" -v NEG="$NEG_GRAMMAR" -v is_design="$(is_bound_design "$f" && echo 1 || echo 0)" "$AWK_LIB"'
     { L[NR]=$0 }
     END{
       inpre=0
@@ -1298,6 +1361,7 @@ gate_G5c() {
         if(inpre) continue
         t=trim(line)
         if(t=="") continue
+        if(is_design && t ~ /^State:[ \t]+(provisional|complete)[ \t\r]*$/) continue
         if(t ~ /^#/) continue
         if(t ~ /^\*.*\*$/) continue
         if(is_sep(t)) continue
@@ -1765,6 +1829,7 @@ gate_G10() {
   # carried over from a run on an earlier question bank, or a sample nobody
   # recorded, is caught.
   # Newest is the latest date, then the highest V<n> on that date (C14 names).
+  if [ -n "$ONLY_FILE" ] && [ "$ONLY_FILE" != "$MEM/voice.md" ]; then return; fi
   : > "$TMPD/g10-voice-ids.txt"
   newest=""; best=""
   for af in "$MEM/answers"/*" voice answers.md"; do
@@ -2152,6 +2217,14 @@ gate_G14() {
         nw=$(printf '%s' "$basis_plain" | wc -w | tr -d ' ')
         if [ "${nw:-0}" -lt 6 ]; then
           add_fail "$(rel "$VOICE"): 'voice-authority-basis: $vab' is too thin to be a basis; name the domain and what the authority rests on"
+        elif printf '%s' "$lab" | grep -qE '(^|[^a-z])confirm(ing|s)([^a-z]|$)'; then
+          # Confirmation is a basis only when a role names a domain. Check
+          # this clause before the older basis words, which can occur in a
+          # negation too (for example "not confirming any authority here").
+          if printf '%s' "$lab" | grep -qE '(^|[^a-z])not[^a-z].*confirm(ing|s)([^a-z]|$)' ||
+             ! printf '%s' "$lab" | grep -qE '(^|[^a-z])(lead|leader|head|director|manager|owner|editor|officer|chief|supervisor|chair|president|founder|partner|coordinator|principal|administrator|custodian|delegate|representative|steward)[[:space:]]+confirm(ing|s)[[:space:]]+[^[:space:]]+[[:space:]]+[^[:space:]]+'; then
+            add_fail "$(rel "$VOICE"): 'voice-authority-basis: $vab' needs a role immediately before confirming or confirms, at least two domain words after it, and no not before the verb"
+          fi
         elif ! printf '%s' "$lab" | grep -qE "(sign-?off|approv|owns|accountab|responsib|authorit|mandate|named in|appointed|delegat|holds|remit|per the|under the|section|brief|contract|policy|role of|as the)"; then
           add_fail "$(rel "$VOICE"): 'voice-authority-basis: $vab' asserts authority without naming what it rests on"
         fi
@@ -2613,7 +2686,14 @@ gate_G17() {
 
 # ---- G18 No placeholder token survives ----------------------------------
 gate_G18() {
-  hits=$(grep -rInE '\[name\]|\[Competitor\]' "$ROOT" 2>/dev/null | awk -F: '{print $1":"$2}' | sort -u)
+  # In a POSIX bracket expression, ] is literal in the first position and
+  # - in the last. Exclude code prefixes while retaining standalone prose.
+  placeholder='(^|[^]A-Za-z0-9_)-])\[(name|Competitor)\]'
+  if [ -n "$ONLY_FILE" ]; then
+    hits=$(grep -nE "$placeholder" "$ONLY_FILE" 2>/dev/null | cut -d: -f1 | while IFS= read -r ln; do printf '%s:%s\n' "$ONLY_FILE" "$ln"; done)
+  else
+    hits=$(grep -rInE "$placeholder" "$ROOT" 2>/dev/null | awk -F: '{print $1":"$2}' | sort -u)
+  fi
   [ -n "$hits" ] || return
   while IFS= read -r h; do
     [ -n "$h" ] || continue
@@ -2631,7 +2711,7 @@ gate_G18() {
       add_note "$r line $ln: placeholder token, listed as an exception in the close report"
       continue
     fi
-    add_fail "$r line $ln: a placeholder token ([name] or [Competitor]) survives and is not listed as an exception in the close report"
+    add_fail "$r line $ln: a placeholder token (name or Competitor) survives and is not listed as an exception in the close report"
   done <<G18EOF
 $hits
 G18EOF
@@ -2733,6 +2813,9 @@ gate_G19() {
     add_note "no bound files under $(rel "$MEM"): the path clause did not run"
   fi
 
+  # A phase's file check does not certify the rest of the root's bindings or
+  # credential store. The unscoped close still runs both clauses below.
+  if [ -n "$ONLY_FILE" ]; then return; fi
   if [ -d "$SECRETS" ]; then
     n=0
     while IFS= read -r cf; do

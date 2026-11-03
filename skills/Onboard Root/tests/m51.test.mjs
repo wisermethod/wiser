@@ -271,7 +271,22 @@ test('Phase 3 starts the operating record before G7 and Phase 9 completes it bef
   const three=full.split('### Phase 3: Verification')[1].split('### Phase 4:')[0];
   const nine=full.split('### Phase 9: Close, per key')[1].split('### Phase 10:')[0];
   assert.match(three,/Start `work\/onboarding\/operating-file\.md`[^\n]*gaps known/);
+  assert.match(three,/record-grammars\.md[^\n]*work\/onboarding\/operating-file\.md/);
   assert.match(nine,/Complete `work\/onboarding\/operating-file\.md`[^\n]*before the harness/);
+  const grammar=readFileSync(join(here,'../record-grammars.md'),'utf8')
+    .split('### `work/onboarding/operating-file.md`')[1].split('```')[1].trim();
+  assert.match(grammar,/\| Item \| Gap \| Owner \| Status \| Blocker \| Attempt \| Result and date \|/);
+  runGate('G7',{'work/onboarding/operating-file.md':`${grammar}\n| O1 | Confirm picture rule | Priya Shah | gating | person: Priya Shah | Asked at Phase 3; awaiting reply | - |\n`});
+  runGate('G7',{'work/onboarding/operating-file.md':`${grammar}\n| O1 | Confirm picture rule | Priya Shah | gating | person: | - | - |\n`},true);
+});
+
+test('G10 gate table specifies the observer split and every Build Brand answer class',()=>{
+  const full=readFileSync(join(here,'../full-path.md'),'utf8');
+  const row=full.split('\n').find(line=>line.startsWith('| G10 '));
+  assert.match(row,/observer[^|]*first segment[^|]*comma or semicolon/);
+  assert.match(row,/document grammar[^|]*observer/);
+  assert.match(row,/B, C, G, J, K, L, O and T/);
+  assert.match(row,/every[^|]*answer number[^|]*recorded[^|]*row/);
 });
 
 for (const payload of ['J2b,K1', 'E1; J2b,K1', 'J2b K1']) test(`G10: a recorded answer cannot hide the unrecorded adjacent code in ${payload}`, () => {

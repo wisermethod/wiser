@@ -5,6 +5,7 @@ import { dirname, basename, extname, resolve, relative, isAbsolute, join, sep } 
 import { fileURLToPath } from 'node:url';
 import { checkPack, INSTALL } from './fonts.mjs';
 import { assembleCore, AXES, partPositions, assemblyHelpers } from './assemble-core.mjs';
+import { boardRefusal } from './refusals.mjs';
 export { AXES, partPositions };
 const { fail, copy, has, object, text, num } = assemblyHelpers;
 
@@ -18,6 +19,9 @@ Options:
   --selection <file>  Required selection JSON; asset paths are relative to it.
   --output <file>     Required new JSON file outside this skill; parent must exist.
   --library <file>    Optional absolute parts.json; defaults to the bundled library.
+  --check-rules       Refuse retired pairings, primary handwriting and dated
+                      whole-layout clusters before writing a spec. Required on
+                      the brief and simple paths, including kept assets.
   --help, -h         Print help before opening any file.
 No dependencies, installs, configuration, network, ranking or automatic repairs.
 Unknown flags, ids and malformed fields are refused before writing anything.
@@ -150,12 +154,13 @@ export function assemble(selection, library, { partsDir = dirname(LIBRARY), sele
 }
 function args(argv) {
   const flags = ['--selection','--output','--library'];
-  for (const arg of argv) if (arg.startsWith('-') && ![...flags,'--help','-h'].includes(arg)) fail(arg,'unknown option');
+  for (const arg of argv) if (arg.startsWith('-') && ![...flags,'--check-rules','--help','-h'].includes(arg)) fail(arg,'unknown option');
   if (!argv.length || argv.includes('--help') || argv.includes('-h') || (argv.length === 1 && argv[0] === 'help')) return null;
   const values = {};
   for (let i=0; i<argv.length; i++) {
-    const flag = argv[i]; if (!flags.includes(flag)) fail(flag,'unexpected argument');
+    const flag = argv[i]; if (![...flags,'--check-rules'].includes(flag)) fail(flag,'unexpected argument');
     if (has(values,flag)) fail(flag,'duplicate option');
+    if (flag==='--check-rules') { values[flag]=true; continue; }
     const value=argv[++i]; if (!value || value.startsWith('-') || !isAbsolute(value)) fail(flag,'supply an absolute path'); values[flag]=value;
   }
   for (const flag of ['--selection','--output']) if (!values[flag]) fail(flag,'required option');
@@ -174,6 +179,10 @@ export function run(argv) {
   try { selection=JSON.parse(readFileSync(selectionPath,'utf8')); } catch { fail('--selection','invalid or unreadable JSON'); }
   try { library=JSON.parse(readFileSync(libraryPath,'utf8')); } catch { fail('--library','invalid or unreadable JSON'); }
   const spec=assemble(selection,library,{partsDir:dirname(libraryPath),selectionDir:dirname(selectionPath)});
+  if(options['--check-rules']) for(const board of selection.boards) {
+    const reason=boardRefusal(library,board);
+    if(reason) fail(`Board ${board.number}`,reason);
+  }
   const bytes=JSON.stringify(spec,null,2)+'\n';
   try { writeFileSync(output,bytes,{flag:'wx'}); }
   catch { fail('--output','cannot create the file; choose a new path in a writable work directory'); }

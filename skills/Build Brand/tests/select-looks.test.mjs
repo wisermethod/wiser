@@ -16,11 +16,12 @@ const identity=c=>`${c.pairing}/${c.palette}/${c.graphicSet}`;
 // Original hashes predate pagination; kept-asset hashes predate the steer fix.
 // Both cover full JSON, including spares and checked refusals/replacements.
 // Re-pinned 2026-11-02, M5.1 round 2: refused clusters, retired marker and descriptive labels.
+// M5.1 review: near-black cap 55 restores Paper and orange outside the cream cluster.
 // Every pin also asserts the page shape, refusals, history and Form contract.
 const fixtures=[
   ['operator',operator,['2145241f997b547f621befce6a3c2bb7345ec209eb4fabee739b44d300c71c6f','25686b218c24f69ce01b10d948b30de0bf715020569b52b468fc2946e683faff'],
     ['a3f5a8ac100d55c8b04eda5a27979b2df375a9458040109d1c75edfcd3f76968','9f576445964ecaf0c5ea4497ebabf6e93b7a25392c53e2f0a56ec22712e0ea8b']],
-  ['First Strategy',firstStrategy,['bf9797de549263749188dc505934951dc83efce7919651c7edb08e6bebabbd00','8ca215282fe8c6fe7baa993506307c61bee1d892812ca79de8af793a6e14314f'],
+  ['First Strategy',firstStrategy,['4bd890cd74387324893f084d562681a3f64fad9c5281f1c5c0a4e12db5713344','8f8624f4bd55655208ed4fd0e897060c634fdcbf0488d1997b7608727605afc1'],
     ['fc9bab5ae223e0d2011cd477cc767e85df14131d36761fdc14cc92e7288c0cac','2f76f631ca3a40381295b67c56a0c029aec2d461a33558902c2fb01229cc0fb2']]
 ];
 function assertPage(r,a,history=[]) {
@@ -146,7 +147,7 @@ test('page 2 checks report only winning-prefix refusals and their exact replacem
   // additional refusals before backtracking; none belongs in this report.
   assert.deepEqual(two.replacements.map(r=>[r.slot,identity(r.refused),identity(r.replacement)]),[
     ...['newspaper','chunky','humanist','soft-serif'].map(pairing=>
-      [6,`${pairing}/forest-coral/editorial`,'newspaper/draft-paper/geometric']),
+      [6,`${pairing}/forest-coral/editorial`,'newspaper/paper-orange/geometric']),
     [9,'humanist/stone-cobalt/stitch','friendly-serif/stone-cobalt/drafting'],
     [9,'friendly-serif/stone-cobalt/stamp','friendly-serif/stone-cobalt/drafting']
   ]);

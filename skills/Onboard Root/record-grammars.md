@@ -51,11 +51,13 @@ check-mechanism: <name>
 check-measure: <n> <unit>
 provenance-author: subject | first-party | third-party | unattributed
 provenance-status: final | draft
-provenance-date: <a date, as YYYY-MM-DD>
+provenance-date: <publication date as YYYY-MM-DD, or unknown; received YYYY-MM-DD>
 provenance-audience: internal | outward-facing
 ```
 
 The two measures carry equal leading numbers and are taken by different mechanisms; a completeness claim measured by the mechanism that did the extracting proves nothing.
+
+When the source gives no publication date, write `provenance-date: unknown; received YYYY-MM-DD`, replacing only `YYYY-MM-DD` with the receipt date. The receipt date records when the source arrived; it does not assert a publication date. When the publication date is known, keep `provenance-date: YYYY-MM-DD` with that date.
 
 Then the must-reach list, which is the forward check from source to memory:
 

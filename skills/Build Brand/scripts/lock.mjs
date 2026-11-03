@@ -48,7 +48,47 @@ const html = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '
 const kebab = (s) => s.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 const comment = (s) => String(s).replace(/\*\//g, '* /').replace(/[\r\n]/g, ' ');
 const cssString = (s) => JSON.stringify(s).replace(/</g, '\\3c ');
+const TYPE_SIZES = ['display', 'middle', 'small'];
+const variationCSS = (axes) => axes ? Object.entries(axes).map(([axis, value]) => `${cssString(axis)} ${value}`).join(', ') : 'normal';
 export const sha256 = (s) => createHash('sha256').update(s).digest('hex');
+
+function validateTypeSettings(settings, at) {
+  if (settings.variations != null) {
+    obj(settings.variations, `${at}.variations`);
+    if (!Object.keys(settings.variations).length) fail(`${at}.variations`, 'expected non-empty axes or null');
+    for (const [axis, value] of Object.entries(settings.variations)) {
+      if (!/^[A-Za-z]{4}$/.test(axis)) fail(`${at}.variations`, 'axis must be four letters');
+      num(value, `${at}.variations.${axis}`, -1e6, 1e6);
+    }
+  }
+  if (own(settings, 'opticalSizing') && !['auto', 'none'].includes(settings.opticalSizing)) fail(`${at}.opticalSizing`, 'use auto or none');
+}
+
+// Match Contact Sheet's size-then-face fallback, retaining the exact field
+// that supplied each setting rather than attributing inherited axes to a size.
+function typeSettings(b) {
+  return Object.entries(b.type).flatMap(([role, face]) => ['default', ...TYPE_SIZES].map((size) => {
+    const field = `type.${role}`, settings = size === 'default' ? face : face.sizes[size];
+    const at = size === 'default' ? field : `${field}.sizes.${size}`;
+    return { role, size, weight: settings.weight, weightField: `${at}.weight`,
+      variations: settings.variations ?? face.variations ?? null,
+      variationsField: settings.variations != null ? `${at}.variations` : `${field}.variations`,
+      opticalSizing: settings.opticalSizing ?? face.opticalSizing,
+      opticalField: own(settings, 'opticalSizing') ? `${at}.opticalSizing` : `${field}.opticalSizing` };
+  }));
+}
+function typeDeclarations(setting, ref) {
+  const cite = (field) => `/* ${comment(ref)}.${field} */`;
+  const values = [`font-family: var(--font-${setting.role});`];
+  if (setting.weight != null) values.push(`font-weight: ${setting.weight}; ${cite(setting.weightField)}`);
+  values.push(`font-variation-settings: ${variationCSS(setting.variations)};`);
+  for (const axis of Object.keys(setting.variations || {})) values.push(cite(`${setting.variationsField}.${axis}`));
+  values.push(setting.opticalSizing != null
+    ? `font-optical-sizing: ${setting.opticalSizing}; ${cite(setting.opticalField)}`
+    : 'font-optical-sizing: auto; /* Working need: reset inherited optical sizing to the browser default */');
+  return values.join(' ');
+}
+function typeRule(setting, ref) { return `.type-${setting.role}-${setting.size} { ${typeDeclarations(setting, ref)} }`; }
 
 // Resolve even nonexistent descendants; a dangling symlink never earns clearance.
 export function canonical(candidate) {
@@ -157,10 +197,12 @@ function validate(spec, a, bytes, tapData) {
   closed(b.type, ['heading', 'body', 'handwriting'], 'type');
   for (const role of ['heading', 'body', ...(own(b.type, 'handwriting') ? ['handwriting'] : [])]) {
     const f = obj(b.type[role], `type.${role}`);
+    validateTypeSettings(f, `type.${role}`);
+    closed(f.sizes, TYPE_SIZES, `type.${role}.sizes`);
     for (const k of ['family', 'licence', 'description', 'sample']) str(f[k], `type.${role}.${k}`);
     arr(f.files, `type.${role}.files`); if (!f.files.length) fail(`type.${role}.files`, 'missing assembled font files');
     for (const file of f.files) { str(file.path, 'font.path'); if (!isAbsolute(file.path)) fail('font.path', 'unassembled relative font path'); if (file.style !== 'normal') fail('font.style', 'only normal supported'); if (Array.isArray(file.weight)) { if (file.weight.length !== 2 || file.weight[0] > file.weight[1]) fail('font.weight', 'expected ordered bounds'); file.weight.forEach((w) => num(w, 'font.weight', 1)); } else num(file.weight, 'font.weight', 1); }
-    for (const size of ['display', 'middle', 'small']) { obj(f.sizes?.[size], `type.${role}.sizes.${size}`); num(f.sizes[size].weight, 'font size weight', 1); }
+    for (const size of TYPE_SIZES) { obj(f.sizes?.[size], `type.${role}.sizes.${size}`); num(f.sizes[size].weight, 'font size weight', 1); validateTypeSettings(f.sizes[size], `type.${role}.sizes.${size}`); }
   }
   if (new Set([b.type.heading.family, b.type.body.family]).size > 2) fail('type', 'at most two primary families');
   obj(b.graphics, 'graphics'); str(b.graphics.title, 'graphics.title'); str(b.graphics.description, 'graphics.description'); str(b.graphics.hero?.shape, 'graphics.hero.shape');
@@ -204,6 +246,7 @@ function typographyCSS(b, ref) {
   rows.push('  --text-ui: 1rem; /* Working need: essential controls stay at 16px */', '  --tracking-body: 0; /* Working need: reading text */', '  --tracking-heading: -0.01em; /* Working need: heading hierarchy */', '  --tracking-caption: 0.05em; /* Working need: optional metadata */', '  --measure-body: 65ch; /* Working need: readable line length */', '  --measure-heading: 18ch; /* Working need: short headings */', '  --rhythm-base: calc(var(--text-body) * var(--line-body)); /* Working need: body line */', ...[2, 3, 4].map((n) => `  --rhythm-${n}: calc(var(--rhythm-base) * ${n}); /* Working need: body rhythm */`), '}');
   const aliases = (mode, selector) => `${selector} {\n${Object.keys(SCALE.levels).map((n) => `  --line-${n}: var(--type-line-${n}-${mode});`).join('\n')}\n  --weight-display: var(--weight-display-${mode});\n  --rhythm-base: calc(var(--text-body) * var(--line-body));\n${[2, 3, 4].map((n) => `  --rhythm-${n}: calc(var(--rhythm-base) * ${n});`).join('\n')}\n}`;
   rows.push(aliases(b.primaryMode, ':root'), '@media (prefers-color-scheme: dark) {', aliases('dark', '  :root:not([data-theme="light"])'), '}', aliases('light', '[data-theme="light"]'), aliases('dark', '[data-theme="dark"], .type-on-dark'));
+  rows.push(...typeSettings(b).map((setting) => typeRule(setting, ref)));
   return rows.join('\n') + '\n';
 }
 
@@ -228,6 +271,11 @@ function makeDocuments(spec, a, index, paths, tapData) {
   for (const [i, sw] of b.palette.swatches.entries()) add('Color', `${sw.name}: ${sw.role}, ${sw.share}% of page weight.`, [S(`palette.swatches.${i}.name`), S(`palette.swatches.${i}.role`), S(`palette.swatches.${i}.share`)]);
   for (const role of ['heading', 'body', ...(b.type.handwriting ? ['handwriting'] : [])]) {
     const f = b.type[role]; add('Typography', `${role}: ${f.family}. ${f.description} Licence: ${f.licence}.`, [S(`type.${role}.family`), S(`type.${role}.description`), S(`type.${role}.licence`)]);
+    for (const [size, settings] of Object.entries({ default: f, ...f.sizes })) {
+      const at = `type.${role}${size === 'default' ? '' : `.sizes.${size}`}`;
+      if (settings.variations != null) add('Typography', `${role} ${size}: font-variation-settings: ${variationCSS(settings.variations)}.`, Object.keys(settings.variations).map((axis) => S(`${at}.variations.${axis}`)));
+      if (own(settings, 'opticalSizing')) add('Typography', `${role} ${size}: font-optical-sizing: ${settings.opticalSizing}.`, [S(`${at}.opticalSizing`)]);
+    }
   }
   for (const [level, step] of Object.entries(SCALE.levels)) add('Typography', `${level}: ${SCALE.base * SCALE.ratio ** step}px; line height ${SCALE.lines[level]} light, ${(SCALE.lines[level] + .05).toFixed(2)} dark.`, [{ source: 'script', field: 'SCALE' }], true);
   add('Typography', `Use the settled faces and scale in ${paths.typography}. Sizes serve a working need; they are not additional member choices.`, [{ source: 'script', field: 'SCALE' }], true);
@@ -276,6 +324,13 @@ function makeDocuments(spec, a, index, paths, tapData) {
 
 function direction(doc, a) {
   const { b, ref, S } = doc;
+  const fontRef = ref(S('type')).replace(/\.type$/, '');
+  const settings = typeSettings(b);
+  const style = (role, level) => {
+    const workingSize = SCALE.base * SCALE.ratio ** SCALE.levels[level];
+    const size = TYPE_SIZES.reduce((nearest, candidate) => Math.abs(b.type[role].sizes[candidate].size - workingSize) < Math.abs(b.type[role].sizes[nearest].size - workingSize) ? candidate : nearest);
+    return typeDeclarations(settings.find((s) => s.role === role && s.size === size), fontRef);
+  };
   const p = (s) => `<p>${html(s)}</p>`;
   const section = (title, content) => `<section><h2>${title}</h2>${content}</section>`;
   const rows = [];
@@ -288,12 +343,12 @@ function direction(doc, a) {
   for (let n = 1; n <= 9; n++) looks.push(p(n === 9 && a.carried ? `Place, from the voice coach's ${a.carried.place.question} in \`memory/answers/${a.carried.place.file}\`: ${doc.tap(n).label}` : `T${n}: ${doc.tap(n).label}`));
   if (a.looks) looks.push(...a.looks.map((l) => p(l)));
   sections.push(section('How it looks', looks.join('')), section('Colour', `<div class="table"><table><thead><tr><th>Mode</th><th>Name</th><th>Value</th><th>Role</th><th>Page share</th>${b.palette.temperature ? '<th>Temperature</th>' : ''}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`));
-  sections.push(section('Type', ['heading', 'body', ...(b.type.handwriting ? ['handwriting'] : [])].map((role) => `<div class="face" style="font-family:var(--font-${role})"><h3>${html(b.type[role].family)}</h3><p>${html(role)}: ${html(b.type[role].description)}</p><p>Weights: ${[...new Set(Object.values(b.type[role].sizes).map((s) => s.weight))].join(', ')}.</p><p>${html(b.type[role].sample)}</p></div>`).join('')));
+  sections.push(section('Type', ['heading', 'body', ...(b.type.handwriting ? ['handwriting'] : [])].map((role) => `<div class="face" style="font-family:var(--font-${role})"><h3>${html(b.type[role].family)}</h3><p>${html(role)}: ${html(b.type[role].description)}</p><p>Weights: ${[...new Set(Object.values(b.type[role].sizes).map((s) => s.weight))].join(', ')}.</p>${TYPE_SIZES.map((size) => `<p class="type-${role}-${size}">${html(b.type[role].sample)}</p>`).join('')}</div>`).join('')));
   sections.push(section('Marks, pattern and texture', (b.monogram.file ? p('Use the kept logo.') : '') + p(b.graphics.description) + b.graphics.legend.map((g) => p(`${g.name}: ${g.use}`)).join('') + p(`Pattern strength: ${b.graphics.pattern.strength.light} light, ${b.graphics.pattern.strength.dark} dark; angle ${b.graphics.pattern.angle}. Texture: ${b.graphics.texture.strength.light} light, ${b.graphics.texture.strength.dark} dark.`)));
   if (b.content.photoRules) sections.push(section('Pictures', p(b.content.photoRules) + (b.content.never?.length ? p(`Never: ${b.content.never.join(', ')}.`) : '')));
-  const provenance = doc.claims.filter((c) => ['Color', 'Visual Personality', 'Words', 'Mark', 'Icons and Graphic Elements', 'Imagery and Illustration'].includes(c.heading) || (c.heading === 'Typography' && c.refs.some((r) => r.field.endsWith('.family'))));
+  const provenance = doc.claims.filter((c) => ['Color', 'Visual Personality', 'Words', 'Mark', 'Icons and Graphic Elements', 'Imagery and Illustration'].includes(c.heading) || (c.heading === 'Typography' && c.refs.some((r) => r.source === 'spec')));
   sections.push(section('Where each choice comes from', `<p>Board choices are the pick at ${html(a.lock.question)}.</p><table><thead><tr><th>Choice</th><th>Source</th></tr></thead><tbody>${provenance.map((c) => `<tr><td>${html(c.text.replace(/ Licence:.*$/, ''))}</td><td>${html(c.citation)}</td></tr>`).join('')}</tbody></table>`));
-  return `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${html(a.name)}: brand direction</title><link rel="stylesheet" href="typography.css"><style>body{margin:0 auto;padding:clamp(16px,4vw,48px);max-width:960px;font:var(--text-body)/var(--line-body) var(--font-body)}h1,h2,h3{font-family:var(--font-heading);line-height:var(--line-heading)}h1{font-size:var(--text-display)}h2{font-size:var(--text-heading)}section{margin-block:2rem}.table{overflow:auto}table{border-collapse:collapse;font-size:var(--text-caption);width:100%}td,th{text-align:left;padding:.5rem;border-bottom:1px solid #aaa;overflow-wrap:anywhere}.face{margin-block:1rem}</style></head><body><h1>${html(a.name)}</h1>${sections.join('\n')}</body></html>\n`;
+  return `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${html(a.name)}: brand direction</title><link rel="stylesheet" href="typography.css"><style>body{margin:0 auto;padding:clamp(16px,4vw,48px);max-width:960px;font:var(--text-body)/var(--line-body) var(--font-body);${style('body', 'body')}}h1,h2,h3{font-family:var(--font-heading);line-height:var(--line-heading)}h1{font-size:var(--text-display);${style('heading', 'display')}}h2{font-size:var(--text-heading);${style('heading', 'heading')}}h3{font-size:var(--text-subheading);${style('heading', 'subheading')}}section{margin-block:2rem}.table{overflow:auto}table{border-collapse:collapse;font-size:var(--text-caption);width:100%}td,th{text-align:left;padding:.5rem;border-bottom:1px solid #aaa;overflow-wrap:anywhere}.face{margin-block:1rem}${settings.map((s) => typeRule(s, fontRef)).join('\n')}</style></head><body><h1>${html(a.name)}</h1>${sections.join('\n')}</body></html>\n`;
 }
 
 function updateState(bytes, section, key) {
@@ -408,7 +463,15 @@ export function run(argv) {
     if (!unanchored.includes(claimMarkdown(claim)) || !unanchored.includes(md(claim.citation))) fail('read-back', 'a claim or citation is missing from rendered design');
     for (const r of claim.refs) if (r.source !== 'script' && !claim.text.includes(String(valueAt(sourceAgain[r.source], r.field)))) fail('read-back', `rendered claim differs from ${r.source}#${r.field}`);
   }
-  const entries = [{ path: design, bytes: designBytes }, { path: paths.palette, bytes: paletteCSS(b, `${specPath}#boards.${index}`) }, { path: paths.typography, bytes: typographyCSS(b, `${specPath}#boards.${index}`) }, { path: paths.direction, bytes: direction(doc, a) }];
+  const fontRef = `${specPath}#boards.${index}`;
+  const typographyBytes = typographyCSS(b, fontRef), directionBytes = direction(doc, a);
+  // Check the emitted settings independently against the source re-read above,
+  // including the size fallback and every source-field comment.
+  for (const setting of typeSettings(sourceAgain.spec.boards[index])) {
+    const expected = typeRule(setting, fontRef);
+    if (!typographyBytes.includes(expected) || !directionBytes.includes(expected)) fail('read-back', `rendered type rule differs from ${setting.role}.${setting.size}`);
+  }
+  const entries = [{ path: design, bytes: designBytes }, { path: paths.palette, bytes: paletteCSS(b, fontRef) }, { path: paths.typography, bytes: typographyBytes }, { path: paths.direction, bytes: directionBytes }];
   if (checked != null) entries.push({ path: verification, bytes: checked });
   if (!o['--caller'] && existing(ag)) { const before = read(ag), after = updateState(before, 'Onboarding', 'design'); if (before !== after) entries.push({ path: ag, bytes: after }); }
   if (!o['--caller'] && existing(record)) { const before = read(record), after = updateState(before, 'Per-key close', 'design'); if (before !== after) entries.push({ path: record, bytes: after }); }

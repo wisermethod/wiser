@@ -26,3 +26,22 @@ test('simple path wires the bank caption through assembly while other boards ret
  assert.equal(assemble(s,library).boards[0].content.markCaption,caption);assert.equal(assemble(s,library).footnote,caption);
  const ordinary=selection([board(library)],library);assert.ok(!Object.hasOwn(assemble(ordinary,library).boards[0].content,'markCaption'));
 });
+
+
+test('m51-r3: one locked board drops unused page groups without changing choices', () => {
+  const first = board(library);
+  // Retain the page metadata after reducing its board array to the locked pick.
+  const s = selection([first], library);
+  s.groups.push({ id: 'unused', label: 'Unused page group' });
+  const before = structuredClone(s), expected = assembleCore(selection([first], library), library);
+  assert.deepEqual(assembleCore(s, library), expected);
+  assert.deepEqual(assemble(s, library), assemble(selection([first], library), library));
+  assert.deepEqual(s, before);
+  const multi = structuredClone(s); multi.boards.push({ ...first, number: 2 });
+  assert.throws(() => assembleCore(multi, library), /empty group/);
+  const unknown = structuredClone(s); unknown.boards[0].group = 'missing';
+  assert.throws(() => assembleCore(unknown, library), /unknown group/);
+  const malformed = structuredClone(s); malformed.groups[1].typo = true;
+  assert.throws(() => assembleCore(malformed, library), /unknown field/);
+  assert.match(readFileSync(new URL('../lock.md', import.meta.url), 'utf8'), /single.board[^\n]*empty groups|empty groups[^\n]*single.board/i);
+});
