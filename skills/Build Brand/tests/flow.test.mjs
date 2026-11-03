@@ -212,7 +212,8 @@ test('the voice coach\'s P12 offers the four places T9 shows, so places are aske
   const offered=p12.split('Writes:')[0].split('\n').filter(l=>l.startsWith('- ')).map(l=>l.slice(2));
   const t9=JSON.parse(read('parts/taps.json')).questions.find(q=>q.id==='place').options.filter(o=>o.shown!==false).map(o=>o.label);
   assert.deepEqual([...offered].sort(),[...t9].sort());
-  assert.ok(voice.includes('Bank version for every row: `Build Voice bank 8`.'));
+  const bank = Number((voice.match(/Bank version for every row: `Build Voice bank (\d+)`\./) || [])[1]);
+  assert.ok(bank >= 8, 'P12 offers A design workshop from bank 8 on');
   assert.ok(p12.includes('- A design workshop: "Works ideas out alongside the reader: inventive, hands-on, and open about the work in progress."'));
 });
 
