@@ -385,7 +385,13 @@ function RawBlock(elem)
     local thumb_params = elem.text:match("<!%-%-%s*thumb%-tab%-start:%s*(.-)%s*%-%->")
     if thumb_params then
       local label = thumb_params:match("label=([^,]+)") or ""
-      local slot = thumb_params:match("slot=(%d+)") or "1"
+      -- The slot grammar matches the source check: optional space around =,
+      -- then a whole decimal integer in 1..8. Emit one canonical integer.
+      local slot = thumb_params:match("%f[%w_]slot%s*=%s*([^,%s]*)") or "1"
+      if not slot:match("^0*[1-8]$") then
+        error("thumb-tab slot must be an integer from 1 to 8: " .. slot, 0)
+      end
+      slot = string.format("%d", tonumber(slot))
       label = label:match("^%s*(.-)%s*$") -- trim
       
       if is_latex_output() then

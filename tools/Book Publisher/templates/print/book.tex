@@ -10,6 +10,9 @@
 \usepackage[
   paperwidth=$if(paperwidth)$$paperwidth$$else$8in$endif$,
   paperheight=$if(paperheight)$$paperheight$$else$10in$endif$,
+  layoutwidth=$trimwidth$,
+  layoutheight=$trimheight$,
+  layoutvoffset=$bleed$,
   top=$if(margin-top)$$margin-top$$else$0.85in$endif$,
   bottom=$if(margin-bottom)$$margin-bottom$$else$0.85in$endif$,
   outer=$if(margin-outer)$$margin-outer$$else$0.85in$endif$,
@@ -18,6 +21,38 @@
   headheight=$layout-headheight$,
   headsep=$layout-headsep$
 ]{geometry}
+
+% Geometry typesets within the trim; only the media grows into the bleed.
+% This counter never resets with a folio. Margins, boxes and tabs share it.
+\newcount\bookpublisherphysicalpage
+\bookpublisherphysicalpage=1
+\newlength{\bookpublisherbleed}
+\setlength{\bookpublisherbleed}{$bleed$}
+\newlength{\bookpublisherrectomargin}
+\newlength{\bookpublisherversomargin}
+\setlength{\bookpublisherrectomargin}{\oddsidemargin}
+\setlength{\bookpublisherversomargin}{\evensidemargin}
+\makeatletter
+\AddToHook{cmd/@outputpage/before}{%
+  \ifodd\bookpublisherphysicalpage
+    \oddsidemargin=\bookpublisherrectomargin
+  \else
+    \oddsidemargin=\dimexpr\bookpublisherversomargin+\bookpublisherbleed\relax
+  \fi
+  \evensidemargin=\oddsidemargin
+}
+\makeatother
+% Box coordinates and paper dimensions share the rounded PDF media size.
+\AddToHook{shipout/before}{%
+  \ifodd\bookpublisherphysicalpage
+    \pdfpageattr{/TrimBox [0 $trim-bottom$ $trim-right-odd$ $trim-top$]
+      /BleedBox [0 0 $media-width$ $media-height$]}%
+  \else
+    \pdfpageattr{/TrimBox [$trim-left-even$ $trim-bottom$ $media-width$ $trim-top$]
+      /BleedBox [0 0 $media-width$ $media-height$]}%
+  \fi
+}
+\AddToHook{shipout/after}{\global\advance\bookpublisherphysicalpage by 1}
 
 %% =============================================================================
 %% FONTS
@@ -325,15 +360,15 @@ $endif$
 \fancyhf{}
 \fancyhead[LE]{\small\itshape\leftmark}
 \fancyhead[RO]{\small\itshape\rightmark}
-% Only show page numbers after page 3 (skip title, copyright, TOC)
-\fancyfoot[C]{\ifnum\value{page}>3 \thepage\fi}
+% Without front files, skip the manuscript's title, copyright and contents folios.
+\fancyfoot[C]{$if(contents-before)$\thepage$else$\ifnum\value{page}>3 \thepage\fi$endif$}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
 \fancypagestyle{plain}{
   \fancyhf{}
-  % Only show page numbers after page 3
-  \fancyfoot[C]{\ifnum\value{page}>3 \thepage\fi}
+  % A contents.before prefix has already printed those unnumbered pages.
+  \fancyfoot[C]{$if(contents-before)$\thepage$else$\ifnum\value{page}>3 \thepage\fi$endif$}
   \renewcommand{\headrulewidth}{0pt}
 }
 
@@ -342,12 +377,18 @@ $endif$
 %% =============================================================================
 \usepackage{titlesec}
 
-$if(print-contents)$
+$if(chapter-opening-break)$
 % The old in-format chapter break discarded titlesec's starred before-skip
 % and its non-discardable spacer. Omit that spacer rather than breaking after
 % the chapter's contents locator has already been written by book.cls.
 \usepackage{etoolbox}
+\newif\ifbookpublisherindex
 \makeatletter
+\let\bookpublisherindexchapterhead\ttl@mkchap@i
+\newcommand{\bookpublisherindexspacing}{%
+  \let\ttl@mkchap@i\bookpublisherindexchapterhead
+  \bookpublisherindextrue
+}
 \patchcmd{\ttl@mkchap@i}{\vspace*{\@tempskipa}}{}{}{
   \PackageError{Book Publisher}{Cannot remove titlesec chapter before-skip}{}
 }
@@ -359,7 +400,7 @@ $endif$
 % With contents, chapter already breaks before writing its locator; a second
 % break inside the title format would move the title away from that locator.
 \titleformat{\chapter}[display]
-  {$if(print-contents)$$else$\clearpage$endif$\normalfont\Huge\bfseries\raggedright}
+  {$if(chapter-opening-break)$\ifbookpublisherindex\clearpage\fi$else$\clearpage$endif$\normalfont\Huge\bfseries\raggedright}
   {}
   {0pt}
   {}
@@ -368,7 +409,7 @@ $endif$
 % Section format (## in markdown) - Part headings and Appendices
 % cleardoublepage forces start on odd (recto) page for print layout
 \titleformat{\section}[display]
-  {$if(print-contents)$$else$\cleardoublepage$endif$\normalfont\huge\bfseries\raggedright}
+  {$if(print-contents)$$else$\cleardoublepage$if(right-hand-openings)$\bookpublisherapplytab$endif$$endif$\normalfont\huge\bfseries\raggedright}
   {}
   {0pt}
   {}
@@ -377,7 +418,7 @@ $endif$
 % Subsection format (### in markdown) - Chapter titles
 % cleardoublepage forces start on odd (recto) page for print layout
 \titleformat{\subsection}[display]
-  {$if(print-contents)$$else$\cleardoublepage$endif$\normalfont\LARGE\bfseries\raggedright}
+  {$if(print-contents)$$else$\cleardoublepage$if(right-hand-openings)$\bookpublisherapplytab$endif$$endif$\normalfont\LARGE\bfseries\raggedright}
   {}
   {0pt}
   {}
@@ -403,10 +444,24 @@ $endif$
 
 % Prefix the finished titlesec commands without consuming their star or arguments.
 % Installing these after titlesec preserves normal, starred and short-title forms.
+$if(right-hand-openings)$
+% Flush the preceding section before applying a queued tab. The inserted verso
+% ends that section's leaf and must carry its tab, with no other furniture.
+\renewcommand{\cleardoublepage}{%
+  \clearpage
+  \ifodd\bookpublisherphysicalpage\else
+    \hbox{}\thispagestyle{empty}\newpage
+  \fi
+}
+\let\bookpublisherchapter\chapter
+\renewcommand{\chapter}{\cleardoublepage\bookpublisherapplytab\bookpublisherchapter}
+\let\bookpublisherpart\part
+\renewcommand{\part}{\cleardoublepage\bookpublisherapplytab\bookpublisherpart}
+$endif$
 \let\oldsection\section
-\renewcommand{\section}{\FloatBarrier$if(print-contents)$\cleardoublepage$endif$\oldsection}
+\renewcommand{\section}{\FloatBarrier$if(print-contents)$\cleardoublepage$if(right-hand-openings)$\bookpublisherapplytab$endif$$endif$\oldsection}
 \let\oldsubsection\subsection
-\renewcommand{\subsection}{\FloatBarrier$if(print-contents)$\cleardoublepage$endif$\oldsubsection}
+\renewcommand{\subsection}{\FloatBarrier$if(print-contents)$\cleardoublepage$if(right-hand-openings)$\bookpublisherapplytab$endif$$endif$\oldsubsection}
 \let\oldsubsubsection\subsubsection
 \renewcommand{\subsubsection}{\FloatBarrier\oldsubsubsection}
 
@@ -537,7 +592,7 @@ $endif$
 \newlength{\thumbtabwidth}
 \setlength{\thumbtabwidth}{$layout-thumbtabwidth$}
 \newlength{\thumbtabheight}
-\setlength{\thumbtabheight}{1.0in}
+\setlength{\thumbtabheight}{\dimexpr(\paperheight-2\bookpublisherbleed-1in)/8\relax}
 \newlength{\thumbtabpadding}
 \setlength{\thumbtabpadding}{0.125in}
 \newlength{\thumbtaboffset}
@@ -547,20 +602,10 @@ $endif$
 \setcounter{activethumbtab}{0}
 \newcommand{\thumbtablabel}{}
 
-% Set thumb tab offset based on slot (1=top, 8=bottom)
-% For 10" page: slot 8 should be near bottom
+% Eight touching slots, with half an inch at each end inside the trim.
 \newcommand{\setthumboffset}{%
-  \ifcase\value{activethumbtab}%
-    \setlength{\thumbtaboffset}{0in}%      slot 0 (none)
-  \or\setlength{\thumbtaboffset}{0.5in}%   slot 1 (top)
-  \or\setlength{\thumbtaboffset}{1.5in}%   slot 2
-  \or\setlength{\thumbtaboffset}{2.5in}%   slot 3
-  \or\setlength{\thumbtaboffset}{3.5in}%   slot 4
-  \or\setlength{\thumbtaboffset}{4.5in}%   slot 5
-  \or\setlength{\thumbtaboffset}{5.5in}%   slot 6
-  \or\setlength{\thumbtaboffset}{6.5in}%   slot 7
-  \or\setlength{\thumbtaboffset}{7.8in}%   slot 8 (bottom, leaving room for tab height)
-  \fi%
+  \setlength{\thumbtaboffset}{\dimexpr0.5in+\bookpublisherbleed
+    +\thumbtabheight*\value{activethumbtab}-\thumbtabheight\relax}%
 }
 
 % Store current thumb tab slot for persistent drawing
@@ -573,33 +618,45 @@ $endif$
     \setthumboffset%
     \begin{tikzpicture}[remember picture, overlay]
       % Determine which side based on odd/even page
-      \ifodd\value{page}
-        % Odd page (recto): right edge
+      \ifodd\bookpublisherphysicalpage
+        % Odd physical page (recto): right edge
         \fill[black] 
-          ([xshift=-\thumbtabwidth, yshift=-\thumbtaboffset]current page.north east) 
+          ([xshift=-\thumbtabwidth-\bookpublisherbleed, yshift=-\thumbtaboffset]current page.north east)
           rectangle 
           ([yshift=-\thumbtaboffset-\thumbtabheight]current page.north east);
         % Label (rotated) - centered in tab, safely inside trim zone (0.35" from outer edge)
         \node[rotate=270, white, font=\scriptsize\bfseries\sffamily] 
-          at ([xshift=-0.35in, yshift=-\thumbtaboffset-0.5\thumbtabheight]current page.north east) 
+          at ([xshift=-0.35in-\bookpublisherbleed, yshift=-\thumbtaboffset-0.5\thumbtabheight]current page.north east)
           {\thumbtablabel};
       \else
         % Even page (verso): left edge
         \fill[black] 
           ([yshift=-\thumbtaboffset]current page.north west) 
           rectangle 
-          ([xshift=\thumbtabwidth, yshift=-\thumbtaboffset-\thumbtabheight]current page.north west);
+          ([xshift=\thumbtabwidth+\bookpublisherbleed, yshift=-\thumbtaboffset-\thumbtabheight]current page.north west);
         % Label (rotated) - centered in tab, safely inside trim zone (0.35" from outer edge)
         \node[rotate=90, white, font=\scriptsize\bfseries\sffamily] 
-          at ([xshift=0.35in, yshift=-\thumbtaboffset-0.5\thumbtabheight]current page.north west) 
+          at ([xshift=0.35in+\bookpublisherbleed, yshift=-\thumbtaboffset-0.5\thumbtabheight]current page.north west)
           {\thumbtablabel};
       \fi
     \end{tikzpicture}%
   \fi
 }
 
+% Validate every start before drawing or queuing, including raw TeX commands.
+\ExplSyntaxOn
+\msg_new:nnn {bookpublisher} {thumb-tab-slot}
+  {Invalid~thumb-tab~slot~`#1';~use~an~integer~from~1~to~8.}
+\cs_new_protected:Npn \bookpublisherchecktabslot #1
+  {
+    \regex_match:nnF {\A\s*0*[1-8]\s*\Z} {#1}
+      {\msg_fatal:nnn {bookpublisher} {thumb-tab-slot} {#1}}
+  }
+\ExplSyntaxOff
+
 % Start thumb tab for a section
 \newcommand{\thumbtabstart}[2]{%
+  \bookpublisherchecktabslot{#1}%
   \ClearShipoutPicture% Clear any previous thumb tab hook first
   \setcounter{activethumbtab}{#1}%
   \renewcommand{\thumbtablabel}{#2}%
@@ -612,6 +669,27 @@ $endif$
   \setcounter{activethumbtab}{0}%
   \renewcommand{\thumbtablabel}{}%
 }
+
+$if(right-hand-openings)$
+% Directives before an opening cannot change the page still being flushed.
+% Ordinary prose applies a queued directive at its next outer paragraph.
+\let\bookpublisherpendingtab\relax
+\newcommand{\bookpublisherapplytab}{%
+  \let\bookpublishernexttab\bookpublisherpendingtab
+  \global\let\bookpublisherpendingtab\relax
+  \bookpublishernexttab
+  % A title format groups its font and spacing, not the section's tab state.
+  \global\let\thumbtablabel\thumbtablabel
+}
+\let\bookpublisherthumbtabstart\thumbtabstart
+\let\bookpublisherthumbtabend\thumbtabend
+\renewcommand{\thumbtabstart}[2]{%
+  \bookpublisherchecktabslot{#1}%
+  \gdef\bookpublisherpendingtab{\bookpublisherthumbtabstart{#1}{#2}}%
+}
+\renewcommand{\thumbtabend}{\gdef\bookpublisherpendingtab{\bookpublisherthumbtabend}}
+\AddToHook{para/begin}{\ifinner\else\bookpublisherapplytab\fi}
+$endif$
 
 %% =============================================================================
 %% HYPERLINKS
@@ -785,11 +863,14 @@ $endif$
 %% ENSURE EVEN PAGE COUNT (for print requirements)
 %% =============================================================================
 % Ensures the document ends on an even page count (required for print)
-% After \clearpage, \value{page} is the NEXT page number (not pages output)
-% So if counter is EVEN after clearpage, we've output an ODD number of pages
+% After \clearpage, the physical counter names the NEXT page, even after folio resets.
+% An even counter means an odd number of pages have shipped
 \newcommand{\ensureevenpages}{%
+$if(right-hand-openings)$
+  \bookpublisherapplytab% No later opening: retain the directive on the last page.
+$endif$
   \clearpage% Flush all pending content first
-  \ifodd\value{page}%
+  \ifodd\bookpublisherphysicalpage%
     % Counter is odd = even pages output = we're good
   \else
     % Counter is even = odd pages output = need one more blank page
@@ -810,34 +891,68 @@ $endif$
 \pagestyle{plain}
 
 $if(print-contents)$
-% Keep generated front matter separate from manuscript folios and recto/verso.
+\makeatletter
+\newcommand{\bookpublishergeneratedcontents}{%
+$if(contents-before)$
+  \clearpage\endgroup\makeatother
+$endif$
+  \cleardoublepage
+$if(contents-before)$
+  \immediate\write\@auxout{\string\newlabel{bookpublisher-front-pages}{{}{\number\numexpr\value{page}-1\relax}}}%
+$endif$
+  \begingroup
+  \let\ps@plain\ps@empty
+  \pagestyle{empty}
+  \renewcommand{\numberline}[1]{}
+  \setcounter{tocdepth}{$print-contents-depth$}
+  \tableofcontents
+  \cleardoublepage
+  \endgroup
+  % Includes the entire unnumbered prefix for two-pass extraction.
+  \immediate\write\@auxout{\string\newlabel{bookpublisher-contents-pages}{{}{\number\numexpr\value{page}-1\relax}}}%
+  \pagenumbering{arabic}
+  \pagestyle{plain}
+}
 \pagenumbering{roman}
+$if(contents-before)$
+% Front files keep their manuscript order, but cannot add contents entries or
+% expose folios, even when their own format directives select a page style.
 \begingroup
-\makeatletter
-\let\ps@plain\ps@empty
-\makeatother
 \pagestyle{empty}
-% The template's heading pages have no automatic labels, at any numbering depth.
-\renewcommand{\numberline}[1]{}
-\setcounter{tocdepth}{$print-contents-depth$}
-\tableofcontents
-\cleardoublepage
-\endgroup
-% An internal AUX label records the physical offset for two-pass extraction.
-\makeatletter
-\immediate\write\@auxout{\string\newlabel{bookpublisher-contents-pages}{{}{\number\numexpr\value{page}-1\relax}}}
+\let\ps@plain\ps@empty
+\let\ps@fancy\ps@empty
+\let\pagestyle\@gobble
+\let\addcontentsline\@gobblethree
+$else$
+\bookpublishergeneratedcontents
+$endif$
 \makeatother
-\pagenumbering{arabic}
-\pagestyle{plain}
 $endif$
 
 $body$
 
 $if(include-index)$
-\clearpage
+$if(right-hand-openings)$
+% An empty makeindex run has no index opening to consume the pending tab.
+\IfFileExists{\jobname.ind}{%
+\ifnum\pdffilesize{\jobname.ind}>0\relax
+$endif$
+$if(right-hand-openings)$\cleardoublepage\bookpublisherapplytab$else$\clearpage$endif$
 \phantomsection
 \addcontentsline{toc}{chapter}{Index}
+\begingroup
+$if(print-contents)$$else$
+$if(chapter-opening-break)$
+% The index uses a top box, not a chapter page break. Keep its legacy spacing.
+\bookpublisherindexspacing
+$endif$
+$endif$
 \printindex
+\endgroup
+$if(right-hand-openings)$
+\fi
+}{}
+$endif$
 $endif$
 
 % Ensure even page count for print (adds blank page if odd)

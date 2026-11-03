@@ -5,14 +5,14 @@
  */
 import fs from 'node:fs';
 
-export async function extractPages({ pdfPath, auxPath, mergedPath, extractor = {}, generatedContents = false, log }) {
+export async function extractPages({ pdfPath, auxPath, mergedPath, extractor = {}, generatedContents = false, frontMatterLength = 0, log }) {
   if (!pdfPath || !auxPath || !mergedPath) {
     throw new Error('page extraction requires PDF, AUX, and merged manuscript paths');
   }
   const EXTRACTOR = extractor;
   const INDEX_HEADING     = EXTRACTOR.indexHeading     ?? 'Appendix C: Index';
   const GLOSSARY_HEADING  = EXTRACTOR.glossaryHeading  ?? 'Appendix D: Glossary';
-  const FRONT_MATTER_PAGES= EXTRACTOR.frontMatterPages ?? 5;
+  let FRONT_MATTER_PAGES  = EXTRACTOR.frontMatterPages ?? 5;
   const INDEX_FALLBACK    = EXTRACTOR.indexFallbackFromEnd ?? 10;
   const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -397,16 +397,24 @@ export async function extractPages({ pdfPath, auxPath, mergedPath, extractor = {
   let pages = await extractPdfPages(pdfPath);
   if (generatedContents) {
     const offset = auxLabels?.['bookpublisher-contents-pages'];
-    if (!Number.isInteger(offset) || offset < 1 || offset >= pages.length) {
+    if (!Number.isInteger(offset) || offset < 1 || offset > pages.length) {
       throw new Error('generated contents page count missing or invalid in the first-pass AUX; rebuild the first pass');
     }
-    // Searches, skip windows and fallbacks all use manuscript folios. AUX
+    const frontPages = frontMatterLength ? auxLabels?.['bookpublisher-front-pages'] : 0;
+    if (!Number.isInteger(frontPages) || frontPages < 0 || frontPages > offset) {
+      throw new Error('front manuscript page count missing or invalid in the first-pass AUX; rebuild the first pass');
+    }
+    // Front files count toward the caller's skip; generated contents do not.
+    FRONT_MATTER_PAGES = Math.max(0, FRONT_MATTER_PAGES - frontPages);
+    // Searches and fallbacks use manuscript folios. AUX
     // heading labels already use these same Arabic numbers after the reset.
     pages = pages.slice(offset).map(page => ({ ...page, pageNum: page.pageNum - offset }));
-    log(`  Excluded ${offset} generated contents pages; manuscript folios start at 1`);
+    log(`  Excluded ${frontPages} front manuscript pages and ${offset - frontPages} generated contents pages; remaining skip ${FRONT_MATTER_PAGES}; manuscript folios start at 1`);
   }
   log(`Reading merged file: ${mergedPath}`);
-  const content = fs.readFileSync(mergedPath, 'utf8');
+  const manuscript = fs.readFileSync(mergedPath, 'utf8');
+  const front = manuscript.slice(0, frontMatterLength);
+  const content = manuscript.slice(frontMatterLength);
   const lines = content.split('\n');
   const tocEntries = parseTocEntries(content);
   log(`Found ${tocEntries.length} TOC entries`);
@@ -414,7 +422,7 @@ export async function extractPages({ pdfPath, auxPath, mergedPath, extractor = {
   const indexTerms = parseIndexTerms(content);
   log(`Found ${indexTerms.length} index terms`);
   const indexUpdated = updateIndexInMerged(lines, indexTerms, pages, auxLabels);
-  fs.writeFileSync(mergedPath, lines.join('\n'), 'utf8');
+  fs.writeFileSync(mergedPath, front + lines.join('\n'), 'utf8');
   log(`Updated: ${mergedPath}`);
   return { pages: pages.length, tocUpdated, indexUpdated };
 }

@@ -18,13 +18,15 @@
 // Node built-ins and the plugin's shared tools/lib/ helpers only.
 import { execFileSync, spawn } from 'node:child_process';
 import {
-  existsSync, readFileSync, writeFileSync, readdirSync, mkdirSync,
+  existsSync, readFileSync, writeFileSync, mkdirSync,
   copyFileSync, realpathSync, statSync, symlinkSync, unlinkSync, rmSync,
   openSync, readSync, closeSync
 } from 'node:fs';
 import { basename, dirname, join, resolve, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkPdfX } from './check-pdfx.js';
+import { epubMetadataErrors, epubIdentifier, optionalEpubMetadata } from './epub-metadata.js';
+import { checkEpub } from './epubcheck.js';
 
 import { INSTALL_HELP, INSTALL_ONCE, installQuestion, formatInstallSize, parsedInstallFlag, flagAuthorised, installAuthorised, writeConsent } from '../../lib/consent.js';
 
@@ -184,6 +186,7 @@ const DEP = {
   pdflatex: { bin: 'pdflatex', args: ['--version'], name: 'LaTeX (pdflatex)', show: 'pdflatex --version' },
   makeindex: { bin: 'makeindex', args: ['-q'], input: '', name: 'makeindex', show: "printf '' | makeindex -q" },
   gs: { bin: 'gs', args: ['--version'], name: 'Ghostscript (gs)', show: 'gs --version' },
+  epubcheck: { bin: 'epubcheck', args: ['--version'], name: 'EPUBCheck', show: 'epubcheck --version', timeout: 10000 },
   kpsewhich: { bin: 'kpsewhich', args: ['--version'], name: 'TeX file lookup (kpsewhich)', show: 'kpsewhich --version' }
 };
 
@@ -194,7 +197,7 @@ function depPresent(dep) {
     const opts = dep.input !== undefined
       ? { input: dep.input, stdio: ['pipe', 'ignore', 'ignore'] }
       : { stdio: 'ignore' };
-    execFileSync(dep.bin, dep.args, opts);
+    execFileSync(dep.bin, dep.args, { ...opts, ...(dep.timeout ? { timeout: dep.timeout, killSignal: 'SIGKILL' } : {}) });
     return true;
   } catch {
     return false;
@@ -237,7 +240,7 @@ function requireTexFiles(config) {
     'T1SourceSansPro-TLF.fd', 'SourceSansPro-Bold-tlf-t1.tfm',
     'SourceSansPro-Bold.pfb', 'a_emkxm5.enc'];
   if (config.typography?.font_family === 'libertinus') files.push('binhex.tex');
-  if (config.contents?.enabled === true) files.push('etoolbox.sty');
+  if (config.contents?.enabled === true || config.openings?.right_hand !== false) files.push('etoolbox.sty');
   if (Object.keys(config.boxes ?? {}).length) {
     files.push('mdframed.sty', 'md-frame-0.mdf', 'kvoptions.sty', 'xparse.sty',
       'etoolbox.sty', 'zref-abspage.sty', 'zref-base.sty', 'color.sty',
@@ -298,6 +301,7 @@ function dependencySurvey() {
   return {
     pandoc: depPresent(DEP.pandoc), pdflatex: depPresent(DEP.pdflatex),
     makeindex: depPresent(DEP.makeindex), ghostscript: depPresent(DEP.gs),
+    epubcheck: depPresent(DEP.epubcheck),
     yaml: existsSync(dependencyMarker('yaml')),
     pdfjs: existsSync(dependencyMarker('pdfjs-dist'))
   };
@@ -384,12 +388,30 @@ try {
   fail(`Error: ${configPath} could not be read as YAML: ${detail}. Fix the config, then run the command again.`);
 }
 
+const { getChapterFiles } = await import('./validate-book.js');
 const problems = validateConfig(config);
 if (!problems.length && config.index?.terms_file !== undefined) {
   try {
     const { loadIndexTerms } = await import('./index-terms.js');
     config._indexTerms = loadIndexTerms(resolve(config._configDir, config.index.terms_file));
   } catch (error) { problems.push(error.message); }
+}
+if (!problems.length) {
+  const { thumbTabErrors } = await import('./validate-book.js');
+  let chapterFiles = [];
+  try {
+    chapterFiles = getChapterFiles(config.source._chaptersPath, config.source?.exclude ?? []);
+  } catch (error) { problems.push(...error.message.split('\n')); }
+  for (const file of chapterFiles) {
+    const path = join(config.source._chaptersPath, file);
+    const content = readFileSync(path, 'utf8');
+    problems.push(...thumbTabErrors(content, path));
+    if (config.contents?.before?.includes(file)) {
+      for (const marker of content.matchAll(/\{\{idx:[^{}]*(?:\{[^{}]*\}[^{}]*)?\}\}/g)) {
+        problems.push(`${path}: contents.before files cannot contain ${marker[0]}: their pages print no folio`);
+      }
+    }
+  }
 }
 if (problems.length > 0) {
   fail(`Error: ${configPath} is not a valid book config:\n- ${problems.join('\n- ')}`);
@@ -463,7 +485,7 @@ let mergedContent;
 const indexSections = config._indexTerms ? [] : undefined;
 let indexedContent;
 try {
-  if (mergedPath && existsSync(mergedPath) && !forceMerge && !twoPass && !indexSections) {
+  if (mergedPath && existsSync(mergedPath) && !forceMerge && !twoPass && !indexSections && !config.contents?.before?.length) {
     log(`Using merged file: ${config.source.merged}`);
     mergedContent = readFileSync(mergedPath, 'utf8');
   } else {
@@ -477,7 +499,7 @@ try {
   }
   if (indexSections && buildPrint) {
     const { indexChapters } = await import('./index-terms.js');
-    indexedContent = indexChapters(indexSections, config._indexTerms);
+    indexedContent = indexChapters(indexSections, config._indexTerms, { skipChapters: config.contents?.before?.length ?? 0 });
   }
 } catch (error) {
   // The merge runs before the build's own try below, so it carries a handler of
@@ -486,6 +508,10 @@ try {
   // and the fix (Script Contract, Output and errors).
   fail(`Error: ${error.message}`);
 }
+
+const { thumbTabErrors } = await import('./validate-book.js');
+const mergedTabErrors = thumbTabErrors(mergedContent, mergedPath ?? 'merged manuscript');
+if (mergedTabErrors.length) fail(`Error: ${mergedTabErrors.join('\n')}`);
 
 // Edition-specific ISBN swap: if the config names a print ISBN and the merged
 // content carries an "**ISBN:** ..." line, replace it, so paperback and hardcover
@@ -521,6 +547,7 @@ try {
       const { extractPages } = await import('./extract-pages.js');
       await extractPages({
         pdfPath: firstPass.path, auxPath: firstPassAux, mergedPath,
+        frontMatterLength: config._contentsBeforeText?.length ?? 0,
         extractor: config.index.extractor, generatedContents: config.contents?.enabled === true, log
       });
       mergedContent = readFileSync(mergedPath, 'utf8');
@@ -537,6 +564,7 @@ try {
     copyFileSync(built.path, standardPdf);
     outputs.print_pdf = standardPdf;
     outputs.pages = built.pages;
+    outputs.bleed = built.bleed;
     try {
       const { auditPrintFonts } = await import('./font-audit.js');
       outputs.print_fonts = await auditPrintFonts(standardPdf, config,
@@ -551,7 +579,7 @@ try {
     const pdfxPdf = join(config.output._printPath, `${slug}-interior-pdfx.pdf`);
     await convertToPdfX(built.path, pdfxPdf, printTempDir);
     outputs.print_pdfx = pdfxPdf;
-    outputs.pdfx = checkPdfX(pdfxPdf);
+    outputs.pdfx = checkPdfX(pdfxPdf, { bleed: built.bleed, trim: config.trim });
     if (twoPass) {
       log('Step 5/5: Verifying output');
       const pages = countPages(pdfxPdf);
@@ -569,6 +597,7 @@ try {
 
     const built = await buildEpubFile(config, mergedContent, slug, epubTempDir);
     outputs.epub = built.path;
+    outputs.epubcheck = checkEpub(built.path, epubTempDir, log);
   }
 } catch (error) {
   // Keep the temp directories on failure: their LaTeX and pandoc logs are how a
@@ -621,7 +650,7 @@ function loadConfig(path) {
 }
 
 function validateConfig(config) {
-  const errors = [];
+  const errors = epubMetadataErrors(config);
   if (!config.title) errors.push('missing: title');
   if (!config.authors || config.authors.length === 0) errors.push('missing: authors');
   if (!config.trim?.width || !config.trim?.height) errors.push('missing: trim.width and trim.height');
@@ -631,6 +660,9 @@ function validateConfig(config) {
   }
   if (!config.output?.print && !config.output?.epub) {
     errors.push('missing: output.print or output.epub (nowhere to write)');
+  }
+  if (config.trim?.bleed !== undefined && !['auto', true, false].includes(config.trim.bleed)) {
+    errors.push('trim.bleed must be auto, true or false');
   }
   if (config.typography?.quote_font !== undefined && !['body', 'sans'].includes(config.typography.quote_font)) {
     errors.push('typography.quote_font must be body or sans');
@@ -653,7 +685,7 @@ function validateConfig(config) {
     }
     if (config.index.enabled === false) errors.push('index.terms_file requires the makeindex strategy (index.enabled: true)');
   }
-  for (const key of ['contents', 'headings', 'parts']) {
+  for (const key of ['contents', 'headings', 'parts', 'openings']) {
     if (config[key] !== undefined && (!config[key] || typeof config[key] !== 'object' || Array.isArray(config[key]))) {
       errors.push(`${key} must be a mapping`);
     }
@@ -663,6 +695,28 @@ function validateConfig(config) {
   }
   if (config.contents?.depth !== undefined && (!Number.isInteger(config.contents.depth) || config.contents.depth < 1 || config.contents.depth > 5)) {
     errors.push('contents.depth must be an integer from 1 to 5 (Markdown heading levels)');
+  }
+  if (config.contents?.before !== undefined) {
+    const before = config.contents.before;
+    if (!Array.isArray(before) || before.some((name) => typeof name !== 'string')) {
+      errors.push('contents.before must be a list of manuscript file names');
+    } else if (before.length) {
+      if (config.contents.enabled !== true) errors.push('contents.before requires contents.enabled: true');
+      if (config.source?._chaptersPath && existsSync(config.source._chaptersPath)) {
+        // A chapter name outside the grammar is a config error like any other,
+        // reported with the rest; the order check needs a valid order.
+        let files = null;
+        try {
+          files = getChapterFiles(config.source._chaptersPath, config.source?.exclude ?? []);
+        } catch (error) { errors.push(...error.message.split('\n')); }
+        if (files && before.some((name, i) => name !== files[i] || !statSync(join(config.source._chaptersPath, name)).isFile())) {
+          errors.push('contents.before must name the manuscript\'s first files in their existing sorted order');
+        }
+      }
+    }
+  }
+  if (config.openings?.right_hand !== undefined && typeof config.openings.right_hand !== 'boolean') {
+    errors.push('openings.right_hand must be a boolean');
   }
   if (config.headings?.numbered !== undefined && typeof config.headings.numbered !== 'boolean') {
     errors.push('headings.numbered must be a boolean');
@@ -860,24 +914,6 @@ function guardOutside(target, label) {
 // MERGE
 // ============================================================================
 
-function getChapterFiles(chaptersDir, exclude = []) {
-  // Files excluded from the interior. The legacy generation hardcoded this list
-  // in the engine, naming this book's covers and four duplicate appendices, which
-  // is data about one book living in a tool. It is configuration here:
-  // source.exclude, a list of file names, empty by default. Covers are supplied
-  // to the print platform separately and are not typeset into the interior.
-  const skip = new Set(exclude);
-  return readdirSync(chaptersDir)
-    .filter((f) => f.endsWith('.md'))
-    .filter((f) => !skip.has(f))
-    .sort((a, b) => {
-      const numA = parseInt(a.split('-')[0], 10) || 0;
-      const numB = parseInt(b.split('-')[0], 10) || 0;
-      if (numA !== numB) return numA - numB;
-      return a.localeCompare(b);
-    });
-}
-
 function mergeChapters(config, indexSections) {
   const chaptersDir = config.source._chaptersPath;
   const files = getChapterFiles(chaptersDir, config.source?.exclude ?? []);
@@ -892,6 +928,10 @@ function mergeChapters(config, indexSections) {
     content = content.replace(/\[([^\]]+)\]\(\.\.\/([^)]+)\)/g, '[$1]($2)');
     return content.trim();
   });
+  // Remember the ordered prefix without persisting typesetting commands.
+  if (config.contents?.before?.length) {
+    config._contentsBeforeText = sections.slice(0, config.contents.before.length).join('\n\n');
+  }
   if (indexSections) indexSections.push(...sections);
   return sections.join('\n\n');
 }
@@ -943,7 +983,16 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
   }
 
   const mergedFile = join(tempDir, `${slug}-source.md`);
+  // Keep the auditable manuscript limited to source text and index markers.
+  // The tool's file-boundary command belongs only to its typesetting input.
   writeFileSync(mergedFile, mergedContent);
+  const pandocFile = config.contents?.before?.length ? join(tempDir, `${slug}-typesetting.md`) : mergedFile;
+  if (pandocFile !== mergedFile) {
+    let prefix = config._contentsBeforeText;
+    if (config.isbn?.print) prefix = prefix.replace(/\*\*ISBN:\*\*\s*[\d-]+/, `**ISBN:** ${config.isbn.print}`);
+    if (!mergedContent.startsWith(prefix)) throw new Error('contents.before boundary no longer matches the merged manuscript');
+    writeFileSync(pandocFile, prefix + '\n\n\\bookpublishergeneratedcontents{}' + mergedContent.slice(prefix.length));
+  }
 
   const texFile = join(tempDir, `${slug}.tex`);
   const templateFile = join(TEMPLATES_DIR, 'print', 'book.tex');
@@ -951,6 +1000,38 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
   const formatFilter = join(FILTERS_DIR, 'format-filter.lua');
   const margins = printMargins(config);
   const layout = printLayout(config);
+  let bleed = config.trim.bleed === true;
+  if ((config.trim.bleed ?? 'auto') === 'auto') {
+    // Run the drawing filter itself with the print format. Collect only its
+    // emitted raw LaTeX: code examples and directives it discards cannot bleed.
+    const tabFilter = join(tempDir, 'tab-emission.lua');
+    writeFileSync(tabFilter, `local raw = {}
+local function collect(el)
+  if el.format == "latex" or el.format == "tex" then
+    table.insert(raw, pandoc.RawBlock("latex", el.text))
+  end
+end
+function Pandoc(doc)
+  doc:walk({RawBlock = collect, RawInline = collect})
+  return pandoc.Pandoc(raw)
+end
+`);
+    const emitted = execFileSync('pandoc', ['--from', 'markdown+smart+autolink_bare_uris-implicit_figures',
+      '--to', 'latex', '--lua-filter', formatFilter, '--lua-filter', tabFilter],
+    { input: mergedContent, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+    // TeX comments end at the newline; an escaped percent remains literal.
+    const active = emitted.replace(/(\\\\)|\\%|%[^\r\n]*/g, (token, escaped) => (escaped || token === '\\%') ? ' ' : '');
+    // A start warrants bleed even if it is ended before shipout or verbatim.
+    // Raw TeX may retain leading zeroes; directives emit canonical integers.
+    bleed = /\\thumbtabstart\s*\{\s*0*[1-8]\s*\}/.test(active);
+  }
+  const bleedInches = bleed ? 0.125 : 0;
+  // Ghostscript's flatten pass rounds MediaBox to hundredths of a PDF point.
+  // Use one rounded media size for the paper and every box coordinate, so a
+  // fractional trim cannot put a box beyond the media and be dropped by GS.
+  const boxBleed = bleedInches * 72;
+  const mediaWidth = Number((config.trim.width * 72 + boxBleed).toFixed(2));
+  const mediaHeight = Number((config.trim.height * 72 + 2 * boxBleed).toFixed(2));
   const textWidth = config.trim.width - margins.outer - margins.inner;
   const roundedWidth = textWidth.toFixed(2);
   // Keep the existing metadata where it fits; otherwise retain the precision
@@ -958,7 +1039,7 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
   const imageWidth = Number(roundedWidth) > 0 && Number(roundedWidth) <= textWidth ? roundedWidth : String(textWidth);
 
   const pandocArgs = [
-    mergedFile,
+    pandocFile,
     '-o', texFile,
     '--template', templateFile,
     '--lua-filter', formatFilter,
@@ -967,8 +1048,17 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
     '--from', 'markdown+smart+autolink_bare_uris-implicit_figures',
     '--to', 'latex',
     '--top-level-division=chapter',
-    '--variable', `paperwidth=${config.trim.width}in`,
-    '--variable', `paperheight=${config.trim.height}in`,
+    '--variable', `paperwidth=${mediaWidth}bp`,
+    '--variable', `paperheight=${mediaHeight}bp`,
+    '--variable', `trimwidth=${config.trim.width}in`,
+    '--variable', `trimheight=${config.trim.height}in`,
+    '--variable', `bleed=${bleedInches}in`,
+    '--variable', `trim-left-even=${boxBleed}`,
+    '--variable', `trim-bottom=${boxBleed}`,
+    '--variable', `trim-right-odd=${(mediaWidth - boxBleed).toFixed(2)}`,
+    '--variable', `trim-top=${(mediaHeight - boxBleed).toFixed(2)}`,
+    '--variable', `media-width=${mediaWidth}`,
+    '--variable', `media-height=${mediaHeight}`,
     '--variable', `margin-top=${margins.top}in`,
     '--variable', `margin-bottom=${margins.bottom}in`,
     '--variable', `margin-outer=${margins.outer}in`,
@@ -1011,6 +1101,11 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
   if (config.contents?.enabled === true) {
     pandocArgs.push('--variable', 'print-contents=true', '--metadata', 'print-contents=true',
       '--variable', `print-contents-depth=${(config.contents.depth ?? 1) - 1}`);
+  }
+  if (config.contents?.before?.length) pandocArgs.push('--variable', 'contents-before=true');
+  if (config.openings?.right_hand !== false) pandocArgs.push('--variable', 'right-hand-openings=true');
+  if (config.contents?.enabled === true || config.openings?.right_hand !== false) {
+    pandocArgs.push('--variable', 'chapter-opening-break=true');
   }
   if (config.headings?.numbered === false) {
     pandocArgs.push('--variable', 'unnumbered-headings=true');
@@ -1089,7 +1184,7 @@ async function buildPrintPdf(config, mergedContent, slug, tempDir) {
       if (url) log(`  Warning: URL letter/digit run wider than the available line (${width}${hanging === '1' ? ', including hanging indentation' : ''}); internal breaks enabled at ${texFile}:${line}: ${url}`);
     }
   }
-  return { path: pdf, pages: countPages(pdf) };
+  return { path: pdf, pages: countPages(pdf), bleed };
 }
 
 // Pages in a finished PDF. LaTeX writes the page tree inside a compressed object
@@ -1220,14 +1315,13 @@ async function buildEpubFile(config, mergedContent, slug, tempDir) {
   const epubFile = join(config.output._epubPath, `${slug}.epub`);
 
   const names = authorNames(config);
+  const assets = config.source._assetsPath || join(dirname(config.source._chaptersPath), 'assets');
   const metadata = {
     title: config.title,
-    subtitle: config.subtitle || '',
     author: names,
-    publisher: config.publisher?.name || '',
-    rights: `Copyright ${new Date().getFullYear()} ${names.join(' and ')}`,
+    identifier: epubIdentifier(config),
+    ...optionalEpubMetadata(config),
     lang: config.language || 'en',
-    description: config.description?.short || '',
     subject: config.description?.keywords || [],
     'toc-title': 'Contents'
   };
@@ -1251,8 +1345,10 @@ async function buildEpubFile(config, mergedContent, slug, tempDir) {
     '--epub-title-page=false',
     // The merge rewrites chapter links from ../assets/x to assets/x, so the
     // resource path is the directory those are relative to, which is the parent
-    // of the assets directory, with assets itself listed as well.
-    '--resource-path', [resolve(config.source._assetsPath, '..'), config.source._assetsPath].join(':')
+    // of the assets directory, with assets itself listed as well. Without
+    // source.assets that is the assets/ directory beside the chapters, where the
+    // input contract puts it.
+    '--resource-path', [resolve(assets, '..'), assets].join(':')
   ];
   if (config.covers?._ebookPath && existsSync(config.covers._ebookPath)) {
     pandocArgs.push('--epub-cover-image', config.covers._ebookPath);

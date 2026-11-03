@@ -151,7 +151,8 @@ function readObjects(bytes) {
   return { objects, deref, stream, root };
 }
 
-export function checkPdfX(path) {
+export function checkPdfX(path, { bleed = false, trim } = {}) {
+  const hasTrim = Number.isFinite(trim?.width) && Number.isFinite(trim?.height) && trim.width > 0 && trim.height > 0;
   const bytes = readFileSync(path);
   const headerVersion = /^%PDF-(\d+\.\d+)/.exec(bytes.toString('latin1', 0, 16))?.[1] ?? null;
   const { objects, deref, stream, root } = readObjects(bytes);
@@ -221,26 +222,66 @@ export function checkPdfX(path) {
       return Number.isInteger(obj?.streamStart) && deref(obj.value.get('Length')) > 0;
     });
   }).length;
+  const expectedTrim = trim;
   const seenPages = new Set();
-  function pages(value) {
+  const boxSets = new Map();
+  let physical = 0;
+  const boxErrors = hasTrim ? [] : ['expected configured trim.width and trim.height in inches'];
+  const close = (a, b) => Math.abs(a - b) <= 0.02;
+  const validBox = (box) => Array.isArray(box) && box.length === 4 && box.every(Number.isFinite) && box[2] > box[0] && box[3] > box[1];
+  const inside = (a, b) => a[0] >= b[0] - 0.02 && a[1] >= b[1] - 0.02 && a[2] <= b[2] + 0.02 && a[3] <= b[3] + 0.02;
+  function pages(value, inheritedMedia) {
     if (!(value instanceof Ref) || seenPages.has(value.key)) throw new Error('invalid PDF page tree');
     seenPages.add(value.key);
     const dict = deref(value);
     if (!(dict instanceof Map)) throw new Error('missing PDF page dictionary');
-    if (named(dict.get('Type'), 'Page')) return 1;
+    const media = deref(dict.get('MediaBox')) ?? inheritedMedia;
+    if (named(dict.get('Type'), 'Page')) {
+      // TrimBox and BleedBox are not inheritable page-tree attributes.
+      const trim = deref(dict.get('TrimBox'));
+      const bleedBox = deref(dict.get('BleedBox'));
+      physical += 1;
+      const boxes = { media, bleed: bleedBox, trim };
+      const key = JSON.stringify(boxes);
+      if (!boxSets.has(key)) boxSets.set(key, { ...boxes, pages: 0 });
+      boxSets.get(key).pages += 1;
+      if (![media, bleedBox, trim].every(validBox) || !inside(trim, bleedBox) || !inside(bleedBox, media)) {
+        boxErrors.push(`page ${physical}: missing, invalid or non-nested TrimBox/BleedBox/MediaBox`);
+      } else if (hasTrim) {
+        const offset = bleed ? 9 : 0;
+        const width = expectedTrim.width * 72;
+        const height = expectedTrim.height * 72;
+        // Match the shared hundredth-point media size used by the print build.
+        const mediaWidth = Number((width + offset).toFixed(2));
+        const mediaHeight = Number((height + 2 * offset).toFixed(2));
+        const expectedMedia = [0, 0, mediaWidth, mediaHeight];
+        const left = physical % 2 ? 0 : offset;
+        const expectedBox = [left, offset, Number((mediaWidth - offset + left).toFixed(2)), Number((mediaHeight - offset).toFixed(2))];
+        const equal = (box, expected) => box.every((n, i) => close(n, expected[i]));
+        if (!equal(media, expectedMedia) || !equal(bleedBox, expectedMedia) || !equal(trim, expectedBox)) {
+          boxErrors.push(`page ${physical}: expected MediaBox = BleedBox [${expectedMedia.join(' ')}], TrimBox [${expectedBox.join(' ')}] for configured trim and bleed=${bleed}`);
+        }
+      }
+      return 1;
+    }
     const kids = deref(dict.get('Kids'));
     if (!named(dict.get('Type'), 'Pages') || !Array.isArray(kids)) throw new Error('invalid PDF page tree node');
-    return kids.reduce((total, kid) => total + pages(kid), 0);
+    return kids.reduce((total, kid) => total + pages(kid, media), 0);
   }
   const pageCount = pages(catalog.get('Pages'));
-  const checks = { outputIntentProfile, cmykOnly, pdf13: version === '1.3', fontsEmbedded: embedded === fonts.length, evenPageCount: pageCount > 0 && pageCount % 2 === 0 };
+  const checks = { pageBoxes: boxErrors.length === 0 && pageCount > 0, outputIntentProfile, cmykOnly, pdf13: version === '1.3', fontsEmbedded: embedded === fonts.length, evenPageCount: pageCount > 0 && pageCount % 2 === 0 };
   const failures = [];
+  if (!checks.pageBoxes) failures.push(`page boxes: ${boxErrors.join('; ')}`);
   if (!checks.outputIntentProfile) failures.push('missing OutputIntent /DestOutputProfile stream');
   if (!checks.cmykOnly) failures.push(rgb ? 'DeviceRGB/RGB color found' : `non-DeviceCMYK color space found (${otherColor.join(', ')})`);
   if (!checks.pdf13) failures.push(`PDF version ${version ?? 'unknown'}; expected 1.3`);
   if (!checks.fontsEmbedded) failures.push(`unembedded fonts (${embedded}/${fonts.length} embedded)`);
   if (!checks.evenPageCount) failures.push(`odd or empty page count (${pageCount})`);
-  const result = { checks, version, fonts: { embedded, total: fonts.length }, pages: pageCount, certified: false, scope: 'Structural checks only; not PDF/X-1a conformance certification.' };
-  if (failures.length) throw new Error(`PDF/X structural checks failed: ${failures.join('; ')}. Correct the print inputs and rebuild.`);
+  const result = { checks, pageBoxes: { sets: [...boxSets.values()], errors: boxErrors }, bleed, version, fonts: { embedded, total: fonts.length }, pages: pageCount, certified: false, scope: 'Structural checks only; not PDF/X-1a conformance certification.' };
+  if (failures.length) {
+    const error = new Error(`PDF/X structural checks failed: ${failures.join('; ')}. Correct the print inputs and rebuild.`);
+    error.result = result;
+    throw error;
+  }
   return result;
 }

@@ -1,5 +1,5 @@
 // Read-only manuscript checks. The entry point checks for yaml before import; no typesetting runtimes.
-import { readFileSync, realpathSync, statSync } from 'node:fs';
+import { readFileSync, realpathSync, statSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse as parseYaml } from 'yaml';
@@ -12,8 +12,14 @@ export function indexStrategy(config) {
   return config.index?.extractor != null ? 'two-pass' : 'none';
 }
 
+// Only raw TeX treats percent as a comment; Markdown prose keeps it literal.
+function withoutTexComments(text) {
+  return text.replace(/(\\\\)|\\%|%[^\r\n]*/g, (token, escaped) => (escaped || token === '\\%') ? token : '');
+}
+
 // Fenced and inline code is illustrative text, not manuscript markup.
-function withoutCode(text) {
+function withoutCode(text, keepRaw = false) {
+  let raw = false;
   let fence;
   const containers = [];
   return text.split('\n').map((line) => {
@@ -32,13 +38,34 @@ function withoutCode(text) {
     const content = list ? body.slice(list[0].length) : body.slice(Math.min(indent, margin));
     const match = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(content);
     if (fence) {
-      if (match && match[1][0] === fence[0] && match[1].length >= fence.length && !match[2].trim()) fence = undefined;
-      return '';
+      if (match && match[1][0] === fence[0] && match[1].length >= fence.length && !match[2].trim()) { fence = undefined; raw = false; return ''; }
+      return raw ? (raw === 'html' ? line : withoutTexComments(line)) : '';
     }
-    if (match) { fence = match[1]; return ''; }
+    if (match) { fence = match[1]; raw = keepRaw && /^\s*\{=(html|latex|tex)\}\s*$/.exec(match[2])?.[1]; return ''; }
     if (!list && !footnote && indent >= margin + 4) return '';
     return line;
-  }).join('\n').replace(/(`+)[\s\S]*?\1(?!`)/g, '');
+  }).join('\n').replace(/(`+)([\s\S]*?)\1(?!`)(\{=(?:html|latex|tex)\})?/g,
+    (match, fence, body, raw) => keepRaw && raw ? (raw === '{=html}' ? body : withoutTexComments(body)) : '');
+}
+
+// The public directive accepts eight slots. Preserve raw-attribute blocks but
+// leave illustrative fenced/inline/indented code out of manuscript validation.
+export function thumbTabErrors(text, file) {
+  const errors = [];
+  const markup = withoutCode(text, true);
+  for (const directive of markup.matchAll(/<!--\s*thumb-tab-start:\s*([\s\S]*?)-->/g)) {
+    const slot = /\bslot\s*=\s*([^,\s]*)/.exec(directive[1]);
+    if (slot && !/^0*[1-8]$/.test(slot[1])) {
+      errors.push(`${file}: ${directive[0]}: thumb-tab slot must be an integer from 1 to 8; omit slot for 1.`);
+    }
+  }
+  const latex = markup.replace(/\\\\/g, ' ');
+  for (const directive of latex.matchAll(/\\thumbtabstart\s*\{([^}]*)\}(?:\s*\{[^}]*\})?/g)) {
+    if (!/^\s*0*[1-8]\s*$/.test(directive[1])) {
+      errors.push(`${file}: ${directive[0]}: thumb-tab slot must be an integer from 1 to 8.`);
+    }
+  }
+  return errors;
 }
 
 function plainHeading(text) {
@@ -153,6 +180,28 @@ function standing(projectRoot, errors) {
   return Boolean(section);
 }
 
+// Exclude before checking the one chapter grammar. Retain leading-number then
+// filename order, including the existing letter-suffix ordering of both books.
+export function getChapterFiles(chaptersDir, exclude = []) {
+  const skip = new Set(exclude);
+  const files = readdirSync(chaptersDir).filter((file) => /\.md$/i.test(file) && !skip.has(file));
+  const orders = new Set();
+  const errors = [];
+  const parsed = new Map();
+  for (const file of files.sort((a, b) => a.localeCompare(b))) {
+    const order = /^(\d+)([a-z]*)(?:[-_ ].+)?\.md$/i.exec(file);
+    if (!order) errors.push(`chapter has no leading number: ${file}. Number chapter filenames to define their order.`);
+    else {
+      const key = `${Number(order[1])}${order[2].toLowerCase()}`;
+      if (orders.has(key)) errors.push(`ambiguous chapter order ${key}: ${file}. Give each chapter a distinct leading number/suffix.`);
+      orders.add(key);
+      parsed.set(file, Number(order[1]));
+    }
+  }
+  if (errors.length) throw new Error(errors.join('\n'));
+  return files.sort((a, b) => parsed.get(a) - parsed.get(b) || a.localeCompare(b));
+}
+
 export function validateBook(config, files) {
   const errors = [];
   const strategy = indexStrategy(config);
@@ -162,18 +211,10 @@ export function validateBook(config, files) {
   const projectRoot = dirname(chaptersDir);
   const standingFound = standing(projectRoot, errors);
   if (!files.length) errors.push(`no markdown chapter files found in ${chaptersDir}. Add a numbered .md chapter.`);
-  const orders = new Set();
   const chapters = [];
   const chapterPaths = [];
   const ranges = new Map();
   for (const file of files) {
-    const order = /^(\d+)([a-z]*)(?:[-_ ].+)?\.md$/i.exec(file);
-    if (!order) errors.push(`chapter has no leading number: ${file}. Number chapter filenames to define their order.`);
-    else {
-      const key = `${Number(order[1])}${order[2].toLowerCase()}`;
-      if (orders.has(key)) errors.push(`ambiguous chapter order ${key}: ${file}. Give each chapter a distinct leading number/suffix.`);
-      orders.add(key);
-    }
     const path = join(chaptersDir, file);
     let text;
     try {

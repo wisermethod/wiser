@@ -164,11 +164,14 @@ function marker(row) {
   return `${ticks}${command}${ticks}{=latex}`;
 }
 
-export function indexChapters(chapters, terms) {
+export function indexChapters(chapters, terms, { skipChapters = 0 } = {}) {
   const seen = new Set();
   const prose = chapters.map(protectedProse);
   const references = new Set(prose.flatMap((chapter) => chapter.references));
   return chapters.map((chapter, i) => {
+    // Unnumbered front files precede the body folios used by automatic locators.
+    // Keep their reference definitions, but do not consume scope:first there.
+    if (i < skipChapters) return chapter;
     const { blocked, searchable } = prose[i];
     const spans = eligibleSpans(searchable, blocked, references);
     const insertions = [];
