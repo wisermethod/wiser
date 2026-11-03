@@ -5,6 +5,9 @@ const oneLine = (value) => typeof value === 'string' && !/[\x00-\x1f\x7f-\x9f\u2
 const hasValue = (value) => value !== undefined && value !== null && String(value).trim() !== '';
 
 function ebookIsbn(value) {
+  // An unquoted ISBN-13 reaches here as a YAML integer; an unquoted ISBN-10
+  // beginning with 0 has lost that digit and stays refused.
+  if (Number.isSafeInteger(value)) value = String(value);
   if (typeof value !== 'string') return null;
   const digits = value.replace(/[- ]/g, '');
   if (/^\d{9}[\dXx]$/.test(digits)) {
@@ -24,7 +27,7 @@ export function epubMetadataErrors(config) {
     errors.push('epub must be a mapping containing optional epub.identifier');
   }
   if (config.isbn?.ebook !== undefined && !ebookIsbn(config.isbn.ebook)) {
-    errors.push('isbn.ebook must be an ISBN-10 or ISBN-13 with a valid check digit (hyphens and spaces allowed)');
+    errors.push('isbn.ebook must be an ISBN-10 or ISBN-13 with a valid check digit (hyphens and spaces allowed); quote an ISBN that begins with 0');
   }
   if (config.epub?.identifier !== undefined && (!oneLine(config.epub.identifier) || !config.epub.identifier.trim())) {
     errors.push('epub.identifier must be nonempty text on one line');
@@ -69,14 +72,26 @@ const xml = (value) => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;'
 export function publicationMetadata(text, config) {
   // Pandoc invents dc:date when no date was supplied. Remove only that element;
   // dcterms:modified is still Pandoc's build clock. Replace values as XML text
-  // so Markdown interpretation cannot change a verbatim identifier or rights.
+  // so Markdown interpretation cannot change a verbatim identifier or rights,
+  // and through functions, so a $ in a value is never a replacement pattern.
+  // Pandoc writes no subtitle into the package metadata; it is added here as a
+  // second dc:title refined as the subtitle, the main title refined as main.
   text = text.replace(/<dc:identifier\b([^>]*)>[\s\S]*?<\/dc:identifier>/,
     (_, attrs) => `<dc:identifier${attrs}>${xml(epubIdentifier(config))}</dc:identifier>`);
   text = text.replace(/\s*<dc:date\b[^>]*>[\s\S]*?<\/dc:date>/g, '');
   text = text.replace(/\s*<dc:rights\b[^>]*>[\s\S]*?<\/dc:rights>/g, '');
   const fields = [config.publication_date === undefined ? '' : `    <dc:date id="epub-date">${xml(config.publication_date)}</dc:date>`,
     hasValue(config.rights) ? `    <dc:rights>${xml(config.rights)}</dc:rights>` : ''].filter(Boolean);
-  if (fields.length) text = text.replace(/([ \t]*)<\/metadata>/, fields.join('\n') + '\n$1</metadata>');
+  if (fields.length) text = text.replace(/([ \t]*)<\/metadata>/, (_, indent) => fields.join('\n') + '\n' + indent + '</metadata>');
+  if (hasValue(config.subtitle)) {
+    text = text.replace(/([ \t]*)<dc:title\b([^>]*)>([\s\S]*?)<\/dc:title>/, (title, indent, attrs) => {
+      const id = /\bid="([^"]+)"/.exec(attrs)?.[1];
+      return [title,
+        id ? `${indent}<meta refines="#${id}" property="title-type">main</meta>` : '',
+        `${indent}<dc:title id="epub-subtitle">${xml(config.subtitle)}</dc:title>`,
+        `${indent}<meta refines="#epub-subtitle" property="title-type">subtitle</meta>`].filter(Boolean).join('\n');
+    });
+  }
   return text;
 }
 

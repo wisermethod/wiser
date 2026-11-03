@@ -86,12 +86,12 @@ Pass `--config` as an absolute path. Paths inside YAML resolve relative to that 
 | `output.print` | Print output directory | None; required when building print |
 | `output.epub` | EPUB output directory | None; required when building EPUB; validation requires at least one output directory |
 | `slug` | Output filename base | Title lowercased, non-alphanumeric runs replaced by hyphens, edge hyphens stripped |
-| `subtitle` | EPUB metadata subtitle | Omitted when absent or empty |
+| `subtitle` | EPUB metadata subtitle: a second `dc:title` refined with `title-type` `subtitle`, the main title refined as `main` | Omitted when absent or empty |
 | `publisher.name` | EPUB metadata publisher | Omitted when absent or empty |
 | `language` | EPUB metadata language; print template uses English | `en` |
 | `description.short` | EPUB description | Omitted when absent or empty |
 | `description.keywords` | EPUB subject list | `[]` |
-| `isbn.ebook` | Optional ISBN-10 or ISBN-13 string with a valid check digit; hyphens and spaces are stripped. ISBN-10 is converted to ISBN-13. Writes `dc:identifier` as `urn:isbn:<13 digits>`; cannot be set with `epub.identifier` | Absent; stable UUID fallback below |
+| `isbn.ebook` | Optional ISBN-10 or ISBN-13 with a valid check digit; hyphens and spaces are stripped. An unquoted ISBN of digits only is read as a number and accepted; quote one that begins with 0, which YAML would drop. ISBN-10 is converted to ISBN-13. Writes `dc:identifier` as `urn:isbn:<13 digits>`; cannot be set with `epub.identifier` | Absent; stable UUID fallback below |
 | `epub.identifier` | Optional nonempty one-line string, written verbatim as `dc:identifier` and NCX `dtb:uid`, to retain an earlier edition's identifier; cannot be set with `isbn.ebook` | Absent; stable UUID fallback below |
 | `publication_date` | Optional real calendar date string `YYYY-MM-DD`, written as `dc:date` | Omitted; no build-clock publication date |
 | `rights` | Optional one-line string, written verbatim as `dc:rights`; the tool never composes a rights line | Omitted when absent or empty |
