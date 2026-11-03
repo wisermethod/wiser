@@ -199,7 +199,7 @@ With `parts.enabled: true`, a document-level heading such as `# Part One. Gettin
 
 Print ordered lists reserve label space at their own enumerate level, counting only enclosing ordered lists. Decimal and example (`(@)`) lists use their final counter, including lists starting above 1; alphabetic lists use the widest letter in their own range, and roman lists the longest numeral. Nested lists do not inherit an ancestor's label width. Decimal and example lists ending at 9 or below keep their existing indent.
 
-Print tables reserve the excess page depth beyond the row's final strut at continuation breaks so its last baseline stays within the text block. Tables with a continuation footer reserve the whole page-depth allowance for that footer. A row that does not fit moves to the next page, with the table's continuation header repeated. The final footer retains its original space, including for tables that fit on one page.
+Print tables keep every row's last baseline within the text block. At each page break inside a table, the opening page included, a table reserves the page-depth allowance beyond its row strut (under 1.5 pt at common sizes); a table with a continuation footer (`\endfoot`, which Markdown tables do not produce) reserves the whole allowance plus the footer's own depth. A row that does not fit moves to the next page, with the table's continuation header repeated; the reserve is uniform, so a row that would end within it of the bottom also moves. The final footer retains its original space, including for tables that fit on one page.
 
 Raw LaTeX `\section`, `\subsection` and `\subsubsection` retain their normal, starred and optional short-title forms. Each runs an automatic float barrier before the heading.
 
