@@ -25,6 +25,7 @@ The entry point follows `system/templates/Script Contract.md`. Shared run behavi
 | Dependency | Needed for | Presence check |
 |------------|------------|----------------|
 | Node 22.13 or newer and npm | Every command; `pdfjs-dist` 6 requires this Node minimum | `node --version` reports at least 22.13.0 |
+| EPUBCheck (optional) | Validate the finished EPUB, when installed; fatal/error messages fail the build, warnings are reported | `epubcheck --version` |
 | pandoc | Every build, including EPUB-only | `pandoc --version` |
 | pdflatex | Print typesetting | `pdflatex --version` |
 | kpsewhich | `check --config` when `output.print` is set | `kpsewhich --version` |
@@ -54,7 +55,7 @@ There is no PDF/X preflight dependency. After conversion the PDF/X file is check
 
 This section is the input contract's one home. `init` produces a conforming project; `validate` proves its configuration and manuscript structure, without typesetting. A successful validation does not prove print conformance or the editorial quality of the book.
 
-A project has `chapters/` with numbered `.md` files in leading-number then filename order, `assets/` for local images and other referenced files, `book-config.yaml`, and the project's `AGENTS.md`. Give each chapter a distinct leading number and optional letter suffix, for example `01-introduction.md`, `02a-example.md`. Asset references resolve from the chapter that contains them; use paths such as `../assets/figure.png`. Exclusions are exact filenames. A config may sit below the project; the parent of `source.chapters` owns the project's `AGENTS.md`.
+A project has `chapters/` with numbered `.md` files in leading-number then filename order, `assets/` for local images and other referenced files, `book-config.yaml`, and the project's `AGENTS.md`. Give each chapter a distinct leading number and optional letter suffix, for example `01-introduction.md`, `02a-example.md`. Asset references resolve from the chapter that contains them; use paths such as `../assets/figure.png`. Exclusions are exact filenames and are applied before checking names. All three commands, including every build format, use the same case-insensitive grammar `^(\d+)([a-z]*)(?:[-_ ].+)?\.md$` and refuse repeated numeric order keys with the same case-insensitive letter suffix (so `01a` and `1A` collide), naming the file before typesetting. A config may sit below the project; the parent of `source.chapters` owns the project's `AGENTS.md`.
 
 The member chooses where the book project lives. When they have not said, recommend a location under `standards/user-root.md` C4 rather than choosing one silently.
 
@@ -79,17 +80,21 @@ Pass `--config` as an absolute path. Paths inside YAML resolve relative to that 
 | `margins.outer` | Print outer margin in inches, at least the template's thumb-tab width (`0.5`), reserved for every manuscript | `0.85` |
 | `margins.inner` | Print binding-side margin in inches, a finite nonnegative number | `1.1` |
 | `source.chapters` | Directory of chapter Markdown files | Required |
-| `source.assets` | Asset directory | Print falls back to `../assets` relative to the config; supply explicitly for EPUB |
+| `source.assets` | Asset directory | Print falls back to `../assets` relative to the config; EPUB falls back to `assets/` beside `source.chapters` |
 | `source.exclude` | Filenames excluded from the merge | `[]` |
 | `source.merged` | Optional persistent merged manuscript, reused in single-pass builds unless `--force-merge` or `index.terms_file` is set | No persistent file in single-pass builds; two-pass uses `temp/<slug>-merged.md` in the print output directory |
 | `output.print` | Print output directory | None; required when building print |
 | `output.epub` | EPUB output directory | None; required when building EPUB; validation requires at least one output directory |
 | `slug` | Output filename base | Title lowercased, non-alphanumeric runs replaced by hyphens, edge hyphens stripped |
-| `subtitle` | EPUB metadata subtitle | Empty string |
-| `publisher.name` | EPUB metadata publisher | Empty string |
+| `subtitle` | EPUB metadata subtitle | Omitted when absent or empty |
+| `publisher.name` | EPUB metadata publisher | Omitted when absent or empty |
 | `language` | EPUB metadata language; print template uses English | `en` |
-| `description.short` | EPUB description | Empty string |
+| `description.short` | EPUB description | Omitted when absent or empty |
 | `description.keywords` | EPUB subject list | `[]` |
+| `isbn.ebook` | Optional ISBN-10 or ISBN-13 string with a valid check digit; hyphens and spaces are stripped. ISBN-10 is converted to ISBN-13. Writes `dc:identifier` as `urn:isbn:<13 digits>`; cannot be set with `epub.identifier` | Absent; stable UUID fallback below |
+| `epub.identifier` | Optional nonempty one-line string, written verbatim as `dc:identifier` and NCX `dtb:uid`, to retain an earlier edition's identifier; cannot be set with `isbn.ebook` | Absent; stable UUID fallback below |
+| `publication_date` | Optional real calendar date string `YYYY-MM-DD`, written as `dc:date` | Omitted; no build-clock publication date |
+| `rights` | Optional one-line string, written verbatim as `dc:rights`; the tool never composes a rights line | Omitted when absent or empty |
 | `isbn.print` | Replaces the first existing `**ISBN:**` number in the merged manuscript | No replacement |
 | `covers.ebook` | Optional EPUB cover image | No cover; a named missing file is also skipped |
 | `typography.font_family` | Print family: `libertinus`, `source-serif`, or `lmodern` (Latin Modern); unrecognized values also use Latin Modern. Does not select the EPUB reader's font | `lmodern` (the existing Latin Modern rendering) |
@@ -125,6 +130,8 @@ Pass `--config` as an absolute path. Paths inside YAML resolve relative to that 
 | `index.extractor.glossaryHeading` | Section following the index | `Appendix D: Glossary` |
 | `index.extractor.frontMatterPages` | Initial manuscript pages skipped during term and heading searches, counting from the first manuscript page including the `contents.before` files and their blank pages; only generated contents pages never count toward this skip | `5` |
 | `index.extractor.indexFallbackFromEnd` | Fallback index start, this many pages from the end | `10` |
+
+`validate`, `check --config` and `build` refuse invalid `isbn.ebook`, `epub.identifier`, `publication_date` and `rights` values, naming the setting. One-line strings exclude control characters and Unicode line separators. With neither identifier key set, the identifier is `urn:uuid:` plus a UUID version 5, using the RFC 4122 URL namespace `6ba7b811-9dad-11d1-80b4-00c04fd430c8`. Its exact UTF-8 name string is the compact JSON array `[title, ...authors' names in order]`, as JavaScript `JSON.stringify` writes it, with no spaces or Unicode normalization; for example `["My Book","Author One","Author Two"]`. It is independent of the build directory and clock. A title or author change gives a new identifier. Set `isbn.ebook` or `epub.identifier` before publishing. NCX `dtb:uid` always equals `dc:identifier`. `dcterms:modified` remains the build time.
 
 `validate`, `check --config` and `build` refuse any other `trim.bleed` value, naming the setting. With bleed, media width is trim width plus 0.125 in and media height is trim height plus 0.25 in; all margins and content positions remain relative to the trim. Every page stores its TrimBox and BleedBox (equal to MediaBox), including after PDF/X conversion. Outer edges, text-block margins and tabs follow physical page parity through folio resets. Tabs fill from their configured visible width through the outer bleed to the media edge; labels retain their position inside trim. Eight touching slots each have height `(trim height - 1 in) / 8`, with a 0.5 in gap above and below the grid, including when bleed is disabled. Print JSON reports `outputs.bleed` so the member can select the matching bleed setting when uploading the interior. Under `auto`, a tab start warrants bleed even if ended before any page ships or written inside verbatim: an empty bleed prints and uploads correctly, while a tab without bleed is a defect.
 
@@ -244,7 +251,7 @@ A book may follow these optional EPUB front-matter conventions: a copyright bloc
 | Command | Accepted flags | Effect |
 |---------|----------------|--------|
 | `node scripts/publish.js help` | `--help`, `-h` | Usage on an uninstalled copy |
-| `node scripts/publish.js check` | `--install`, `--help`, `-h` | Survey four system runtimes and package presence; explicit installation repairs packages first |
+| `node scripts/publish.js check` | `--install`, `--help`, `-h` | Survey system runtimes, including optional EPUBCheck and package presence; explicit installation repairs packages first |
 | `node scripts/publish.js check --config <path>` | `--config`, `--install`, `--help`, `-h` | Also check the project, report its index strategy and require the print template's TeX files when `output.print` is set; a missing YAML reader or TeX file fails with exit 1 |
 | `node scripts/publish.js validate --config <path>` | `--config`, `--install`, `--help`, `-h` | Check config, numbered chapters, local asset references, index ranges/boundaries and project instructions |
 | `node scripts/publish.js build --config <path>` | `--config`, `--print-only`, `--epub-only`, `--draft`, `--force-merge`, `--cleanup`, `--verbose`, `-v`, `--install`, `--help`, `-h` | Build both formats unless narrowed |
@@ -274,9 +281,11 @@ Every write location, including project scaffolding, dependencies and build inte
 | Command | JSON fields |
 |---------|-------------|
 | `init` | `ok`, `project`, `config`, `title`, `indexStrategy` |
-| `check` | `pandoc`, `pdflatex`, `makeindex`, `ghostscript`, `yaml`, `pdfjs`; with a readable config/package also `configChecked`, `ok`, `title`, `indexStrategy`, `standingFound`, `errors` |
+| `check` | `pandoc`, `pdflatex`, `makeindex`, `ghostscript`, `epubcheck`, `yaml`, `pdfjs`; with a readable config/package also `configChecked`, `ok`, `title`, `indexStrategy`, `standingFound`, `errors` |
 | `validate` | `ok`, `title`, `authors`, `trim`, `index`, `indexStrategy`, `project`, `standingFound`, `chapters` |
 | `build` | `ok`, `title`, `outputs`; requested `print_pdf`, `print_pdfx`, `pages`, `epub`; print also carries `outputs.pdfx` |
+
+EPUB builds run the optional `epubcheck` executable on the final postprocessed EPUB. Version detection has a 10-second limit and validation a 60-second limit. An installed checker that fails to run, times out or returns an unreadable assessment fails the build. Each fatal, error and warning message is named on stderr; warnings alone do not fail. Success JSON includes `outputs.epubcheck` with `ran`, `version`, `fatals`, `errors` and `warnings`. When absent from PATH, it reports `ran: false`, null version/counts and a `reason`, and stderr says plainly that EPUBCheck did not run. The assessment remains in the EPUB output's `temp/epubcheck.json` unless successful cleanup is requested. Like other build failures, a failed EPUBCheck writes stderr only and exits 1.
 
 Print builds also report `outputs.print_fonts`: `faces` lists the distinct faces actually used for text in the interior; `unexpected` names each face outside the selected family and its companions, with physical PDF page numbers and the affected text; `missingCharacters` lists final-pass missing-glyph and unsupported-Unicode diagnostics. These are also warnings on stderr, even without `--verbose`; they do not certify glyph coverage or fail the build. The configured body family, its math companion, Source Sans Pro tab/quote face, amssymb's MSAM/MSBM symbols and the selected family's existing mono face are expected. Libertinus's companion includes newtxmath's `LibertineMath` and `tx` faces. Source Serif retains Computer Modern math, the operator, bold, italic and sans faces math uses included (`CMR`, `CMBX`, `CMTI`, `CMSS`), and Computer Modern/cm-super typewriter faces; cm-super text roman remains unexpected. Text inside an included PDF figure is audited too and reported under its own face. An audit error, including a PDF reader or font error, is reported as `outputs.print_fonts.error` and a one-line stderr warning; a successful build still returns its success JSON. Under pdflatex, Libertinus's four text arrows use its `newtxmath` companion because its TS1 face lacks those glyphs. No manuscript change is required. This audit uses the existing `pdfjs-dist` dependency.
 
@@ -289,7 +298,7 @@ Shared stops are in `tools/RUNNING.md`. Correct malformed YAML, chapter ordering
 ## Success
 
 - Help and init run with nothing installed; init refuses an occupied project and its result validates.
-- Bare check surveys without an implicit install, returning one object of six booleans and exit 0. With a config it also checks the required TeX files for print; an authorized install completes that same command.
+- Bare check surveys without an implicit install, returning one object of seven booleans and exit 0. With a config it also checks the required TeX files for print; an authorized install completes that same command.
 - Validation accepts each index strategy, requires project instructions, and enforces filled Standing only on template-identified projects.
 - A two-pass print build merges, extracts, injects and rebuilds in one invocation; the resulting PDF has the reported page count and embedded fonts.
 - Print success reports every structural property and explicitly disclaims conformance certification. A missing output profile, RGB, wrong PDF version, unembedded fonts, odd pages, invalid page boxes or any nonzero Ghostscript conversion status fail with stderr only and exit 1.

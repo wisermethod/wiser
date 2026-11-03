@@ -18,13 +18,15 @@
 // Node built-ins and the plugin's shared tools/lib/ helpers only.
 import { execFileSync, spawn } from 'node:child_process';
 import {
-  existsSync, readFileSync, writeFileSync, readdirSync, mkdirSync,
+  existsSync, readFileSync, writeFileSync, mkdirSync,
   copyFileSync, realpathSync, statSync, symlinkSync, unlinkSync, rmSync,
   openSync, readSync, closeSync
 } from 'node:fs';
 import { basename, dirname, join, resolve, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkPdfX } from './check-pdfx.js';
+import { epubMetadataErrors, epubIdentifier, optionalEpubMetadata } from './epub-metadata.js';
+import { checkEpub } from './epubcheck.js';
 
 import { INSTALL_HELP, INSTALL_ONCE, installQuestion, formatInstallSize, parsedInstallFlag, flagAuthorised, installAuthorised, writeConsent } from '../../lib/consent.js';
 
@@ -184,6 +186,7 @@ const DEP = {
   pdflatex: { bin: 'pdflatex', args: ['--version'], name: 'LaTeX (pdflatex)', show: 'pdflatex --version' },
   makeindex: { bin: 'makeindex', args: ['-q'], input: '', name: 'makeindex', show: "printf '' | makeindex -q" },
   gs: { bin: 'gs', args: ['--version'], name: 'Ghostscript (gs)', show: 'gs --version' },
+  epubcheck: { bin: 'epubcheck', args: ['--version'], name: 'EPUBCheck', show: 'epubcheck --version', timeout: 10000 },
   kpsewhich: { bin: 'kpsewhich', args: ['--version'], name: 'TeX file lookup (kpsewhich)', show: 'kpsewhich --version' }
 };
 
@@ -194,7 +197,7 @@ function depPresent(dep) {
     const opts = dep.input !== undefined
       ? { input: dep.input, stdio: ['pipe', 'ignore', 'ignore'] }
       : { stdio: 'ignore' };
-    execFileSync(dep.bin, dep.args, opts);
+    execFileSync(dep.bin, dep.args, { ...opts, ...(dep.timeout ? { timeout: dep.timeout, killSignal: 'SIGKILL' } : {}) });
     return true;
   } catch {
     return false;
@@ -298,6 +301,7 @@ function dependencySurvey() {
   return {
     pandoc: depPresent(DEP.pandoc), pdflatex: depPresent(DEP.pdflatex),
     makeindex: depPresent(DEP.makeindex), ghostscript: depPresent(DEP.gs),
+    epubcheck: depPresent(DEP.epubcheck),
     yaml: existsSync(dependencyMarker('yaml')),
     pdfjs: existsSync(dependencyMarker('pdfjs-dist'))
   };
@@ -384,6 +388,7 @@ try {
   fail(`Error: ${configPath} could not be read as YAML: ${detail}. Fix the config, then run the command again.`);
 }
 
+const { getChapterFiles } = await import('./validate-book.js');
 const problems = validateConfig(config);
 if (!problems.length && config.index?.terms_file !== undefined) {
   try {
@@ -393,7 +398,11 @@ if (!problems.length && config.index?.terms_file !== undefined) {
 }
 if (!problems.length) {
   const { thumbTabErrors } = await import('./validate-book.js');
-  for (const file of getChapterFiles(config.source._chaptersPath, config.source?.exclude ?? [])) {
+  let chapterFiles = [];
+  try {
+    chapterFiles = getChapterFiles(config.source._chaptersPath, config.source?.exclude ?? []);
+  } catch (error) { problems.push(...error.message.split('\n')); }
+  for (const file of chapterFiles) {
     const path = join(config.source._chaptersPath, file);
     const content = readFileSync(path, 'utf8');
     problems.push(...thumbTabErrors(content, path));
@@ -588,6 +597,7 @@ try {
 
     const built = await buildEpubFile(config, mergedContent, slug, epubTempDir);
     outputs.epub = built.path;
+    outputs.epubcheck = checkEpub(built.path, epubTempDir, log);
   }
 } catch (error) {
   // Keep the temp directories on failure: their LaTeX and pandoc logs are how a
@@ -640,7 +650,7 @@ function loadConfig(path) {
 }
 
 function validateConfig(config) {
-  const errors = [];
+  const errors = epubMetadataErrors(config);
   if (!config.title) errors.push('missing: title');
   if (!config.authors || config.authors.length === 0) errors.push('missing: authors');
   if (!config.trim?.width || !config.trim?.height) errors.push('missing: trim.width and trim.height');
@@ -898,24 +908,6 @@ function guardOutside(target, label) {
 // ============================================================================
 // MERGE
 // ============================================================================
-
-function getChapterFiles(chaptersDir, exclude = []) {
-  // Files excluded from the interior. The legacy generation hardcoded this list
-  // in the engine, naming this book's covers and four duplicate appendices, which
-  // is data about one book living in a tool. It is configuration here:
-  // source.exclude, a list of file names, empty by default. Covers are supplied
-  // to the print platform separately and are not typeset into the interior.
-  const skip = new Set(exclude);
-  return readdirSync(chaptersDir)
-    .filter((f) => f.endsWith('.md'))
-    .filter((f) => !skip.has(f))
-    .sort((a, b) => {
-      const numA = parseInt(a.split('-')[0], 10) || 0;
-      const numB = parseInt(b.split('-')[0], 10) || 0;
-      if (numA !== numB) return numA - numB;
-      return a.localeCompare(b);
-    });
-}
 
 function mergeChapters(config, indexSections) {
   const chaptersDir = config.source._chaptersPath;
@@ -1318,14 +1310,13 @@ async function buildEpubFile(config, mergedContent, slug, tempDir) {
   const epubFile = join(config.output._epubPath, `${slug}.epub`);
 
   const names = authorNames(config);
+  const assets = config.source._assetsPath || join(dirname(config.source._chaptersPath), 'assets');
   const metadata = {
     title: config.title,
-    subtitle: config.subtitle || '',
     author: names,
-    publisher: config.publisher?.name || '',
-    rights: `Copyright ${new Date().getFullYear()} ${names.join(' and ')}`,
+    identifier: epubIdentifier(config),
+    ...optionalEpubMetadata(config),
     lang: config.language || 'en',
-    description: config.description?.short || '',
     subject: config.description?.keywords || [],
     'toc-title': 'Contents'
   };
@@ -1349,8 +1340,10 @@ async function buildEpubFile(config, mergedContent, slug, tempDir) {
     '--epub-title-page=false',
     // The merge rewrites chapter links from ../assets/x to assets/x, so the
     // resource path is the directory those are relative to, which is the parent
-    // of the assets directory, with assets itself listed as well.
-    '--resource-path', [resolve(config.source._assetsPath, '..'), config.source._assetsPath].join(':')
+    // of the assets directory, with assets itself listed as well. Without
+    // source.assets that is the assets/ directory beside the chapters, where the
+    // input contract puts it.
+    '--resource-path', [resolve(assets, '..'), assets].join(':')
   ];
   if (config.covers?._ebookPath && existsSync(config.covers._ebookPath)) {
     pandocArgs.push('--epub-cover-image', config.covers._ebookPath);

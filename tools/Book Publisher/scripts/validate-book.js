@@ -1,5 +1,5 @@
 // Read-only manuscript checks. The entry point checks for yaml before import; no typesetting runtimes.
-import { readFileSync, realpathSync, statSync } from 'node:fs';
+import { readFileSync, realpathSync, statSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse as parseYaml } from 'yaml';
@@ -180,6 +180,28 @@ function standing(projectRoot, errors) {
   return Boolean(section);
 }
 
+// Exclude before checking the one chapter grammar. Retain leading-number then
+// filename order, including the existing letter-suffix ordering of both books.
+export function getChapterFiles(chaptersDir, exclude = []) {
+  const skip = new Set(exclude);
+  const files = readdirSync(chaptersDir).filter((file) => /\.md$/i.test(file) && !skip.has(file));
+  const orders = new Set();
+  const errors = [];
+  const parsed = new Map();
+  for (const file of files.sort((a, b) => a.localeCompare(b))) {
+    const order = /^(\d+)([a-z]*)(?:[-_ ].+)?\.md$/i.exec(file);
+    if (!order) errors.push(`chapter has no leading number: ${file}. Number chapter filenames to define their order.`);
+    else {
+      const key = `${Number(order[1])}${order[2].toLowerCase()}`;
+      if (orders.has(key)) errors.push(`ambiguous chapter order ${key}: ${file}. Give each chapter a distinct leading number/suffix.`);
+      orders.add(key);
+      parsed.set(file, Number(order[1]));
+    }
+  }
+  if (errors.length) throw new Error(errors.join('\n'));
+  return files.sort((a, b) => parsed.get(a) - parsed.get(b) || a.localeCompare(b));
+}
+
 export function validateBook(config, files) {
   const errors = [];
   const strategy = indexStrategy(config);
@@ -189,18 +211,10 @@ export function validateBook(config, files) {
   const projectRoot = dirname(chaptersDir);
   const standingFound = standing(projectRoot, errors);
   if (!files.length) errors.push(`no markdown chapter files found in ${chaptersDir}. Add a numbered .md chapter.`);
-  const orders = new Set();
   const chapters = [];
   const chapterPaths = [];
   const ranges = new Map();
   for (const file of files) {
-    const order = /^(\d+)([a-z]*)(?:[-_ ].+)?\.md$/i.exec(file);
-    if (!order) errors.push(`chapter has no leading number: ${file}. Number chapter filenames to define their order.`);
-    else {
-      const key = `${Number(order[1])}${order[2].toLowerCase()}`;
-      if (orders.has(key)) errors.push(`ambiguous chapter order ${key}: ${file}. Give each chapter a distinct leading number/suffix.`);
-      orders.add(key);
-    }
     const path = join(chaptersDir, file);
     let text;
     try {

@@ -1,6 +1,7 @@
 // EPUB-only preparation, ported from the book's proved publishing workflow.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { deflateRawSync, inflateRawSync } from 'node:zlib';
+import { publicationMetadata, ncxIdentifier } from './epub-metadata.js';
 
 // End offset of the copyright block that starts on the line holding `from`, as Pandoc's
 // markdown reader reads the text. The block is the copyright page: it ends before the next
@@ -252,6 +253,7 @@ export function postProcessEpub(epubPath, config) {
         .replace(/<h1 id="toc-title">Contents<\/h1>/, '');
     }],
     ['EPUB/toc.ncx', (text, wrapped) => {
+      text = ncxIdentifier(text, config);
       const wrapper = new RegExp(`<navPoint[^>]*>\\s*<navLabel>\\s*<text>${title}</text>\\s*</navLabel>\\s*<content[^>]*>`);
       const match = wrapped ? wrapper.exec(text) : null;
       const map = /<navMap>\s*/.exec(text);
@@ -273,7 +275,7 @@ export function postProcessEpub(epubPath, config) {
       return text.replace(/<figcaption[^>]*>What You Get<\/figcaption>\n?/, '');
     }],
     ['EPUB/styles/stylesheet1.css', (text) => text.replace(/#TOC/g, '#toc')],
-    ['EPUB/content.opf', (text) => text.replace(
+    ['EPUB/content.opf', (text) => publicationMetadata(text, config).replace(
       /(<itemref idref="nav" \/>)\s*(<itemref idref="ch001_xhtml" \/>)/,
       '$2\n    $1')]
   ]);
