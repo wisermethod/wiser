@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.04.3, November 4, 2026
+
+- Screen Capture hides only what you asked to hide when the skill using it holds your blur rules, such as Production Studio's: it no longer asks for every email address and name you go by, and a screenshot or recording with nothing to hide can be used as taken once it has been checked for passwords. Email addresses on screen are still hidden whenever it blurs anything. (688d2232)
+
 ## v2026.11.04.2, November 4, 2026
 
 - Building a brand now asks its quick questions as plain taps in the chat, a few to a screen: what to keep, the sentence and words for your brand, the nine taste questions in three screens, and the tweaks after Show me more. Only the pages of looks and boards still open as a card. Before, every question opened as a form. (b4322668, e98ce0cf)
