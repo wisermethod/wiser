@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types
-version: 0.47.0
+version: 0.48.0
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
 ---
@@ -72,13 +72,48 @@ Five rules bind it. The full set of standing rules in `full-path.md` binds the f
 
 Where `skills/Set Up Wiser/` handed over the folder and the name, take both: the folder is the established destination, copied into as below, and nothing is asked. Under the named ask **onboard project**, where the destination established below is the one open empty folder, that folder's name is the first name the person gave `skills/Set Up Wiser/`, spelled as they gave it: it is their name too, and nothing is asked. Otherwise, where the name is not given, ask: "What should I call you? Spell it the way you like it." Where the destination is not given, first say: "I keep everything I write for you in one folder on your computer, so it's always yours and you can open it any time."
 
-Copy `system/templates/User Root Template/` whole, hidden files included, to the established empty destination, never inside this plugin. Which destination is established? Where the person named one, it is that one, under the person's real name, spelled as they give it, beside the workspace's other user roots. Where they named none and the only folder this session has open is one the Destination discriminator above classes `empty`, that sits inside neither this plugin nor another root, and whose name passes the Names rules in `standards/conventions.md`, that folder is the established destination, without asking: the person opened it and asked to be set up, and the copy is new, so a wrong guess costs a move. It is the root itself, under its own name: copy into it, and make no folder for the person's name inside it. Where no folder is open, more than one is, or the one open fails those tests, ask: "Where should I keep it? Name a place on your computer, like your Desktop or Documents, and I'll make a folder there called <your name>." Set `type: personal` in the copy's `AGENTS.md`. Copy the template's `prompts/personal/about.md` and `design.md` over the copied `memory/about.md` and `memory/design.md`; then remove the copied `prompts/` directory, which is copy-time input only. Replace `[name]` throughout the remaining copy: in `AGENTS.md` with the root's folder name, and in the memory files with the person's name, spelled as they give it. The frontmatter `root:` matches the folder name. The directory tree projects `standards/user-root.md`; only phases that run produce records. Confirm with one command that no `[name]` survives:
+Use the established empty destination, never inside this plugin. Which destination is established? Where the person named one, it is that one, under the person's real name, spelled as they give it, beside the workspace's other user roots. Where they named none and the only folder this session has open is one the Destination discriminator above classes `empty`, that sits inside neither this plugin nor another root, and whose name passes the Names rules in `standards/conventions.md`, that folder is the established destination, without asking: the person opened it and asked to be set up, and the copy is new, so a wrong guess costs a move. It is the root itself, under its own name: copy into it, and make no folder for the person's name inside it. Where no folder is open, more than one is, or the one open fails those tests, ask: "Where should I keep it? Name a place on your computer, like your Desktop or Documents, and I'll make a folder there called <your name>."
+
+Make the copy in at most two tries, and say nothing to the person about either. First, run the download below in the commands that write the destination. It fetches the personal starter files from the Wiser service onto the computer those commands run on, which is fast even where they cannot read this plugin, as in Cowork when they run on the person's computer and the plugin is elsewhere. It writes only into the destination, which must already exist: where it does not, make that one folder first with `mkdir`, never `mkdir -p`. Where the commands cannot reach the destination at all, copy nothing until the person has allowed this session to reach it.
+
+Write the destination as its full path, with `~` and any variable already expanded, since nothing inside single quotes is. Quote the destination and each name in single quotes, writing every `'` as `'\''`. Run the commands as fixed text, filling in only those quoted values:
+
+```sh
+( t=''; [ -d '<destination>' ] && t=$(mktemp) && curl -fsSL --connect-timeout 10 --max-time 30 -o "$t" 'https://account.wisermemory.com/starter/personal-7fc080a31fd4d17c.tar.gz' && tar -tzf "$t" >/dev/null && tar -xmzf "$t" -C '<destination>'; s=$?; [ -z "$t" ] || rm -f "$t"; exit "$s" )
+```
+
+Did it succeed? Yes: the personal starter set is in place. No, and those commands cannot reach the destination: copy nothing, as above. No, for any other reason: copy `system/templates/User Root Template/` whole, hidden files included, into the destination. Set `type: personal` in the copy's `AGENTS.md`. Copy the template's `prompts/personal/about.md` and `design.md` over the copied `memory/about.md` and `memory/design.md`; then remove the copied `prompts/` directory, which is copy-time input only. Where this session's commands cannot read this plugin, write those same files to the destination by whatever means they allow. The copy writes over any of these files a failed download left, so delete nothing first.
+
+After the copy, by either try, run this fill once. It writes the root's folder name for `[name]` in `AGENTS.md`, and the person's name, spelled as they give it, in `memory/about.md`, `memory/design.md` and `memory/voice.md`, leaving every other byte, trailing newlines included, as it was:
+
+```sh
+(
+  cd '<destination>' || exit 1
+  folder='<folder name>'
+  person='<person name>'
+  token='[name]'
+  for file in AGENTS.md memory/about.md memory/design.md memory/voice.md; do
+    text=$(cat "$file" && printf '.') || exit 1
+    text=${text%.}
+    case "$file" in AGENTS.md) name=$folder ;; *) name=$person ;; esac
+    {
+      while [ "${text#*"$token"}" != "$text" ]; do
+        printf '%s%s' "${text%%"$token"*}" "$name"
+        text=${text#*"$token"}
+      done
+      printf '%s' "$text"
+    } > "$file" || exit 1
+  done
+)
+```
+
+The fill reads all four files, so it fails where the copy is incomplete: make the copy again by the second try, then run the fill again. The frontmatter `root:` matches the folder name. The directory tree projects `standards/user-root.md`; only phases that run produce records. Confirm with one command that no `[name]` survives:
 
 ```
 grep -rn '\[name\]' "<the root>"
 ```
 
-Where that command prints nothing, continue. Where it prints one or more hits, replace those remaining `[name]` tokens as above, the root's folder name in `AGENTS.md` and the person's name in the memory files, and run the command again. Do not start Step 2 while any remain.
+Where that command prints nothing, continue. Where every hit is inside a name the fill wrote, because the name itself holds `[name]`, continue too, and never run the fill again on those files. Where it prints any other hit, replace those remaining `[name]` tokens by hand, the root's folder name in `AGENTS.md` and the person's name in the memory files, and run the command again. Do not start Step 2 while any such hit remains.
 
 Then confirm this session loads the new root; a root on disk that no session loads is not onboarded. A root that is a folder this session already has open is loaded: the folder a person attached in Claude Cowork, picked in ChatGPT for desktop's Work mode, or added to the project this chat runs in in the ChatGPT desktop app, the folder an editor has open, or the working directory of a command-line session. Say nothing to the person about adding it anywhere, because there is nothing to add. Where `skills/Set Up Wiser/` handed it over, say nothing about opening it either: that skill's next step makes the project that loads it. Where the root is not one of those folders and the host keeps a workspace file this session can edit, add the root there. Otherwise hand the person that one step: "One step for you: each time you work with me, open your <name> folder in <app>, so I can find your work." Never describe it as adding the folder to Wiser, which keeps no workspace of its own.
 
@@ -177,7 +212,7 @@ It is a check, not a step. A personal root that never runs it is onboarded; one 
 ## Success
 
 - The root exists at its real name beside the workspace's other roots, or, on the personal path, is the folder this session already had open, empty until then, under that folder's name, and this session loads it, or the person holds the single step that will.
-- No `[name]` and no prompt line survives in the root, except a stopped sitting's provisional `design.md`, which is not hand-edited to satisfy a gate: record the failure and leave resume to Build Brand.
+- No `[name]` and no prompt line survives in the root, except inside a name the person spelled with `[name]` in it, and a stopped sitting's provisional `design.md`, which is not hand-edited to satisfy a gate: record the failure and leave resume to Build Brand.
 - Every claim in a memory file names the person who said it or the file that says it, or carries one of the four labels in place.
 - The read-back pass ran after the files were written, and what it could not find is labeled and asked, not bound.
 - `memory/voice.md` was written by Build Voice, except `## From your brand`, which Build Brand writes at a lock under condition 6, each line citing design answers, or its headings carry the label that says why not and the key closed provisional.
