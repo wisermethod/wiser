@@ -125,6 +125,61 @@ CONTRACT_EDITS['Selection from answers'].push([
   '| `words` | Required array of `{word, not}` objects, both non-empty single lines; an empty array omits the panel |',
   '| `words` | Required non-empty array of `{word, not}` objects, both non-empty single lines; empty words are refused before selection |'
 ]);
+// 2026-11-04, M6: taste description and three taps mapped to four steer axes.
+CONTRACT_EDITS["Locking a board"].push(...[
+  [
+    "`off` is the selection script's read-back corrections:",
+    "`off` is the selection script's taste-description corrections:"
+  ],
+  [
+    "Lock-only `readBack.text` is the confirmed read-back statement alone, one line, without the question or its options;",
+    "Lock-only `readBack.text` is the taste description as shown alone, one line, without the question or its options;"
+  ],
+  [
+    "\"readBack\": {\"text\": \"Natural and strong, like Patagonia.\", \"confirmed\": true}",
+    "\"readBack\": {\"text\": \"Here's what I'm picturing: warm, inviting colours with a cheerful lift, and graceful lettering with a playful touch. Established enough to trust, fresh enough to feel current, with the cheer of KitchenAid and the warmth of Patagonia.\", \"confirmed\": true}"
+  ],
+  [
+    "\"mode\": \"light\", \"feel\": \"natural\", \"history\": \"established-current\",\n    \"strength\": \"strong-solid\", \"technology\": \"craftsman\", \"style\": \"patagonia\",",
+    "\"mode\": \"light\", \"feel\": \"playful-creative\", \"history\": \"established-current\",\n    \"strength\": \"soft-graceful\", \"technology\": \"kitchenaid\", \"style\": \"patagonia\","
+  ],
+  [
+    "\"steer\": \"Warmer; as it is; stronger; more current\"",
+    "\"steer\": \"Warmer; Bolder; More current; Nothing to add\""
+  ],
+  [
+    "`readBack` requires that confirmed one-line statement as verbatim `text` and `confirmed: true`.",
+    "`readBack` requires the one-line taste description as shown as verbatim `text` and `confirmed: true`, recording either That's it or the member's explicit off-parts correction, never an unanswered screen. Keep the description unchanged with its corrections in `off`; ask no description again."
+  ],
+  [
+    "read-back J3a;",
+    "taste description J3a;"
+  ]
+]);
+CONTRACT_EDITS["Opening taps as data"].push(...[
+  [
+    "the four this-or-that taps and an optional \"What's missing from these?\" comment",
+    "the three this-or-that taps and fourth \"What's missing from these?\" question on the question tool, with Nothing to add as its only option and the tool's typed answer taking a comment"
+  ]
+]);
+CONTRACT_EDITS["Selection from answers"].push(...[
+  [
+    "The four steer values add three ticks toward their chosen pole to the taps' scores.",
+    "The session maps three taps to the four existing steer values: Warmer sets `warmCool: -1`, Cooler `warmCool: +1`; Quieter sets `quietBold: -1` and `softStrong: -1`, Bolder sets `quietBold: +1` and `softStrong: +1`; More classic sets `classicContemporary: -1`, More current `classicContemporary: +1`. As it is, or unanswered, leaves both alone for quiet/soft and the corresponding axis alone for the other taps. For example, Bolder gives `\"steer\": {\"quietBold\": 1, \"softStrong\": 1}`; Quieter gives `\"steer\": {\"quietBold\": -1, \"softStrong\": -1}`. The selector's four-axis contract stays unchanged. The four steer values add three ticks toward their chosen pole to the taps' scores."
+  ],
+  [
+    "After the four this-or-that taps, offer the optional comment box, “Anything you'd change about the ones you picked?”, or “What's missing from these?” with nothing picked.",
+    "On the same question-tool screen as the three this-or-that taps, the fourth question is “Anything you'd change about the ones you picked?”, or “What's missing from these?” with nothing picked, with one option, “Nothing to add”. The tool's typed answer takes the comment. Where the tool needs two options or more, the three taps go together and the comment follows as a plain message in the same words; no or nothing is recorded as no comment."
+  ],
+  [
+    "for a named wrong read-back part;",
+    "for a named wrong taste contribution;"
+  ],
+  [
+    "Thus a read-back word can be removed",
+    "Thus a taste contribution can be removed"
+  ]
+]);
 function edited(text, heading) {
   for (const [from, to] of CONTRACT_EDITS[heading] ?? []) { assert.equal(text.split(from).length, 2, `contract edit not found once in the archive: ${heading}`); text = text.replace(from, to); }
   return text;

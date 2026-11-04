@@ -4,7 +4,7 @@ Read by section. Member copy below is fixed: preserve every word, option order, 
 
 ## Answer numbers
 
-B0 records a path choice only where one is actually needed; the sitting and the brand-folder entry do not ask it. R0 is the original ask; R1 onward are unasked comments, kept verbatim. For the sitting: J1 what to keep; J1a folder; O1 audience, O2 promise, O3 final say; J2a thin-record sentence, J2b drafted sentence and pairs, J2c each redraft with its pass; T1 to T9 the nine taste taps, with no T9 row where the place is carried from a voice answers file's P12; J3a read-back, J3b off parts, J3c pull; L1 onward each page of whole looks and action; L<n>-S1 to S5 its steer and comment where none works; C1 onward each boards page, picks and action, C<n>-S1 to S5 its steer and comment; K1 the lock; K2 the optional voice note; K3 any checked wording correction. Keep earlier answers on correction. Each page and each pick have their own numbered row within their round; save their unchanged full records with the work for selection and resume. Feed citations identify the question, page and pick, never just the current screen.
+B0 records a path choice only where one is actually needed; the sitting and the brand-folder entry do not ask it. R0 is the original ask; R1 onward are unasked comments, kept verbatim. For the sitting: J1 what to keep; J1a folder; O1 audience, O2 promise, O3 final say; J2a thin-record sentence, J2b drafted sentence and pairs, J2c each redraft with its pass; T1 to T9 the nine taste taps, with no T9 row where the place is carried from a voice answers file's P12; J3a taste description as shown, J3b off parts, J3c pull; L1 onward each page of whole looks and action; L<n>-S1 to S4 its steer and comment where none works; C1 onward each boards page, picks and action, C<n>-S1 to S4 its steer and comment; K1 the lock; K2 the optional voice note; K3 any checked wording correction. Within each S1 to S4 set, S1 is warmth, S2 quiet/bold with soft/strong, S3 classic/current and S4 the comment. Rows already written under bank 0.3.0 keep their numbers. Keep earlier answers on correction. Each page and each pick have their own numbered row within their round; save their unchanged full records with the work for selection and resume. Feed citations identify the question, page and pick, never just the current screen.
 
 ## Opening
 
@@ -56,7 +56,7 @@ Keep the same two options. Logo replaces initials everywhere; supplied values ho
 
 Progress: "Step 2 of 7: who it's for". Why: "So the boards speak to the right people."
 
-First card, one question at a time, drafts from the organisation's about:
+Two screens on the question tool: audience and promise together, each draft inside its own question, then the final say on its own screen with its own why. Drafts come from the organisation's about:
 
 > [org] serves: [drafted audience, one line]. Is that right?
 
@@ -70,9 +70,9 @@ First card, one question at a time, drafts from the organisation's about:
 - Close: nearly, show me a small change
 - Not quite: show me a different take
 
-Close or Not quite: "Which is closer?", two redrafts, and "Neither: I'll say it in a sentence" last. On Neither, the audience card asks "In a sentence, who does [org] serve?" and the promise card "In a sentence, what does [org] promise them?". Feeds Foundation and the brief.
+Close or Not quite: "Which is closer?", two redrafts, and "Neither: I'll say it in a sentence" last. On Neither, the audience screen asks "In a sentence, who does [org] serve?" and the promise screen "In a sentence, what does [org] promise them?". Feeds Foundation and the brief.
 
-Second card's own why: "So I know who should see it."
+Final-say screen's own why: "So I know who should see it."
 
 > Who has the final say on [org]'s look?
 
@@ -82,7 +82,7 @@ Second card's own why: "So I know who should see it."
 
 The person setting it up locks it whatever the answer. Others to see it or decide makes the share page the first offer after the lock.
 
-Where the organisation's record is too thin to draft its audience and promise, its thin-record sentence below is asked before the first card, as one plain typed message with this step's progress and why, and both drafts are made from the answer. It is the one typed sentence; Step 2: What your brand says does not ask it again.
+Where the organisation's record is too thin to draft its audience and promise, its thin-record sentence below is asked before the first screen, as one plain typed message with this step's progress and why, and both drafts are made from the answer. It is the one typed sentence; Step 2: What your brand says does not ask it again.
 
 ## Organisation: Progress and substitutions
 
@@ -96,7 +96,7 @@ The organisation, client or department uses these complete lines:
 - Step 6 of 7: blend and tune
 - Step 7 of 7: locked
 
-The step 1 and opening variants are above. For the thin record: "In a sentence, what does [org] do?" For the sentence screen: "When someone asks what [org] does, you could say:" and "Is that [org]?" For the own-words line: "In your own words, then: in a sentence, what does [org] do?" For places: "Where would [org]'s clients feel most at home?" Paged counts follow the same pattern, with the step one higher, of 7.
+The step 1 and opening variants are above. For the thin record: "In a sentence, what does [org] do?" For the sentence screen: "When someone asks what [org] does, you could say:" and "Is that [org]?" For the own-words line: "In your own words, then: in a sentence, what does [org] do?" For places: "Where would [org]'s clients feel most at home?"
 
 ## Step 2: What your brand says
 
@@ -106,7 +106,7 @@ Only when the answered record is too thin to draft, and not already answered at 
 
 > In a sentence, what do you do? For example: "I help small bakeries sell online."
 
-Then the form question, the sentence largest, three to five pairs, the count filled:
+Then the question tool asks with the sentence and pairs inside the question, in full, as `skills/Build Voice/paths/coach.md` How you ask requires for anything judged. The sentence is largest, three to five pairs, the count filled:
 
 > When someone asks what you do, you could say:
 >
@@ -158,7 +158,7 @@ Typing is offered, never needed. The sentence and pairs fill Words; boundaries f
 
 Progress on every screen: "Step 3 of 6: how it should look". First screen's why only: "Quick taps about taste you already have. There are no wrong answers."
 
-Paged progress example: "Step 3 of 6: how it should look · 4 of 9". The form engine appends the current count to the base progress, with Back preserving answers. Use ids and nudges from `parts/taps.json`; no nudges are shown. The question and options below are the opening taps the journey incorporates. Not sure, Either, Balanced and None of these add nothing. T2 and T9 show four options, with no Not sure or None of these (the operator's limit of 2026-11-02); left unanswered, each still counts as no preference. On the question tool, T5 to T8 show their four brands only, None of these left to the tool's own typed answer. Preserve their recorded option order.
+Three screens on the question tool: T1 to T4, then T5 to T8, then T9; where the place is carried, the third screen is not asked. No question count is shown. Use ids and nudges from `parts/taps.json`; no nudges are shown. The question and options below are the opening taps the journey incorporates. Not sure, Either, Balanced and None of these add nothing. T2 and T9 show four options, with no Not sure or None of these (the operator's limit of 2026-11-02); left unanswered, each still counts as no preference. On the question tool, T5 to T8 show their four brands only, None of these left to the tool's own typed answer. Preserve their recorded option order.
 
 ### T1
 
@@ -197,67 +197,47 @@ Paged progress example: "Step 3 of 6: how it should look · 4 of 9". The form en
 
 ### T5
 
-Paged card:
+Chat buttons and the question tool:
 
-> Choose the one brand that most reflects the direction you're going for.
+> Choose the one brand that most reflects the direction you're going for (1 of 4).
 
 - Apple
 - Bose
 - KitchenAid
 - Craftsman
-- None of these
-
-Chat buttons and the question tool:
-
-> Choose the one brand that most reflects the direction you're going for (1 of 4).
 
 ### T6
-
-Paged card:
-
-> Choose the one brand that most reflects the direction you're going for.
-
-- Patagonia
-- Lululemon
-- J Crew
-- Brooks Brothers
-- None of these
 
 Chat buttons and the question tool:
 
 > Choose the one brand that most reflects the direction you're going for (2 of 4).
 
+- Patagonia
+- Lululemon
+- J Crew
+- Brooks Brothers
+
 ### T7
-
-Paged card:
-
-> Choose the one brand that most reflects the direction you're going for.
-
-- Tesla
-- Porsche
-- Ford
-- Toyota
-- None of these
 
 Chat buttons and the question tool:
 
 > Choose the one brand that most reflects the direction you're going for (3 of 4).
 
+- Tesla
+- Porsche
+- Ford
+- Toyota
+
 ### T8
 
-Paged card:
+Chat buttons and the question tool:
 
-> Choose the one brand that most reflects the direction you're going for.
+> Choose the one brand that most reflects the direction you're going for (4 of 4).
 
 - Restoration Hardware
 - Anthropologie
 - Ikea
 - 2Modern
-- None of these
-
-Chat buttons and the question tool:
-
-> Choose the one brand that most reflects the direction you're going for (4 of 4).
 
 ### T9
 
@@ -268,20 +248,20 @@ Chat buttons and the question tool:
 - A coffee shop
 - A design workshop
 
-Not asked where the place is carried from the newest voice answers file's P12, as `paths/sitting.md` Step 3 says, in the card or any fallback; the card then counts to 8, and the paged progress example above is the nine-question card's.
+Not asked where the place is carried from the newest voice answers file's P12, as `paths/sitting.md` Step 3 says, on the question tool or in the lettered fallback; only the first two screens are asked.
 
 ## Step 3: Reveal and pull
 
-Read-back, using actual picked option words, at most one everyday pole word supported by at least two taps and at most two picked brands:
+The taste description. One screen. Two sentences in everyday words, written fresh from their taps and a carried place: how the colours feel, what the lettering is like, and the overall impression, naming at most two of their brand picks for what each shares with the look. No colour or font names, no word from Words never said, nothing their taps do not support. It opens "Here's what I'm picturing:". An example, for taps of playful and creative, established but current, soft and graceful, warm, KitchenAid and Patagonia; write each member's own, never this one:
 
-> Here's what I heard: you're drawn to [natural], [established but current] and [warm], like [Patagonia] and [Toyota].
+> Here's what I'm picturing: warm, inviting colours with a cheerful lift, and graceful lettering with a playful touch. Established enough to trust, fresh enough to feel current, with the cheer of KitchenAid and the warmth of Patagonia.
 >
 > Is that you?
 
 - That's it
 - Not quite
 
-Not quite brings "Which part is off?", with the line's parts as a pick-any list. Drop marked parts from the boards' contributions; no second read-back. At most one real pull against answered about Personality or voice How They Write follows on its own screen:
+Not quite brings one question, "Which part is off?", with their tapped option words and brand picks as a pick-any list; every part they mark off is dropped from the boards' steer before the boards are made, and no description is given again. A carried place is not listed, since the member gave it to the voice coach. At most one real pull against answered about Personality or voice How They Write follows on its own screen:
 
 > Your writing reads [playful], and you picked [Suit and tie]. Which should the look lead with?
 
@@ -305,7 +285,7 @@ Twelve tiles from `select.mjs looks`, its options unchanged, four on a plain gro
 
 `pick: 3`, `min: 2`: one picked is allowed by its own action. Any number may be ticked. Above three the Use these button stays grey with "You picked [n] looks. Pick up to three to go on." Other unmet actions hide.
 
-None of these work uses Steering a round below with "What's missing from these?", progress example "Step 3 of 6: how it should look · 2 of 5", then twelve unshown looks with the same buttons. Append every shown look unchanged to history. No wrong-look question.
+None of these work uses Steering a round below with "What's missing from these?", on one screen of the question tool under step 3's progress line, then twelve unshown looks with the same buttons. Append every shown look unchanged to history. No wrong-look question.
 
 When no new page of twelve can be made from looks not yet shown, the last page of looks comes back, not appended to history again, on the same card with the same buttons, after one message:
 
@@ -372,7 +352,7 @@ With nothing picked and no new page possible from boards not yet shown, the last
 
 ## Steering a round
 
-One five-page card after Show me more; progress example "Step 5 of 6: blend and tune · 2 of 5". The looks retry uses step 3's progress instead.
+Three this-or-that taps and a fourth question on the same screen of the question tool after Show me more. The looks retry uses step 3's progress instead. A tap left unanswered counts as no preference and is not asked again.
 
 > Warmer or cooler?
 
@@ -386,12 +366,6 @@ One five-page card after Show me more; progress example "Step 5 of 6: blend and 
 - As it is
 - Bolder
 
-> Softer or stronger?
-
-- Softer
-- As it is
-- Stronger
-
 > More classic or more current?
 
 - More classic
@@ -400,11 +374,13 @@ One five-page card after Show me more; progress example "Step 5 of 6: blend and 
 
 > Anything you'd change about the ones you picked?
 
-An empty box, optional; sending with it empty is allowed. With nothing picked:
+- Nothing to add
+
+The tool's own typed answer takes the comment. Nothing to add or an unanswered question records no comment. With nothing picked:
 
 > What's missing from these?
 
-Keep raw comments in the answers record; the session reads them into steer/off for selection.
+Where the app's question tool needs two options or more, the three taps go on one screen and this question follows as a plain message in the same words, a reply of no or nothing recorded as no comment. Keep raw comments in the answers record; the session reads them into steer/off for selection.
 
 ## Leaving early
 

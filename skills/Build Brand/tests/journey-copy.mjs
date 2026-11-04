@@ -62,10 +62,10 @@ export function compareJourneyCopy(source, bank, openingTaps) {
   screen('Words: picture rule caption', [capture(bankWords, /picture rule, "(.*?)",/)], [capture(words, /board states \("(.*?)"\)/)]);
 
   const taste = j('Step 3 (4 for an organisation): How it should look');
-  const reveal = between(taste, '**The read-back,', '**Whole looks,');
-  quotedScreen('Taste read-back and pull', b('Step 3: Reveal and pull'), reveal);
-  eq(options(b('Step 3: Reveal and pull')), options(reveal), 'Taste read-back and pull: options');
-  screen('Read-back correction', [capture(b('Step 3: Reveal and pull'), /brings "(.*?)",/)], [capture(reveal, /one question, "(.*?)",/)]);
+  const reveal = between(taste, '**The taste description**', '**Whole looks,');
+  quotedScreen('Taste description and pull', b('Step 3: Reveal and pull'), reveal);
+  eq(options(b('Step 3: Reveal and pull')), options(reveal), 'Taste description and pull: options');
+  screen('Taste correction', [capture(b('Step 3: Reveal and pull'), /brings one question, "(.*?)",/)], [capture(reveal, /one question, "(.*?)",/)]);
 
   const looks = between(taste, '**Whole looks,', '**Making the boards.**'), bankLooks = b('Step 3: Whole looks');
   quotedScreen('Whole looks', bankLooks, looks);
@@ -73,7 +73,7 @@ export function compareJourneyCopy(source, bank, openingTaps) {
   assert.equal(lookActions.length, 3, 'all whole-look actions extracted');
   const actualLookActions = bankLooks.split('\n').filter(line => /^\| (None|One|Two or three) \|/.test(line)).map(line => line.split('|').slice(2, 4).map(v => v.trim()));
   eq(actualLookActions, lookActions, 'Whole looks: action labels and captions');
-  screen('Whole looks: overflow and retry', [capture(bankLooks, /grey with "(.*?)"/), capture(bankLooks, /below with "(.*?)",/), capture(bankLooks, /progress example "(.*?)"/)], [capture(looks, /line reads "(.*?)"/), capture(looks, /box asking "(.*?)",/), capture(looks, /paged card \("(.*?)"\)/)]);
+  screen('Whole looks: overflow and retry', [capture(bankLooks, /grey with "(.*?)"/), capture(bankLooks, /below with "(.*?)",/)], [capture(looks, /line reads "(.*?)"/), capture(looks, /comment reading "(.*?)"/)]);
 
   const making = between(taste, '**Making the boards.**');
   quotedScreen('Making the boards', b('Making the boards'), making, [capture(making, /instead reads "(.*?)"/)]);
@@ -91,7 +91,6 @@ export function compareJourneyCopy(source, bank, openingTaps) {
   const steer = between(blend, '**Steering the round.**', '**The rounds.**');
   quotedScreen('Steer', b('Steering a round'), steer, [capture(steer, /question reads "(.*?)"/)]);
   eq(options(b('Steering a round')), options(steer).filter(line => !line.startsWith('A box,')), 'Steer: options in order');
-  screen('Steer: paged count', [capture(b('Steering a round'), /progress example "(.*?)"/)], [capture(steer, /paged card \("(.*?)"\)/)]);
   quotedScreen('Blend page', b('Step 5: Blend and tune'), between(blend, '**The rounds.**', '**Leaving early.**'));
   quotedScreen('Leaving early, including inner ask quotes', b('Leaving early'), between(blend, '**Leaving early.**'));
 
@@ -114,7 +113,6 @@ export function compareJourneyCopy(source, bank, openingTaps) {
     if (sourceText.includes('**Why')) screen(`${name}: why`, [capture(bankText, /(?:Why[^\n]*?|why only): "(.*?)"/)], [capture(sourceText, /\*\*Why[^\n]*?"(.*?)"/)]);
   }
   screen('Organisation final-say why', [capture(bankOrg, /own why: "(.*?)"/)], [capture(org, /own why line "(.*?)"/)]);
-  screen('Taste paged count', [capture(b('Step 3: Nine taps'), /Paged progress example: "(.*?)"/)], [capture(taste, /question too, "(.*?)"/)]);
   for (const [heading, progress] of [['Brand files', 'Step 1 of 3: your brand files'], ['Anything missing', 'Step 2 of 3'], ['B8. Check it', 'Step 3 of 3: check it']]) {
     const bankStep = between(bankBrief, `### ${heading}\n`, '\n### ');
     const actual = capture(bankStep, /Progress: "(.*?)"/);
@@ -143,13 +141,11 @@ export function compareJourneyCopy(source, bank, openingTaps) {
   for (const row of rows) {
     const number = Number(row[1]), brands = number >= 5 && number <= 8;
     const tap = between(bank, `### T${number}\n`, '\n##');
-    const expectedQuestion = brands ? question : row[2];
+    const expectedQuestion = brands ? question.replace(/\.$/, ` (${number - 4} of 4).`) : row[2];
     const expectedOptions = (brands ? row[2] : row[3]).split(' · ');
-    if (brands) expectedOptions.push('None of these');
     if (number === 2) expectedOptions[0] += ': ' + capture(taste, /Under "Engineered".*?: "(.*?)"/);
     const expectedLines = [expectedQuestion];
-    if (brands) expectedLines.push(expectedQuestion.replace(/\.$/, ` (${number - 4} of 4).`));
-    bankScreen(`T${number}: paged and chat question`, blocks(tap), expectedLines);
+    bankScreen(`T${number}: question-tool question`, blocks(tap), expectedLines);
     eq(options(tap), expectedOptions, `T${number}: options in order`);
     checked.push(...expectedOptions);
   }

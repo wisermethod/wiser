@@ -160,8 +160,8 @@ test('Assembly documents the rule gate used by both quick paths', () => {
 test('records make every brief path B1 to B7 file-settled answer the explicit exception', () => {
   assert.match(read('records.md'), /B1 to B7[^.]*rows[^.]*answers they settle/);
 });
-test('lock instructions specify the confirmed one-line statement without the question or options', () => {
-  for (const path of ['lock.md','parts/parts.md']) assert.match(read(path), /`readBack.text`[^.]*confirmed read-back statement alone[^.]*one line[^.]*without the question or its options/);
+test('lock instructions specify the one-line taste description without the question or options', () => {
+  for (const path of ['lock.md','parts/parts.md']) assert.match(read(path), /`readBack.text`[^.]*taste description as shown alone[^.]*one line[^.]*without the question or its options/);
 });
 
 test('an unseen variations page plainly reports when rebuilding cannot fill the page', () => {

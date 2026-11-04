@@ -227,6 +227,8 @@ Exit: G13, G13b, G14.
 
 For `type: industry`, offer two taps instead, in these words: **Record my look · about 2 minutes** and **Not now**. Follow `system/templates/User Root Template/prompts/industry/design.md`: record supplied field conventions and never invent a unified brand for the field. Its Record my look handoff records only that supplied material; it offers no brand boards or full brand build.
 
+Ask these Build Brand entry taps on the app's question tool, following `skills/Build Voice/paths/coach.md` How you ask; where it has none, ask one question per message with lettered options. Do not send these taps through a form.
+
 What did they choose?
 
 - **Let's do this later**: where the requester has already handed a guide or file, record it as the sources below say; replace every prompt line that remains with `[Not available: design was put off]`, and continue. Phase 9 scores design provisional, its owner as below, waiting on "build my brand".
