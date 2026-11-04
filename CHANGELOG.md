@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.04.4, November 4, 2026
+
+- Turning a page into a picture, exporting slides to a PDF and Browser Control now use a browser that is already installed on the machine when the version they were built for is missing, instead of downloading their own. Claude Cowork comes with a browser but blocks that download by default, so these tools stopped there with a download error before. Where no usable browser is found, they still download theirs, once you agree. (6dfb8f25)
+
 ## v2026.11.04.3, November 4, 2026
 
 - Screen Capture hides only what you asked to hide when the skill using it holds your blur rules, such as Production Studio's: it no longer asks for every email address and name you go by, and a screenshot or recording with nothing to hide can be used as taken once it has been checked for passwords. Email addresses on screen are still hidden whenever it blurs anything. (688d2232)
