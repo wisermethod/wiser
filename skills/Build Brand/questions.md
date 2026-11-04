@@ -1,10 +1,10 @@
 # Build Brand's question bank
 
-Read by section. Member copy below is fixed: preserve every word, option order, progress and why line, filling brackets only from the member's material, with the industry Record my look exception in `paths/brief.md` for the Brand files progress line. Section headings, answer numbers, feeds and instructions are never shown. `SKILL.md` supplies the bank version, `Build Brand 0.3.0`; `records.md` supplies the C14 record. Retained brief-path sections at the end still govern that path alone.
+Read by section. Member copy below is fixed: preserve every word, option order, progress and why line, filling brackets only from the member's material, with the industry Record my look exception in `paths/brief.md` for the Brand files progress line. Section headings, answer numbers, feeds and instructions are never shown. `SKILL.md` supplies the bank version, `Build Brand 0.4.0`; `records.md` supplies the C14 record. Retained brief-path sections at the end still govern that path alone.
 
 ## Answer numbers
 
-B0 records a path choice only where one is actually needed; the sitting and the brand-folder entry do not ask it. R0 is the original ask; R1 onward are unasked comments, kept verbatim. For the sitting: J1 what to keep; J1a folder; O1 audience, O2 promise, O3 final say; J2a thin-record sentence, J2b drafted sentence and pairs, J2c each redraft with its pass; T1 to T9 the nine taste taps, with no T9 row where the place is carried from a voice answers file's P12; J3a taste description as shown, J3b off parts, J3c pull; L1 onward each page of whole looks and action; L<n>-S1 to S4 its steer and comment where none works; C1 onward each boards page, picks and action, C<n>-S1 to S4 its steer and comment; K1 the lock; K2 the optional voice note; K3 any checked wording correction. Within each S1 to S4 set, S1 is warmth, S2 quiet/bold with soft/strong, S3 classic/current and S4 the comment. Rows already written under bank 0.3.0 keep their numbers. Keep earlier answers on correction. Each page and each pick have their own numbered row within their round; save their unchanged full records with the work for selection and resume. Feed citations identify the question, page and pick, never just the current screen.
+B0 records a path choice only where one is actually needed; the sitting and the brand-folder entry do not ask it. R0 is the original ask; R1 onward are unasked comments, kept verbatim. For the sitting: J1 what to keep; J1a folder; O1 audience, O2 promise, O3 final say; J2a thin-record sentence, J2b drafted sentence and pairs, J2c each redraft with its pass; T1 to T9 the nine taste taps, with no T9 row where the place is carried from a voice answers file's P12; J3a taste description as shown, J3b off parts, J3c pull; L1 onward each page of whole looks and action; L<n>-S1 to S4 its steer and comment where none works; C1 onward each boards page, picks and action, C<n>-S1 to S4 its steer and comment; K1 the lock; K2 the optional voice note; K3 any checked wording correction. Within each S1 to S4 set, S1 is warmth, S2 quiet/bold with soft/strong, S3 classic/current and S4 the comment. That legend is bank Build Brand 0.4.0's. A row of bank Build Brand 0.3.0 keeps that bank's legend: S1 warmth, S2 quiet/bold, S3 soft/strong, S4 classic/current and S5 the comment. Read each row by its own bank version. Keep earlier answers on correction. Each page and each pick have their own numbered row within their round; save their unchanged full records with the work for selection and resume. Feed citations identify the question, page and pick, never just the current screen.
 
 ## Opening
 
@@ -261,7 +261,7 @@ The taste description. One screen. Two sentences in everyday words, written fres
 - That's it
 - Not quite
 
-Not quite brings one question, "Which part is off?", with their tapped option words and brand picks as a pick-any list; every part they mark off is dropped from the boards' steer before the boards are made, and no description is given again. A carried place is not listed, since the member gave it to the voice coach. At most one real pull against answered about Personality or voice How They Write follows on its own screen:
+Not quite brings one question, "Which part is off?", with their tapped option words and brand picks as a pick-any list, on the question tool when the list holds two to four parts, otherwise as one message with the parts lettered, answered with one or more letters, never split into turns or trimmed to fit; every part they mark off is written to `off` as its selected option id from `parts/taps.json`, never its label, before the boards are made, and no description is given again. A carried place is not listed, since the member gave it to the voice coach. At most one real pull against answered about Personality or voice How They Write follows on its own screen:
 
 > Your writing reads [playful], and you picked [Suit and tie]. Which should the look lead with?
 
@@ -352,7 +352,7 @@ With nothing picked and no new page possible from boards not yet shown, the last
 
 ## Steering a round
 
-Three this-or-that taps and a fourth question on the same screen of the question tool after Show me more. The looks retry uses step 3's progress instead. A tap left unanswered counts as no preference and is not asked again.
+Three this-or-that taps on one screen of the question tool after Show me more, then the comment question below. The looks retry uses step 3's progress instead. A tap left unanswered counts as no preference and is not asked again.
 
 > Warmer or cooler?
 
@@ -380,7 +380,7 @@ The tool's own typed answer takes the comment. Nothing to add or an unanswered q
 
 > What's missing from these?
 
-Where the app's question tool needs two options or more, the three taps go on one screen and this question follows as a plain message in the same words, a reply of no or nothing recorded as no comment. Keep raw comments in the answers record; the session reads them into steer/off for selection.
+It is a fourth question on the taps' screen, with Nothing to add, only where the app's question tool takes a question with a single option. Where it needs two options or more, as Claude Code's does, or that is not known, it follows the taps as a plain message in the same words, a reply of no or nothing recorded as no comment. Keep raw comments in the answers record; the session reads them into steer/off for selection.
 
 ## Leaving early
 

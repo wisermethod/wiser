@@ -80,7 +80,7 @@ test('the shared answers projection is accepted by selection with identical fiel
   const shared = Object.fromEntries(['name', 'sentence', 'words', 'taps', 'off', 'looks'].map((k) => [k, f.answers[k]]));
   shared.looksShown = [{value:f.answers.looks[0],pairing:'soft-serif',palette:'paper-orange',graphicSet:'drawn'}];
   assert.deepEqual(validateAnswers(structuredClone(shared), taps, library, 'round1'), shared);
-  f.save(); f.result(); assert.match(f.read(), /Dropped from the steer: softStrong, warm, natural/);
+  f.save(); f.result(); const out = f.read(); assert.match(out, /Marked off by the member: soft or strong \(softStrong\), warm, Natural \(natural\)\./); assert.match(out, /Taste description as shown, before the parts marked off below: /); assert.doesNotMatch(out, /Dropped from the steer/);
 });
 test('unlisted originals, missing fonts and unknown nested answers refuse before publication', () => {
   const unlisted = fixture(); mkdirSync(join(unlisted.root, 'sources/brand'), { recursive: true }); writeFileSync(join(unlisted.root, 'sources/brand/guide.txt'), 'Original guide'); assert.throws(unlisted.result, /not inventoried/);
@@ -477,8 +477,8 @@ for (const type of ['personal', 'org', 'client', 'department']) test(`${type}: e
   citation('Keep Useful', 'J2b', '#words.0.not');
   const ids = ['mode','feel','history','strength','technology','style','posture','mood','place'];
   ids.forEach((id, i) => citation(`T${i+1}:`, `T${i+1}`, `#taps.${id}`));
-  citation('Natural and strong', 'J3a', '#readBack.text');
-  citation('Dropped from the steer:', 'J3b', '#off.0');
+  citation('Taste description as shown, before the parts marked off below: Natural and strong', 'J3a', '#readBack.text');
+  citation('Marked off by the member:', 'J3b', '#off.0');
   citation('Whole look picked:', 'L4', '#looks.0');
   citation('Round 1:', 'C6', '#rounds.0.steer');
   citation('Complete at the lock.', 'K1', '#lock.question');

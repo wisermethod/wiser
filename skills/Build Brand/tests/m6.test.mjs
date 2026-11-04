@@ -53,7 +53,7 @@ test('M6 item 4: three steering taps, coupled quiet/soft mapping, fourth comment
   const steer = section(bank, 'Steering a round');
   assert.doesNotMatch(bank + sitting + read('parts/parts.md'), /Softer or stronger\?/);
   assert.deepEqual(steer.split('\n').filter(line => line.startsWith('- ')), ['- Warmer', '- As it is', '- Cooler', '- Quieter', '- As it is', '- Bolder', '- More classic', '- As it is', '- More current', '- Nothing to add']);
-  assert.match(steer, /fourth question on the same screen/);
+  assert.match(steer, /It is a fourth question on the taps' screen, with Nothing to add, only where the app's question tool takes a question with a single option/);
   for (const text of [sitting, read('parts/parts.md')]) {
     assert.match(text, /Quieter.*`quietBold: -1`.*`softStrong: -1`/);
     assert.match(text, /Bolder.*`quietBold: \+1`.*`softStrong: \+1`/);
@@ -62,7 +62,7 @@ test('M6 item 4: three steering taps, coupled quiet/soft mapping, fourth comment
   assert.match(steer, /needs two options or more/);
   assert.match(steer, /reply of no or nothing.*no comment/);
   assert.match(bank, /S1 to S4/);
-  assert.match(bank, /Rows already written under bank 0.3.0 keep their numbers/);
+  assert.match(bank, /A row of bank Build Brand 0\.3\.0 keeps that bank's legend: S1 warmth, S2 quiet\/bold, S3 soft\/strong, S4 classic\/current and S5 the comment/);
 });
 
 test('M6 item 5: no extra tapped-answer read-back outside the taste description', () => {
@@ -70,4 +70,22 @@ test('M6 item 5: no extra tapped-answer read-back outside the taste description'
   assert.match(asking, /After a screen of taps, continue without repeating their answers/);
   assert.doesNotMatch(sitting, /Read back the option words|read-back; the extra host lines/);
   assert.match(section(sitting, 'Step 3: How it should look'), /taste description/);
+});
+
+test('M6 review: Which part is off? fits the question tool or becomes one lettered message, and writes option ids', () => {
+  for (const text of [bank, sitting]) {
+    assert.match(text, /on the question tool when the list holds two to four parts, otherwise as one message with the parts lettered/);
+    assert.match(text, /never split into turns or trimmed to fit/);
+    assert.match(text, /`off` as its selected option id from `parts\/taps.json`, never its label/);
+  }
+  assert.doesNotMatch(bank, /dropped from the boards' steer/);
+});
+test('M6 review: the steering comment is a one-option question only where the tool takes one', () => {
+  const steering = section(bank, 'Steering a round');
+  assert.match(steering, /only where the app's question tool takes a question with a single option/);
+  assert.match(steering, /as Claude Code's does, or that is not known, it follows the taps as a plain message in the same words/);
+  assert.match(sitting, /No, as with Claude Code's, or not known: ask the comment as a plain message after the taps/);
+});
+test('M6 review: the taste description is saved on one line, as the lock requires', () => {
+  assert.match(sitting, /`readBack.text`, on one line with its two sentences joined by a space/);
 });

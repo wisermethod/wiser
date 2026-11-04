@@ -125,7 +125,7 @@ CONTRACT_EDITS['Selection from answers'].push([
   '| `words` | Required array of `{word, not}` objects, both non-empty single lines; an empty array omits the panel |',
   '| `words` | Required non-empty array of `{word, not}` objects, both non-empty single lines; empty words are refused before selection |'
 ]);
-// 2026-11-04, M6: taste description and three taps mapped to four steer axes.
+// 2026-11-04, M6: taste description and three taps mapped to four steer axes; after its review, the comment is a one-option question only where the tool takes one.
 CONTRACT_EDITS["Locking a board"].push(...[
   [
     "`off` is the selection script's read-back corrections:",
@@ -169,7 +169,7 @@ CONTRACT_EDITS["Selection from answers"].push(...[
   ],
   [
     "After the four this-or-that taps, offer the optional comment box, “Anything you'd change about the ones you picked?”, or “What's missing from these?” with nothing picked.",
-    "On the same question-tool screen as the three this-or-that taps, the fourth question is “Anything you'd change about the ones you picked?”, or “What's missing from these?” with nothing picked, with one option, “Nothing to add”. The tool's typed answer takes the comment. Where the tool needs two options or more, the three taps go together and the comment follows as a plain message in the same words; no or nothing is recorded as no comment."
+    "The comment, “Anything you'd change about the ones you picked?”, or “What's missing from these?” with nothing picked, is a fourth question on the three taps' screen with one option, “Nothing to add”, the tool's typed answer taking the comment, only where the app's question tool takes a single option; otherwise it follows the three taps as a plain message in the same words; no or nothing is recorded as no comment."
   ],
   [
     "for a named wrong read-back part;",
