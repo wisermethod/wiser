@@ -4,6 +4,14 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.04.2, November 4, 2026
+
+- Building a brand now asks its quick questions as plain taps in the chat, a few to a screen: what to keep, the sentence and words for your brand, the nine taste questions in three screens, and the tweaks after Show me more. Only the pages of looks and boards still open as a card. Before, every question opened as a form. (b4322668, e98ce0cf)
+- After a set of taps, Wiser goes straight on. It no longer repeats your answers back and waits ("Here's what I have: … Tell me if anything's wrong."); it still checks back where you typed an answer of your own. (b4322668, e98ce0cf)
+- After the taste questions, Wiser describes the look it's picturing for you in two short sentences, then asks "Is that you?". Before, it repeated the words you had tapped. (b4322668, e98ce0cf)
+- The tweaks after Show me more ask warmer or cooler, quieter or bolder, and more classic or more current, then whether you'd change anything. "Softer or stronger?" is gone: quieter now also means softer, and bolder stronger. (b4322668, e98ce0cf)
+- An organisation's who-it-serves and what-it-promises drafts come together on one screen, then who has the final say. (b4322668, e98ce0cf)
+
 ## v2026.11.04, November 4, 2026
 
 - Setting up your Wiser folder is quicker in Claude Cowork: your computer now downloads the starter files in one step instead of waiting while Wiser writes them out. (13dde120)

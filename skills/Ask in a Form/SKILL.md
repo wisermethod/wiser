@@ -3,7 +3,7 @@ name: Ask in a Form
 type: skill
 category: onboarding
 description: Put a skill's questions to a member as a form they answer by tapping pictures and choices, shown inside the chat, in a window beside a command-line tool, or as chat buttons where neither can show, with the answers handed to the calling skill, read back only where the member typed one
-version: 0.1.7
+version: 0.2.0
 ---
 
 # Ask in a Form
