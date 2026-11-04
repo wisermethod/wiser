@@ -35,7 +35,7 @@
  */
 
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, lstatSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join, relative } from 'node:path';
 import { execFileSync, spawn } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
@@ -300,7 +300,7 @@ function buildShim(lib, dir, cc) {
  * so a subsequent chromium.launch() in this process, or a child it spawns , 
  * inherits the shim. Idempotent; never installs system packages; never sudo.
  */
-export async function prepareBrowserRuntime() {
+export async function prepareBrowserRuntime(binaryPath) {
   const chromium = await getChromium();
   const report = {
     playwright: true, chromiumBinary: false, chromiumLaunch: null,
@@ -309,10 +309,12 @@ export async function prepareBrowserRuntime() {
   };
 
   let execPath = '';
-  try { execPath = chromium.executablePath(); } catch { /* */ }
+  try { execPath = binaryPath || chromium.executablePath(); } catch { /* */ }
   report.chromiumBinary = Boolean(execPath) && existsSync(execPath);
 
-  // NOTHING IS DECIDED FROM THIS PATH, and an absent one is not a verdict.
+  // NOTHING IS DECIDED FROM THE DEFAULT PATH, and an absent one is not a verdict.
+  // A preinstalled selection supplies the binary that will actually launch, so
+  // its own missing libraries, rather than a different build's, are inspected.
   //
   // `chromium.executablePath()` names Chrome for Testing whatever `headless`
   // is, while a default headless launch runs Chrome Headless Shell -- a
@@ -365,22 +367,126 @@ export async function prepareBrowserRuntime() {
 
 /** Drop-in for chromium.launch(): applies runtime prep, default args, proxy. */
 export async function launch(options = {}) {
-  await prepareBrowserRuntime();
+  const selection = { build: cachedBuild(options) };
+  await prepareBrowserRuntime(selection.build?.path);
   const chromium = await getChromium();
-  const server = proxyServer();
-  const opts = { ...options, args: [...DEFAULT_ARGS, ...(options.args || [])] };
-  if (server && !opts.proxy) opts.proxy = { server };
-  return chromium.launch(opts);
+  const browser = await launchWithPreinstalled(options, opts => chromium.launch(opts), selection);
+  rememberBuild(options, selection);
+  return browser;
 }
 
 /** Drop-in for chromium.launchPersistentContext() (Browser Control). */
 export async function launchPersistentContext(userDataDir, options = {}) {
-  await prepareBrowserRuntime();
+  const selection = { build: cachedBuild(options) };
+  await prepareBrowserRuntime(selection.build?.path);
   const chromium = await getChromium();
-  const server = proxyServer();
+  const context = await launchWithPreinstalled(options, opts => chromium.launchPersistentContext(userDataDir, opts), selection);
+  rememberBuild(options, selection);
+  return context;
+}
+
+/*
+ * Cowork's installed-plugin run of 2026-11-04 had complete revision 1243 in
+ * /opt/pw-browsers, while this runtime wanted 1234 and its download met a 403.
+ * The Mac probe that day proved Playwright 1.62 could launch 1243's headless
+ * shell and render the 1200 by 630 fixture. So, ONLY after the launch names a
+ * file that stat confirms absent, try the newest complete sibling of that same
+ * artifact. Never alter the browsers root or infer absence from wording alone.
+ * INSTALLATION_COMPLETE is playwright-core 1.62's registry marker, confirmed
+ * in browserDirectoryToMarkerFilePath; the executable must also pass stat.
+ * A successful selection is reused for this process and launch shape, so the
+ * real launch after check does not fail on 1234 before trying 1243 again.
+ */
+const preinstalledBuilds = new Map();
+
+function buildKey(options) {
+  if (options.executablePath !== undefined) return null;
+  // playwright-core 1.62's src/server/registry/index.ts (lib/coreBundle.js)
+  // lists only chrome-for-testing in chromiumAliases. Chromium.getExecutableName
+  // resolves that alias and the chromium channel itself to the chromium artifact,
+  // even headless, as Browser Control's restart preflight needs (review 2026-11-04).
+  const channel = options.channel;
+  if (channel !== undefined && channel !== 'chromium' && channel !== 'chrome-for-testing') return null;
+  const artifact = channel !== undefined || options.headless === false ? 'chromium' : 'chromium-headless-shell';
+  return JSON.stringify([activeRuntimeDir(), process.env.PLAYWRIGHT_BROWSERS_PATH ?? null, artifact]);
+}
+
+function cachedBuild(options) {
+  const key = buildKey(options);
+  return key === null ? undefined : preinstalledBuilds.get(key);
+}
+
+function rememberBuild(options, selection) {
+  const key = buildKey(options);
+  if (key !== null && selection.build) preinstalledBuilds.set(key, selection.build);
+}
+
+function newestInstalledBuild(missingPath) {
+  // The registry replaces artifact-name dashes with underscores. Walking from
+  // the failed executable retains the platform-specific relative path exactly;
+  // no OS layout or browser cache location is guessed here.
+  let directory = dirname(missingPath);
+  while (dirname(directory) !== directory) {
+    const wanted = /^([a-z][a-z0-9_]*)-(\d+)$/i.exec(basename(directory));
+    if (wanted) {
+      const wantedRevision = Number(wanted[2]);
+      if (!Number.isSafeInteger(wantedRevision)) return null;
+      const root = dirname(directory), inside = relative(directory, missingPath);
+      let names;
+      try { names = readdirSync(root); } catch { return null; }
+      let best = null;
+      for (const name of names) {
+        const match = /^([a-z][a-z0-9_]*)-(\d+)$/i.exec(name);
+        if (!match || match[1] !== wanted[1] || match[2] === wanted[2]) continue;
+        const revision = Number(match[2]);
+        if (!Number.isSafeInteger(revision) || revision === wantedRevision || (best && revision <= best.revision)) continue;
+        const candidate = join(root, name), path = join(candidate, inside);
+        try {
+          if (!statSync(candidate).isDirectory() || !statSync(join(candidate, 'INSTALLATION_COMPLETE')).isFile()) continue;
+          const info = statSync(path);
+          if (!info.isFile() || (info.mode & 0o111) === 0) continue;
+        } catch { continue; } // inaccessible is not positive evidence of a usable build
+        best = { path, revision, wanted: wantedRevision };
+      }
+      // Review 2026-11-04: even a plain Playwright install garbage-collects
+      // unlinked revisions before downloading. Preserve a found sibling even
+      // when its trial fails and the caller subsequently installs in this run.
+      if (best) process.env.PLAYWRIGHT_SKIP_BROWSER_GC = '1';
+      return best;
+    }
+    directory = dirname(directory);
+  }
+  return null;
+}
+
+function launchOptions(options, build) {
   const opts = { ...options, args: [...DEFAULT_ARGS, ...(options.args || [])] };
+  if (build) opts.executablePath = build.path;
+  const server = proxyServer();
   if (server && !opts.proxy) opts.proxy = { server };
-  return chromium.launchPersistentContext(userDataDir, opts);
+  return opts;
+}
+
+async function launchWithPreinstalled(options, start, selection) {
+  try { return await start(launchOptions(options, selection.build)); }
+  catch (error) {
+    if (selection.build || buildKey(options) === null) throw error;
+    const line = String(error?.message || '').split('\n')[0].trim();
+    const gone = MISSING_EXECUTABLE.exec(line);
+    if (!gone || fileAbsent(gone[1]) !== true) throw error;
+    const build = newestInstalledBuild(gone[1]);
+    if (!build) throw error;
+    selection.originalError = error;
+    selection.build = build;
+    try {
+      selection.prepared = await prepareBrowserRuntime(build.path);
+      if (selection.prepared.remediation) throw new Error(selection.prepared.remediation);
+      return await start(launchOptions(options, build));
+    } catch (attemptError) {
+      selection.attemptError = attemptError;
+      throw error; // check retains the attempt's host/permission evidence below
+    }
+  }
 }
 
 /**
@@ -603,7 +709,8 @@ function classifyFailure(error, report) {
         // The caller has to be able to NAME the file, or "restore the execute
         // bit" is advice nobody can act on. Deliberately NOT called
         // `executablePath`: the instrument counts that name exactly, so that a
-        // seventh path DECISION fails, and this is a path for a message.
+        // new path DECISION fails, and this is a path for a message. The
+        // preinstalled-build decision is counted explicitly in the runtime tests.
         report.unrunnablePath = spawned.path;
         return 'permission';
       }
@@ -710,8 +817,9 @@ export async function check(options = {}) {
     return report;
   }
   let prepared;
+  const selection = { build: cachedBuild(options) };
   try {
-    prepared = await prepareBrowserRuntime();
+    prepared = await prepareBrowserRuntime(selection.build?.path);
   } catch (e) {
     const line = e && e.message ? String(e.message).split('\n')[0].trim() : 'preparation failed';
     report.failure = 'host';
@@ -741,6 +849,7 @@ export async function check(options = {}) {
   let phase = 'launch';
   let browser;
   let expiry;
+  let unsettled;
   try {
     // A bounded trial, bounded THE SAME WAY the real launch is.
     //
@@ -754,10 +863,6 @@ export async function check(options = {}) {
     // The args and proxy are merged exactly as `launch()` merges them, for the
     // same reason: a trial that differs from the launch proves a different
     // launch, which is the defect this whole file was rewritten to end.
-    const opts = { ...options, args: [...DEFAULT_ARGS, ...(options.args || [])], timeout: LAUNCH_TIMEOUT_MS };
-    const server = proxyServer();
-    if (server && !opts.proxy) opts.proxy = { server };
-
     // THE AWAITED PROMISE ALWAYS SETTLES, AND THIS RUNTIME OWNS THE TIMER THAT
     // GUARANTEES IT.
     //
@@ -773,7 +878,8 @@ export async function check(options = {}) {
     // loop stays alive until one side settles, and cleared on every path so a
     // healthy check does not hold the process open for three minutes.
     const trial = (async () => {
-      browser = await chromium.launch(opts);
+      browser = await launchWithPreinstalled(
+        { ...options, timeout: LAUNCH_TIMEOUT_MS }, opts => chromium.launch(opts), selection);
       phase = 'page';
       const p = await browser.newPage();
       phase = 'navigate';
@@ -786,7 +892,7 @@ export async function check(options = {}) {
     // If the timer wins, the trial may settle later, or never; a late rejection
     // must not surface as an unhandled one after this report has been written.
     trial.catch(() => {});
-    const unsettled = new Promise((_, reject) => {
+    unsettled = new Promise((_, reject) => {
       expiry = setTimeout(() => {
         const error = new Error(`the trial launch did not settle within ${LAUNCH_TIMEOUT_MS}ms`);
         error.trialUnsettled = true;
@@ -794,11 +900,42 @@ export async function check(options = {}) {
       }, LAUNCH_TIMEOUT_MS);
     });
     await Promise.race([trial, unsettled]);
+    if (selection.prepared) Object.assign(report, selection.prepared);
+    if (selection.build) {
+      report.preinstalledBuild = { ...selection.build };
+      rememberBuild(options, selection);
+    }
     report.chromiumLaunch = true;
   } catch (e) {
     report.chromiumLaunch = false;
     report.launchPhase = phase;
-    if (e && e.trialUnsettled) {
+    if (selection.originalError) {
+      if (selection.prepared) Object.assign(report, selection.prepared);
+      report.chromiumLaunch = false;
+      const attemptError = selection.attemptError || e;
+      // A library this runtime stubbed is not the host's fault: classifyFailure
+      // reads any missingLibs as 'host', so judge the attempt by the libraries
+      // that remain unresolved (review round 2, 2026-11-04).
+      const unresolved = (report.missingLibs || []).filter(lib => !(report.shimmed || []).includes(lib));
+      const judged = { ...report, missingLibs: unresolved };
+      const failure = selection.prepared?.remediation ? 'host' : classifyFailure(attemptError, judged);
+      // classifyFailure records the unrunnable file on the object it judges.
+      if (judged.unrunnablePath) report.unrunnablePath = judged.unrunnablePath;
+      // Review 2026-11-04: the same host libraries, policy or permissions would
+      // stop the wanted build too, so an install cannot repair those failures.
+      // A crashed or unknown substitute may merely be incompatible; keep the
+      // original absent-build repair available in those cases.
+      if (failure === 'host' || failure === 'permission') {
+        report.failure = failure;
+        report.remediation = selection.prepared?.remediation || remediationFromLaunchError(attemptError, report.hostClass);
+      } else {
+        report.launchPhase = 'launch';
+        report.failure = 'artifact';
+        report.remediation = remediationFromLaunchError(selection.originalError, report.hostClass);
+      }
+      const attempt = String(attemptError?.message || 'the trial failed').split('\n')[0].trim();
+      report.remediation += ` Preinstalled build ${selection.build.path} (revision ${selection.build.revision}) was tried: ${attempt}`;
+    } else if (e && e.trialUnsettled) {
       // Nothing answered and nothing rejected: the process, if it started, is
       // gone or hung, and no error text exists to classify. That is the
       // 'crashed' outcome -- nothing is replaced -- with a sentence that says
@@ -811,9 +948,6 @@ export async function check(options = {}) {
       report.failure = classifyFailure(e, report);
     }
   } finally {
-    // The timer is cleared FIRST, on every path: a settled trial must not leave
-    // a three-minute timer holding the event loop.
-    if (expiry !== undefined) clearTimeout(expiry);
     // THE BROWSER THIS FUNCTION OPENED IS THE ONE IT CLOSES, ON EVERY PATH.
     //
     // Without this, a throw after a successful launch left the browser running
@@ -822,8 +956,24 @@ export async function check(options = {}) {
     // browser child still alive. Every shipped caller happens to reach
     // process.exit() on the failure path, which masked it, but that mask is
     // accidental and one new caller removes it.
-    if (browser) {
-      try { await browser.close(); } catch { /* best effort: the report is already written */ }
+    try {
+      if (browser) {
+        // Teardown can abandon its promise too, so cleanup stays inside the SAME
+        // runtime-owned deadline. A browser whose close() is still pending when
+        // the deadline has passed is not killed here: Playwright 1.62's client
+        // Browser exposes no process handle (process() is BrowserServer's), so
+        // it is left to Playwright's own exit handler, which SIGKILLs every
+        // browser process group it launched when this process exits (review
+        // round 2, 2026-11-04). Waiting on close() unbounded instead is the hang
+        // round 14 removed.
+        const closing = browser;
+        try { await Promise.race([Promise.resolve().then(() => closing.close()), unsettled]); }
+        catch { /* best effort: the report is already written */ }
+      }
+    } finally {
+      // Cleared on every path, including a failed or abandoned cleanup; a healthy
+      // check never leaves a three-minute timer holding the event loop.
+      if (expiry !== undefined) clearTimeout(expiry);
     }
   }
   return report;

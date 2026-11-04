@@ -3,7 +3,7 @@ name: render
 type: tool
 category: media
 description: Renders a local HTML file to a PNG or JPEG, an SVG or a Mermaid diagram to a PNG, and captures a PNG of a live web page
-version: 0.2.4
+version: 0.2.5
 ---
 
 # render
@@ -51,7 +51,7 @@ No command takes `--env`.
 | The Chromium build Playwright drives | `html`, `svg`, `mermaid`, `url` | `node scripts/render.js check` exits 0 with `"chromiumLaunch":true` |
 | `mermaid` | `mermaid` | `node_modules/mermaid/package.json` inside this tool directory |
 
-Playwright uses the active browser runtime; its Chromium build uses Playwright's cache (`tools/AGENTS.md`). Presence is a **trial launch** through the active browser runtime, not a path on disk. A missing OS library is shimmed where a compiler is present, or named with one next step (`tools/AGENTS.md`). The `mermaid` package installs into this tool's directory, and only `mermaid` asks for it. Install steps are never written here. `tools/AGENTS.md` lists every write.
+Playwright uses the active browser runtime; its Chromium build uses Playwright's cache (`tools/AGENTS.md`). If its own build is absent, the runtime first tries the newest complete build of the same artifact already in that browsers directory. Only if that trial cannot succeed does the authorised download run. Presence is a **trial launch** through the active browser runtime, not a path on disk. A missing OS library is shimmed where a compiler is present, or named with one next step (`tools/AGENTS.md`). The `mermaid` package installs into this tool's directory, and only `mermaid` asks for it. Install steps are never written here. `tools/AGENTS.md` lists every write.
 
 ## html
 
