@@ -2,8 +2,8 @@
 name: Ask in a Form
 type: skill
 category: onboarding
-description: Put a skill's questions to a member as a form they answer by tapping pictures and choices, shown inside the chat, in a window beside a command-line tool, or as chat buttons where neither can show, with the answers read back and handed to the calling skill
-version: 0.1.7
+description: Put a skill's questions to a member as a form they answer by tapping pictures and choices, shown inside the chat, in a window beside a command-line tool, or as chat buttons where neither can show, with the answers handed to the calling skill, read back only where the member typed one
+version: 0.2.0
 ---
 
 # Ask in a Form
@@ -24,7 +24,7 @@ Classifier seam: none.
 
 ## Objective
 
-The calling skill's questions answered by the member, read back to them and confirmed, and handed on as one value per question id with each skipped question marked skipped, and a chosen action where supplied; a display-only board shown with no answer awaited; or a named stop. Verified against Success below.
+The calling skill's questions answered by the member, checked at step 6 and handed on as one value per question id with each skipped question marked skipped, and a chosen action where supplied; a display-only board shown with no answer awaited; or a named stop. Verified against Success below.
 
 ## Inputs
 
@@ -105,9 +105,9 @@ A host who asks only what the calling skill needs, in a form a member can finish
 
 5. **Ask in chat instead.** Say "I'll ask these here instead." Ask the same questions, in the form's order, as Build Voice asks its taps (`skills/Build Voice/paths/coach.md`, How you ask): a question tool that shows options as buttons, where the app has one, else one question per message with lettered options. A picture becomes its option's label, with its note where it has one; a pick-any question takes several; a slider becomes five choices, its two ends and the steps nearest the quarter, the middle and the three quarters, or every step where it has five or fewer, each labelled with its number and the end it is nearer; a text question is a plain message. What is recorded is the option's value, as a form records it; the label is only what the member sees.
 
-6. **Read the answers back.** A calling skill using boards and actions receives the picks and the chosen action straight away at step 7; that action is the member's decision, with no further confirmation here. For other forms, the structured answers are the record: one value per question id. Where the member edited the drafted message before sending it, as Claude and Cowork let them, and it now says something the data does not, ask which is right first. Say "Here's what I have: [question], [answer]; ... Tell me if anything's wrong.", each question by its `short`, each answer as the member would say it, a skipped one as "(none)", then stop and wait. A correction replaces that answer, and the line is said again. A yes, or the member going on, confirms them: step 7.
+6. **Check the answers and read back only where needed.** A calling skill using boards and actions receives the picks and the chosen action straight away at step 7; that action is the member's decision, with no further confirmation here. For other forms, the structured answers are the record: one value per question id. Where the member edited the drafted message before sending it, as Claude and Cowork let them, and it now says something the data does not, ask which is right first. A form whose every answer was picked and whose edited-message check found no disagreement goes straight to step 7 without a read-back or wait; skipped questions do not trigger a read-back. Read back only where the member typed an answer or the edited-message check found a disagreement. Say "Here's what I have: [question], [answer]; ... Tell me if anything's wrong.", each question by its `short`, each answer as the member would say it, a skipped one as "(none)", then stop and wait. A correction replaces that answer, and the line is said again. A yes, or the member going on, confirms them: step 7.
 
-7. **Hand the answers on.** Include the chosen action value when the form has actions. Is there a calling skill? Yes: hand it the answers by question id, each skipped one marked skipped. Where it keeps an answers file, hand it too, for each question, the row `standards/user-root.md` C14 gives: its own question number from `<answers_file>`, its bank version, what was shown, being the question's label and its options' labels, the answer as confirmed, empty where skipped, and the status, answered, skipped, or in between where the member added words of their own; a question with no number in `<answers_file>` is handed by its id alone and named as having none. The calling skill writes them; this skill writes no answers file. No: the confirmed read-back is the delivery, and the session goes on with what the member asked. A second form to come: step 2 for it, from these answers.
+7. **Hand the answers on.** Include the chosen action value when the form has actions. Is there a calling skill? Yes: hand it the answers by question id, each skipped one marked skipped. Where it keeps an answers file, hand it too, for each question, the row `standards/user-root.md` C14 gives: its own question number from `<answers_file>`, its bank version, what was shown, being the question's label and its options' labels, the answer as confirmed, empty where skipped, and the status, answered, skipped, or in between where the member added words of their own; a question with no number in `<answers_file>` is handed by its id alone and named as having none. The calling skill writes them; this skill writes no answers file. No: the picked answers, or the confirmed read-back where step 6 required it, are the delivery, and the session goes on with what the member asked. A second form to come: step 2 for it, from these answers.
 
 ## Pitfalls
 
@@ -121,7 +121,7 @@ A host who asks only what the calling skill needs, in a form a member can finish
 ## Success
 
 - The member answered by tapping wherever a picture or a choice could hold the answer, and typed only where none could.
-- The answers came back as one value per question id, were read back and confirmed, and were corrected where the member said so.
+- The answers came back as one value per question id, were read back only for typed answers or an edited-message disagreement, and were corrected where the member said so. Tap-only forms went on without a read-back or wait.
 - A template was shown unchanged but for its open parts, and a problem with the template itself went back to the calling skill.
 - Where no form could show, the same questions were asked as chat buttons and the answers recorded the same way.
 - No form asked for anything a member would not say aloud in the chat.

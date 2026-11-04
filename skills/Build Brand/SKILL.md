@@ -3,7 +3,7 @@ name: Build Brand
 type: skill
 category: onboarding
 description: Build or rebuild one user root's design.md from an existing brand, a full brand chosen and finished in one sitting at the lock without a Playbook, or a simple brand made at the person's request, with every rule traced to an answer, file or chosen part
-version: 0.3.0
+version: 0.4.0
 gaps:
   - naming a brand
   - trademark search
@@ -50,6 +50,8 @@ For every other type, reuse a caller's `brief`, `full`, `simple` or Not now answ
 - Not now: write nothing, including no stub or answers record, return that answer to the caller, or stop when called directly. Onboarding keeps its light fill.
 
 ## Rules every path keeps
+
+**Tap screens.** Only `boards` questions use Ask in a Form in the full sitting: whole looks, board pages and the display-only lock. Every choice among words uses the app's question tool as `skills/Build Voice/paths/coach.md` How you ask, a screen's questions together, or one question per message with lettered options where it has none. `paths/sitting.md` owns the screens and progress; `records.md` owns the rows Build Brand writes itself. No tapped answers are read back; the taste description is the taste confirmation.
 
 **Kept assets.** Preserve what people recognise unless the person releases it. A kept colour holds its role on every board; a supplied font file is named with family and weight in `pairing.headingFrom` or `bodyFrom`, as `parts/parts.md` Assembly defines. An unavailable kept font is named as unavailable, never silently replaced. The full sitting reads only stated colour and font values from source files or site styles, never a colour sampled from a picture or a face guessed by eye; it does not ask again for what those files settle. Keep a logo on every board, board zero first; the full path leaves any refresh until after the lock. The retained brief path keeps its confirmation rules in `writing.md` and its sample-card-and-banner rules in `paths/brief-boards.md`.
 

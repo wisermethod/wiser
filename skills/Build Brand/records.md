@@ -4,7 +4,7 @@ Every question this skill asks and every pick the person makes is numbered and s
 
 Each round of boards, each pick within it and the lock itself are numbered answers of their own. Keep the person's ask, free comments and changes as numbered answers too, preserving every word and its order for `<requester_words>`.
 
-For the sitting, use the question numbers in `questions.md` Answer numbers, and Ask in a Form's C14 rows, including what was shown, status and the chosen action. Save the bank version from `SKILL.md`. Read only the needed bank section before asking. Observations, source limits and board file paths live with the work, never as invented answers. A returning sitting continues the same saved answers and boards; it does not replay answered screens.
+For the sitting, use the question numbers in `questions.md` Answer numbers. Build Brand writes each tapped answer's C14 row itself, including its own number, bank version, exact question and options shown, answer and status, empty where skipped. Ask in a Form supplies only the boards rows, including picks and the chosen action. J3a records the taste description as shown, with J3b retaining any dropped contributions; no tap-only screen takes a read-back. Save the bank version from `SKILL.md`. Read only the needed bank section before asking. Observations, source limits and board file paths live with the work, never as invented answers. A returning sitting continues the same saved answers and boards; it does not replay answered screens.
 
 ## Source limits
 

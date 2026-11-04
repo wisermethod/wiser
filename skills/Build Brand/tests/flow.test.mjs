@@ -20,7 +20,7 @@ const openingTaps=readFileSync(resolve(dirname(journeyPath),'2026-10-28-opening-
 
 test('router preserves identity and declares the one-sitting format change',()=>{
   assert.match(router,/^name: Build Brand$/m);assert.match(router,/^type: skill$/m);assert.match(router,/^category: onboarding$/m);
-  assert.match(router,/^version: 0\.3\.0$/m);assert.match(router,/^description: .*one sitting.*without a Playbook/m);
+  assert.match(router,/^version: 0\.4\.0$/m);assert.match(router,/^description: .*one sitting.*without a Playbook/m);
   for(const key of ['design','voice','about'])assert.ok(router.includes(`  - ${key}`));
   for(const gap of ['naming a brand','trademark search','brand mark and logo creation'])assert.ok(router.includes(`  - ${gap}`));
   assert.ok(Buffer.byteLength(router)<58514/3,'router stays under a third of the original');
@@ -98,19 +98,19 @@ for(const [name,boundary] of [
   assert.throws(()=>compareJourneyCopy(journey,changed,openingTaps),/bank blockquotes/);
 });
 
-test('four brand-set questions supply distinct question-tool copy beside paged copy',()=>{
+test('four brand-set questions supply only distinct question-tool copy',()=>{
   const taps=JSON.parse(read('parts/taps.json'));
   const turn=taps.questions.slice(4,8).map((question,index)=>{
     const chunk=bank.split(`### T${index+5}\n`)[1]?.split(/\n##/)[0];
     const lines=chunk.split('\n').filter(line=>line.startsWith('> ')).map(line=>line.slice(2));
-    assert.equal(lines.length,2);assert.match(chunk,/Paged card:/);assert.match(chunk,/Chat buttons and the question tool:/);
-    assert.equal(lines[1],`Choose the one brand that most reflects the direction you're going for (${index+1} of 4).`);
-    return lines[1];
+    assert.equal(lines.length,1);assert.doesNotMatch(chunk,/Paged card:/);assert.match(chunk,/Chat buttons and the question tool:/);
+    assert.equal(lines[0],`Choose the one brand that most reflects the direction you're going for (${index+1} of 4).`);
+    return lines[0];
   });
   assert.equal(new Set(turn).size,4,'one question-tool turn has four unique questions');
-  assert.match(sitting,/If the form cannot open and T5 to T8 go to the question tool, hand Ask in a Form the bank's four Chat buttons and the question tool lines word for word/);
+  assert.match(sitting,/Use the bank's four Chat buttons and the question tool lines word for word/);
   assert.match(sitting,/using `parts\/taps\.json` only for ids and nudges/);
-  turn.forEach((question,i)=>assert.notEqual(question,taps.questions[i+4].question,'runtime data is not the fallback copy'));
+  turn.forEach((question,i)=>assert.notEqual(question,taps.questions[i+4].question,'runtime data is not the question-tool copy'));
   for(const word of ['palette','Playbook','provisional','root','Creative Director'])assert.ok(section(bank,'Words never said','The brief path').includes(word));
 });
 
@@ -184,7 +184,7 @@ test('organisation overlay adds its step and all seven progress lines',()=>{
 
 test('sitting uses scripts and unchanged form handoffs, histories and numeric comment steer',()=>{
   for(const call of ['select.mjs looks --answers','select.mjs round1 --answers','select.mjs variations --answers'])assert.ok(sitting.includes(call));
-  for(const term of ['--check','formUnavailable','unchanged','shown','picks: []','steer','off','C14','paged: true','pick: 0'])assert.ok(sitting.includes(term),term);
+  for(const term of ['--check','formUnavailable','unchanged','shown','picks: []','steer','off','C14','question tool','pick: 0'])assert.ok(sitting.includes(term),term);
   assert.match(sitting,/never send them to selection as prose/);assert.match(sitting,/second context before showing/);
   assert.match(sitting,/After every displayed page, write the bound design provisional/);
   assert.match(sitting,/no explicit stop button/i);assert.match(sitting,/about minute 6/);assert.match(sitting,/minute 15/);
@@ -206,7 +206,7 @@ test('a place answered at the voice coach\'s P12 is carried, not asked again, an
     assert.ok(sitting.includes(`${label} \`${id}\``),id);
     assert.ok(journey.includes(label),label);
   }
-  for(const [text,phrase] of [[sitting,'On a personal root, find the newest voice answers file in `memory/answers/` that holds a P12 row'],[sitting,'`Build Voice bank 7` or a later bank, the row\'s shown cell holding P12\'s question word for word, "If your readers could sit down with you anywhere, where would feel most like you?", its status answered'],[sitting,'one of the places P12 shares with T9 word for word, or its letter in P12\'s own order (A a coffee shop, B a nice hotel lobby, D a calm spa, and from bank 8 C a design workshop)'],[sitting,'Bank 7\'s C, A workshop with tools on the wall, is not one of T9\'s options, so it asks T9'],[sitting,'including a skipped, in-between or typed P12'],[sitting,'T9 is not asked, in the card or any fallback'],[sitting,'Write no T9 row'],[sitting,'`carried.place`'],[sitting,'or eight with the place carried'],[sitting,'with the place carried, the mood, was sent without a pick'],[sitting,'nor a carried place, which they gave the voice coach'],[bank,'Not asked where the place is carried'],[bank,'no T9 row where the place is carried'],[records,'with no T9 row'],[lock,'A place carried from P12 is left out of the note'],[journey,'is of bank 7 or later, still asks P12\'s question word for word, "If your readers could sit down with you anywhere, where would feel most like you?", and shows one of those four picked, question 9 is not asked'],[journey,'A skipped, in-between or typed P12 does not count'],[journey,'The read-back does not name a carried place'],[journey,'An organisation, a client or a department is always asked its own question 9'],[sitting,'the greatest V number, a name without one counting as V1'],[sitting,'Not quite cannot mark it off; where the member asks to change it, ask T9, write its row and drop `carried`'],[lock,'and `carried` where the place was carried'],[journey,'(eight where the place is carried, below)']])assert.ok(text.includes(phrase),phrase);
+  for(const [text,phrase] of [[sitting,'On a personal root, find the newest voice answers file in `memory/answers/` that holds a P12 row'],[sitting,'`Build Voice bank 7` or a later bank, the row\'s shown cell holding P12\'s question word for word, "If your readers could sit down with you anywhere, where would feel most like you?", its status answered'],[sitting,'one of the places P12 shares with T9 word for word, or its letter in P12\'s own order (A a coffee shop, B a nice hotel lobby, D a calm spa, and from bank 8 C a design workshop)'],[sitting,'Bank 7\'s C, A workshop with tools on the wall, is not one of T9\'s options, so it asks T9'],[sitting,'including a skipped, in-between or typed P12'],[sitting,'T9 is not asked, on the question tool or in the lettered fallback'],[sitting,'Write no T9 row'],[sitting,'`carried.place`'],[sitting,'or eight with the place carried'],[sitting,'a screen was sent without a pick'],[sitting,'A carried place informs the taste description but is not listed in its correction question'],[bank,'Not asked where the place is carried'],[bank,'no T9 row where the place is carried'],[records,'with no T9 row'],[lock,'A place carried from P12 is left out of the note'],[journey,'is of bank 7 or later, still asks P12\'s question word for word, "If your readers could sit down with you anywhere, where would feel most like you?", and shows one of those four picked, question 9 is not asked'],[journey,'A skipped, in-between or typed P12 does not count'],[journey,'The read-back does not name a carried place'],[journey,'An organisation, a client or a department is always asked its own question 9'],[sitting,'the greatest V number, a name without one counting as V1'],[sitting,'Not quite cannot mark it off; where the member asks to change it, ask T9, write its row and drop `carried`'],[lock,'and `carried` where the place was carried'],[journey,'(eight where the place is carried, below)']])assert.ok(text.includes(phrase),phrase);
   for(const stale of ['or the last, the place, was sent','a carried place among them','or the row skipped, `place-none`','plainly match one of T9'])assert.ok(!sitting.includes(stale),stale);
   assert.ok(!lock.includes('already holds that answer\'s line'),'the voice note gives the true reason');
 });
@@ -226,12 +226,11 @@ test('every tap the bank shows is the data\'s shown option, in order, and the hi
   data.questions.forEach((q,i)=>{
     const tap=bank.split(`### T${i+1}\n`)[1].split(/\n##/)[0];
     const shown=tap.split('\n').filter(l=>l.startsWith('- ')).map(l=>l.slice(2));
-    assert.deepEqual(shown,q.options.filter(o=>o.shown!==false).map(o=>o.description?`${o.label}: ${o.description}`:o.label),`T${i+1}`);
-    if(i<4||i===8)assert.ok(shown.length<=4,`T${i+1} fits the question tool\'s four options`);
-    else assert.deepEqual(shown.slice(4),['None of these'],`T${i+1}: the paged card\'s five, four brands and None of these`);
+    assert.deepEqual(shown,q.options.filter(o=>o.shown!==false && !(i>=4 && i<=7 && o.label==='None of these')).map(o=>o.description?`${o.label}: ${o.description}`:o.label),`T${i+1}`);
+    assert.ok(shown.length<=4,`T${i+1} fits the question tool's four options`);
   });
   for(const stale of ['Mechanical','Subaru','Ethan Allen','A buzzing design studio','A workshop with tools on the wall'])assert.ok(!bank.split('## Step 3: Nine taps')[1].split('## Step 3: Reveal')[0].includes(stale),stale);
-  assert.ok(sitting.includes('the T2 and T9 ones being fills the card never shows'));
+  assert.ok(sitting.includes('the T2 and T9 ones being fills the question tool never shows'));
   assert.ok(sitting.includes('each with its four brands only: None of these is left to the tool\'s own typed answer'),'T5 to T8 fit the question tool');
   assert.ok(bank.includes('On the question tool, T5 to T8 show their four brands only, None of these left to the tool\'s own typed answer.'),'the bank says so');
 });
