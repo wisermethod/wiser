@@ -1,5 +1,5 @@
 // Portable form contract: no DOM, Node globals or package runtime.
-import { BOARD_LIMITS as B, BOARD_KEYS, BOARD_DEFAULT_KEYS, resolveBoards, checkLogo, displayOnly } from "./boards.js";
+import { BOARD_LIMITS as B, BOARD_KEYS, BOARD_DEFAULT_KEYS, resolveBoards, stepBoard, palettePosition, checkLogo, displayOnly } from "./boards.js";
 import { depthSchema } from "../engine/boards-lib.js";
 export const FORM_LIMITS = Object.freeze({
   idMax: 40, titleMin: 1, titleMax: 80, introMax: 300,
@@ -68,6 +68,7 @@ const pathKey = (p, k) => p ? `${p}.${k}` : k;
 const length = s => [...s].length;
 const tokens = s => [...s.matchAll(/\{\{([^{}]*)\}\}/g)];
 const tokenField = p => /^(title|intro|questions\[\d+\]\.(label|short|help|placeholder|minLabel|maxLabel)|questions\[\d+\]\.options\[\d+\]\.(label|note|picture|sample)|fonts\[\d+\]\.(family|src))$/.test(p);
+const deepEqual = (a,b) => a===b || record(a)&&record(b)&&Object.keys(a).length===Object.keys(b).length&&Object.keys(a).every(k=>own(b,k)&&deepEqual(a[k],b[k]));
 const nearInteger = n => Number.isFinite(n) && Math.abs(n - Math.round(n)) <= Number.EPSILON * Math.max(1, Math.abs(n)) * 8;
 
 function validate(value, template = false) {
@@ -186,7 +187,7 @@ function validate(value, template = false) {
     if (!record(q)) { add(p,"Expected an object."); return; }
     const choice = ["radio","checkbox","image-radio","image-checkbox"].includes(q.type), image = ["image-radio","image-checkbox"].includes(q.type);
     const boards = q.type === "boards";
-    const extra = boards ? ["options","pick","view","min"] : choice ? ["options"] : q.type === "slider" ? ["min","max","step","value","minLabel","maxLabel"] : q.type === "text" ? ["placeholder"] : [];
+    const extra = boards ? ["options","pick","view","min","controls"] : choice ? ["options"] : q.type === "slider" ? ["min","max","step","value","minLabel","maxLabel"] : q.type === "text" ? ["placeholder"] : [];
     object(q,p,["id","type","label","short","help",...extra],["id","type","label",...(boards ? ["options","pick"] : choice ? ["options"] : q.type === "slider" ? ["min","max"] : [])]);
     strings(q,p,[["id",1,L.idMax,ID],["label",1,L.questionLabelMax],["short",0,L.shortMax],["help",0,L.helpMax]]);
     if (typeof q.id === "string") { if (ids.has(q.id)) add(`${p}.id`,"Question id must be unique."); ids.add(q.id); }
@@ -208,21 +209,60 @@ function validate(value, template = false) {
       if(own(q,"view") && !["board","look"].includes(q.view)) add(`${p}.view`,"Expected board or look.");
       if(own(q,"min") && (!Number.isInteger(q.min)||q.min<1||q.min>q.pick)) add(`${p}.min`,"Expected a whole number from 1 to pick.");
       else if(own(q,"min") && Array.isArray(q.options) && q.min>q.options.length) add(`${p}.min`,"Expected no more than the number of boards.");
+      if(own(q,"controls")) {
+        if(object(q.controls,`${p}.controls`,["mode","strength"])) {
+          if(!Object.keys(q.controls).length)add(`${p}.controls`,"Supply mode or strength.");
+          if(own(q.controls,"mode")&&!["light","dark"].includes(q.controls.mode))add(`${p}.controls.mode`,"Expected light or dark.");
+          if(own(q.controls,"strength")&&q.controls.strength!==true)add(`${p}.controls.strength`,"Expected true.");
+        }
+        if(!(q.pick>=1))add(`${p}.controls`,"Controls need pick of at least one.");
+      }
       if(!own(value,"brand")) add("brand","Boards require the shared brand.");
       if(array(q.options,`${p}.options`,1,12)) {
-        const values=new Set();let recommended=0;
+        const values=new Map();let recommended=0;
         q.options.forEach((o,j)=>{
           const op=`${p}.options[${j}]`;
-          if(!object(o,op,["value","label","note","recommendation","board"],["value",...(q.view==="look"?[]:["label"]),"board"]))return;
+          if(!object(o,op,["value","label","note","recommendation","board","steps"],["value",...(q.view==="look"?[]:["label"]),"board"]))return;
           strings(o,op,[["value",1,L.optionValueMax,VALUE],["label",1,B.label],["note",0,B.note],["recommendation",1,B.recommendation]]);
-          if(values.has(o.value))add(`${op}.value`,"Option value must be unique.");values.add(o.value);
+          if(values.has(o.value))add(`${op}.value`,"Option value must be unique.");else values.set(o.value,j);
           if(own(o,"recommendation") && ++recommended>2)add(`${op}.recommendation`,"At most two recommendations.");
           if(q.view==="look" && own(o,"recommendation"))add(`${op}.recommendation`,"Looks carry no recommendation.");
           if(!record(o.board)) { add(`${op}.board`,"Expected an object."); return; }
           const merged={...(record(value.boardDefaults)?value.boardDefaults:{}),...o.board};
           if(!object(merged,`${op}.board`,BOARD_KEYS,["pairing","palette","graphicSet","primaryMode"]))return;
+          if(record(q.controls)&&own(q.controls,"mode")&&o.board.primaryMode!==q.controls.mode)add(`${op}.board.primaryMode`,"Expected the controls mode.");
+          if(!own(o,"steps")&&(q.controls?.strength===true||q.view==="look"&&own(q.controls??{},"mode")))add(`${op}.steps`,"These controls need steps on every option.");
           // Validate each option to locate independent failures; then validate the page too.
           try { resolveBoards(value.brand,[o],value.boardDefaults); } catch(e) { add(`${op}.board`,e.message); }
+        });
+        q.options.forEach((o,j)=>{
+          if(!record(o)||!own(o,"steps"))return;
+          const op=`${p}.options[${j}]`,sp=`${op}.steps`;
+          if(!array(o.steps,sp,1,3))return;
+          let matching=0,previous=-1;
+          const family=palettePosition(o.board?.palette?.id)?.family;
+          o.steps.forEach((step,k)=>{
+            const at=`${sp}[${k}]`;
+            if(!object(step,at,["value","palette",...(q.view==="look"?["depth"]:[])],["value","palette",...(q.view==="look"?["depth"]:[])]))return;
+            strings(step,at,[["value",1,L.optionValueMax,VALUE]]);
+            if(values.has(step.value)&&(step.value!==o.value||values.get(step.value)!==j))add(`${at}.value`,"Step value must be unique across the question.");
+            // The one matching step may share its own option's value, exactly once.
+            if(step.value===o.value&&step.palette?.id===o.board?.palette?.id)matching++;
+            if(step.value!==o.value&&!values.has(step.value))values.set(step.value,j);
+            if(o.steps.slice(0,k).some(s=>s?.value===step.value))add(`${at}.value`,"Step value must be unique.");
+            if(object(step.palette,`${at}.palette`,["id"],["id"]))strings(step.palette,`${at}.palette`,[["id",1,60]]);
+            const position=palettePosition(step.palette?.id);
+            if(!position||position.family!==family||position.index<=previous)add(`${at}.palette`,"Expected this colour family's steps in muted, balanced, bold order.");
+            if(position)previous=position.index;
+            if(q.view==="look")object(step.depth,`${at}.depth`,["light","dark"],["light","dark"]);
+            if(!record(o.board))return;
+            if(q.view==="look"&&step.value===o.value&&step.palette?.id===o.board.palette?.id&&!deepEqual(step.depth?.[o.board.primaryMode],o.board.depth))add(`${at}.depth`,"The matching step's primary-mode depth must equal board.depth.");
+            for(const mode of q.view==="look"?["light","dark"]:[o.board.primaryMode]) {
+              try { resolveBoards(value.brand,[{...o,board:stepBoard(o,step,q.view,mode)}],value.boardDefaults); }
+              catch(e) { add(at,e.message); }
+            }
+          });
+          if(matching!==1)add(sp,"Exactly one step must match the option value and palette id.");
         });
         if(problems.length===0) try { resolveBoards(value.brand,q.options,value.boardDefaults); } catch(e) { add(`${p}.options`,e.message); }
       }
@@ -327,6 +367,7 @@ export function formJsonSchema() {
   const option = obj({
     value: str(L.optionValueMax,"Unique option value: 1 to 40 lowercase letters, digits or hyphens, starting with a letter or digit.",1,VALUE.source),
     label: str(B.label,"Option label: boards up to 120 code points, other types up to 60.",1), note: str(B.note,"Optional note: boards up to 300 code points, others up to 80. In board view, absent note draws brand.words as {word}, not {not}, joined with semicolon and space; an explicit note, including empty, wins."),
+    steps:arr(obj({value:str(L.optionValueMax,"Unique across the whole question, except the one step matching its own option value and palette id.",1,VALUE.source),palette:obj({id:line(60)},["id"],"This colour family's palette id, ordered muted to balanced to bold."),depth:obj({light:JSON.parse(JSON.stringify(depthSchema)),dark:JSON.parse(JSON.stringify(depthSchema))},["light","dark"],"Look view only, required there. The matching step's depth in board.primaryMode deep-equals board.depth; every step board passes the option's checks in both modes.")},["value","palette"],"Boards only. Look view also requires depth; board view refuses it. Exactly one entry matches the option's value and board.palette.id."),1,3,"Boards only. Required on every option with controls.strength or look-view controls.mode. Each step replaces only palette and, in look view, depth for the showing mode. Values are unique across steps and all options, except the own matching step."),
     board, recommendation:str(B.recommendation,"Boards only; at most two recommended options, one line each.",1),
     picture: str(L.fontSrcMax,"Optional on image types; at least two options in an image question must have a picture. An option without one is a word choice drawn after the tiles. Other question types refuse it. palette:#hex,#hex,... has 1 to 8 colours, each #rgb or #rrggbb. motif:<name>[:#fg,#bg] uses dots, grid, waves, arcs, stripes, rings, triangles or blob and either no colours or exactly two. type:<family>[+<family>][:#fg,#bg] uses one or two declared font families or serif, sans-serif, monospace, system-ui, and either no colours or exactly two. Nothing is fetched for pictures.",1),
     sample: str(L.sampleMax,"Only with a type: picture, refused without a picture; at most 24 code points. Both type families draw this sample when supplied; otherwise the first draws Aa and the second Abc 123.")
@@ -335,6 +376,7 @@ export function formJsonSchema() {
     id: str(L.idMax,"Unique question id: lowercase letter then up to 39 lowercase letters, digits or hyphens.",1,ID.source),
     type: { type:"string",enum:[...TYPES],description:"Supported question type; only that type's keys are accepted by checkForm." },
     label: str(L.questionLabelMax,"Question label, 1 to 200 code points.",1), short: str(L.shortMax,"Optional answer heading, at most 40 code points."),help:str(L.helpMax,"Optional help, at most 300 code points."),
+    controls:obj({mode:{type:"string",enum:["light","dark"],description:"Starting page mode; every option's board.primaryMode must equal it. Sent as top-level mode."},strength:{type:"boolean",enum:[true],description:"Enable More muted and More bold, one supplied adjacent colour-family step per press."}},[],"Boards only, with pick at least 1. Supply mode or strength or both. One bar above all tiles redraws their pictures in place, retaining picks and captions. Buttons grey when no card can move; gaps are not skipped. Without controls no bar is shown."),
     pick:{type:"integer",enum:[0,1,2,3],description:"Boards only, required: the most picks that may be sent (1, 2 or 3); ticking is unlimited. A sole option with 1 is selected. 0 is display-only with no actions or send."},
     view:{type:"string",enum:["board","look"],description:"Boards only: board (default) draws whole boards; look draws 600 by 360 whole-look tiles, four across from 734px, two below, without full-size controls or recommendations."},
     options:arr(option,1,L.optionsMax,"Boards need 1 to 12 options. Required for choices: 2 to 12 options for radio/checkbox, 2 to 8 for image-radio/image-checkbox, with at least two options carrying a picture. Remaining image options may omit picture and draw as word choices after the tiles, in the same input group. Other types refuse options."),

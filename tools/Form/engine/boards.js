@@ -114,9 +114,9 @@ function board(model,b,mode,compact,logo) {
   };
   n.append(...b.modes[mode][compact?'tile':'blocks'].map(block).filter(Boolean));return n;
 }
-function draw(model,b,{compact=false,logo}={}) {
+function draw(model,b,{compact=false,logo,mode:showMode}={}) {
   const n=el('div','board-art');
-  for(const mode of compact?[b.primaryMode]:[b.primaryMode,b.primaryMode==='light'?'dark':'light']) {
+  for(const mode of showMode?[showMode]:compact?[b.primaryMode]:[b.primaryMode,b.primaryMode==='light'?'dark':'light']) {
     const start=n.children.length;
     if(!compact)n.append(el('h2','board-mode',globalThis.WiserForm.WORDS[mode]));
     n.append(board(model,b,mode,compact,logo));

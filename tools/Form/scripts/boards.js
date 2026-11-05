@@ -12,7 +12,34 @@ export function checkLogo(logo) {
 }
 export const BOARD_KEYS = ['pairing','palette','graphicSet','container','primaryMode','depth','handwriting','buttonRadius','heroPhrase','content','note','sample','items','closingExamples'];
 export const BOARD_DEFAULT_KEYS = BOARD_KEYS.filter(k=>!['pairing','palette','graphicSet','container','primaryMode','depth'].includes(k));
-export function resolveBoards(brand,options,boardDefaults={}) {
+// Palette ids carry the colour family's ordered three steps.
+export function palettePosition(id) {
+  const match=typeof id==='string'&&id.match(/^(.+)-(muted|balanced|bold)$/);
+  return match?{family:match[1],index:['muted','balanced','bold'].indexOf(match[2])}:null;
+}
+export function stepBoard(option,step,view,mode=option.board.primaryMode) {
+  return {...option.board,palette:step.palette,primaryMode:mode,...(view==='look'?{depth:step.depth[mode]}:{})};
+}
+export function resolveBoards(brand,options,boardDefaults={},view) {
+  // Resolve each supplied step once at load, with the same single-board checks
+  // used by the format checker. Drawing only selects from these saved models.
+  if(view && options.some(o=>Array.isArray(o.steps))) {
+    const model=resolveBoards(brand,options,boardDefaults);
+    const steps=options.map((o,i)=>{
+      if(!o.steps)return [{value:o.value,boards:{light:model.boards[i],dark:model.boards[i]}}];
+      return o.steps.map(step=>{
+        const boards={};
+        for(const mode of view==='look'?['light','dark']:[o.board.primaryMode]) {
+          const variant={...o,label:o.label??`Look ${i+1}`,board:stepBoard(o,step,view,mode)};
+          const b=resolveBoards(brand,[variant],boardDefaults).boards[0];b.number=i+1;
+          boards[mode]=b;
+        }
+        if(view!=='look')boards.light=boards.dark=Object.values(boards)[0];
+        return {value:step.value,boards};
+      });
+    });
+    return {...model,boards:steps.map((row,i)=>row.find(s=>s.value===options[i].value).boards[options[i].board.primaryMode]),steps};
+  }
   if(!boardDefaults || typeof boardDefaults !== 'object' || Array.isArray(boardDefaults)) throw Error('boardDefaults must be an object.');
   for(const k of Object.keys(boardDefaults)) if(!BOARD_DEFAULT_KEYS.includes(k)) throw Error(`Unknown boardDefaults field ${k}.`);
   const boards=options.map((o,i) => {

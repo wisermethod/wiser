@@ -120,3 +120,7 @@ button.over-limit:disabled{background:var(--card);color:var(--muted);box-shadow:
 
 .board-crop{container-type:inline-size}
 @container(max-width:400px){.board-crop .board-art .board-preview .brand-headline{font-size:calc(var(--display-size) * .36)!important}.board-crop .board-art .board-preview .tile-top{grid-template-columns:minmax(0,1fr) 105px;gap:12px}.board-crop .board-art .board-preview{padding:22px 18px 18px}}
+
+.board-controls{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin:0 0 16px}
+.board-strength{display:flex;gap:8px}
+.board-strength button{background:var(--card);color:var(--fg);box-shadow:inset 0 0 0 1px var(--line)}
