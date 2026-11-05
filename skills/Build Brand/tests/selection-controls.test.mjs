@@ -11,8 +11,10 @@ import {boardRefusal} from '../scripts/refusals.mjs';
 import {checkForm} from '../../../tools/Form/scripts/format.js';
 import {resolveBoards} from '../../../tools/Form/scripts/boards.js';
 import {validateBrandBoards} from '../../../tools/Contact Sheet/scripts/brand-boards.js';
-import {operator,firstStrategy,lookActions} from './select-fixtures.mjs';
+import {operator,firstStrategy,bakery,lawFirm,lookActions} from './select-fixtures.mjs';
+import {expectedMode} from './m51c-checks.mjs';
 const library=JSON.parse(readFileSync(LIBRARY));
+const taps=JSON.parse(readFileSync(new URL('../parts/taps.json',import.meta.url)));
 const copy=structuredClone,modes=['light','dark'];
 const family=id=>id.replace(/-(muted|balanced|bold)$/,'');
 const lookValue=(pairing,palette,graphic)=>'look-'+createHash('sha256').update(`${pairing}/${palette}/${graphic}`).digest('hex').slice(0,32);
@@ -28,7 +30,7 @@ function passes(selection,b,l=library) {
 }
 function assertLooks(a,r) {
  const before=copy(r),form=lookForm(a,r);
- assert.deepEqual(r.controls,{mode:a.mode??'dark',strength:true});
+ assert.deepEqual(r.controls,{mode:expectedMode(a),strength:true});
  assert.deepEqual(checkForm(form),{ok:true,problems:[]});
  const values=new Set();
  for(const [i,o] of r.options.entries()) {
@@ -54,7 +56,7 @@ function assertLooks(a,r) {
 function assertBoards(a,r) {
  assert.ok(r.form,r.formUnavailable);
  const q=r.form.questions[0],before=copy(r);
- assert.deepEqual(q.controls,{mode:a.mode??'dark',strength:true});
+ assert.deepEqual(q.controls,{mode:expectedMode(a),strength:true});
  assert.deepEqual(checkForm(r.form),{ok:true,problems:[]});
  assert.equal(q.options.length,r.selection.boards.length);
  const values=new Set();
@@ -77,12 +79,14 @@ function assertBoards(a,r) {
  }
  assert.deepEqual(r,before);
 }
-for(const get of [operator,firstStrategy]) {
- test(`${get.name}: checked looks controls and exact approved card-mode steps pass Form unchanged`,()=>{
-  const a=get(),r=select('looks',a,{check:true});assertLooks(a,r);
+for(const get of [operator,firstStrategy,bakery,lawFirm]) for(const tapMode of [undefined,...taps.questions.find(q=>q.id==='mode').options.map(o=>o.id)]) {
+ const answers=()=>{const a=get();if(tapMode!==undefined) a.taps.mode=tapMode;return a;};
+ const label=`${get.name} ${tapMode??'own mode'}`;
+ test(`${label}: checked looks controls and exact approved card-mode steps pass Form unchanged`,()=>{
+  const a=answers(),r=select('looks',a,{check:true});assertLooks(a,r);
  });
- test(`${get.name}: checked Round 1 and variations share page mode and complete checked steps`,()=>{
-  const a={...get(),looksShown:[],mode:'light'},r=select('round1',a,{check:true});assertBoards(a,r);
+ test(`${label}: checked Round 1 and variations share page mode and complete checked steps`,()=>{
+  const a={...answers(),looksShown:[],mode:'light'},r=select('round1',a,{check:true});assertBoards(a,r);
   const step=r.selection.boards.flatMap(b=>b.steps).find(s=>!r.selection.boards.some(b=>b.value===s.value));assert.ok(step);
   const input={...a,mode:'dark',picks:[copy(step)],shown:copy(r.selection.boards)};
   const before=copy(input),v=select('variations',input,{check:true});assertBoards(input,v);assert.deepEqual(input,before);
@@ -90,8 +94,18 @@ for(const get of [operator,firstStrategy]) {
   assert.ok(v.selection.boards.every(b=>b.content.sentence===step.content.sentence));
   assert.ok(v.selection.boards.every(b=>JSON.stringify([b.pairing,b.palette,b.graphicSet,b.container])!==JSON.stringify([step.pairing,step.palette,step.graphicSet,step.container])));
  });
- test(`${get.name}: any picked look step resolves and boosts its own card in Round 1`,()=>{
-  const a=get(),r=select('looks',a),option=r.options.find(o=>o.steps.length>1),step=option.steps.find(s=>s.value!==option.value);
+ test(`${label}: first page's first two looks make checked Round 1 boards and complete steps`,()=>{
+  const a=answers(),first=select('looks',a,{check:true}),picked=first.looks.slice(0,2);
+  const input={...a,looks:picked.map(l=>l.value),looksShown:first.options},before=copy(input);
+  const round=select('round1',input,{check:true});assertBoards(input,round);assert.deepEqual(input,before);
+  for(const [axis,[neg,pos]] of Object.entries(AXES)) {
+   const boost=picked.reduce((n,l)=>n+(l.positions[axis]===pos?1:l.positions[axis]===neg?-1:0),0);
+   assert.equal(round.wholeLookBoosts[axis],boost);
+   assert.equal(round.dials[axis]-first.dials[axis],boost);
+  }
+ });
+ test(`${label}: any picked look step resolves and boosts its own card in Round 1`,()=>{
+  const a=answers(),r=select('looks',a),option=r.options.find(o=>o.steps.length>1),step=option.steps.find(s=>s.value!==option.value);
   const input={...a,looks:[step.value],looksShown:r.options,mode:'light'},before=copy(input),round=select('round1',input);
   assert.deepEqual(input,before);assertBoards(input,round);
   const tags=partPositions(library,{...option.board,palette:step.palette});
@@ -101,8 +115,8 @@ for(const get of [operator,firstStrategy]) {
   }
   const bad=copy(input);bad.looks=[step.value.replace(/.$/,'z')];assert.throws(()=>select('round1',bad),/looksShown/);
  });
- test(`${get.name}: retry history counts only own cards, with steps retained as unshown choices`,()=>{
-  const a=get(),first=select('looks',a),own=first.options.map(({steps,...o})=>o);
+ test(`${label}: retry history counts only own cards, with steps retained as unshown choices`,()=>{
+  const a=answers(),first=select('looks',a),own=first.options.map(({steps,...o})=>o);
   const nextLooks=select('looks',{...a,shown:first.options});
   assert.deepEqual(nextLooks,select('looks',{...a,shown:own}));
   const expandedLooks=first.looks.flatMap(look=>look.steps.map(step=>({...look,value:step.value,palette:step.palette.id})));

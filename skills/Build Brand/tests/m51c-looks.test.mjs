@@ -3,13 +3,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {select,paletteFamily} from '../scripts/select.mjs';
-import {tapSets} from '../../../tools/Form/tests/board-fixtures.js';
+import {operator,firstStrategy,bakery,lawFirm} from './select-fixtures.mjs';
 import {library,approvedPool,assertPool,assertPage,assertCoverage,assertCaps,assertFallback,canCompleteContrasts,expectedMode,depth,parsePaletteId,passingCards} from './m51c-checks.mjs';
 
 const taps=JSON.parse(readFileSync(new URL('../parts/taps.json',import.meta.url)));
-for(const [name,fixture] of Object.entries(tapSets)) for(const mode of taps.questions.find(q=>q.id==='mode').options.map(o=>o.id)) {
-  test(`${name} ${mode}: checked first page and every retry keep approved cards until exhaustion`,()=>{
-    const a=fixture();a.taps.mode=mode;
+const tapSets={operator,firstStrategy,bakery,lawFirm};
+for(const [name,fixture] of Object.entries(tapSets)) for(const mode of [undefined,...taps.questions.find(q=>q.id==='mode').options.map(o=>o.id)]) {
+  test(`${name} ${mode??'own mode'}: checked first page and every retry keep approved cards until exhaustion`,()=>{
+    const a=fixture();if(mode!==undefined) a.taps.mode=mode;
     const shown=[];let pages=0;
     for(;;) {
       let r;
@@ -63,7 +64,7 @@ test('approved pool fixes style graphics and containers and excludes either with
 test('steer, off and kept page modes retain the same approved-board contract',()=>{
   for(const fixture of Object.values(tapSets)) {
     const a=fixture(),shown=select('looks',a).options;
-    for(const extra of [{shown,steer:{warmCool:1,quietBold:-1}}, {shown,off:['darkLed']}, {shown,off:['dark']}, {kept:{primaryMode:'light'}}, {kept:{primaryMode:'dark',pairing:'industrial',palette:{id:'business-blue-bold'},buttonRadius:12}}]) {
+    for(const extra of [{shown,steer:{warmCool:1,quietBold:-1}}, {shown,off:['darkLed']}, {shown,off:[a.taps.mode]}, {kept:{primaryMode:'light'}}, {kept:{primaryMode:'dark',pairing:'industrial',palette:{id:'business-blue-bold'},buttonRadius:12}}]) {
       const answers={...a,...extra},r=select('looks',answers,{check:true});assertPage(r,answers,extra.shown??[]);
     }
   }
@@ -139,7 +140,7 @@ test('each new cap has a planted control independent of the other caps',()=>{
   assert.throws(()=>assertCaps([card('one','muted','A'),card('one','balanced','B'),card('one','bold','C')]),/at most two per family/);
 });
 test('member mode wins over Tesla, with kept, dropped and neutral branches in order',()=>{
-  for(const fixture of Object.values(tapSets)) {
+  for(const fixture of [operator,firstStrategy]) {
     const cases=[
       ['light',[],{},'light'],['dark',[],{},'dark'],['mode-either',[],{},'dark'],
       ['mode-either',['darkLed'],{},'light'],['mode-either',['tesla'],{},'dark'],['mode-either',['tesla','restoration-hardware'],{},'light'],['mode-either',['mode-either'],{},'dark'],
