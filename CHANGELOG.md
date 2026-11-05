@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.05, November 5, 2026
+
+- Set up Wiser's steps for making your project in Claude Cowork now match the app: choose New project, type your name and Wiser Managed Project, then Use a folder. (816b32df)
+
 ## v2026.11.04.4, November 4, 2026
 
 - Turning a page into a picture, exporting slides to a PDF and Browser Control now use a browser that is already installed on the machine when the version they were built for is missing, instead of downloading their own. Claude Cowork comes with a browser but blocks that download by default, so these tools stopped there with a download error before. Where no usable browser is found, they still download theirs, once you agree. (6dfb8f25)
