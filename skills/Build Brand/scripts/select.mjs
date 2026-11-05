@@ -56,8 +56,8 @@ For a displayed page, save pageDisplayed: true and its complete selection.boards
 as displayedBoards in the answers file before waiting; resume retains both.
 Only avoided keys on that saved page select slots for ranked replacements;
 unblocked displayed boards retain every byte except the page mode, board and
-step captions, and Close recommendation flags reset in page order after
-replacement. Accumulate older blocked
+step captions, steps beyond a refused middle step, and Close recommendation
+flags reset in page order after replacement. Accumulate older blocked
 records in avoid, never in shown. An exhausted displayed slot or an unfillable
 unseen rebuild reports its own failure. Board zero keeps its fixed assets. Four new boards per
 pick, together in pick order. picks: [] requests a fresh Round 1 page with
@@ -248,6 +248,7 @@ export function paletteFamily(id) {
 // own card, so no listed step is stranded beyond a refused middle position.
 function contiguousSteps(steps,value) {
   const position=s=>['muted','balanced','bold'].indexOf(paletteFamily(s.palette.id).step);
+  steps=[...steps].sort((x,y)=>position(x)-position(y));
   let first=steps.findIndex(s=>s.value===value),last=first;
   while(first>0&&position(steps[first-1])===position(steps[first])-1) first--;
   while(last+1<steps.length&&position(steps[last+1])===position(steps[last])+1) last++;
