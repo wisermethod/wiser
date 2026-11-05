@@ -32,16 +32,18 @@ Options:
 Built-ins only. No network, configuration or installs; --env/--install refused.
 Success: one JSON object with selection, ranked spares, positions, replacements,
 checks, ready-to-use boards form (round1/variations), and whole-look options
-(looks). Disk-only kept fonts or boards outside Form's contract report
-form: null (or looks options: null) and formUnavailable; selection is preserved
-for local assembly with selectionForAssembly() or the --output file.
+(looks). Looks always returns options, never options: null. Disk-only kept fonts
+or boards outside Form's contract report form: null and formUnavailable;
+selection is preserved for local assembly with selectionForAssembly() or the
+--output file.
 Failure: JSON on stderr only, exit 1. No existing output is overwritten.
-Optional mode is the last page switch position, light or dark.
+The answers file carries the returned page switch position as optional mode,
+light or dark.
 looks answers: optional shown (all looks records or Form options already shown
 in this sitting), steer and off. Empty/absent shown keeps the first page;
 otherwise return twelve unshown looks, preferring less-shown parts.
-variations answers: picks (0 to 3 full board records), shown (all boards already
-shown in this sitting), steer (warmCool, quietBold, softStrong,
+variations answers: picks (0 to 3 complete step records the member sent), shown
+(all boards as first shown in this sitting), steer (warmCool, quietBold, softStrong,
 classicContemporary: -1, 0 or 1), and off as for round1.
 round1/variations: looksShown is required: all displayed whole-look records
 or Form options, separate from board shown; empty only if none was displayed.
@@ -53,8 +55,9 @@ false: exclude every avoid key and build one fresh page with avoid empty.
 For a displayed page, save pageDisplayed: true and its complete selection.boards
 as displayedBoards in the answers file before waiting; resume retains both.
 Only avoided keys on that saved page select slots for ranked replacements;
-unblocked displayed boards retain every other byte. Close recommendation flags
-are reset in page order after replacement. Accumulate older blocked
+unblocked displayed boards retain every byte except the page mode, board and
+step captions, and Close recommendation flags reset in page order after
+replacement. Accumulate older blocked
 records in avoid, never in shown. An exhausted displayed slot or an unfillable
 unseen rebuild reports its own failure. Board zero keeps its fixed assets. Four new boards per
 pick, together in pick order. picks: [] requests a fresh Round 1 page with
@@ -240,6 +243,15 @@ export function paletteFamily(id) {
   const match=typeof id==='string'&&id.match(/^(.+)-(muted|balanced|bold)$/);
   if(!match) fail('palette.id','must end in -muted, -balanced or -bold');
   return {family:match[1],step:match[2]};
+}
+// Form moves by adjacent family positions. Keep the passing run around the
+// own card, so no listed step is stranded beyond a refused middle position.
+function contiguousSteps(steps,value) {
+  const position=s=>['muted','balanced','bold'].indexOf(paletteFamily(s.palette.id).step);
+  let first=steps.findIndex(s=>s.value===value),last=first;
+  while(first>0&&position(steps[first-1])===position(steps[first])-1) first--;
+  while(last+1<steps.length&&position(steps[last+1])===position(steps[last])+1) last++;
+  return steps.slice(first,last+1);
 }
 function cardDepth(library,palette,style,mode) {
   const overlay=library.cardDepth.find(d=>d.palette===palette.id&&d.style===style.id&&d.mode===mode);
@@ -729,7 +741,7 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
   // A Close board is near a picked look when it shares at least two of its three parts; only those are recommended.
   const pickedTriples=pickedLooks.map(c=>{const x=makeBoard(library,a,c,1,'close');return [x.pairing.id,x.palette.id,x.graphicSet.id];});
   const nearPicked=b=>{const t=[b.pairing.id,b.palette.id,b.graphicSet.id];return pickedTriples.some(p=>p.filter((v,i)=>v===t[i]).length>=2);};
-  const passedOver=new Set((a.looksShown??[]).filter(look=>!(a.looks??[]).some(value=>lookValues(look).includes(value))).map(look=>triple(makeBoard(library,a,shownLook(look,library,a.kept),1,'close'))).filter(id=>!pickedParts.has(id)));
+  const passedOver=new Set((a.looksShown??[]).filter(look=>!(a.looks??[]).includes(look.value)).map(look=>triple(makeBoard(library,a,shownLook(look,library,a.kept),1,'close'))).filter(id=>!pickedParts.has(id)));
   const checker=check?checkFactory(a,library,selectionDir,replacements):null;
   const displayedKeys=new Set((a.displayedBoards??[]).map(boardKey));
   const chosen=[],spares=[],seen=new Set([...(a.shown??[]),...(a.picks??[])].map(boardKey).filter(key=>!a.pageDisplayed||!displayedKeys.has(key)));
@@ -959,7 +971,7 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
       result.options=result.looks.map((look,i)=>{
         const b=boards[i];
         const names=[part(library,'pairings',b.pairing.id).name,part(library,'palettes',b.palette.id).name,part(library,'graphics',b.graphicSet.id).name];
-        const steps=(a.kept?.palette?[chosen[i]]:pool.filter(step=>step.style.id===chosen[i].style.id&&step.family===chosen[i].family)).sort((x,y)=>['muted','balanced','bold'].indexOf(paletteFamily(x.palette.id).step)-['muted','balanced','bold'].indexOf(paletteFamily(y.palette.id).step)).flatMap(step=>{
+        let steps=(a.kept?.palette?[chosen[i]]:pool.filter(step=>step.style.id===chosen[i].style.id&&step.family===chosen[i].family)).sort((x,y)=>['muted','balanced','bold'].indexOf(paletteFamily(x.palette.id).step)-['muted','balanced','bold'].indexOf(paletteFamily(y.palette.id).step)).flatMap(step=>{
           const candidate=effective(step,a,library),board=makeBoard(library,a,candidate,i+1,'looks');
           const depth=Object.fromEntries(['light','dark'].map(mode=>[mode,cardDepth(library,step.palette,step.style,mode)]));
           if(['light','dark'].some(mode=>refused({...board,primaryMode:mode,depth:depth[mode]})||checker&&!checker.acceptBoard({...board,primaryMode:mode,depth:depth[mode]}))) return [];
@@ -967,6 +979,7 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
           return [{value:lookId(step),label,palette:copy(board.palette),depth}];
         });
         if(!steps.some(step=>step.value===look.value)) fail('steps','look has no passing own step in both modes');
+        steps=contiguousSteps(steps,look.value);
         look.steps=copy(steps);
         return {value:look.value,label:names.join(', '),steps,board:{pairing:copy(b.pairing),palette:copy(b.palette),graphicSet:copy(b.graphicSet),primaryMode:b.primaryMode,...(b.container?{container:b.container}:{}),depth:copy(b.depth),handwriting:b.handwriting,buttonRadius:b.buttonRadius}};
       });
@@ -983,6 +996,7 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
           return [{value:boardValue(owner,step),...step}];
         });
         if(!b.steps.some(step=>step.value===b.value)) fail('steps',`board ${b.number} has no passing own step in both modes`);
+        b.steps=contiguousSteps(b.steps,b.value);
       }
       Object.assign(result,boardsForm(a,selection,selectionDir,command));
     }
