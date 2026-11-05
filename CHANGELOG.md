@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.05.2, November 5, 2026
+
+- About 180 lessons from building and testing Wiser are now written into the step that runs when each one matters: how a change is proved, how a build is briefed and reviewed, how a Playbook is planned and resumed, and the notes on the gateway, connectors and tools. Prove Change, Delegate Build and Playbook Author keep their length: where one step gathers several rules, it sends you to a short list beside the skill. (56cce1a3, 2384b758, f2bcf80a)
+- The gateway's test provider refuses a file body no real provider would take, and Onboard Root's check of a cited range now reads every number in it. (56cce1a3)
+- Playbook Author's hand-off no longer files a rule its part already states, or a defect, as a lesson: a defect is fixed where it lives or recorded as a build. (56cce1a3)
+
 ## v2026.11.05, November 5, 2026
 
 - Set up Wiser's steps for making your project in Claude Cowork now match the app: choose New project, type your name and Wiser Managed Project, then Use a folder. (816b32df)
