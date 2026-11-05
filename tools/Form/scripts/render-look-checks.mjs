@@ -20,7 +20,7 @@ export async function run(output) {
  if(local===''||(!isAbsolute(local)&&local!=='..'&&!local.startsWith(`..${sep}`))||existsSync(output))throw Error('Use a new output directory outside this tool.');
  const sets=Object.entries(tapSets);
  mkdirSync(output,{recursive:true});
- const kit=await browserKit(),record={pageBytes:kit.pageBytes,forms:{},renders:[],looks:[],measurements:[],requests:[],prototypeComparison:{status:'dropped',reason:'The prototype has eight looks; the current twelve-look selection, including four plain grounds, has no matching prototype baseline.'}};
+ const kit=await browserKit(),record={pageBytes:kit.pageBytes,forms:{},renders:[],looks:[],measurements:[],requests:[],prototypeComparison:{status:'dropped',reason:'The prototype has eight looks; the current twelve-look selection, with approved card depths and at least two plain grounds, has no matching prototype baseline.'}};
  try {
   for(const [fixture,get]of sets) {
    const slug=fixture==='firstStrategy'?'first-strategy':fixture;
@@ -28,16 +28,24 @@ export async function run(output) {
    form.title=fixture==='operator'?'Step 3 of 6: how it should look':'Step 4 of 7: how it should look';
    assert.deepEqual(checkForm(form),{ok:true,problems:[]});
    assert.equal(form.questions[0].options.length,12);
-   const plain=[2,5,8,11];
-   assert.deepEqual(result.selection.boards.flatMap((b,i)=>b.graphicSet.pattern?.strength.light===0&&b.graphicSet.pattern?.strength.dark===0?[i+1]:[]),plain);
+   const options=form.questions[0].options;
+   const plain=options.flatMap((o,i)=>o.board.depth.background==='plain'?[i+1]:[]);
+   assert.ok(plain.length>=2,'at least two plain grounds');
+   const checkDepth=(drawn,i)=>{
+    const expected=options[i].board.depth;
+    assert.equal(drawn.background,expected.background,`look ${i+1}: approved background`);
+    if(drawn.mark!==null)assert.equal(drawn.mark,expected.mark,`look ${i+1}: approved mark`);
+   };
    const save=(file,data)=>writeFileSync(resolve(output,file),data,{flag:'wx'});
    save(`${slug}-form.json`,JSON.stringify(form,null,2)+'\n');
-   record.forms[slug]={bytes:Buffer.byteLength(JSON.stringify(form)),options:form.questions[0].options.length,replacements:result.replacements,parts:result.positions};
+   record.forms[slug]={bytes:Buffer.byteLength(JSON.stringify(form)),options:form.questions[0].options.length,replacements:result.replacements,parts:result.positions,plainSlots:plain,marks:[...new Set(options.map(o=>o.board.depth.mark))]};
    for(const width of [390,734])for(const theme of ['light','dark']) {
     const h=await kit.open(form,width,theme,{touch:true});
     try {
      assert.equal(await h.f.locator('.look-art').count(),12);
-     for(const number of plain)assert.equal(await h.f.locator('.look-art').nth(number-1).locator('.look-pattern').getAttribute('opacity'),'0');
+     const drawn=await h.f.locator('.look-art').evaluateAll(nodes=>nodes.map(n=>({background:n.getAttribute('data-depth'),mark:n.getAttribute('data-mark')})));
+     drawn.forEach(checkDepth);
+     assert.ok(drawn.filter(d=>d.background==='plain').length>=2,'at least two drawn plain grounds');
      for(const state of ['none-picked','two-picked','four-held']) {
       if(state==='two-picked')for(const i of [0,1])await h.f.locator('.looks-tile').nth(i).tap();
       if(state==='four-held')for(const i of [2,3])await h.f.locator('.looks-tile').nth(i).tap();
@@ -70,11 +78,11 @@ export async function run(output) {
     assert.equal(await h.f.locator('.look-art').count(),12);
     for(let i=0;i<12;i++) {
      const drawing=h.f.locator('.look-art').nth(i);
-     const measured=await drawing.evaluate(n=>({width:n.getBoundingClientRect().width,height:n.getBoundingClientRect().height,patternOpacity:Number(n.querySelector('.look-pattern').getAttribute('opacity'))}));
+     const measured=await drawing.evaluate(n=>({width:n.getBoundingClientRect().width,height:n.getBoundingClientRect().height,background:n.getAttribute('data-depth'),mark:n.getAttribute('data-mark')}));
      assert.equal(measured.width,600);assert.equal(measured.height,360);
-     assert.equal(measured.patternOpacity===0,plain.includes(i+1));
+     checkDepth(measured,i);
      const file=`${slug}-look-${i+1}.png`;await drawing.screenshot({path:resolve(output,file)});record.renders.push(file);
-     record.looks.push({brand:slug,number:i+1,file,plainGround:plain.includes(i+1),...measured});
+     record.looks.push({brand:slug,number:i+1,file,plainGround:measured.background==='plain',expectedBackground:options[i].board.depth.background,expectedMark:options[i].board.depth.mark,...measured});
     }
     assert.ok(onlyFonts(h.requests));assert.deepEqual(h.errors,[]);record.requests.push(...h.requests);
    } finally {await h.context.close();}
@@ -87,7 +95,7 @@ async function main() {
  try {
   const args=process.argv.slice(2),known=['--help','--output','--prototype'];
   for(const flag of args.filter(a=>a.startsWith('--')))if(!known.includes(flag))throw Error(`Unknown option ${flag}; use --help.`);
-  if(!args.length||args.includes('--help')){process.stdout.write('Usage: node scripts/render-look-checks.mjs --output <new-absolute-directory>\nOffline evidence for all twelve looks and four plain grounds; the obsolete eight-look prototype comparison is dropped. Legacy --prototype <absolute-directory> is accepted but never read. Requires existing development packages, browser and font pack. Installs nothing.\n');return;}
+  if(!args.length||args.includes('--help')){process.stdout.write('Usage: node scripts/render-look-checks.mjs --output <new-absolute-directory>\nOffline evidence for all twelve approved look depths, at least two plain grounds and each exposed mark; the obsolete eight-look prototype comparison is dropped. Legacy --prototype <absolute-directory> is accepted but never read. Requires existing development packages, browser and font pack. Installs nothing.\n');return;}
   if(![2,4].includes(args.length)||args[0]!=='--output'||(args.length===4&&(args[2]!=='--prototype'||!isAbsolute(args[3]))))throw Error('Use --output <new-absolute-directory>; see --help.');
   const record=await run(args[1]);process.stdout.write(JSON.stringify({output:args[1],forms:record.forms,renders:record.renders.length,looks:record.looks.length,prototypeComparison:record.prototypeComparison})+'\n');
  } catch(e){process.stderr.write(JSON.stringify({error:e.message})+'\n');process.exitCode=1;}

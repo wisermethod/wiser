@@ -53,7 +53,7 @@ All families are from pinned source revisions recorded in `parts.json`. Every li
 
 ## Extension seam
 
-The library contains `fonts`, `fontPack`, `pairings`, `palettes`, `containers`, `graphics`, `refusedClusters`, `styles` and `withheld`. Keep ids stable unless a replacement is explicitly approved. `styles` holds ten `{id, column, name, depth}` records, with ids matching the pairings and columns A to J. Their depth follows the table under look view in `tools/Form/TOOL.md`. `withheld` holds eleven `{palette, style, mode, reason}` records; do not draw those approved card-modes. The reason names the failed check.
+The library contains `fonts`, `fontPack`, `pairings`, `palettes`, `containers`, `graphics`, `refusedClusters`, `styles`, `withheld` and `cardDepth`. Keep ids stable unless a replacement is explicitly approved. `styles` holds ten `{id, column, name, graphicSet, container, depth}` records, with ids matching the pairings and columns A to J. Their depth follows the table under look view in `tools/Form/TOOL.md`. `withheld` holds eleven `{palette, style, mode, reason}` records; do not draw those approved card-modes. The reason names the failed check. `cardDepth` holds card-mode depth overrides keyed by palette, style and mode; lay their listed fields over the style's depth, replacing each listed field whole.
 
 ## Palettes
 

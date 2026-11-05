@@ -5,6 +5,8 @@ import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname, resolve } from 'node:path';
 import { LIBRARY } from '../scripts/assemble.mjs';
+import { paletteFamily } from '../scripts/select.mjs';
+import { depthOptions } from '../../../tools/Contact Sheet/scripts/board-depth.js';
 import { wcag } from '../../../tools/Contact Sheet/scripts/brand-boards.js';
 import { checkPack, INSTALL } from '../scripts/fonts.mjs';
 
@@ -23,7 +25,7 @@ test('approved visual parts retain their exact colours, settings, geometry and f
     pairings: library.pairings.map(p => omit(p, ['settingsProvenance'])),
     palettes: library.palettes.map(p => omit(p, ['description','adjustments','softStrongReason'])),
     graphics: library.graphics.map(p => omit(p, ['adjustments'])),
-    styles: library.styles, fonts: library.fonts, containers: library.containers, refusedClusters: library.refusedClusters
+    styles: library.styles.map(p => omit(p, ['graphicSet','container'])), fonts: library.fonts, containers: library.containers, refusedClusters: library.refusedClusters
   };
   assert.equal(hash(JSON.stringify(visual)), 'a613742d276b37514b91acae7ec38cc9aba386f398fa8367a607738cda9cca0a');
 });
@@ -32,7 +34,7 @@ test('ten colour families each provide muted, balanced and bold palettes with co
   assert.equal(library.palettes.length, 30);
   const families = new Map();
   for (const p of library.palettes) {
-    const [,family,step] = p.id.match(/^(.+)-(muted|balanced|bold)$/);
+    const {family,step} = paletteFamily(p.id);
     if (!families.has(family)) families.set(family, []);
     families.get(family).push(step);
     assert.equal(Object.hasOwn(p,'draft'), false); assert.equal(Object.hasOwn(p,'draftFields'), false);
@@ -94,9 +96,15 @@ test('the second pack pins all 19 families and 43 local files with unchanged lic
 test('ten styles preserve their pairing ids and closed depth recipes; eleven modes stay withheld', () => {
   assert.deepEqual(library.styles.map(s=>s.id),library.pairings.map(p=>p.id));
   assert.deepEqual(library.styles.map(s=>s.column),Array.from('ABCDEFGHIJ'));
+  assert.deepEqual(library.styles.map(s=>[s.graphicSet,s.container]),[
+    ['editorial','double-ring'],['geometric','filled-circle'],['drafting','rule-box'],['drawn','drawn-ring'],['riso','oval'],
+    ['stamp','filled-square'],['stitch','oval'],['editorial','oval'],['marker','marker-swash'],['drafting','double-ring']
+  ]);
   for (const style of library.styles) {
-    assert.deepEqual(Object.keys(style),['id','column','name','depth']);
+    assert.deepEqual(Object.keys(style),['id','column','name','graphicSet','container','depth']);
     assert.equal(style.depth.band,'six');
+    assert.ok(graphic(style.graphicSet));
+    assert.ok(library.containers.some(c=>c.id===style.container));
   }
   assert.equal(library.withheld.length,11);
   assert.equal(new Set(library.withheld.map(w=>`${w.palette}/${w.style}/${w.mode}`)).size,11);
@@ -191,4 +199,25 @@ test('Caveat is notes-only and every approved text pairing remains selectable',(
     assert.notEqual(p.type.heading.family,'Caveat'); assert.notEqual(p.type.body.family,'Caveat');
     assert.deepEqual(p.handwriting.map(f=>f.family),['Caveat']);
   }
+});
+
+
+test('card-mode depth overlays name unique available cards and every shown mode passes the shared depth check',()=>{
+  assert.equal(library.cardDepth.length,255);
+  assert.equal(hash(JSON.stringify(library.cardDepth)), '9a8ef270287a320fbac6d82751921840efff5c9d525c227eacf0c2e89a7dfe07');
+  const seen=new Set(),withheld=new Set(library.withheld.map(w=>`${w.palette}/${w.style}/${w.mode}`));
+  for(const d of library.cardDepth) {
+    assert.deepEqual(Object.keys(d),['palette','style','mode','depth']);
+    assert.ok(palette(d.palette));assert.ok(library.styles.some(s=>s.id===d.style));assert.ok(['light','dark'].includes(d.mode));
+    const id=`${d.palette}/${d.style}/${d.mode}`;
+    assert.ok(!seen.has(id),id);seen.add(id);assert.ok(!withheld.has(id),id);
+  }
+  let shown=0;
+  for(const p of library.palettes) for(const s of library.styles) for(const mode of ['light','dark']) {
+    if(withheld.has(`${p.id}/${s.id}/${mode}`)) continue;
+    const overlay=library.cardDepth.find(d=>d.palette===p.id&&d.style===s.id&&d.mode===mode);
+    assert.doesNotThrow(()=>depthOptions({palette:p,primaryMode:mode,depth:{...s.depth,...overlay?.depth}}),`${p.id}/${s.id}/${mode}`);
+    shown++;
+  }
+  assert.equal(shown,589);
 });

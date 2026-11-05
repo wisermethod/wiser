@@ -19,12 +19,12 @@ function harness() {
     const own=(object,key)=>Object.prototype.hasOwnProperty.call(object,key);
     const effective=c=>c;
     ${slice('function summary(c)', '\nfunction alignedWhy(')}
-    ${slice('function chooseLooks(', '\nfunction page(')}
+    ${slice("const LOOK_MARKS=", '\nfunction page(')}
     const greedy=chooseLooks,search=chooseFreshLooks,calls=[];
     chooseLooks=(...args)=>{calls.push(args[1]?'checked greedy':'unchecked greedy');return greedy(...args);};
     chooseFreshLooks=(...args)=>{calls.push('search');return search(...args);};
     return {greedy,summary,calls,page(pool,acceptLook,replacements=[]) {
-      const a={},library={},chosen=[],spares=[];let groups;
+      const a={},library={},chosen=[],spares=[];let groups,feasibilitySearch;
       const accept=(c,group,slot)=>acceptLook(c,slot);
       ${slice("      groups=[{id:'looks',label:'Whole looks'}];", '    } else if(roundPage)')}
       return {chosen,spares,replacements};
@@ -33,16 +33,18 @@ function harness() {
 }
 function fixture() {
   const positions=Object.fromEntries(Object.entries(AXES).map(([axis,poles])=>[axis,poles[0]]));
-  const candidate=(palette,pairing=0,graphic=0,changes={})=>({
-    palette:library.palettes[palette],pairing:library.pairings[pairing],graphicSet:library.graphics[graphic],
+  // Fictional palette families isolate feasibility from the real pool.
+  const candidate=(palette,pairing=0,_graphic=0,changes={})=>({
+    palette:{...library.palettes[palette],id:`fixture-${palette}-balanced`},pairing:library.pairings[pairing],graphicSet:library.graphics.find(g=>g.id===library.styles[pairing].graphicSet),
+    style:library.styles[pairing],family:`fixture-${palette}`,depth:library.styles[pairing].depth,plain:library.styles[pairing].depth.background==='plain',
     positions:{...positions,...changes},partPositions:{},score:100-palette,order:palette
   });
   const refused=candidate(0),decoy=candidate(1,0,0,Object.fromEntries(
-    ['warmCool','quietBold','softStrong'].map(axis=>[axis,AXES[axis][1]]))),
+    ['warmCool','quietBold','softStrong','classicContemporary'].map(axis=>[axis,AXES[axis][1]]))),
     secondRefused=candidate(2),winner=candidate(3);
   const pool=[refused,decoy,secondRefused,winner,
     ...Array.from({length:5},(_,i)=>candidate(i+4,i+1,i+1)),
-    ...Array.from({length:6},(_,i)=>candidate(i+9,0,0,{warmCool:AXES.warmCool[1]}))];
+    ...Array.from({length:6},(_,i)=>candidate(i+9,i+4,0,{warmCool:AXES.warmCool[1]}))];
   return {pool,refused,decoy,secondRefused,winner};
 }
 function checks(h,rejected,replacements) {
@@ -55,10 +57,10 @@ function checks(h,rejected,replacements) {
 test('a checked greedy dead end searches again and names replacements from the winning page',()=>{
   const h=harness(),f=fixture(),rejected=new Set([f.refused.palette.id,f.secondRefused.palette.id]);
   // Unchecked greedy accepts the first leader and completes twelve slots.
-  // Checking refuses it, so greedy takes the decoy, whose three changed dials
-  // leave no one-dial contrasts. Search skips that prefix and takes winner.
+  // Checking refuses it, so greedy takes the decoy, whose four changed dials
+  // leave no one- or two-dial contrasts. Search skips that prefix and takes winner.
   assert.equal(h.greedy(f.pool).chosen.length,12);
-  assert.throws(()=>h.greedy(f.pool,checks(h,rejected,[])),{message:'looks: no passing one-dial contrast remains. Correct the answers; see select.mjs help.'});
+  assert.throws(()=>h.greedy(f.pool,checks(h,rejected,[])),{message:'looks: no passing one- or two-dial contrast remains. Correct the answers; see select.mjs help.'});
   const replacements=[],result=h.page(f.pool,checks(h,rejected,replacements),replacements);
   assert.deepEqual(h.calls,['checked greedy','search']);
   assert.equal(result.chosen.length,12);
@@ -69,21 +71,39 @@ test('a checked greedy dead end searches again and names replacements from the w
     assert.deepEqual(r.replacement,h.summary(result.chosen[r.slot-1]));
     assert.notEqual(r.replacement.palette,f.decoy.palette.id);
   }
-  // A graphic that only passes on plain ground exhausts greedy's sixth
-  // leader. Search can move it into a plain slot and complete the same pool.
+  // A higher-ranked leader can consume the only family of another style.
+  // The checked greedy pass exhausts leaders; search must try the next one.
   const leaders=harness(),leaderReplacements=[];
-  const leaderCheck=(records)=>(c,slot)=>{
-    if(!new Set([f.refused.palette.id,f.decoy.palette.id,f.secondRefused.palette.id]).has(c.palette.id)&&
-      (c.graphicSet.id!==library.graphics[5].id||c.plain)) return true;
-    records.push({slot,group:'looks',refused:leaders.summary(c),reason:'Fixture check needs another leader',replacement:null});
-    return false;
-  };
-  assert.throws(()=>leaders.greedy(f.pool,leaderCheck([])),{message:'looks: no passing distinct leader remains. Correct the answers; see select.mjs help.'});
-  const recovered=leaders.page(f.pool,leaderCheck(leaderReplacements),leaderReplacements);
+  const familyTrap=f.pool.map((c,i)=>{
+    if(c===f.decoy) return {...c,palette:{...c.palette,id:'fixture-5-bold'},family:'fixture-5'};
+    if(i<9) return c;
+    // Three disjoint two-style/two-family components support a full spread.
+    // The decoy crosses components and consumes a family another pair needs.
+    const style=library.styles[(i-9)^1],family=`fixture-${i-6}`;
+    return {...c,palette:{...c.palette,id:family+'-muted'},family,style,depth:style.depth,plain:style.depth.background==='plain'};
+  });
+  assert.throws(()=>leaders.greedy(familyTrap,checks(leaders,rejected,[])),/no passing distinct leader remains/);
+  const recoveredLeaders=leaders.page(familyTrap,checks(leaders,rejected,leaderReplacements),leaderReplacements);
   assert.deepEqual(leaders.calls,['checked greedy','search']);
+  assert.equal(recoveredLeaders.chosen[0].palette.id,f.winner.palette.id);
+  for(const r of recoveredLeaders.replacements) assert.deepEqual(r.replacement,leaders.summary(recoveredLeaders.chosen[r.slot-1]));
+  // A greedy page missing a required mark must also fall back. Its style
+  // fixes the ground, so search must select a different approved card.
+  const coverage=harness(),extra={...f.pool[8],palette:{...library.palettes[20],id:'fixture-20-balanced'},family:'fixture-20',style:library.styles[4],depth:library.styles[4].depth,plain:true};
+  const withoutInitials=f.pool.map((c,i)=>{
+    const replacement=c.style.id===library.styles[4].id?(i<9?6:1):c.style.id===library.styles[8].id?0:null;
+    if(replacement===null) return c;
+    const style=library.styles[replacement];return {...c,style,depth:style.depth,plain:style.depth.background==='plain'};
+  });
+  // Let the low-ranked initials card change one dial from the first look.
+  extra.positions={...f.pool[0].positions,warmCool:AXES.warmCool[1]};
+  const coveragePool=[...withoutInitials,extra];
+  assert.throws(()=>coverage.greedy(coveragePool),/two plain grounds and all five marks/);
+  const recovered=coverage.page(coveragePool,()=>true);
+  assert.deepEqual(coverage.calls,['checked greedy','search']);
   assert.equal(recovered.chosen.length,12);
-  assert.ok(recovered.chosen.slice(0,6).some(c=>c.graphicSet.id===library.graphics[5].id&&c.plain));
-  for(const r of recovered.replacements) assert.deepEqual(r.replacement,leaders.summary(recovered.chosen[r.slot-1]));
+  assert.ok(recovered.chosen.some(c=>c.depth.mark==='initials'));
+  assert.ok(recovered.chosen.filter(c=>c.plain).length>=2);
   // Other errors, including a near-match, must escape without a search.
   for(const message of ['looks: no passing distinct leader remains unexpectedly. Correct the answers; see select.mjs help.','Fixture check could not run']) {
     const other=harness(),error=Error(message);

@@ -1,5 +1,6 @@
 import '../../../tools/lib/tests/isolated-home.js';
 import test from 'node:test';
+import {assertPage as assertApprovedPage} from './m51c-checks.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync,writeFileSync,mkdtempSync,rmSync,realpathSync,symlinkSync,readdirSync} from 'node:fs';
 import {join,dirname,resolve} from 'node:path';
@@ -43,14 +44,19 @@ for(const [label,fixture]of [['operator',operator],['First Strategy',firstStrate
     const spec=path('spec.json'),html=path('page.html');writeFileSync(spec,JSON.stringify(assemble(r.selection,library)));
     assert.equal(runContactSheet(['build','--spec',spec,'--output',html]).itemCount,12);
   });
-  test(`${label} whole looks have six distinct leaders and six exact one-dial contrasts with four plain grounds`,()=>{
+  test(`${label} whole looks have six distinct leaders, one- or two-dial contrasts, approved plain-ground styles and all five marks`,()=>{
     const a=fixture(),r=select('looks',looksAnswers(a));assert.equal(r.looks.length,12);assert.equal(r.options.length,12);
     assert.deepEqual(r.looks.map(l=>l.kind),[...Array(6).fill('top'),...Array(6).fill('contrast')]);
-    const plain=r.selection.boards.map((b,i)=>b.graphicSet.pattern?.strength.light===0&&b.graphicSet.pattern?.strength.dark===0?i+1:null).filter(Boolean);
-    assert.deepEqual(plain,[2,5,8,11]);assert.equal(new Set(r.options.map(o=>o.value)).size,12);
+    const plain=r.selection.boards.map((b,i)=>b.depth.background==='plain'?i+1:null).filter(Boolean);
+    assert.ok(plain.length>=2);assert.equal(new Set(r.selection.boards.map(b=>b.depth.mark)).size,5);assert.equal(new Set(r.options.map(o=>o.value)).size,12);
     assert.equal(new Set(r.looks.map(l=>l.palette)).size,12);
-    for(const field of ['pairing','graphicSet'])assert.equal(new Set(r.looks.slice(0,6).map(l=>l[field])).size,6);
-    for(const look of r.looks.slice(6))assert.equal(Object.keys(AXES).filter(k=>look.positions[k]!==r.looks[0].positions[k]).length,1);
+    assert.equal(new Set(r.looks.slice(0,6).map(l=>l.style)).size,6);
+    assert.equal(new Set(r.looks.slice(0,6).map(l=>l.palette.replace(/-(muted|balanced|bold)$/,''))).size,6);
+    for(const look of r.looks.slice(6)) {
+      const changed=Object.keys(AXES).filter(k=>look.positions[k]!==r.looks[0].positions[k]);
+      assert.ok(changed.length===1||changed.length===2);assert.equal(look.changedDials,changed.length);assert.equal(look.changedDial,changed[0]);
+    }
+    assertApprovedPage(r,looksAnswers(a));
     for(const [i,option]of r.options.entries()){assert.equal(option.value,r.looks[i].value);assert.equal(option.label,r.looks[i].label.replaceAll(' / ', ', '));assert.deepEqual(Object.keys(option),['value','label','board']);assert.deepEqual(option.board.pairing,r.selection.boards[i].pairing);assert.deepEqual(option.board.palette,r.selection.boards[i].palette);assert.deepEqual(option.board.graphicSet,r.selection.boards[i].graphicSet);}
     const picked=r.looks.slice(0,2),boosted=select('round1',{...a,looks:picked.map(l=>l.value),looksShown:r.looks});
     for(const [axis,[neg,pos]]of Object.entries(AXES))assert.equal(boosted.dials[axis]-r.dials[axis],picked.reduce((n,l)=>n+(l.positions[axis]===pos?1:l.positions[axis]===neg?-1:0),0));

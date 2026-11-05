@@ -129,6 +129,7 @@ const ns='http://www.w3.org/2000/svg';
 function shape(tag,attrs={}) {
   const n=document.createElementNS(ns,tag);for(const [k,v]of Object.entries(attrs))n.setAttribute(k,v);return n;
 }
+const stackPositions=new WeakMap();
 function fitLooks() {
   for(const n of document.querySelectorAll('svg.look-art')) {
     // A look on a hidden page is fitted when its page is shown; measuring it undrawn can throw.
@@ -150,6 +151,23 @@ function fitLooks() {
     const box=name.getBBox();name.setAttribute('transform',`translate(42 ${57+(210-box.height)/2-box.y})`);
     const initials=n.querySelector('.look-initials');
     if(initials){initials.style.fontSize=`${Math.min(36,size*.6)}px`;const width=initials.getComputedTextLength();if(width>100)initials.style.fontSize=`${parseFloat(initials.style.fontSize)*100/width}px`;}
+    for(const [selector,above] of [['.look-stack-1',true],['.look-stack-2',false]]) {
+      const line=n.querySelector(selector);if(!line)continue;
+      const style=getComputedStyle(line),canvas=document.createElement('canvas');
+      // An attached canvas carries the face's variation axes into TextMetrics.
+      canvas.hidden=true;canvas.style.fontVariationSettings=style.fontVariationSettings;document.body.append(canvas);
+      const context=canvas.getContext('2d');
+      context.font=`${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      const ink=context.measureText(line.textContent);canvas.remove();
+      const current=Number(line.getAttribute('y')),original=stackPositions.get(line)??current;
+      stackPositions.set(line,original);
+      // SVG's central baseline centres its em box, not the visible letter.
+      // Refit from the drawn position when a loaded face replaces the fallback.
+      const baseline=line.getBBox().y+ink.fontBoundingBoxAscent+original-current,rule=n.querySelector('.look-stack-rule').getBBox().y;
+      const overlap=above?baseline+ink.actualBoundingBoxDescent-(rule-6):(rule+6)-(baseline-ink.actualBoundingBoxAscent);
+      const fitted=original+(above?-1:1)*Math.max(0,overlap);
+      if(fitted!==current)line.setAttribute('y',fitted);
+    }
     const whole=n.querySelector('.look-large-initials');
     if(whole) {
       // TextMetrics measures glyph ink in the loaded face, rather than SVG's

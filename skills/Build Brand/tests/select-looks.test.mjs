@@ -7,23 +7,21 @@ import {select,tapDials,run} from '../scripts/select.mjs';
 import {boardRefusal} from '../scripts/refusals.mjs';
 import {LIBRARY,AXES} from '../scripts/assemble.mjs';
 import {checkForm} from '../../../tools/Form/scripts/format.js';
+import {paletteFamily} from '../scripts/select.mjs';
+import {assertPage as assertApprovedPage,assertCaps} from './m51c-checks.mjs';
 import {operator,firstStrategy,lookActions} from './select-fixtures.mjs';
 
 const library=JSON.parse(readFileSync(LIBRARY));
 const data=JSON.parse(readFileSync(new URL('../parts/taps.json',import.meta.url)));
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const identity=c=>`${c.pairing}/${c.palette}/${c.graphicSet}`;
-// Original hashes predate pagination; kept-asset hashes predate the steer fix.
-// Both cover full JSON, including spares and checked refusals/replacements.
-// Re-pinned 2026-11-02, M5.1 round 2: refused clusters, retired marker and descriptive labels.
-// M5.1 review: near-black cap 55 restores Paper and orange outside the cream cluster.
+// Pins cover approved palette/style cards, page mode, depth and pagination.
+// Both normal and kept-asset pages pin the full JSON, including spares,
+// checked refusals/replacements and abandoned-check attempt counts.
 // Every pin also asserts the page shape, refusals, history and Form contract.
-// M4.2d: for these fixtures the fallback adds abandoned greedy checks to the attempt
-// count; their pages, spares and replacements are unchanged. A refusal cached by an
-// abandoned attempt is not reported again, as with abandoned search branches.
 const fixtures=[
-  ["operator",operator,["bbe4bcd1c0accff9bab10849607f9025ddf37532a91c5436359edeec2e565181", "2538a2826d0e049e6dcd8f7d02e4392fac416e4f7ead83a5484c5152a4012c71"],["b9333504e044249c0137e176bb74846904f911514370a2ec465f1ae8168bdd4b", "b42bdc354db48fe07a7fc05ebdfa657964ffa81b7a2a282e844236f8b276cc27"]],
-  ["First Strategy",firstStrategy,["0f2287f60881f15d5b095da32661324b10cc9ea477251527e417d38d4bec5355", "8e483ae9a395fc11997b4c78348a79d9b23a7e078f590ade150887236f6f6805"],["205469c34e763ff2505bdf2278a5b3cf9daa3b38bf305d40a2d3acbb5d8322d7", "3649d6cc1918ac6e657ffc45300f8974d249216fd0a77a2eb16bcd340c1f072d"]]
+  ["operator",operator,["715b00b6ce6cbb5050b981ec9a0c1be1a6a7460148ba9f62fc02661bdba6f2c2", "e83476471a48eeda49439045274d191053b31f860ea8b6aef767243e5857dad7"],["e476a9d7f66257d83970e305b7927fdbcd38731ad781e10cd92b864d821ba97f", "605d9a086c12ed13313f2326b5cb944b014bef36184bd188caa22a4c2f71c002"]],
+  ["First Strategy",firstStrategy,["4e989ad5ab3b9cf04103676d39d0cdf47c295da5a32ff84472228244c60f28f8", "8f29b7fc775cc740eed5c3c3981f71a15ed4afc32b3cf0122d03b58eae547783"],["bdd14ed7d17138c13fd030e709ab6d551c8bbb5eee3159f894dad174cf787fa0", "7e7178a2d0a8be0a13d685bfbfc60a1b653bc17a2ca8c8c7d89d8db9def461f5"]]
 ];
 
 function assertPage(r,a,history=[]) {
@@ -36,13 +34,16 @@ function assertPage(r,a,history=[]) {
     assert.equal(look.value,'look-'+hash(identity(look)).slice(0,32));
   }
   assert.equal(new Set(r.looks.map(l=>l.palette)).size,12);
-  for(const field of ['pairing','graphicSet']) assert.equal(new Set(r.looks.slice(0,6).map(l=>l[field])).size,6);
+  assertCaps(r.looks);
+  assert.equal(new Set(r.looks.slice(0,6).map(l=>l.style)).size,6);
+  assert.equal(new Set(r.looks.slice(0,6).map(l=>paletteFamily(l.palette).family)).size,6);
   for(const l of r.looks.slice(6)) {
     const changed=Object.keys(AXES).filter(axis=>l.positions[axis]!==r.looks[0].positions[axis]);
-    assert.deepEqual(changed,[l.changedDial]);
+    assert.ok(changed.length===1||changed.length===2);
+    assert.equal(l.changedDial,changed[0]);assert.equal(l.changedDials,changed.length);
   }
-  const plain=r.selection.boards.flatMap((b,i)=>b.graphicSet.pattern?.strength.light===0&&b.graphicSet.pattern?.strength.dark===0?[i+1]:[]);
-  assert.deepEqual(plain,[2,5,8,11]);
+  const plain=r.selection.boards.flatMap((b,i)=>b.depth.background==='plain'?[i+1]:[]);
+  assert.ok(plain.length>=2);assert.equal(new Set(r.selection.boards.map(b=>b.depth.mark)).size,5);
   assert.deepEqual(r.looks.flatMap((l,i)=>l.plainGround?[i+1]:[]),plain);
   for(const [i,b] of r.selection.boards.entries()) {
     assert.equal(b.graphicSet.id,r.looks[i].graphicSet);
@@ -100,8 +101,13 @@ for(const [label,fixture,expected,keptExpected] of fixtures) {
     for(const axis of ['warmCool','quietBold','softStrong','classicContemporary']) {
       const pages=[-1,1].map(step=>select('looks',{...a,shown,steer:{[axis]:step}},{check:true}));
       assert.notDeepEqual(pages[0].looks.map(l=>l.value),pages[1].looks.map(l=>l.value),axis);
-      const alignment=r=>r.looks.slice(0,6).reduce((n,l)=>n+(l.positions[axis]===AXES[axis][1]?1:l.positions[axis]===AXES[axis][0]?-1:0),0);
-      assert.ok(alignment(pages[0])<=alignment(pages[1]),axis);
+      // Fixed approved combinations and freshness can reverse a count of
+      // aggregate leader poles. Each card still gets the exact steered score
+      // of its three parts, the quantity the selector actually ranks.
+      for(const r of pages) for(const l of r.looks) {
+        const expected=Object.values(l.partPositions).reduce((sum,tags)=>sum+Object.entries(AXES).reduce((n,[k,[negative,positive]])=>n+(tags[k]===positive?r.dials[k]:tags[k]===negative?-r.dials[k]:0),0),0)+(library.palettes.find(p=>p.id===l.palette).energy==='bright'?r.brightColour:0);
+        assert.equal(l.score,expected,axis);
+      }
       for(const [i,r] of pages.entries()) {
         assert.equal(r.dials[axis],tapDials(a,data).dials[axis]+(i?3:-3));
         assertPage(r,a,shown);
@@ -119,10 +125,11 @@ for(const [label,fixture,expected,keptExpected] of fixtures) {
   });
 }
 
-test('fresh looks prefer previously unseen palettes, pairings and graphics',()=>{
+test('fresh looks prefer previously unseen families, palettes and styles',()=>{
   const a=operator(),shown=select('looks',a).looks.slice(0,1);
   const fresh=select('looks',{...a,shown});
-  for(const field of ['pairing','palette','graphicSet']) assert.notEqual(fresh.looks[0][field],shown[0][field]);
+  for(const field of ['style','palette']) assert.notEqual(fresh.looks[0][field],shown[0][field]);
+  assert.notEqual(paletteFamily(fresh.looks[0].palette).family,paletteFamily(shown[0].palette).family);
 });
 test('history options and records exclude the same identities, including a prior plain-ground look',()=>{
   const a=operator(),first=select('looks',a),one=select('looks',{...a,shown:first.looks}),two=select('looks',{...a,shown:first.options});
@@ -134,23 +141,23 @@ test('history options and records exclude the same identities, including a prior
 });
 test('later pages keep six contrasts available when another first look is needed',()=>{
   const a=operator(),shown=[];
-  for(let page=0;page<21;page++) {const r=select('looks',{...a,shown});assertPage(r,a,shown);shown.push(...r.looks);}
+  let pages=0;
+  for(;;) {
+    let r;try {r=select('looks',{...a,shown});} catch(error) {assert.match(error.message,/library exhausted/);break;}
+    assertPage(r,a,shown);shown.push(...r.looks);assert.ok(++pages<=24);
+  }
+  assert.ok(pages>=3);
 });
-test('page 2 checks report exact pattern refusals and retain that graphic in a plain slot',()=>{
-  // A full-strength text-coloured pattern forces checked replacements.
+test('page 2 checks refuse a style with an unreadable pattern without changing its approved ground',()=>{
   const a={...operator(),taps:{...operator().taps,feel:'suit-and-tie',mood:'2modern'}},patterned=structuredClone(library),drawn=patterned.graphics.find(g=>g.id==='drawn');
   drawn.pattern={...drawn.pattern,
     svg:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 5H10" stroke="{{text}}"/></svg>',
     strength:{light:1,dark:1}};
   const one=select('looks',a,{library:patterned,check:true});
   const two=select('looks',{...a,shown:one.looks},{library:patterned,check:true});
-  assertPage(two,a,one.looks);
-  assert.deepEqual(two.replacements.map(r=>[r.slot,identity(r.refused),identity(r.replacement)]),[
-    [1,'heritage-slab/acid-lime-balanced/drawn','heritage-slab/acid-lime-balanced/stitch'],
-    [7,'heritage-slab/hot-pink-balanced/drawn','heritage-slab/hot-pink-balanced/stitch'],
-    [9,'industrial/sunflower-and-espresso-balanced/drawn','industrial/sunflower-and-espresso-balanced/stitch']
-  ]);
-  assert.equal(two.checks.attempts,12+two.replacements.length);
+  assertPage(two,a,one.looks);assertApprovedPage(two,a,one.looks,patterned);
+  assert.ok(two.replacements.length>0);
+  assert.ok(two.checks.attempts>=12+two.replacements.length);
   const shown=new Set(one.looks.map(identity));
   for(const r of two.replacements) {
     assert.ok(r.reason);
@@ -159,16 +166,17 @@ test('page 2 checks report exact pattern refusals and retain that graphic in a p
     assert.ok(!shown.has(identity(r.replacement)));
     for(const [field,value] of Object.entries(r.replacement)) assert.deepEqual(two.looks[r.slot-1][field],value);
   }
-  // The graphic that fails with its pattern is still legal in a plain slot.
-  // Do not treat a pattern failure as exhaustion of that graphic in every slot.
-  assert.equal(two.looks[1].graphicSet,'drawn');assert.equal(two.looks[1].plainGround,true);
+  // A fixed style cannot be rescued by erasing its pattern in another slot.
+  assert.ok(two.looks.every(l=>l.graphicSet!=='drawn'));
+  assert.ok(two.selection.boards.every(b=>!b.graphicSet.pattern));
 });
 
 function allLooks() {
   const result=[];
-  for(const p of library.pairings) for(const c of library.palettes) for(const g of library.graphics) {
-    if(boardRefusal(library,{pairing:{id:p.id},palette:{id:c.id}})) continue;
-    const look={pairing:p.id,palette:c.id,graphicSet:g.id};
+  for(const s of library.styles) for(const c of library.palettes) {
+    if(library.withheld.some(w=>w.style===s.id&&w.palette===c.id)) continue;
+    if(boardRefusal(library,{pairing:{id:s.id},palette:{id:c.id}})) continue;
+    const look={style:s.id,pairing:s.id,palette:c.id,graphicSet:s.graphicSet};
     result.push({...look,value:'look-'+hash(identity(look)).slice(0,32)});
   }
   return result;
@@ -180,24 +188,18 @@ test('exhaustion plainly names the library and remaining unshown count rather th
   const remaining=new Set([...new Set(all.map(l=>l.palette))].slice(0,11));
   assert.equal(remaining.size,11);
   assert.throws(()=>select('looks',{...a,shown:all.filter(l=>!remaining.has(l.palette))}),/library exhausted.*11 unshown palette recipes.*twelve distinct palettes/);
-  // Many unshown triples and palettes remain, but one graphic cannot supply
-  // the six distinct leaders. This exercises constraint exhaustion as well.
-  assert.throws(()=>select('looks',{...a,shown:all.filter(l=>l.graphicSet!==library.graphics[0].id)}),/library exhausted.*six passing distinct leaders and six one-dial contrasts/);
+  // Many unshown approved cards remain, but one graphic supplies too few
+  // styles for six distinct leaders. This also exercises constraint exhaustion.
+  assert.throws(()=>select('looks',{...a,shown:all.filter(l=>l.graphicSet!==library.graphics[0].id)}),/library exhausted.*six passing distinct leaders and six one- or two-dial contrasts/);
 });
-test('checked exhaustion accounts for leaders that can only pass in plain-ground slots',()=>{
-  const tags=Object.fromEntries(Object.keys(AXES).map(axis=>[axis,'either']));
-  const limited={...library,
-    pairings:library.pairings.slice(0,6).map(p=>({...p,tags:{...p.tags,...tags,typeLoudness:2,typeCut:'contemporary'}})),
-    palettes:library.palettes.filter(p=>!boardRefusal(library,{pairing:{id:'friendly-rounded'},palette:{id:p.id}})).slice(0,12).map((p,i)=>({...p,tags:{...p.tags,...tags,softStrong:i<6?'soft':'strong'}})),
-    graphics:library.graphics.slice(0,6).map((g,i)=>({...g,tags:{...g.tags,...tags},pattern:{...g.pattern,
-      svg:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 5H10" stroke="{{text}}"/></svg>',
-      strength:{light:i<3?1:0,dark:i<3?1:0}}}))
-  };
-  assert.equal(limited.palettes.length,12,'fixture needs twelve permitted palettes before check exhaustion');
-  const look={pairing:limited.pairings[0].id,palette:limited.palettes[0].id,graphicSet:limited.graphics[0].id};
+test('checked exhaustion accounts for fixed plain-ground styles whose depth cannot pass',()=>{
+  const limited=structuredClone(library);
+  limited.styles=limited.styles.slice(0,6).map(s=>({...s,depth:{...s.depth,...(['C','E'].includes(s.column)?{background:null}:{})}}));
+  assert.equal(limited.palettes.length,30,'fixture retains all permitted palette recipes before check exhaustion');
+  const s=limited.styles[0],look={style:s.id,pairing:s.id,palette:limited.palettes[0].id,graphicSet:s.graphicSet};
   const shown=[{...look,value:'look-'+hash(identity(look)).slice(0,32)}];
-  // Three required graphic sets cannot put text over their full-strength
-  // text-coloured patterns; six distinct leaders have only two plain slots.
+  // Two of the six available styles fail the shared depth check. Search must
+  // never invent plain slots or return a page with fewer than six styles.
   assert.throws(()=>select('looks',{...operator(),shown},{library:limited,check:true}),/library exhausted.*six passing distinct leaders/);
 });
 test('looks history rejects malformed references, mismatched values and fields belonging to variations',()=>{

@@ -275,7 +275,7 @@ No real source rule, no pull question. Feeds the selection, Visual Personality a
 
 > Which of these feel like you? Pick up to three.
 
-Twelve tiles from `select.mjs looks`, its options unchanged, four on a plain ground. The three actions, in order, have the following exact labels and lines. Conditions and `needs` are engine data, never shown as explanation.
+Twelve tiles from `select.mjs looks`, its options unchanged, at least two on a plain ground and all five marks. The three actions, in order, have the following exact labels and lines. Conditions and `needs` are engine data, never shown as explanation.
 
 | Picks | Label | Line | Needs |
 |-------|-------|------|-------|

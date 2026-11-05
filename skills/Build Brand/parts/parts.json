@@ -19463,6 +19463,8 @@
       "id": "elegant-serif",
       "column": "A",
       "name": "Elegant serif",
+      "graphicSet": "editorial",
+      "container": "double-ring",
       "depth": {
         "mark": "seal",
         "seal": {
@@ -19481,6 +19483,8 @@
       "id": "friendly-rounded",
       "column": "B",
       "name": "Friendly rounded",
+      "graphicSet": "geometric",
+      "container": "filled-circle",
       "depth": {
         "mark": "badge",
         "background": "gradient",
@@ -19500,6 +19504,8 @@
       "id": "crisp-modern",
       "column": "C",
       "name": "Crisp modern",
+      "graphicSet": "drafting",
+      "container": "rule-box",
       "depth": {
         "mark": "letter",
         "background": "plain",
@@ -19516,6 +19522,8 @@
       "id": "hand-made",
       "column": "D",
       "name": "Hand-made",
+      "graphicSet": "drawn",
+      "container": "drawn-ring",
       "depth": {
         "mark": "stack",
         "stack": {
@@ -19536,6 +19544,8 @@
       "id": "editorial",
       "column": "E",
       "name": "Editorial",
+      "graphicSet": "riso",
+      "container": "oval",
       "depth": {
         "mark": "initials",
         "background": "plain",
@@ -19549,6 +19559,8 @@
       "id": "industrial",
       "column": "F",
       "name": "Industrial",
+      "graphicSet": "stamp",
+      "container": "filled-square",
       "depth": {
         "mark": "letter",
         "background": "texture",
@@ -19566,6 +19578,8 @@
       "id": "heritage-slab",
       "column": "G",
       "name": "Heritage slab",
+      "graphicSet": "stitch",
+      "container": "oval",
       "depth": {
         "mark": "seal",
         "seal": {
@@ -19587,6 +19601,8 @@
       "id": "old-style",
       "column": "H",
       "name": "Old-style warmth",
+      "graphicSet": "editorial",
+      "container": "oval",
       "depth": {
         "mark": "badge",
         "background": "texture",
@@ -19605,6 +19621,8 @@
       "id": "playful-display",
       "column": "I",
       "name": "Playful display",
+      "graphicSet": "marker",
+      "container": "marker-swash",
       "depth": {
         "mark": "initials",
         "background": "gradient",
@@ -19620,6 +19638,8 @@
       "id": "inscriptional",
       "column": "J",
       "name": "Inscriptional capitals",
+      "graphicSet": "drafting",
+      "container": "double-ring",
       "depth": {
         "mark": "stack",
         "stack": {
@@ -19699,6 +19719,2089 @@
       "style": "old-style",
       "mode": "light",
       "reason": "P4-T8: Name over the actual rendered background failed APCA Lc 60."
+    }
+  ],
+  "cardDepth": [
+    {
+      "palette": "acid-lime-muted",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "acid-lime-muted",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "acid-lime-muted",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "acid-lime-muted",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "acid-lime-muted",
+      "style": "old-style",
+      "mode": "light",
+      "depth": {
+        "block": {
+          "corner": 24,
+          "inset": "lighter"
+        }
+      }
+    },
+    {
+      "palette": "acid-lime-muted",
+      "style": "old-style",
+      "mode": "dark",
+      "depth": {
+        "block": {
+          "corner": 24,
+          "inset": "lighter"
+        }
+      }
+    },
+    {
+      "palette": "acid-lime-muted",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "acid-lime-muted",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "acid-lime-muted",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "acid-lime-muted",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "acid-lime-balanced",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "acid-lime-balanced",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "acid-lime-balanced",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "acid-lime-balanced",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "acid-lime-balanced",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "acid-lime-balanced",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "acid-lime-balanced",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "acid-lime-balanced",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "acid-lime-bold",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "acid-lime-bold",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "acid-lime-bold",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "acid-lime-bold",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "acid-lime-bold",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "acid-lime-bold",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "acid-lime-bold",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "acid-lime-bold",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "hot-pink-muted",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "mark"
+      }
+    },
+    {
+      "palette": "hot-pink-muted",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "mark"
+      }
+    },
+    {
+      "palette": "hot-pink-muted",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "mark"
+      }
+    },
+    {
+      "palette": "hot-pink-muted",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "hot-pink-muted",
+      "style": "old-style",
+      "mode": "dark",
+      "depth": {
+        "block": {
+          "corner": 24,
+          "inset": "lighter"
+        }
+      }
+    },
+    {
+      "palette": "hot-pink-muted",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "mark"
+      }
+    },
+    {
+      "palette": "hot-pink-muted",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "hot-pink-muted",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "mark"
+      }
+    },
+    {
+      "palette": "hot-pink-muted",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "hot-pink-balanced",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "hot-pink-balanced",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "hot-pink-balanced",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "hot-pink-balanced",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "hot-pink-balanced",
+      "style": "old-style",
+      "mode": "dark",
+      "depth": {
+        "block": {
+          "corner": 24,
+          "inset": "lighter"
+        }
+      }
+    },
+    {
+      "palette": "hot-pink-balanced",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "hot-pink-balanced",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "mark"
+      }
+    },
+    {
+      "palette": "hot-pink-balanced",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "hot-pink-balanced",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "hot-pink-bold",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "hot-pink-bold",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "hot-pink-bold",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "hot-pink-bold",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "hot-pink-bold",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "hot-pink-bold",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "hot-pink-bold",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "hot-pink-bold",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "tangerine-and-sky-muted",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "tangerine-and-sky-muted",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "tangerine-and-sky-muted",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "tangerine-and-sky-muted",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "tangerine-and-sky-muted",
+      "style": "old-style",
+      "mode": "light",
+      "depth": {
+        "block": {
+          "corner": 24,
+          "inset": "lighter"
+        }
+      }
+    },
+    {
+      "palette": "tangerine-and-sky-muted",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "tangerine-and-sky-muted",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "tangerine-and-sky-muted",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "tangerine-and-sky-muted",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "tangerine-and-sky-balanced",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "tangerine-and-sky-balanced",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "tangerine-and-sky-balanced",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "tangerine-and-sky-balanced",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "tangerine-and-sky-balanced",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "tangerine-and-sky-balanced",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "tangerine-and-sky-balanced",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "tangerine-and-sky-balanced",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "tangerine-and-sky-bold",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "tangerine-and-sky-bold",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "tangerine-and-sky-bold",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "tangerine-and-sky-bold",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "tangerine-and-sky-bold",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "tangerine-and-sky-bold",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "tangerine-and-sky-bold",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "tangerine-and-sky-bold",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sunflower-and-espresso-muted",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "mark"
+      }
+    },
+    {
+      "palette": "sunflower-and-espresso-muted",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sunflower-and-espresso-muted",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "mark"
+      }
+    },
+    {
+      "palette": "sunflower-and-espresso-muted",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sunflower-and-espresso-muted",
+      "style": "old-style",
+      "mode": "dark",
+      "depth": {
+        "block": {
+          "corner": 24,
+          "inset": "lighter"
+        }
+      }
+    },
+    {
+      "palette": "sunflower-and-espresso-muted",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "mark"
+      }
+    },
+    {
+      "palette": "sunflower-and-espresso-muted",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sunflower-and-espresso-muted",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "mark"
+      }
+    },
+    {
+      "palette": "sunflower-and-espresso-muted",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sunflower-and-espresso-balanced",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "sunflower-and-espresso-balanced",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sunflower-and-espresso-balanced",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "sunflower-and-espresso-balanced",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sunflower-and-espresso-balanced",
+      "style": "old-style",
+      "mode": "light",
+      "depth": {
+        "block": {
+          "corner": 24,
+          "inset": "lighter"
+        }
+      }
+    },
+    {
+      "palette": "sunflower-and-espresso-balanced",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "sunflower-and-espresso-balanced",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sunflower-and-espresso-balanced",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "sunflower-and-espresso-balanced",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sunflower-and-espresso-bold",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sunflower-and-espresso-bold",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "sunflower-and-espresso-bold",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sunflower-and-espresso-bold",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sunflower-and-espresso-bold",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sunflower-and-espresso-bold",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "sunflower-and-espresso-bold",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sunflower-and-espresso-bold",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "signal-red-muted",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "signal-red-muted",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "signal-red-muted",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "signal-red-muted",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "signal-red-muted",
+      "style": "old-style",
+      "mode": "dark",
+      "depth": {
+        "block": {
+          "corner": 24,
+          "inset": "lighter"
+        }
+      }
+    },
+    {
+      "palette": "signal-red-muted",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "signal-red-muted",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "signal-red-muted",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "signal-red-muted",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "signal-red-balanced",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "signal-red-balanced",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "signal-red-balanced",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "signal-red-balanced",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "signal-red-balanced",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "signal-red-balanced",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "signal-red-balanced",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "signal-red-balanced",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "signal-red-bold",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "mark"
+      }
+    },
+    {
+      "palette": "signal-red-bold",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "signal-red-bold",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "mark"
+      }
+    },
+    {
+      "palette": "signal-red-bold",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "signal-red-bold",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "mark"
+      }
+    },
+    {
+      "palette": "signal-red-bold",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "signal-red-bold",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "mark"
+      }
+    },
+    {
+      "palette": "signal-red-bold",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "pastel-sorbet-muted",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "pastel-sorbet-muted",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "pastel-sorbet-muted",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "pastel-sorbet-muted",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "pastel-sorbet-muted",
+      "style": "old-style",
+      "mode": "light",
+      "depth": {
+        "block": {
+          "corner": 24,
+          "inset": "lighter"
+        }
+      }
+    },
+    {
+      "palette": "pastel-sorbet-muted",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "pastel-sorbet-muted",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "pastel-sorbet-muted",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "pastel-sorbet-muted",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "pastel-sorbet-balanced",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "pastel-sorbet-balanced",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "pastel-sorbet-balanced",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "pastel-sorbet-balanced",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "pastel-sorbet-balanced",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "pastel-sorbet-balanced",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "pastel-sorbet-balanced",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "pastel-sorbet-balanced",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "pastel-sorbet-bold",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "allowHueShift": true,
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "pastel-sorbet-bold",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "pastel-sorbet-bold",
+      "style": "friendly-rounded",
+      "mode": "light",
+      "depth": {
+        "allowHueShift": true
+      }
+    },
+    {
+      "palette": "pastel-sorbet-bold",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "pastel-sorbet-bold",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "pastel-sorbet-bold",
+      "style": "heritage-slab",
+      "mode": "light",
+      "depth": {
+        "allowHueShift": true
+      }
+    },
+    {
+      "palette": "pastel-sorbet-bold",
+      "style": "old-style",
+      "mode": "light",
+      "depth": {
+        "block": {
+          "corner": 24,
+          "inset": "lighter"
+        }
+      }
+    },
+    {
+      "palette": "pastel-sorbet-bold",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "allowHueShift": true,
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "pastel-sorbet-bold",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "pastel-sorbet-bold",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "pastel-sorbet-bold",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sage-mist-and-green-muted",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sage-mist-and-green-muted",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sage-mist-and-green-muted",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sage-mist-and-green-muted",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sage-mist-and-green-muted",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sage-mist-and-green-muted",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sage-mist-and-green-muted",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sage-mist-and-green-muted",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sage-mist-and-green-balanced",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sage-mist-and-green-balanced",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sage-mist-and-green-balanced",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sage-mist-and-green-balanced",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sage-mist-and-green-balanced",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sage-mist-and-green-balanced",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sage-mist-and-green-balanced",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sage-mist-and-green-balanced",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sage-mist-and-green-bold",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sage-mist-and-green-bold",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "sage-mist-and-green-bold",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "sage-mist-and-green-bold",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sage-mist-and-green-bold",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "sage-mist-and-green-bold",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "sage-mist-and-green-bold",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "sage-mist-and-green-bold",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "ink-and-paper-muted",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "ink-and-paper-muted",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "ink-and-paper-muted",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "ink-and-paper-muted",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "ink-and-paper-muted",
+      "style": "old-style",
+      "mode": "dark",
+      "depth": {
+        "block": {
+          "corner": 24,
+          "inset": "lighter"
+        }
+      }
+    },
+    {
+      "palette": "ink-and-paper-muted",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "ink-and-paper-muted",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "ink-and-paper-muted",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "ink-and-paper-muted",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "ink-and-paper-balanced",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "mark"
+      }
+    },
+    {
+      "palette": "ink-and-paper-balanced",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "ink-and-paper-balanced",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "ink-and-paper-balanced",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "ink-and-paper-balanced",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "mark"
+      }
+    },
+    {
+      "palette": "ink-and-paper-balanced",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "ink-and-paper-balanced",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "ink-and-paper-balanced",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "ink-and-paper-bold",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "ink-and-paper-bold",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "ink-and-paper-bold",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "mark"
+      }
+    },
+    {
+      "palette": "ink-and-paper-bold",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "ink-and-paper-bold",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "ink-and-paper-bold",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "ink-and-paper-bold",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "mark"
+      }
+    },
+    {
+      "palette": "ink-and-paper-bold",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "business-blue-muted",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "business-blue-muted",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "business-blue-muted",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "business-blue-muted",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "business-blue-muted",
+      "style": "old-style",
+      "mode": "dark",
+      "depth": {
+        "block": {
+          "corner": 24,
+          "inset": "lighter"
+        }
+      }
+    },
+    {
+      "palette": "business-blue-muted",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "business-blue-muted",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "business-blue-muted",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "business-blue-muted",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "business-blue-balanced",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "business-blue-balanced",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "business-blue-balanced",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "business-blue-balanced",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "business-blue-balanced",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "business-blue-balanced",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "business-blue-balanced",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "business-blue-balanced",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "business-blue-bold",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "business-blue-bold",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "business-blue-bold",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "business-blue-bold",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "business-blue-bold",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "business-blue-bold",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "business-blue-bold",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "business-blue-bold",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "orchid-and-plum-muted",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "orchid-and-plum-muted",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "orchid-and-plum-muted",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "orchid-and-plum-muted",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "orchid-and-plum-muted",
+      "style": "old-style",
+      "mode": "dark",
+      "depth": {
+        "block": {
+          "corner": 24,
+          "inset": "lighter"
+        }
+      }
+    },
+    {
+      "palette": "orchid-and-plum-muted",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "orchid-and-plum-muted",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "mark"
+      }
+    },
+    {
+      "palette": "orchid-and-plum-muted",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "orchid-and-plum-muted",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "orchid-and-plum-balanced",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "orchid-and-plum-balanced",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "orchid-and-plum-balanced",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "orchid-and-plum-balanced",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "orchid-and-plum-balanced",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "deep"
+      }
+    },
+    {
+      "palette": "orchid-and-plum-balanced",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "orchid-and-plum-balanced",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "orchid-and-plum-balanced",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "orchid-and-plum-bold",
+      "style": "elegant-serif",
+      "mode": "light",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "orchid-and-plum-bold",
+      "style": "elegant-serif",
+      "mode": "dark",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "orchid-and-plum-bold",
+      "style": "editorial",
+      "mode": "light",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "orchid-and-plum-bold",
+      "style": "editorial",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
+    },
+    {
+      "palette": "orchid-and-plum-bold",
+      "style": "playful-display",
+      "mode": "light",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "orchid-and-plum-bold",
+      "style": "playful-display",
+      "mode": "dark",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "orchid-and-plum-bold",
+      "style": "inscriptional",
+      "mode": "light",
+      "depth": {
+        "ink": "text"
+      }
+    },
+    {
+      "palette": "orchid-and-plum-bold",
+      "style": "inscriptional",
+      "mode": "dark",
+      "depth": {
+        "ink": "pop"
+      }
     }
   ]
 }

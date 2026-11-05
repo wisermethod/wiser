@@ -8,13 +8,13 @@ const normalise=text=>text.trim().replace(/\s+/g,' ');
 const hash=text=>createHash('sha256').update(normalise(text)).digest('hex');
 const CONTRACT_PINS={
   "Locking a board": "87d071c73d79ca8daef0cbab119012396c2cf217b86c449c3c97a0786ea51650",
-  "Opening taps as data": "cc2d017089cb525347effa68741a1468fc7521e2e1b27269f8b472608a10696a",
+  "Opening taps as data": "6bee532422333e3937b3067ac9f795d2d346fcb39e42c8718627dc200ad941af",
   "Assembly": "4287bc83f4ec6b0eb7c1189bc666baea1c5173af6a6b253c511a2faad0a80f62",
-  "Selection from answers": "4330c698db0f743d3f26175f45adde394387293d6aa85f499049bf1938a5ace5"
+  "Selection from answers": "317cfa5dea5c827dfa8d064a36fa21a1fbc9ef5f0179ab7f75e2058140ffe53a"
 };
 const CATALOGUE_PINS={
   'Settings and use': '15853880b2650344881e894c98c00cd796493dc1a6f3d390f91bc088287f4dca',
-  'Extension seam': 'b7f7bbbcb203a2fb6d5d8544a4a2a63cb337f03ab8e1a454b3c7c0a56417b37a'
+  'Extension seam': 'c67cea0a32be88d06cc00ff1bbacc17ab45028f4c648cf37f3fc3c8881b5843c'
 };
 function section(text,heading) {
   const marker=`## ${heading}\n`,start=text.indexOf(marker);

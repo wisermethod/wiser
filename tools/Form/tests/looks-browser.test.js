@@ -14,12 +14,12 @@ for(const [name,get]of Object.entries(tapSets))for(const width of [390,734])for(
   const geometry=await h.frame.evaluate(()=>({
    columns:getComputedStyle(document.querySelector('.looks-tiles')).gridTemplateColumns.split(' ').length,
    overflow:document.documentElement.scrollWidth-document.documentElement.clientWidth,
-   looks:[...document.querySelectorAll('.look-art')].map(n=>({box:n.getAttribute('viewBox'),ratio:n.getBoundingClientRect().width/n.getBoundingClientRect().height,name:[...n.querySelectorAll('.look-name text')].map(n=>n.textContent).join(' '),family:n.querySelector('.look-name').style.fontFamily,marks:n.querySelectorAll('.look-mark').length,patterns:n.querySelectorAll('.look-pattern').length})),
+   looks:[...document.querySelectorAll('.look-art')].map(n=>({box:n.getAttribute('viewBox'),ratio:n.getBoundingClientRect().width/n.getBoundingClientRect().height,name:[...n.querySelectorAll('.look-name text')].map(n=>n.textContent).join(' '),family:n.querySelector('.look-name').style.fontFamily,mark:n.dataset.mark,background:n.dataset.depth,marks:n.querySelectorAll('.look-mark-text').length,patterns:n.querySelectorAll('.look-pattern').length})),
    marks:[...document.querySelectorAll('.looks-tile')].map(n=>n.querySelector('.mark').getBoundingClientRect().top>=n.querySelector('.look-art').getBoundingClientRect().bottom),
    captionHeights:[...document.querySelectorAll('.looks-tile .tile-label')].map(n=>n.getBoundingClientRect().height)
   }));
   assert.equal(geometry.columns,width>=734?4:2);assert.equal(geometry.overflow,0);
-  assert.ok(geometry.looks.every(n=>n.box==='0 0 600 360'&&Math.abs(n.ratio-600/360)<.01&&n.name===form.brand.name&&n.family&&n.marks===1&&n.patterns===1));
+  assert.ok(geometry.looks.every((n,i)=>{const d=form.questions[0].options[i].board.depth;return n.box==='0 0 600 360'&&Math.abs(n.ratio-600/360)<.01&&n.name===form.brand.name&&n.family&&n.marks>=1&&n.mark===d.mark&&n.background===d.background&&n.patterns===Number(d.background==='texture'&&d.texture!=='grain');}));
   assert.ok(geometry.marks.every(Boolean));assert.ok(geometry.captionHeights.every(n=>n>=44));
   await tiles.nth(0).tap();assert.equal(await send.isDisabled(),true);
   await h.f.locator('form').evaluate(n=>n.requestSubmit());assert.equal((await h.page.evaluate(()=>window.__log.filter(e=>e.kind==='message'))).length,0);
