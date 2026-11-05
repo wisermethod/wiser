@@ -629,6 +629,19 @@ export class ConnectionGateway {
       ? Boolean(opts.authConfigured)
       : (typeof this.authProvider?.isConfigured === 'function' ? this.authProvider.isConfigured() : Boolean(this.authProvider));
     this.connectors = Array.isArray(opts.connectors) ? opts.connectors : [];
+    // Host-owned actions are capabilities, never connector grants. No entry means
+    // no discovery or execution. The same registry serves every hosted tool.
+    this.hostedActions = new Map();
+    for (const entry of opts.hostedActions ?? []) {
+      const def = entry.definition;
+      const parsed = parseActionId(def?.action);
+      if (!parsed || def.execution !== 'hosted' || typeof entry.execute !== 'function' ||
+          def.service !== parsed.service || def.module !== parsed.module ||
+          this.hostedActions.has(def.action) || this.lookupModule(parsed.service, parsed.module)) {
+        throw new TypeError('Invalid or colliding hosted action registration');
+      }
+      this.hostedActions.set(def.action, { definition: structuredClone(def), execute: entry.execute });
+    }
     this.envPath = opts.envPath || null;
     this.classifier = opts.classifier || null;
     this.classifierIdentity = typeof opts.classifierIdentity === 'function'
@@ -936,7 +949,7 @@ export class ConnectionGateway {
       else if (result && (result.status === 'link' || result.status === 'file')) line.status = result.status;
       else if (op.startsWith('standing_approvals.') && result && result.status === 'standing_approval_proposed') line.status = result.status;
       else if (result && result.status === 'disconnected') line.status = 'disconnected';
-      else if (line.path === 'first_party_mcp' && result && typeof result.status === 'string' && result.status) {
+      else if ((line.path === 'first_party_mcp' || line.path === 'hosted_tool') && result && typeof result.status === 'string' && result.status) {
         line.status = classifierAuditStatus(result.status);
       } else if (result && !line.status) line.status = 'ok';
       // executeFirstParty stamps these from the adapter result before a
@@ -1188,6 +1201,12 @@ export class ConnectionGateway {
         }
       }
     }
+    for (const { definition: def } of this.hostedActions.values()) {
+      if (service && def.service !== service) continue;
+      if (q && !`${def.action} ${def.description || ''}`.toLowerCase().includes(q)) continue;
+      const { action, privilege, risk, confirmation, description } = def;
+      actions.push({ action, privilege, risk, confirmation, description: description || null });
+    }
     const seen = new Set(actions.map((a) => a.action));
     for (const c of this.classifiers()) {
       if (typeof c.actions !== 'function') continue;
@@ -1282,6 +1301,8 @@ export class ConnectionGateway {
   }
 
   describeAction(id) {
+    const hosted = this.hostedActions.get(id);
+    if (hosted) return structuredClone(hosted.definition);
     const parsed = parseActionId(id);
     if (!parsed) return statusObject(STATUS.NEEDS_CONNECTOR, { action: id ?? null });
     const found = this.lookupModule(parsed.service, parsed.module);
@@ -1376,7 +1397,8 @@ export class ConnectionGateway {
       if (label !== undefined && auth?.provider === 'local-file') {
         return statusObject(STATUS.INVALID_ARGUMENTS, { tool: 'execute', field: 'label' });
       }
-      const firstParty = !act ? firstPartyDef(action) : null;
+      const hosted = this.hostedActions.get(action);
+      const firstParty = !act ? (hosted?.definition ?? firstPartyDef(action)) : null;
       const privilege = auth?.privilege ?? firstParty?.privilege;
       const risk = act?.risk ?? firstParty?.risk;
       line.privilege = privilege ?? null;
@@ -1384,7 +1406,7 @@ export class ConnectionGateway {
       // first-party call on every exit, including the ones that never reach
       // the adapter: denied, needs_subscription, invalid_arguments,
       // needs_confirmation, and undeclared.
-      if (parsed.service === 'wiser' && !act) line.firstParty = true;
+      if (parsed.service === 'wiser' && !act && !hosted) line.firstParty = true;
 
       const decision = evaluate(this.policy, {
         harness: this.harness,
@@ -1398,6 +1420,14 @@ export class ConnectionGateway {
       if (decision.effect === 'deny') {
         line.path = 'none';
         return statusObject(STATUS.DENIED, { rule: decision.rule });
+      }
+
+      if (hosted) {
+        line.path = 'hosted_tool';
+        if (label !== undefined) return statusObject(STATUS.INVALID_ARGUMENTS, { field: 'label' });
+        const refusal = this.prepareUnboundAction({ action, input, confirm, label, parsed, decision, def: hosted.definition });
+        if (refusal) return refusal;
+        return hosted.execute(input ?? {});
       }
 
       const resolved = resolveAction(action, {
@@ -1783,17 +1813,8 @@ export class ConnectionGateway {
     return standingApprovalResult(result, standingGrant);
   }
 
-  /**
-   * First-party dispatch. Never reads `act` (undefined for a wiser.* id).
-   * @param {object} args
-   */
-  async executeFirstParty({ action, input, confirm, label, parsed, decision, resolved, line }) {
-    const session = this.classifierSession();
-    if (!session.ok) return statusObject(STATUS.CLASSIFIER_UNBOUND, { reason: session.reason });
-
-    const def = resolved.def || firstPartyDef(action) || {};
-    line.privilege = def.privilege ?? line.privilege ?? null;
-
+  /** Validation and input-bound confirmation for actions without a vendor grant. */
+  prepareUnboundAction({ action, input, confirm, label, parsed, decision, def }) {
     const invalidField = validateInput(def.input, input === undefined ? {} : input);
     if (invalidField !== null) return statusObject(STATUS.INVALID_ARGUMENTS, { field: invalidField });
 
@@ -1847,6 +1868,23 @@ export class ConnectionGateway {
     if (confirm === true && confirmation === 'once') {
       this.confirmedOnce.add(onceKey);
     }
+
+    return null;
+  }
+
+  /**
+   * First-party dispatch. Never reads `act` (undefined for a wiser.* id).
+   * @param {object} args
+   */
+  async executeFirstParty({ action, input, confirm, label, parsed, decision, resolved, line }) {
+    const session = this.classifierSession();
+    if (!session.ok) return statusObject(STATUS.CLASSIFIER_UNBOUND, { reason: session.reason });
+
+    const def = resolved.def || firstPartyDef(action) || {};
+    line.privilege = def.privilege ?? line.privilege ?? null;
+
+    const refusal = this.prepareUnboundAction({ action, input, confirm, label, parsed, decision, def });
+    if (refusal) return refusal;
 
     try {
       const key = readClassifierKey(this.envPath);
