@@ -170,7 +170,7 @@ test('an unseen variations page plainly reports when rebuilding cannot fill the 
   library.pairings = library.pairings.filter(p => p.id === seed.pairing.id);
   library.palettes = library.palettes.filter(p => p.id === seed.palette.id);
   library.graphics = library.graphics.filter(p => p.id === seed.graphicSet.id);
-  library.containers = library.containers.filter(p => [seed.container, 'drawn-ring', 'filled-square'].includes(p.id));
+  library.containers = library.containers.filter(p => p.id===seed.container||library.containers.indexOf(p)<5);
   const answers = { ...a, picks: [seed], shown: [seed] }, options = { library };
   const original = select('variations', answers, options);
   assert.throws(() => select('variations', { ...answers, avoid: original.selection.boards, pageDisplayed: false }, options), /unseen page rebuilt.*cannot fill a complete page/);

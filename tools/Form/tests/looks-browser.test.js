@@ -36,7 +36,7 @@ for(const [name,get]of Object.entries(tapSets))for(const width of [390,734])for(
  }finally{await h.context.close();}
 });
 test('look captions default to Look n, retain supplied labels, and keyboard ticks pass pick 2 while Send holds',async()=>{
- const form=lookForm();form.questions[0].pick=2;delete form.questions[0].options[0].label;form.questions[0].options[1].label='My second look';
+ const form=lookForm();for(const option of form.questions[0].options)delete option.steps;form.questions[0].pick=2;delete form.questions[0].options[0].label;form.questions[0].options[1].label='My second look';
  const h=await kit.open(form);try{
   assert.equal(await h.f.locator('.tile-label').first().innerText(),'Look 1');assert.equal(await h.f.locator('.tile-label').nth(1).innerText(),'My second look');
   for(const [i,key]of [[0,'Space'],[1,'Enter'],[2,'Space']]){await h.f.locator('.tile-input').nth(i).focus();await h.page.keyboard.press(key);}

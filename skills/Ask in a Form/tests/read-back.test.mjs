@@ -29,3 +29,9 @@ test('M6 review: the description and the catalog no longer say every form is rea
 test('boards handoff includes the page mode when supplied', () => {
  assert.match(skill, /Include the chosen action value when the form has actions, and the switch's `mode` when a boards question has `controls.mode`/);
 });
+
+test('missed-wait recovery scrapes controlled board mode before handing answers on',()=>{
+ const gone=skill.split('`gone`:')[1].split('5. Clean up:')[0];
+ assert.match(gone,/controls.mode/);assert.match(gone,/fieldset\[data-type="boards"\]/);
+ assert.match(gone,/`data-mode`/);assert.match(gone,/hand it on as `mode`/);
+});

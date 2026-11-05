@@ -30,7 +30,7 @@ export function resolveBoards(brand,options,boardDefaults={},view) {
       return o.steps.map(step=>{
         const boards={};
         for(const mode of view==='look'?['light','dark']:[o.board.primaryMode]) {
-          const variant={...o,label:o.label??`Look ${i+1}`,board:stepBoard(o,step,view,mode)};
+          const variant={...o,label:step.label??o.label??`Look ${i+1}`,board:stepBoard(o,step,view,mode)};
           const b=resolveBoards(brand,[variant],boardDefaults).boards[0];b.number=i+1;
           boards[mode]=b;
         }

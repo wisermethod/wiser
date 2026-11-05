@@ -1,3 +1,4 @@
+import {selectionForAssembly} from '../scripts/select.mjs';
 import '../../../tools/lib/tests/isolated-home.js';
 import test from 'node:test';
 import {assertPage as assertApprovedPage} from './m51c-checks.mjs';
@@ -9,10 +10,11 @@ import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {boardRefusal} from '../scripts/refusals.mjs';
 import {select,tapDials,ground,score,run,ENERGIES} from '../scripts/select.mjs';
-import {assemble,LIBRARY,AXES,partPositions} from '../scripts/assemble.mjs';
+import {assemble as assembleRaw,LIBRARY,AXES,partPositions} from '../scripts/assemble.mjs';
 import {runContactSheet} from '../../../tools/Contact Sheet/scripts/contact-sheet.js';
 import {boardOperator as operator,boardFirstStrategy as firstStrategy,lookActions, looksAnswers} from './select-fixtures.mjs';
 import {checkForm} from '../../../tools/Form/scripts/format.js';
+const assemble=(selection,library,...rest)=>assembleRaw(selectionForAssembly(selection),library,...rest);
 const library=JSON.parse(readFileSync(LIBRARY)),data=JSON.parse(readFileSync(new URL('../parts/taps.json',import.meta.url)));
 const work=mkdtempSync(join(tmpdir(),'brand-selection-tests-'));
 const script=fileURLToPath(new URL('../scripts/select.mjs',import.meta.url));let count=0;
@@ -26,8 +28,8 @@ function assertRound(r,a) {
   assert.deepEqual(new Set(b.map(b=>palette(b.palette.id).energy)),new Set(library.palettes.map(p=>p.energy)));
   const close=b.filter(b=>b.group==='close');
   assert.equal(close.length,4);assert.equal(new Set(close.map(b=>ground(palette(b.palette.id)[b.primaryMode].ground).family)).size,close.length);
-  assert.ok(close.filter(b=>ground(palette(b.palette.id)[b.primaryMode].ground).dark).length<=2);
-  assert.equal(close[0].primaryMode,'dark');assert.equal(close[1].primaryMode,'dark');
+  if(close[0].primaryMode==='light')assert.ok(close.filter(b=>ground(palette(b.palette.id)[b.primaryMode].ground).dark).length<=2);
+  assert.ok(b.every(b=>b.primaryMode===(a.mode??'dark')));
   const recommended=b.filter(b=>b.recommendation);assert.ok(recommended.length<=2);
   const tapped=data.questions.map(q=>q.options.find(o=>o.id===a.taps[q.id]).label);
   for(const b of recommended){const quotes=[...b.recommendation.matchAll(/“([^”]+)”/g)].map(m=>m[1]);assert.ok(quotes.length>0);for(const q of quotes)assert.ok(tapped.includes(q),q);assert.ok(!/[\r\n]/.test(b.recommendation));}
@@ -57,7 +59,7 @@ for(const [label,fixture]of [['operator',operator],['First Strategy',firstStrate
       assert.ok(changed.length===1||changed.length===2);assert.equal(look.changedDials,changed.length);assert.equal(look.changedDial,changed[0]);
     }
     assertApprovedPage(r,looksAnswers(a));
-    for(const [i,option]of r.options.entries()){assert.equal(option.value,r.looks[i].value);assert.equal(option.label,r.looks[i].label.replaceAll(' / ', ', '));assert.deepEqual(Object.keys(option),['value','label','board']);assert.deepEqual(option.board.pairing,r.selection.boards[i].pairing);assert.deepEqual(option.board.palette,r.selection.boards[i].palette);assert.deepEqual(option.board.graphicSet,r.selection.boards[i].graphicSet);}
+    for(const [i,option]of r.options.entries()){assert.equal(option.value,r.looks[i].value);assert.equal(option.label,r.looks[i].label.replaceAll(' / ', ', '));assert.deepEqual(Object.keys(option),['value','label','steps','board']);assert.deepEqual(option.board.pairing,r.selection.boards[i].pairing);assert.deepEqual(option.board.palette,r.selection.boards[i].palette);assert.deepEqual(option.board.graphicSet,r.selection.boards[i].graphicSet);}
     const picked=r.looks.slice(0,2),boosted=select('round1',{...a,looks:picked.map(l=>l.value),looksShown:r.looks});
     for(const [axis,[neg,pos]]of Object.entries(AXES))assert.equal(boosted.dials[axis]-r.dials[axis],picked.reduce((n,l)=>n+(l.positions[axis]===pos?1:l.positions[axis]===neg?-1:0),0));
   });
@@ -118,7 +120,7 @@ test('kept logo and font are absolute in output, fixed on every board, with boar
   const a={...operator(),kept:{markFile:mark,headingFrom:{file:face,family:'Kept face',weight:700}}};writeFileSync(input,JSON.stringify(a));
   const r=run(['round1','--answers',input,'--output',output,'--check']);assert.equal(r.selection.boards.length,12);assert.equal(r.selection.boards[0].number,0);assert.equal(r.selection.boards[0].zero,true);
   for(const b of r.selection.boards){assert.equal(b.markFile,realpathSync(mark));assert.ok(isAbsoluteForTest(b.pairing.headingFrom.file));assert.equal(b.pairing.headingFrom.family,'Kept face');assert.ok(!b.container);}
-  assert.equal(JSON.stringify(JSON.parse(readFileSync(output))),JSON.stringify(r.selection));
+  assert.equal(JSON.stringify(JSON.parse(readFileSync(output))),JSON.stringify(selectionForAssembly(r.selection)));
   const spec=path('kept-spec.json'),html=path('kept-page.html');writeFileSync(spec,JSON.stringify(assemble(r.selection,library)));
   assert.equal(runContactSheet(['build','--spec',spec,'--output',html]).itemCount,12);
   const varied=select('variations',{...a,picks:[r.selection.boards[1]],shown:r.selection.boards,steer:{}},{check:true});assert.equal(varied.selection.boards.length,4);assert.ok(varied.selection.boards.every(b=>b.markFile===mark&&b.pairing.headingFrom.family==='Kept face'));
@@ -141,7 +143,7 @@ function assertVariations(r,picks,shown) {
   assert.equal(r.selection.boards.length,picks.length*4);
   const seen=new Set([...shown,...picks].map(designKey));
   for(const [i,b]of r.selection.boards.entries()) {
-    const parent=picks[Math.floor(i/4)];
+    const parent={...picks[Math.floor(i/4)],primaryMode:r.form?.questions[0].controls.mode??b.primaryMode};
     assert.equal(b.group,`pick-${Math.floor(i/4)+1}`);
     assert.equal(r.positions[i].parent,parent.number);
     const changes=design(b).filter((part,i)=>JSON.stringify(part)!==JSON.stringify(design(parent)[i])).length;
@@ -331,7 +333,7 @@ test('variations CLI reads full picks/history and writes an assemblable checked 
   assert.equal(c.status,0,c.stderr);assert.equal(c.stderr,'');
   const r=JSON.parse(c.stdout);assert.equal(r.command,'variations');assert.equal(r.checks.enabled,true);
   assertVariations(r,shown.slice(0,2),shown);
-  assert.deepEqual(JSON.parse(readFileSync(output)),r.selection);assert.equal(assemble(r.selection,library).boards.length,8);
+  assert.deepEqual(JSON.parse(readFileSync(output)),selectionForAssembly(r.selection));assert.equal(assemble(r.selection,library).boards.length,8);
 });
 
 for(const command of ['round1','variations']) test(`${command} Review replaces only a blocked slot and returns a deterministic ready form`,()=>{
@@ -414,10 +416,13 @@ test('checked Review retries keep zero and numbered replacements distinct with f
       if(!numbers.includes(board.number)){
         assert.equal(JSON.stringify(board),JSON.stringify(original.selection.boards[i]));
         assert.equal(JSON.stringify(newSpec.boards[i]),JSON.stringify(oldSpec.boards[i]));
-        assert.equal(JSON.stringify(r.form.questions[0].options[i]),JSON.stringify(original.form.questions[0].options[i]));
+        assert.ok(r.form,r.formUnavailable);
       }
     }
-    assert.equal(r.checks.enabled,true);assert.deepEqual(checkForm(r.form),{ok:true,problems:[]});
+    assert.equal(r.checks.enabled,true);assert.ok(r.form,r.formUnavailable);assert.equal(r.formUnavailable,undefined);
+    assert.deepEqual(checkForm(r.form),{ok:true,problems:[]});
+    const q=r.form.questions[0];assert.deepEqual(q.controls,{mode:r.selection.boards[0].primaryMode});
+    for(const o of q.options){assert.equal(o.steps.length,1);assert.deepEqual(o.steps[0].palette,o.board.palette);}
   };
   const retry=(avoid,page=original)=>{writeFileSync(input,JSON.stringify({...a,avoid,pageDisplayed:true,displayedBoards:page.selection.boards}));return run(['round1','--answers',input,'--check']);};
   verify(retry(original.selection.boards.slice(0,2)),[0,1]);

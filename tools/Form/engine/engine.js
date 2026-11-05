@@ -187,15 +187,20 @@ function boardQuestion(fieldset,q,id) {
     const oldMode=[...viewerArt.children].find(n=>!n.hidden)?.dataset.mode;
     const art=globalThis.WiserBoardView.draw(model,showing(activeRow),{logo:state.form.brand.logo,...(pageMode?{mode:pageMode}:{})});
     viewerArt.replaceWith(art);viewerArt=art;
+    scroll.querySelector(".locked-name").textContent=showing(activeRow).name;
     if(!pageMode)viewerBar.querySelector('.board-mode-switches').replaceWith(modeSwitch(art,oldMode));
   }
   function redraw(){
     for(const row of rows){
       const b=showing(row);
       if(row.input)row.input.value=row.steps[row.index].value;
+      if(row.caption)row.caption.textContent=b.name;
       if(row.preview){
         const art=look?globalThis.WiserBoardView.look(model,b,{logo:state.form.brand.logo}):globalThis.WiserBoardView.draw(model,b,{compact:!single,logo:state.form.brand.logo,...(pageMode?{mode:pageMode}:{})});
+        const capSwitch=row.preview.parentElement===fieldset&&row.preview.previousElementSibling?.classList.contains("board-mode-switches")?row.preview.previousElementSibling:null;
+        const capMode=capSwitch?.querySelector('[aria-pressed="true"]')?.dataset.mode;
         row.preview.replaceWith(art);row.preview=art;
+        if(capSwitch)capSwitch.replaceWith(modeSwitch(art,capMode));
       }
     }
     redrawViewer();syncStrength();globalThis.WiserBoardView.fitLooks();
@@ -247,12 +252,13 @@ function boardQuestion(fieldset,q,id) {
   back.addEventListener("click",()=>close());backBottom.addEventListener("click",()=>close());
   viewer.append(viewerBar,scroll,viewerEnd);
   for(const [i,o]of q.options.entries()){
-    const row=rows[i],b=showing(row),label=o.label??WORDS.look.replace("{n}",i+1);
+    const row=rows[i],b=showing(row),label=b.name;
     const note=Object.hasOwn(o,"note")?o.note:look?"":state.form.brand.words.map(w=>`${w.word}, not ${w.not}`).join("; ");
     if(!look&&(q.pick===0||single)){
       if(single){const input=el("input",{type:"checkbox",name:id,value:o.value,hidden:true});input.checked=true;fieldset.append(input);picks.set(o.value,input);row.input=input;}
       row.preview=globalThis.WiserBoardView.draw(model,b,{logo:state.form.brand.logo,...(pageMode?{mode:pageMode}:{})});
-      fieldset.append(el("h2",{class:"locked-name",text:o.label}),row.preview);
+      row.caption=el("h2",{class:"locked-name",text:label});
+      fieldset.append(row.caption,row.preview);
       continue;
     }
     if(look&&q.pick===0){grid.append(el("div",{class:"tile looks-tile"},globalThis.WiserBoardView.look(model,b,{logo:state.form.brand.logo}),el("span",{class:"tile-label",text:label})));continue;}
@@ -263,6 +269,7 @@ function boardQuestion(fieldset,q,id) {
     input.addEventListener("keydown",event=>{if(event.key==='Enter'){event.preventDefault();if(!event.repeat){pick(input,!input.checked);if(activeInput===input)syncViewer();}}});
     const caption=el("span",{class:"tile-label"},el("span",{text:label}),el("span",{class:"mark check","aria-hidden":true}),note?el("small",{id:`${id}-${i}-note`,text:note}):null,
       !look&&o.recommendation?el("small",{class:"board-recommendation"},el("b",{text:WORDS.recommended}),document.createTextNode(" · "+o.recommendation)):null);
+    row.caption=caption.firstElementChild;
     const preview=look?globalThis.WiserBoardView.look(model,b,{logo:state.form.brand.logo}):el("div",{class:"board-crop","aria-hidden":true},globalThis.WiserBoardView.draw(model,b,{compact:true,logo:state.form.brand.logo,...(pageMode?{mode:pageMode}:{})}));
     row.preview=look?preview:preview.firstElementChild;
     const tile=el("label",{class:`tile boards-tile${look?' looks-tile':''}`,for:input.id},input,preview,caption);
@@ -283,7 +290,7 @@ function boardQuestion(fieldset,q,id) {
       const art=globalThis.WiserBoardView.draw(model,showing(row),{logo:state.form.brand.logo,...(pageMode?{mode:pageMode}:{})});viewerArt=art;
       viewerBar.replaceChildren(back,...(pageMode?[]:[modeSwitch(art)]),mirrors[0]);
       viewerEnd.replaceChildren(backBottom,mirrors[1]);
-      scroll.replaceChildren(el("h2",{class:"locked-name",text:o.label}),art);
+      scroll.replaceChildren(el("h2",{class:"locked-name",text:showing(row).name}),art);
       for(const tile of grid.querySelectorAll(":scope>.board-option"))tile.hidden=true;
       grid.prepend(viewer);viewer.hidden=false;full.setAttribute("aria-expanded","true");
       back.focus({preventScroll:true});
@@ -354,7 +361,7 @@ function readAnswers() {
   for (const [i, q] of state.form.questions.entries()) {
     const box = document.querySelectorAll("#form fieldset")[i];
     const opts = Array.isArray(q.options) ? q.options : [];
-    const label = (v) => {const i=opts.findIndex(o=>o.value===v||q.type==="boards"&&o.steps?.some(s=>s.value===v));return opts[i]?.label??(q.type==="boards"&&q.view==="look"?WORDS.look.replace("{n}",i+1):v);};
+    const label = (v) => {const i=opts.findIndex(o=>o.value===v||q.type==="boards"&&o.steps?.some(s=>s.value===v));return (q.type==="boards"?opts[i]?.steps?.find(s=>s.value===v)?.label:undefined)??opts[i]?.label??(q.type==="boards"&&q.view==="look"?WORDS.look.replace("{n}",i+1):v);};
     let value;
     if (q.type === "slider") value = Number(box.querySelector("input[type=range]").value);
     else if (q.type === "text") value = [...box.querySelector("textarea").value].slice(0, 1000).join("").trim();

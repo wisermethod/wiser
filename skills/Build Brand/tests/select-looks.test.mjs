@@ -20,12 +20,14 @@ const identity=c=>`${c.pairing}/${c.palette}/${c.graphicSet}`;
 // checked refusals/replacements and abandoned-check attempt counts.
 // Every pin also asserts the page shape, refusals, history and Form contract.
 const fixtures=[
-  ["operator",operator,["715b00b6ce6cbb5050b981ec9a0c1be1a6a7460148ba9f62fc02661bdba6f2c2", "e83476471a48eeda49439045274d191053b31f860ea8b6aef767243e5857dad7"],["e476a9d7f66257d83970e305b7927fdbcd38731ad781e10cd92b864d821ba97f", "605d9a086c12ed13313f2326b5cb944b014bef36184bd188caa22a4c2f71c002"]],
-  ["First Strategy",firstStrategy,["4e989ad5ab3b9cf04103676d39d0cdf47c295da5a32ff84472228244c60f28f8", "8f29b7fc775cc740eed5c3c3981f71a15ed4afc32b3cf0122d03b58eae547783"],["bdd14ed7d17138c13fd030e709ab6d551c8bbb5eee3159f894dad174cf787fa0", "7e7178a2d0a8be0a13d685bfbfc60a1b653bc17a2ca8c8c7d89d8db9def461f5"]]
+  ["operator",operator,["fe1ff7fb65fb49b3fa7fe9e4b21a83115a4b52d363348168aba816508f631089", "e53131559b86fb2e78f503a45a244e11ab35fd2a382d5edca73704f0567a8d10"],["9d1db47cfda0185a84e851328fa25e8e4a41a1b4a8c6e3fe78500b03a104a600", "9265789240f28e433167e3e8133c9440014e95965daf7686e5e1c5312b128983"]],
+  ["First Strategy",firstStrategy,["ef7783413689c672fc9a3928dde19ea353572712b662201addfe0e56e581dd06", "b155e44ab8810963b730866deb0531d5ac3aaf5922c2fded19f64867ea302425"],["36d8cae01eef3ab2c0a70032df97d19721b468060d9f30d7957a03cd34d65dcd", "fa311d239364930a519893581738a0612289776b0c88ea1b895e0e6acfbb439e"]]
 ];
 
 function assertPage(r,a,history=[]) {
   assert.equal(r.looks.length,12);assert.equal(r.options.length,12);
+  assert.deepEqual(r.controls,{mode:r.selection.boards[0].primaryMode,...(a.kept?.palette?{}:{strength:true})});
+  if(a.kept?.palette)assert.ok(r.options.every(o=>o.steps.length===1&&o.steps[0].value===o.value));
   assert.deepEqual(r.looks.map(l=>l.kind),[...Array(6).fill('top'),...Array(6).fill('contrast')]);
   const seen=new Set(history.map(l=>l.value)),parts=new Set(history.map(identity));
   for(const look of r.looks) {

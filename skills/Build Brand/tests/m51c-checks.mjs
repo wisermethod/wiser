@@ -52,6 +52,7 @@ export function assertCoverage(looks) {
   assert.deepEqual(new Set(looks.map(c=>library.styles.find(s=>s.id===c.style)?.depth.mark)),new Set(marks),'all five marks');
 }
 export function expectedMode(a) {
+  if(a.mode) return a.mode;
   if(a.kept?.primaryMode) return a.kept.primaryMode;
   if(a.off?.includes('darkLed')) return 'light';
   if(a.taps.mode==='dark'&&!a.off?.includes('dark')) return 'dark';
@@ -86,11 +87,14 @@ export function passingCards(r,a,l=library) {
     if(kept.markFile) delete b.container;
     if(boardRefusal(l,b)) continue;
     if(r.checks.enabled) try {
+     for(const mode of ['light','dark']) {
+      b.primaryMode=mode;b.depth=depth(p.id,s,mode);
       const spec=assemble({...r.selection,boards:[b]},l);
       validateBrandBoards(spec,{add(path) {
         if(!assets.has(path)) assets.set(path,{extension:extname(path),uri:'data:application/octet-stream;base64,'+readFileSync(path).toString('base64')});
         return assets.get(path);
       }},()=>{});
+     }
     } catch {continue;}
     const c={palette:p.id,style:s.id,graphicSet:s.graphicSet,positions:cardPositions(l,p,s),plain:s.depth.background==='plain',mark:s.depth.mark};
     result.push({...c,value:id(c)});

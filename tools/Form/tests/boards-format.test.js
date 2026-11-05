@@ -55,7 +55,7 @@ for(const [name,get]of Object.entries(tapSets))test(`${name} looks options pass 
  assert.equal(f.questions[0].options,r.options);assert.equal(f.questions[0].options.length,r.selection.boards.length);
  assert.deepEqual(checkForm(f),{ok:true,problems:[]});assert.deepEqual(r.options,before);
  assert.equal(z.fromJSONSchema(formJsonSchema()).safeParse(f).success,true);
- for(const option of r.options){assert.deepEqual(Object.keys(option),['value','label','board']);assert.match(option.value,/^[a-z0-9][a-z0-9-]{0,39}$/);}
+ for(const option of r.options){assert.deepEqual(Object.keys(option),['value','label','steps','board']);assert.match(option.value,/^[a-z0-9][a-z0-9-]{0,39}$/);}
 });
 test('boards view defaults to board; looks allow numbered captions and refuse recommendations',()=>{
  const f=boardForm();f.questions[0].view='board';assert.equal(checkForm(f).ok,true);

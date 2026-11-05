@@ -1,12 +1,14 @@
+import {selectionForAssembly} from '../scripts/select.mjs';
 import '../../../tools/lib/tests/isolated-home.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {select} from '../scripts/select.mjs';
-import {assemble,LIBRARY} from '../scripts/assemble.mjs';
+import {assemble as assembleRaw,LIBRARY} from '../scripts/assemble.mjs';
 import {boardOperator as operator,boardHarbor as harbor, looksAnswers} from './select-fixtures.mjs';
 import {boardRefusal} from '../scripts/refusals.mjs';
 import {board,selection} from './selections.mjs';
+const assemble=(selection,library,...rest)=>assembleRaw(selectionForAssembly(selection),library,...rest);
 const library=JSON.parse(readFileSync(LIBRARY));
 
 for(const [name,ground,accent,pairing] of [

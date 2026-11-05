@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {z} from 'zod';
-import {checkForm,formJsonSchema} from '../scripts/format.js';
+import {checkForm,checkTemplate,fillTemplate,formJsonSchema} from '../scripts/format.js';
 import {resolveBoards,stepBoard} from '../scripts/boards.js';
-import {controlsForm,startAt} from './page-controls-fixtures.js';
+import {controlsForm,startAt,withStepLabels} from './page-controls-fixtures.js';
 const copy=structuredClone;
 for(const view of ['look','board'])for(const mode of ['light','dark'])test(`page controls ${view} ${mode}: current selection, schema, resolved steps and unchanged input`,()=>{
  const form=controlsForm(view,mode),before=copy(form),q=form.questions[0];
@@ -39,7 +39,7 @@ const refusals=[
  ['pick zero',q=>{q.pick=0;delete q.min;},'controls'],['mismatched mode',q=>q.options[0].board.primaryMode='dark','options[0].board.primaryMode'],
  ['strength needs steps',q=>delete q.options[0].steps,'options[0].steps'],['look mode needs steps',q=>{delete q.controls.strength;delete q.options[0].steps;},'options[0].steps'],
  ['steps empty',q=>q.options[0].steps=[],'options[0].steps'],['steps null',q=>q.options[0].steps=null,'options[0].steps'],['steps too many',q=>q.options[0].steps.push(copy(q.options[0].steps[0])),'options[0].steps'],
- ['null step',q=>q.options[0].steps[0]=null,'options[0].steps[0]'],['unknown step field',q=>q.options[0].steps[0].label='Extra','options[0].steps[0].label'],
+ ['null step',q=>q.options[0].steps[0]=null,'options[0].steps[0]'],['unknown step field',q=>q.options[0].steps[0].extra='Extra','options[0].steps[0].extra'],
  ['step value missing',q=>delete q.options[0].steps[0].value,'options[0].steps[0].value'],['bad value grammar',q=>q.options[0].steps[0].value='UPPER','options[0].steps[0].value'],
  ['step equals another option',q=>q.options[0].steps[0].value=q.options[1].value,'options[0].steps[0].value'],
  ['step equals another step',q=>q.options[1].steps[0].value=q.options[0].steps[0].value,'options[1].steps[0].value'],
@@ -47,7 +47,7 @@ const refusals=[
  ['no matching value',q=>q.options[0].value='unmatched','options[0].steps'],['no matching palette',q=>q.options[0].board.palette.id='business-blue-muted','options[0].steps'],
  ['matching twice',q=>{q.options[0].steps[0]=copy(q.options[0].steps[2]);},'options[0].steps'],
  ['palette missing',q=>delete q.options[0].steps[0].palette,'options[0].steps[0].palette'],['palette id missing',q=>q.options[0].steps[0].palette={},'options[0].steps[0].palette.id'],
- ['palette overrides refused',q=>q.options[0].steps[0].palette.overrides={},'options[0].steps[0].palette.overrides'],
+ ['unknown palette field',q=>q.options[0].steps[0].palette.extra={},'options[0].steps[0].palette.extra'],
  ['palette unknown',q=>q.options[0].steps[0].palette.id='absent-muted','options[0].steps[0]'],
  ['palette family changed',q=>q.options[0].steps[0].palette.id=q.options[1].steps[0].palette.id,'options[0].steps[0].palette'],
  ['steps reversed',q=>q.options[0].steps.reverse(),'options[0].steps[1].palette'],
@@ -80,5 +80,78 @@ test('schema publishes closed controls, steps, palette and per-mode depths',()=>
  const validator=z.fromJSONSchema(schema);
  for(const mutate of [q=>q.controls.extra=1,q=>q.controls.strength=false,q=>q.options[0].steps[0].extra=1,q=>q.options[0].steps[0].palette.extra=1,q=>q.options[0].steps[0].depth.extra={},q=>q.options[0].steps[0].depth.dark.extra=1,q=>q.options[0].steps[0].value='BAD',q=>q.options[0].steps=[]]){
   const f=controlsForm();mutate(f.questions[0]);assert.equal(validator.safeParse(f).success,false);
+ }
+});
+
+for(const view of ['look','board'])test(`step labels ${view}: optional option-label rules, schema and resolved names`,()=>{
+ const form=withStepLabels(controlsForm(view)),q=form.questions[0],o=q.options[0],step=o.steps[0];
+ const schema=z.fromJSONSchema(formJsonSchema());
+ for(const label of ['A','\u{1D11E}'.repeat(120)]){
+  step.label=label;assert.deepEqual(checkForm(form),{ok:true,problems:[]});assert.equal(schema.safeParse(form).success,true);
+  assert.doesNotThrow(()=>resolveBoards(form.brand,q.options,form.boardDefaults,view));
+ }
+ const labelSchema=formJsonSchema().properties.questions.items.properties.options.items.properties.steps.items.properties.label;
+ assert.match(labelSchema.description,/showing step/);
+ for(const label of ['',null,1,false,{},[], 'x'.repeat(121), '\u{1D11E}'.repeat(121),'line\nbreak','separator\u2028break','separator\u2029break','\ud800','\udc00','\ud800X','X\udc00']){
+  step.label=label;const result=checkForm(form);assert.equal(result.ok,false);
+  assert.ok(result.problems.some(p=>p.path==='questions[0].options[0].steps[0].label'),JSON.stringify(result));
+  assert.equal(schema.safeParse(form).success,false);
+ }
+ for(const label of [' ','\u00a0']){
+  step.label=label;const result=checkForm(form);assert.equal(result.ok,false);
+  assert.ok(result.problems.some(p=>p.path==='questions[0].options[0].steps[0].label'),JSON.stringify(result));
+ }
+ step.label='Showing step';delete o.steps[1].label;
+ const model=resolveBoards(form.brand,q.options,form.boardDefaults,view);
+ assert.equal(checkForm(form).ok,true);
+ assert.equal(model.steps[0][0].boards.light.name,'Showing step');assert.equal(model.steps[0][0].boards.dark.name,'Showing step');
+ assert.equal(model.steps[0][1].boards.light.name,o.label);
+ if(view==='look'){
+  delete o.label;assert.equal(checkForm(form).ok,true);const fallback=resolveBoards(form.brand,q.options,form.boardDefaults,view);
+  assert.equal(fallback.steps[0][1].boards.light.name,'Look 1');assert.equal(fallback.steps[0][0].boards.dark.name,'Showing step');
+ }
+});
+test('step label templates follow option label substitution and limits',()=>{
+ const template=controlsForm();template.slots={caption:{about:'Step caption',max:121}};
+ template.questions[0].options[0].steps[0].label='{{caption}}';
+ assert.equal(checkTemplate(template).ok,true);
+ const filled=fillTemplate(template,{caption:'Showing step'});assert.equal(filled.ok,true);
+ assert.equal(filled.form.questions[0].options[0].steps[0].label,'Showing step');
+ assert.equal(fillTemplate(template,{caption:'x'.repeat(121)}).ok,false);
+ for(const caption of [' ','\u00a0'])assert.equal(fillTemplate(template,{caption}).ok,false);
+});
+
+for(const view of ['look','board'])test(`step palette overrides ${view}: the full reference resolves in both modes without mutation`,()=>{
+ const form=controlsForm(view),q=form.questions[0],before=copy(form);
+ const overrides={light:{hairline:'#bbbbbb'},dark:{hairline:'#777777'}};
+ for(const o of q.options){o.board.palette.overrides=copy(overrides);for(const s of o.steps)s.palette.overrides=copy(overrides);}
+ const supplied=copy(form);
+ assert.deepEqual(checkForm(form),{ok:true,problems:[]});
+ assert.equal(z.fromJSONSchema(formJsonSchema()).safeParse(form).success,true);
+ const model=resolveBoards(form.brand,q.options,form.boardDefaults,view);
+ for(const row of model.steps)for(const step of row)for(const mode of ['light','dark']){
+  assert.equal(step.boards[mode].palette.light.hairline,'#bbbbbb');assert.equal(step.boards[mode].palette.dark.hairline,'#777777');
+ }
+ assert.deepEqual(form,supplied);assert.notDeepEqual(form,before);
+ const paletteSchema=formJsonSchema().properties.questions.items.properties.options.items.properties;
+ assert.deepEqual(paletteSchema.steps.items.properties.palette.properties,paletteSchema.board.properties.palette.properties);
+ for(const overrides of [null,{sepia:{}},{light:{unknown:'#fff'}},{dark:{hairline:'blue'}},{light:{text:'#fff',ground:'#fff'}}]){
+  const bad=copy(form);bad.questions[0].options[0].steps[0].palette.overrides=overrides;
+  const result=checkForm(bad);assert.equal(result.ok,false);
+  assert.ok(result.problems.some(p=>p.path==='questions[0].options[0].steps[0]'),JSON.stringify(result));
+ }
+});
+
+test('step board refusals use the step label and remain at the step path',()=>{
+ const form=controlsForm('board'),step=form.questions[0].options[0].steps[0];
+ step.label=' ';const result=checkForm(form);
+ assert.ok(result.problems.some(p=>p.path==='questions[0].options[0].steps[0]'&&/name/.test(p.message)),JSON.stringify(result));
+});
+
+test('plain string schema and checker agree on astral characters, lone surrogates and line separators',()=>{
+ const schema=z.fromJSONSchema(formJsonSchema());
+ for(const [title,accepted] of [['\u{1D11E}'.repeat(80),true],['\u{1D11E}'.repeat(81),false],['\ud800',false],['\udc00',false],['a\u2028b',false],['a\u2029b',false]]){
+  const form={title,questions:[{id:'text',label:'Your words',type:'text'}]};
+  assert.equal(checkForm(form).ok,accepted);assert.equal(schema.safeParse(form).success,accepted);
  }
 });

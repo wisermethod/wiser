@@ -55,6 +55,8 @@ const FAMILY = /^[A-Za-z][A-Za-z0-9]*(?: [A-Za-z0-9]+)*$/;
 const SLOT = /^[a-z][a-z0-9-]{0,29}$/;
 // Line and paragraph separators break a line as a newline does, so they are refused with the controls.
 const CONTROL = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/;
+// In Unicode mode a valid surrogate pair is one code point outside this range.
+const LONE_SURROGATE = /[\uD800-\uDFFF]/u;
 const HEX = /^#(?:[a-f0-9]{3}|[a-f0-9]{6})$/i;
 const GENERICS = ["serif", "sans-serif", "monospace", "system-ui"];
 // Names CSS reads as a keyword rather than a family, refused as declared families whatever their case.
@@ -67,7 +69,7 @@ const record = o => o !== null && typeof o === "object" && !Array.isArray(o) &&
 const pathKey = (p, k) => p ? `${p}.${k}` : k;
 const length = s => [...s].length;
 const tokens = s => [...s.matchAll(/\{\{([^{}]*)\}\}/g)];
-const tokenField = p => /^(title|intro|questions\[\d+\]\.(label|short|help|placeholder|minLabel|maxLabel)|questions\[\d+\]\.options\[\d+\]\.(label|note|picture|sample)|fonts\[\d+\]\.(family|src))$/.test(p);
+const tokenField = p => /^(title|intro|questions\[\d+\]\.(label|short|help|placeholder|minLabel|maxLabel)|questions\[\d+\]\.options\[\d+\]\.(label|note|picture|sample|steps\[\d+\]\.label)|fonts\[\d+\]\.(family|src))$/.test(p);
 const deepEqual = (a,b) => a===b || record(a)&&record(b)&&Object.keys(a).length===Object.keys(b).length&&Object.keys(a).every(k=>own(b,k)&&deepEqual(a[k],b[k]));
 const nearInteger = n => Number.isFinite(n) && Math.abs(n - Math.round(n)) <= Number.EPSILON * Math.max(1, Math.abs(n)) * 8;
 
@@ -79,6 +81,7 @@ function validate(value, template = false) {
   function scan(v, p) {
     if (typeof v === "string") {
       if (CONTROL.test(v)) add(p, "Control characters are refused.");
+      if (LONE_SURROGATE.test(v)) add(p, "Lone surrogates are refused.");
       if (template && (v.includes("{{") || v.includes("}}"))) {
         const found = tokens(v);
         if (!tokenField(p)) add(p, "Tokens are not allowed here.");
@@ -98,6 +101,7 @@ function validate(value, template = false) {
       for (const k of Object.keys(v)) {
         const next = Array.isArray(v) ? `${p}[${k}]` : pathKey(p, k);
         if (CONTROL.test(k)) add(next, "Control character in key.");
+        if (LONE_SURROGATE.test(k)) add(next, "Lone surrogate in key.");
         if (template && (k.includes("{{") || k.includes("}}"))) add(next, "Tokens are not allowed in keys.");
         scan(v[k], next);
       }
@@ -243,14 +247,15 @@ function validate(value, template = false) {
           const family=palettePosition(o.board?.palette?.id)?.family;
           o.steps.forEach((step,k)=>{
             const at=`${sp}[${k}]`;
-            if(!object(step,at,["value","palette",...(q.view==="look"?["depth"]:[])],["value","palette",...(q.view==="look"?["depth"]:[])]))return;
-            strings(step,at,[["value",1,L.optionValueMax,VALUE]]);
+            if(!object(step,at,["value","label","palette",...(q.view==="look"?["depth"]:[])],["value","palette",...(q.view==="look"?["depth"]:[])]))return;
+            strings(step,at,[["value",1,L.optionValueMax,VALUE],["label",1,B.label]]);
+            if(typeof step.label==='string'&&!deferred.has(`${at}.label`)&&!step.label.trim())add(`${at}.label`,"Step label must not be blank.");
             if(values.has(step.value)&&(step.value!==o.value||values.get(step.value)!==j))add(`${at}.value`,"Step value must be unique across the question.");
             // The one matching step may share its own option's value, exactly once.
             if(step.value===o.value&&step.palette?.id===o.board?.palette?.id)matching++;
             if(step.value!==o.value&&!values.has(step.value))values.set(step.value,j);
             if(o.steps.slice(0,k).some(s=>s?.value===step.value))add(`${at}.value`,"Step value must be unique.");
-            if(object(step.palette,`${at}.palette`,["id"],["id"]))strings(step.palette,`${at}.palette`,[["id",1,60]]);
+            if(object(step.palette,`${at}.palette`,["id","overrides"],["id"]))strings(step.palette,`${at}.palette`,[["id",1,60]]);
             const position=palettePosition(step.palette?.id);
             if(!position||position.family!==family||position.index<=previous)add(`${at}.palette`,"Expected this colour family's steps in muted, balanced, bold order.");
             if(position)previous=position.index;
@@ -258,7 +263,7 @@ function validate(value, template = false) {
             if(!record(o.board))return;
             if(q.view==="look"&&step.value===o.value&&step.palette?.id===o.board.palette?.id&&!deepEqual(step.depth?.[o.board.primaryMode],o.board.depth))add(`${at}.depth`,"The matching step's primary-mode depth must equal board.depth.");
             for(const mode of q.view==="look"?["light","dark"]:[o.board.primaryMode]) {
-              try { resolveBoards(value.brand,[{...o,board:stepBoard(o,step,q.view,mode)}],value.boardDefaults); }
+              try { resolveBoards(value.brand,[{...o,label:step.label??o.label??`Look ${j+1}`,board:stepBoard(o,step,q.view,mode)}],value.boardDefaults); }
               catch(e) { add(at,e.message); }
             }
           });
@@ -345,7 +350,7 @@ export function formJsonSchema() {
   const str = (max, description, min = 0, pattern) => ({ type: "string", minLength: min,
     // Zod's conversion counts UTF-16 units. The pattern keeps code-point limits and
     // the broad maxLength also admits astral characters in that consumer.
-    maxLength: max * 2, pattern: pattern || `^(?:[\\uD800-\\uDBFF][\\uDC00-\\uDFFF]|[^\\u0000-\\u001f\\u007f-\\u009f]){${min},${max}}$`, description });
+    maxLength: max * 2, pattern: pattern || `^(?:[\\uD800-\\uDBFF][\\uDC00-\\uDFFF]|[^\\u0000-\\u001f\\u007f-\\u009f\\uD800-\\uDFFF\\u2028\\u2029]){${min},${max}}$`, description });
   const obj = (properties, required, description) => ({ type: "object", properties, required, additionalProperties: false, description });
   const arr = (items,minItems,maxItems,description) => ({ type: "array",items,minItems,maxItems,description });
   const line = (max=L.formBytesMax) => str(max,"Plain single-line text.",1);
@@ -367,7 +372,7 @@ export function formJsonSchema() {
   const option = obj({
     value: str(L.optionValueMax,"Unique option value: 1 to 40 lowercase letters, digits or hyphens, starting with a letter or digit.",1,VALUE.source),
     label: str(B.label,"Option label: boards up to 120 code points, other types up to 60.",1), note: str(B.note,"Optional note: boards up to 300 code points, others up to 80. In board view, absent note draws brand.words as {word}, not {not}, joined with semicolon and space; an explicit note, including empty, wins."),
-    steps:arr(obj({value:str(L.optionValueMax,"Unique across the whole question, except the one step matching its own option value and palette id.",1,VALUE.source),palette:obj({id:line(60)},["id"],"This colour family's palette id, ordered muted to balanced to bold."),depth:obj({light:JSON.parse(JSON.stringify(depthSchema)),dark:JSON.parse(JSON.stringify(depthSchema))},["light","dark"],"Look view only, required there. The matching step's depth in board.primaryMode deep-equals board.depth; every step board passes the option's checks in both modes.")},["value","palette"],"Boards only. Look view also requires depth; board view refuses it. Exactly one entry matches the option's value and board.palette.id."),1,3,"Boards only. Required on every option with controls.strength or look-view controls.mode. Each step replaces only palette and, in look view, depth for the showing mode. Values are unique across steps and all options, except the own matching step."),
+    steps:arr(obj({label:str(B.label,"Optional showing step label, 1 to 120 code points, under the option label rules. Used for the caption, full-size heading, shown and answer summary; absent falls back to the option label or default look label.",1),value:str(L.optionValueMax,"Unique across the whole question, except the one step matching its own option value and palette id.",1,VALUE.source),palette:{...board.properties.palette,description:"Same palette reference as board.palette, including role overrides, ordered muted to balanced to bold."},depth:obj({light:JSON.parse(JSON.stringify(depthSchema)),dark:JSON.parse(JSON.stringify(depthSchema))},["light","dark"],"Look view only, required there. The matching step's depth in board.primaryMode deep-equals board.depth; every step board passes the option's checks in both modes.")},["value","palette"],"Boards only. Look view also requires depth; board view refuses it. Exactly one entry matches the option's value and board.palette.id."),1,3,"Boards only. Required on every option with controls.strength or look-view controls.mode. Each step replaces only palette and, in look view, depth for the showing mode. Values are unique across steps and all options, except the own matching step."),
     board, recommendation:str(B.recommendation,"Boards only; at most two recommended options, one line each.",1),
     picture: str(L.fontSrcMax,"Optional on image types; at least two options in an image question must have a picture. An option without one is a word choice drawn after the tiles. Other question types refuse it. palette:#hex,#hex,... has 1 to 8 colours, each #rgb or #rrggbb. motif:<name>[:#fg,#bg] uses dots, grid, waves, arcs, stripes, rings, triangles or blob and either no colours or exactly two. type:<family>[+<family>][:#fg,#bg] uses one or two declared font families or serif, sans-serif, monospace, system-ui, and either no colours or exactly two. Nothing is fetched for pictures.",1),
     sample: str(L.sampleMax,"Only with a type: picture, refused without a picture; at most 24 code points. Both type families draw this sample when supplied; otherwise the first draws Aa and the second Abc 123.")
@@ -376,7 +381,7 @@ export function formJsonSchema() {
     id: str(L.idMax,"Unique question id: lowercase letter then up to 39 lowercase letters, digits or hyphens.",1,ID.source),
     type: { type:"string",enum:[...TYPES],description:"Supported question type; only that type's keys are accepted by checkForm." },
     label: str(L.questionLabelMax,"Question label, 1 to 200 code points.",1), short: str(L.shortMax,"Optional answer heading, at most 40 code points."),help:str(L.helpMax,"Optional help, at most 300 code points."),
-    controls:obj({mode:{type:"string",enum:["light","dark"],description:"Starting page mode; every option's board.primaryMode must equal it. Sent as top-level mode."},strength:{type:"boolean",enum:[true],description:"Enable More muted and More bold, one supplied adjacent colour-family step per press."}},[],"Boards only, with pick at least 1. Supply mode or strength or both. One bar above all tiles redraws their pictures in place, retaining picks and captions. Buttons grey when no card can move; gaps are not skipped. Without controls no bar is shown."),
+    controls:obj({mode:{type:"string",enum:["light","dark"],description:"Starting page mode; every option's board.primaryMode must equal it. Sent as top-level mode."},strength:{type:"boolean",enum:[true],description:"Enable More muted and More bold, one supplied adjacent colour-family step per press."}},[],"Boards only, with pick at least 1. Supply mode or strength or both. One bar above all tiles redraws their pictures in place, retaining picks and notes; captions follow any showing step label. Buttons grey when no card can move; gaps are not skipped. Without controls no bar is shown."),
     pick:{type:"integer",enum:[0,1,2,3],description:"Boards only, required: the most picks that may be sent (1, 2 or 3); ticking is unlimited. A sole option with 1 is selected. 0 is display-only with no actions or send."},
     view:{type:"string",enum:["board","look"],description:"Boards only: board (default) draws whole boards; look draws 600 by 360 whole-look tiles, four across from 734px, two below, without full-size controls or recommendations."},
     options:arr(option,1,L.optionsMax,"Boards need 1 to 12 options. Required for choices: 2 to 12 options for radio/checkbox, 2 to 8 for image-radio/image-checkbox, with at least two options carrying a picture. Remaining image options may omit picture and draw as word choices after the tiles, in the same input group. Other types refuse options."),

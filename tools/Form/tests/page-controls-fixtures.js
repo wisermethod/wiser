@@ -33,8 +33,16 @@ export function startAt(form,strength='balanced') {
   const mode=form.questions[0].controls?.mode??'light';
   for(const o of form.questions[0].options){
     const step=o.steps.find(s=>s.palette.id.endsWith(`-${strength}`));
-    o.value=step.value;o.board.palette=copy(step.palette);o.board.primaryMode=mode;
+    o.value=step.value;if(step.label)o.label=step.label;o.board.palette=copy(step.palette);o.board.primaryMode=mode;
     if(form.questions[0].view==='look')o.board.depth=copy(step.depth[mode]);
+  }
+  return form;
+}
+
+export function withStepLabels(form) {
+  for(const o of form.questions[0].options) {
+    const palette=library.palettes.find(p=>p.id===o.board.palette.id);
+    for(const step of o.steps)step.label=o.label.replace(palette.name,library.palettes.find(p=>p.id===step.palette.id).name);
   }
   return form;
 }
