@@ -217,14 +217,11 @@ function info(library,palette,pairing,graphicSet,dials,order=0) {
   const parts=partPositions(library,{palette:{id:palette.id},pairing:{id:pairing.id},graphicSet:{id:graphicSet.id}});
   return {palette,pairing,graphicSet,order,positions:positions(parts),partPositions:parts,score:Object.values(parts).reduce((sum,t)=>sum+score(t,dials),0)};
 }
-function candidates(library,state,a,refused,headingFrom) {
+function candidates(library,state,a,refused) {
   const result=[],reasons=new Set(); let order=0;
-  const donor=typeof headingFrom==='string'?part(library,'pairings',headingFrom):null;
   for(const pairing of library.pairings) for(const palette of library.palettes) for(const graphicSet of library.graphics) {
     const n=order++;
     if(pairing.selectable===false) continue;
-    const heading=donor??pairing;
-    if(Math.abs(heading.tags.typeLoudness-palette.paletteLoudness)>1 || (palette.paletteLoudness===3&&(heading.tags.typeCut!=='contemporary'||heading.tags.typeLoudness<2))) continue;
     const c=info(library,palette,pairing,graphicSet,state.dials,n);
     const reason=refused(makeBoard(library,a,c,1,'probe'));
     if(reason) { reasons.add(reason); continue; }
@@ -562,6 +559,7 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
   if(!['looks','round1','variations'].includes(command)) fail(command,'unknown command');
   if(unsteered&&command!=='round1') fail('--unsteered','only applies to round1');
   const state=tapDials(a,data),replacements=[],notes=[];
+  const energies=ENERGIES.filter(energy=>library.palettes.some(p=>p.energy===energy));
   if(unsteered) Object.assign(state,{dials:blank(),darkLed:0,brightColour:0,labels:[]});
   // Picks are full records: validate all fields through the existing assembler,
   // before any ranking or check. Kept assets remain fixed in later rounds.
@@ -615,8 +613,21 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
       groups=[{id:'looks',label:'Whole looks'}];
       const fresh=!!a.shown?.length,lookPool=fresh?freshLooks(pool,a.shown,library,a.kept):pool;
       const checkLook=(c,slot)=>accept(effective(c,a,library),'looks',slot);
-      const found=fresh?chooseFreshLooks(lookPool,checkLook,replacements):chooseLooks(lookPool,checkLook,(c,slot)=>{for(const r of replacements.filter(r=>r.slot===slot))r.replacement=summary(c);});
-      if(fresh) for(const r of replacements) r.replacement=summary(found.chosen[r.slot-1]);
+      // Keep the checked greedy page and its replacements when it succeeds.
+      // Only exhausted leaders or one-dial contrasts trigger the feasibility
+      // search; discard refusals from the abandoned greedy attempt first.
+      let search=fresh,found;
+      if(!search) {
+        const start=replacements.length;
+        try { found=chooseLooks(lookPool,checkLook,(c,slot)=>{for(const r of replacements.filter(r=>r.slot===slot))r.replacement=summary(c);}); }
+        catch(error) {
+          if(error.message!=='looks: no passing distinct leader remains. Correct the answers; see select.mjs help.'&&error.message!=='looks: no passing one-dial contrast remains. Correct the answers; see select.mjs help.') throw error;
+          replacements.length=start;
+          search=true;
+        }
+      }
+      if(search) found=chooseFreshLooks(lookPool,checkLook,replacements);
+      if(search) for(const r of replacements) r.replacement=summary(found.chosen[r.slot-1]);
       chosen.push(...found.chosen.map(c=>effective(c,a,library)));spares.push(...found.spares);
     } else if(roundPage) {
       if(unsteered) groups.forEach((g,i)=>g.label=['First set','Second set','Third set'][i]);
@@ -633,7 +644,7 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
       for(const group of groups) {
         const graphics=new Set();
         for(let slot=0;slot<(group.id==='angle'?total-8:4);slot++) {
-          const missing=ENERGIES.filter(e=>!chosen.some(c=>c.palette.energy===e)), remaining=total-chosen.length;
+          const missing=energies.filter(e=>!chosen.some(c=>c.palette.energy===e)), remaining=total-chosen.length;
           // Cover energies that cannot occur on the opposite strong dial
           // before reaching the angle group (for example bright/classic).
           const beforeAngle=8-chosen.length;
@@ -665,8 +676,8 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
           if(group.id==='close') {groundFamilies.add(next.ground.family);darks+=Number(next.ground.dark);}
         }
       }
-      if(a.kept?.palette?.id) notes.push('A fixed complete palette takes precedence over five-energy coverage and ground-family variety; every board names its actual fixed palette energy.');
-      else if(fixedGround) notes.push('Kept ground roles take precedence over ground-family variety; the page still covers five recipe energies.');
+      if(a.kept?.palette?.id) notes.push('A fixed complete palette takes precedence over available-energy coverage and ground-family variety; every board names its actual fixed palette energy.');
+      else if(fixedGround) notes.push('Kept ground roles take precedence over ground-family variety; the page still covers the available recipe energies.');
     } else {
       groups=a.picks.map((b,i)=>({id:`pick-${i+1}`,label:`Variations of board ${b.number}`}));
       for(const [pickIndex,base] of a.picks.entries()) {
@@ -676,10 +687,9 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
         // A fixed heading is not a new type choice just because the backing
         // pairing id changes. Keep its pairing, body and donor reference intact.
         const fixedPairing=a.kept?.pairing??(headingFrom?base.pairing.id:null);
-        const variationPool=headingFrom?candidates(library,state,a,refused,headingFrom):pool;
         const ranked=[],modes=a.kept?.primaryMode?[a.kept.primaryMode]:['light','dark'];
         const containers=base.markFile||a.kept?.markFile?[undefined]:library.containers.map(c=>c.id);
-        for(const c of variationPool) {
+        for(const c of pool) {
           if((fixedPairing&&c.pairing.id!==fixedPairing)||(a.kept?.palette?.id&&c.palette.id!==a.kept.palette.id)) continue;
           // Prune before cloning full board records. Kept parts cannot move.
           const partChanges=Number((a.kept?.pairing??c.pairing.id)!==base.pairing.id)+Number((a.kept?.palette?.id??c.palette.id)!==base.palette.id)+Number(c.graphicSet.id!==base.graphicSet.id);
@@ -750,7 +760,7 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
           const members=proposed.filter(x=>x.group===g.id);
           if(new Set(members.map(x=>x.graphicSet.id)).size!==members.length||(!kept.pairing&&new Set(members.map(x=>x.pairing.id)).size!==members.length)) return false;
         }
-        if(!kept.palette?.id&&ENERGIES.some(e=>!proposed.some(x=>x.palette.energy===e))) return false;
+        if(!kept.palette?.id&&energies.some(e=>!proposed.some(x=>x.palette.energy===e))) return false;
         const fixedGround=!!kept.palette?.id||['light','dark'].some(mode=>own(kept.palette?.overrides?.[mode]??{},'ground'));
         const close=proposed.filter(x=>x.group==='close');
         if(!fixedGround&&(new Set(close.map(x=>x.ground.family)).size!==close.length||close.filter(x=>x.ground.dark).length>2)) return false;

@@ -10,12 +10,12 @@ import {board,selection} from './selections.mjs';
 const library=JSON.parse(readFileSync(LIBRARY));
 
 for(const [name,ground,accent,pairing] of [
-  ['cream, high-contrast serif and terracotta','#F4F1EA','#C65D3B','high-contrast'],
-  ['near-black and acid green','#171B18','#BCF427','warm-grotesque'],
-  ['near-black and vermilion','#201B1A','#EE4828','warm-grotesque']
+  ['cream, high-contrast serif and terracotta','#F4F1EA','#C65D3B','elegant-serif'],
+  ['near-black and acid green','#171B18','#BCF427','friendly-rounded'],
+  ['near-black and vermilion','#201B1A','#EE4828','friendly-rounded']
 ]) test(`selector refuses ${name} before checks, including fixed roles`,()=>{
   const a={...operator(),kept:{pairing,palette:{overrides:Object.fromEntries(['light','dark'].map(m=>[m,{ground,pop:accent,mark:accent}]))}}};
-  const cluster=pairing==='high-contrast'?'cream-serif-terracotta':'near-black-single-acid-or-vermilion';
+  const cluster=pairing==='elegant-serif'?'cream-serif-terracotta':'near-black-single-acid-or-vermilion';
   for(const command of ['looks','round1']) for(const check of [false,true]) assert.throws(()=>select(command,command==='looks'?looksAnswers(a):a,{check}),new RegExp(`rule refusal.*refused cluster ${cluster}`));
   // Removing only the dated refusal data restores these same candidates.
   const allowed=select('round1',a,{library:{...library,refusedClusters:[]}});
@@ -29,18 +29,18 @@ test('all selected roles avoid handwriting, including donors and variations',()=
   const pages=[select('looks',looksAnswers(a)),round,select('variations',{...a,picks:round.selection.boards.slice(0,3),shown:round.selection.boards})];
   for(const page of pages) for(const b of assemble(page.selection,library).boards) for(const role of ['heading','body']) assert.ok(!handwritten.has(b.type[role].family),`${role}: ${b.type[role].family}`);
   for(const role of ['headingFrom','bodyFrom']) {
-    const changed=structuredClone(library);changed.pairings.find(p=>p.id==='condensed').type[role==='headingFrom'?'heading':'body']=structuredClone(library.pairings[0].handwriting[0]);
-    assert.throws(()=>select('round1',{...a,kept:{[role]:'condensed'}},{library:changed}),new RegExp(`rule refusal.*handwriting .* cannot set ${role==='headingFrom'?'heading':'body'}`));
+    const changed=structuredClone(library);changed.pairings.find(p=>p.id==='industrial').type[role==='headingFrom'?'heading':'body']=structuredClone(library.pairings[0].handwriting[0]);
+    assert.throws(()=>select('round1',{...a,kept:{[role]:'industrial'}},{library:changed}),new RegExp(`rule refusal.*handwriting .* cannot set ${role==='headingFrom'?'heading':'body'}`));
   }
 });
 
-test('paper-orange with an ordinary pairing remains available outside the near-black cluster',()=>{
-  assert.equal(library.pairings.find(p=>p.id==='warm-grotesque').displayStyle,undefined);
+test('tangerine and sky with an ordinary pairing remains available outside the near-black cluster',()=>{
+  assert.equal(library.pairings.find(p=>p.id==='friendly-rounded').displayStyle,undefined);
   assert.equal(boardRefusal(library,board(library)),null);
 });
 
 test('every library palette is audited against each cluster in both modes and every selectable pairing',()=>{
-  assert.equal(library.palettes.length,25);
+  assert.equal(library.palettes.length,30);
   const hits={};
   for(const cluster of library.refusedClusters) {
     hits[cluster.id]=[];
@@ -54,7 +54,7 @@ test('every library palette is audited against each cluster in both modes and ev
     }
   }
   assert.deepEqual(hits,{
-    'cream-serif-terracotta':['paper-orange','white-vermilion','navy-coral'].flatMap(id=>['sharp-serif','high-contrast'].map(p=>`${id}/${p}/light`)),
+    'cream-serif-terracotta':[],
     'near-black-single-acid-or-vermilion':[]
   });
 });
@@ -112,10 +112,10 @@ test('cluster rules are dated part values and distinguish a second accent and an
     assert.equal(cluster.source.file,'experts/Creative Director/EXPERT.md');
     assert.equal(cluster.source.recorded,'2026-07-27');assert.equal(cluster.source.expectedToAge,true);
   }
-  const b=board(library,{pairing:'high-contrast'});
-  b.palette.overrides={dark:{ground:'#507060'}}; // Isolate the light cream cluster from the dark specimen.
+  const b=board(library,{pairing:'elegant-serif'});
+  b.palette.overrides={light:{ground:'#F4F1EA',pop:'#C65D3B',mark:'#C65D3B'},dark:{ground:'#507060'}}; // Isolate the light cream cluster from the dark specimen.
   assert.match(boardRefusal(library,b),/cream-serif-terracotta/);
-  b.pairing.id='friendly-serif';assert.equal(boardRefusal(library,b),null);
+  b.pairing.id='heritage-slab';assert.equal(boardRefusal(library,b),null);
   b.palette.overrides={dark:{ground:'#171B18',pop:'#BCF427',mark:'#EE4828'}};
   assert.equal(boardRefusal(library,b),null,'two different accent hues are not a single-accent cluster');
   b.palette.overrides.dark.mark='#BCF427';assert.match(boardRefusal(library,b),/near-black-single-acid-or-vermilion/);

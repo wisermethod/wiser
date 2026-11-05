@@ -296,12 +296,10 @@ export function validateBrandBoards(spec, assets, readAsset) {
         for (const mode of MODES) swatchList(b.palette.modeSwatches[mode], `palette.modeSwatches.${mode}`);
       }
     });
-    attempt(() => {
+    if (own(b, 'tags')) attempt(() => {
       object(b.tags, ['paletteLoudness', 'typeLoudness', 'typeCut'], 'tags');
       for (const k of ['paletteLoudness', 'typeLoudness']) if (![1, 2, 3].includes(b.tags[k])) fail(`tags.${k} must be 1, 2 or 3.`);
       if (!['contemporary', 'period'].includes(b.tags.typeCut)) fail('tags.typeCut must be contemporary or period.');
-      const { paletteLoudness: p, typeLoudness: t, typeCut: cut } = b.tags;
-      if (Math.abs(p - t) > 1 || (p === 3 && (t < 2 || cut !== 'contemporary'))) fail('type-to-colour mismatch: loudness differs by more than one, or loud colour needs contemporary type of loudness at least 2. Replace this board.');
     });
     result.type = {};
     attempt(() => object(b.type, FACE_ROLES, 'type'));

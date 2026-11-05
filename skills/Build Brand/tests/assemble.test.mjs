@@ -37,10 +37,10 @@ test('newly chosen quick-path looks check the shared refusal before display', ()
     assert.match(instructions,/boardRefusal/);
   }
   for(const [label,change,reason] of [
-    ['cream',b=>{b.pairing.id='high-contrast';},/cream-serif-terracotta/],
+    ['cream',b=>{b.pairing.id='elegant-serif';b.palette.overrides={light:{ground:'#F8F1E5',pop:'#B75D38',mark:'#B75D38'}};},/cream-serif-terracotta/],
     ['black',b=>{b.palette.overrides={dark:{ground:'#171B18',pop:'#BCF427',mark:'#BCF427'}};},/near-black-single-acid-or-vermilion/],
-    ['handwriting',b=>{b.pairing.headingFrom={file:library.pairings[0].type.heading.files[0].path,family:'Shantell Sans',weight:400};},/handwriting Shantell Sans cannot set heading/],
-    ['retired',b=>{b.pairing.id='marker';},/pairing marker is retired/]
+    ['handwriting',b=>{b.pairing.headingFrom={file:library.pairings[0].type.heading.files[0].path,family:'Caveat',weight:400};},/handwriting Caveat cannot set heading/],
+    ['unknown pairing',b=>{b.pairing.id='absent';},/unknown or duplicate pairings/]
   ]) {
     const s=select(),input=path(label),output=path('refused');change(s.boards[0]);
     // The supplied-font fixture needs a real local file, but the policy must
@@ -69,7 +69,7 @@ test('family: boards using only two families assemble after only those family as
   copyFileSync(new URL('../../../tools/lib/user-config.js', import.meta.url), join(plugin, 'tools/lib/user-config.js'));
   writeFileSync(join(plugin, 'tools/AGENTS.md'), '# Isolated test plugin\n');
   const libraryPath = join(parts, 'parts.json'); writeFileSync(libraryPath, JSON.stringify(library));
-  const families = ['Fraunces', 'Instrument Sans'];
+  const families = ['Fraunces', 'Alegreya Sans'];
   for (const name of families) {
     const metadata = library.fonts[name];
     for (const path of [...metadata.files.map(f => f.path), metadata.licenceFile]) {
@@ -80,7 +80,7 @@ test('family: boards using only two families assemble after only those family as
   assert.equal(child.status, 0, child.stderr); assert.equal(JSON.parse(child.stdout).installed, true);
   assert.deepEqual(readdirSync(join(parts, 'fonts')).sort(), [...families].sort());
   assert.equal(checkPack(library, join(parts, 'fonts')).installed, false, 'the full pack remains incomplete');
-  const s = selection([board(library, { pairing: 'soft-serif' }), board(library, { number: 2, pairing: 'soft-serif' })], library);
+  const s = selection([board(library, { pairing: 'hand-made' }), board(library, { number: 2, pairing: 'hand-made' })], library);
   const input = join(root, 'selection.json'), output = join(root, 'spec.json'); writeFileSync(input, JSON.stringify(s));
   assert.equal(run(['--selection', input, '--library', libraryPath, '--output', output]).boards, 2);
   const spec = JSON.parse(readFileSync(output));
@@ -102,11 +102,11 @@ for (const [field, key] of [['palette','palette'],['pairing','pairing'],['graphi
   });
 }
 test('a heading blend carries its face, weights and settings into another pairing', () => {
-  const s=select(); s.boards[0].pairing.headingFrom='sharp-serif';
+  const s=select(); s.boards[0].pairing.headingFrom='editorial';
   const {spec}=build(s); const actual=spec.boards[0].type;
-  assert.equal(actual.heading.family,library.pairings.find((p)=>p.id==='sharp-serif').type.heading.family);
-  assert.deepEqual(actual.heading.sizes,library.pairings.find((p)=>p.id==='sharp-serif').type.heading.sizes);
-  assert.equal(actual.body.family,library.pairings.find((p)=>p.id==='warm-grotesque').type.body.family);
+  assert.equal(actual.heading.family,library.pairings.find((p)=>p.id==='editorial').type.heading.family);
+  assert.deepEqual(actual.heading.sizes,library.pairings.find((p)=>p.id==='editorial').type.heading.sizes);
+  assert.equal(actual.body.family,library.pairings.find((p)=>p.id==='friendly-rounded').type.body.family);
 });
 for (const role of ['heading', 'body']) test(`a supplied ${role} file reaches the spec and builds without library face metadata`, () => {
   const s = select(), base = library.pairings.find((p) => p.id === s.boards[0].pairing.id).type[role];
@@ -131,10 +131,10 @@ test('a supplied static heading and a library body blend build together', () => 
   const supplied = path('static', 'ttf');
   writeFileSync(supplied, readFileSync(resolve(dirname(LIBRARY), entry.path)));
   s.boards[0].pairing.headingFrom = { file: supplied, family: 'Supplied static heading', weight: 400 };
-  s.boards[0].pairing.bodyFrom = 'quiet-sans';
+  s.boards[0].pairing.bodyFrom = 'crisp-modern';
   const { spec } = build(s);
   assert.equal(spec.boards[0].type.heading.files[0].path, realpathSync(supplied));
-  assert.equal(spec.boards[0].type.body.family, library.pairings.find((p) => p.id === 'quiet-sans').type.body.family);
+  assert.equal(spec.boards[0].type.body.family, library.pairings.find((p) => p.id === 'crisp-modern').type.body.family);
 });
 test('supplied heading and body work with no library fonts installed', () => {
   const s = select(), emptyParts = path('empty-parts'); mkdirSync(emptyParts);
@@ -225,7 +225,7 @@ test('optional selection fields survive assembly, omit their blocks, and reject 
   }
 });
 test('body blend, role and pattern overrides reach the built spec exactly', () => {
-  const s=select(); Object.assign(s.boards[0].pairing,{bodyFrom:'quiet-sans'});
+  const s=select(); Object.assign(s.boards[0].pairing,{bodyFrom:'crisp-modern'});
   s.boards[0].palette.overrides={light:{smallPrint:'#4B4037'},dark:{smallPrint:'#E5D4C2'}};
   s.boards[0].graphicSet.pattern={angle:-17,strength:{light:.03,dark:.12}};
   const {spec}=build(s), b=spec.boards[0];
@@ -238,10 +238,10 @@ test('same selection gives identical spec bytes on separate invocations', () => 
   assert.deepEqual(readFileSync(first),readFileSync(second));
 });
 for(const [field,value,fragment] of [
- ['palette',{id:'paper-orange',overrides:{light:{typo:'#fff'}}},'palette.overrides.light.typo'],
- ['palette',{id:'paper-orange',overrides:{light:{pop:'orange'}}},'palette.overrides.light.pop'],
- ['palette',{id:'paper-orange',overrides:{sepia:{pop:'#fff'}}},'palette.overrides.sepia'],
- ['pairing',{id:'warm-grotesque',headingFrom:'missing'},'pairing.headingFrom'],
+ ['palette',{id:'tangerine-and-sky-muted',overrides:{light:{typo:'#fff'}}},'palette.overrides.light.typo'],
+ ['palette',{id:'tangerine-and-sky-muted',overrides:{light:{pop:'orange'}}},'palette.overrides.light.pop'],
+ ['palette',{id:'tangerine-and-sky-muted',overrides:{sepia:{pop:'#fff'}}},'palette.overrides.sepia'],
+ ['pairing',{id:'friendly-rounded',headingFrom:'missing'},'pairing.headingFrom'],
  ['graphicSet',{id:'drawn',pattern:{angle:181}},'graphicSet.pattern.angle'],
  ['graphicSet',{id:'drawn',pattern:{strength:{dark:'strong'}}},'graphicSet.pattern.strength.dark'],
  ['graphicSet',{id:'drawn',texture:{strength:{light:-1}}},'graphicSet.texture.strength.light'],
@@ -274,23 +274,24 @@ test('outputs inside the skill, linked outputs and existing hard links are refus
  const broken=join(work,'broken');symlinkSync(join(work,'absent'),broken);assert.throws(()=>run(['--selection',input,'--output',join(broken,'out.json')]));
 });
 test('all palette energies, complete roles, shares and counts are present', () => {
- assert.equal(library.palettes.length,25);assert.equal(library.pairings.length,16);assert.equal(library.containers.length,8);assert.equal(library.graphics.length,8);
- const counts={'quiet':5,'white-and-one':4,'bright':5,'colour-ground':6,'dark-first':5};
+ assert.equal(library.palettes.length,30);assert.equal(library.pairings.length,10);assert.equal(library.containers.length,8);assert.equal(library.graphics.length,8);
+ const counts={'quiet':10,'white-and-one':8,'bright':1,'colour-ground':11,'dark-first':0};
  for(const energy of energies) assert.equal(library.palettes.filter((p)=>p.energy===energy).length,counts[energy],energy);
  const roles=Object.keys(library.palettes[0].light);
  for(const p of library.palettes){for(const mode of ['light','dark'])assert.deepEqual(Object.keys(p[mode]).sort(),[...roles].sort());assert.equal(p.swatches.reduce((n,s)=>n+s.share,0),100);}
 });
-// Isolate each recipe against the unchanged drawn set; graphics have their own
+// Isolate each recipe against the adjusted drawn set; graphics have their own
 // default-strength builds below. Not every palette/set combination is valid.
 for(const [i,p] of library.palettes.entries())test(`palette ${p.id} builds and passes both modes`,()=>build(selection([board(library,{palette:p.id,pairing:matchingPairing(library,p),graphic:'drawn',container:library.containers[i%8].id})],library)));
 for(const p of library.pairings)for(const handwriting of [null,...p.handwriting.map((f)=>f.family)]) test(`pairing ${p.id}, notes ${handwriting ?? 'none'} builds`,()=>{
- const preferred=p.tags.typeLoudness===1?'stone-cobalt':p.tags.typeLoudness===2?'white-oxblood':p.tags.typeCut==='period'?'ink-amber':'navy-gold';
+ const preferred=p.tags.typeLoudness===1?'ink-and-paper-muted':p.tags.typeLoudness===2?'signal-red-balanced':p.tags.typeCut==='period'?'ink-and-paper-bold':'business-blue-bold';
  const palette=library.palettes.find((c)=>c.id===preferred);
  return build(selection([board(library,{palette:palette.id,pairing:p.id,handwriting})],library));
 });
-for(const [i,set] of library.graphics.entries()) test(`graphic ${set.id} and container ${library.containers[i].id} build in both modes`,()=>build(selection([board(library,{palette:'green-black',pairing:'quiet-sans',graphic:set.id,container:library.containers[i].id})],library)));
+for(const [i,set] of library.graphics.entries()) test(`graphic ${set.id} and container ${library.containers[i].id} build in both modes`,()=>build(selection([board(library,{palette:'ink-and-paper-muted',pairing:'crisp-modern',graphic:set.id,container:library.containers[i].id})],library)));
 test('a stronger pattern cannot bypass contrast checks on a locked recipe',()=>{
- assert.throws(()=>build(selection([board(library,{graphic:'editorial'})],library)),/smallPrint over pattern mark.*WCAG/);
+ const s=selection([board(library,{graphic:'editorial'})],library);s.boards[0].graphicSet.pattern={strength:{light:1,dark:1}};
+ assert.throws(()=>build(s),/over pattern mark.*WCAG/);
 });
 test('negative contrast control proves Contact Sheet rejects a broken role',()=>{
  const s=select();s.boards[0].palette.overrides={light:{text:'#F9F7F4'}};
@@ -363,26 +364,26 @@ for (const [label, directory, options] of woff2InvalidDirectories) test('WOFF2 r
 
 test("all four specimen selections build with the complete library",()=>{
  const output=join(work,"specimens");mkdirSync(output);const result=specimens(["--output-dir",output]);
- assert.equal(result.boards,66);for(const name of result.pages)assert.ok(existsSync(join(output,name+".html")));
+ assert.equal(result.boards,65);for(const name of result.pages)assert.ok(existsSync(join(output,name+".html")));
  const pages=Object.fromEntries(result.pages.map(name=>[name,JSON.parse(readFileSync(join(output,name+'.selection.json')))]));
  assert.deepEqual(pages.palettes.boards.map(b=>b.palette.id),library.palettes.map(p=>p.id));
  assert.deepEqual(pages.pairings.boards.map(b=>b.pairing.id),library.pairings.map(p=>p.id));
  for(const p of library.pairings)assert.equal(pages.pairings.boards.find(b=>b.pairing.id===p.id).handwriting,p.handwriting[0].family);
  for(const g of library.graphics)assert.deepEqual(pages.graphics.boards.filter(b=>b.graphicSet.id===g.id).map(b=>b.primaryMode),['light','dark']);
  for(const c of library.containers)assert.ok(pages.graphics.boards.some(b=>b.container===c.id));
- for(const id of ['editorial','marker','geometric','stitch','stamp'])assert.ok(pages.whole.boards.some(b=>b.graphicSet.id===id && b.primaryMode==='dark' && library.palettes.find(p=>p.id===b.palette.id).energy==='dark-first'));
- for(const energy of energies)assert.ok(pages.whole.boards.some(b=>b.group===energy));
+ for(const id of ['editorial','marker','geometric','stitch','stamp'])assert.ok(pages.whole.boards.some(b=>b.graphicSet.id===id && b.primaryMode==='dark'));
+ for(const energy of new Set(library.palettes.map(p=>p.energy)))assert.ok(pages.whole.boards.some(b=>b.group===energy));
  for(const name of result.pages){
    const html=readFileSync(join(output,name+'.html'),'utf8');assert.ok(/placeholder monogram/.test(html),name+' initials label');assert.ok(/monograms are placeholders/i.test(html),name+' placeholder notice');
  }
 });
 
-for(const [kind,id]of [['pairings','warm-grotesque'],['palettes','paper-orange'],['graphics','drawn']])for(const value of [undefined,'loud'])test(`${kind} ${id} with ${String(value)} softStrong refuses before output`,()=>{
+for(const [kind,id]of [['pairings','friendly-rounded'],['palettes','tangerine-and-sky-muted'],['graphics','drawn']])for(const value of [undefined,'loud'])test(`${kind} ${id} with ${String(value)} softStrong refuses before output`,()=>{
   const invalid=structuredClone(library),entry=invalid[kind].find(p=>p.id===id);
   if(value===undefined)delete entry.tags.softStrong;else entry.tags.softStrong=value;
   assert.throws(()=>assemble(select(),invalid),/tags.softStrong/);
 });
-test('assembly success report carries six positions per part without extending Contact Sheet match tags',()=>{
+test('assembly success report carries six positions per part without extending Contact Sheet descriptive tags',()=>{
   const input=path('positions-selection'),output=path('positions-spec');writeFileSync(input,JSON.stringify(select()));
   const result=run(['--selection',input,'--output',output]);
   assert.equal(result.positions[0].parts.pairing.softStrong,'soft');

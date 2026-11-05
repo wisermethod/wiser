@@ -20,7 +20,7 @@ function fixture(type = 'personal') {
   const palette = library.palettes[0], pairing = library.pairings[0], graphics = library.graphics[0];
   const face = (role) => { const f = structuredClone(pairing.type[role]); f.files = f.files.map((file) => ({ ...file, path: resolve(parts, file.path) })); return f; };
   const spec = { layout: 'board', boards: [{ number: 1, name: 'Kept board', primaryMode: 'light', buttonRadius: 4, palette: structuredClone(Object.fromEntries(['light', 'dark', 'swatches'].map((k) => [k, palette[k]]))), type: { heading: face('heading'), body: face('body') }, graphics: structuredClone(graphics), content: { brandName: 'Test Person', sentence: 'I build useful things.', body: 'A supplied line.', photoRules: 'Show people using what they make.', never: ['posed stock photographs'] }, words: [{ word: 'Useful', not: 'ornamental' }, { word: 'Clear', not: 'academic' }], monogram: { initials: 'TP', container: '<svg/>' } }] };
-  const answers = { type, name: 'Test Person', sentence: spec.boards[0].content.sentence, words: structuredClone(spec.boards[0].words), taps: { mode: 'light', feel: 'natural', history: 'established-current', strength: 'strong-solid', technology: 'craftsman', style: 'patagonia', posture: 'toyota', mood: 'ikea', place: 'design-workshop' }, readBack: { text: 'Natural and strong, like Patagonia.', confirmed: true }, off: [], looks: ['look:soft-serif/paper-orange/drawn'], rounds: [{ question: 'Round 1', steer: 'Warmer; as it is; stronger; more current' }], assets: [], lock: { confirmed: true, board: 1, question: 'F18', specSha256: '', contactSheetPassed: true } };
+  const answers = { type, name: 'Test Person', sentence: spec.boards[0].content.sentence, words: structuredClone(spec.boards[0].words), taps: { mode: 'light', feel: 'natural', history: 'established-current', strength: 'strong-solid', technology: 'craftsman', style: 'patagonia', posture: 'toyota', mood: 'ikea', place: 'design-workshop' }, readBack: { text: 'Natural and strong, like Patagonia.', confirmed: true }, off: [], looks: ['look:elegant-serif/tangerine-and-sky-muted/drawn'], rounds: [{ question: 'Round 1', steer: 'Warmer; as it is; stronger; more current' }], assets: [], lock: { confirmed: true, board: 1, question: 'F18', specSha256: '', contactSheetPassed: true } };
   answers.answerNumbers = { file: '2026-11-02 V2 design answers.md', looks: ['L4'], rounds: ['C6'], board: 'C6' };
   if (type !== 'personal') Object.assign(answers, { audience: 'People who make things.', promise: 'Useful things that last.', finalSay: 'Me, and others should see it', provenance: { register: 'Firsthand', by: 'Test Respondent' } });
   const specPath = join(root, 'board.json'), answersPath = join(root, 'answers.json'), design = join(root, 'design.md'), work = join(root, 'work/brand');
@@ -76,9 +76,9 @@ test('the shared answers projection is accepted by selection with identical fiel
   const { validateAnswers } = await import('../scripts/select.mjs');
   const taps = JSON.parse(readFileSync(join(parts, 'taps.json'))), f = fixture();
   f.answers.off = ['softStrong', 'warm', 'natural'];
-  f.answers.looks = ['look-' + sha256('soft-serif/paper-orange/drawn').slice(0,32)];
+  f.answers.looks = ['look-' + sha256('hand-made/tangerine-and-sky-muted/drawn').slice(0,32)];
   const shared = Object.fromEntries(['name', 'sentence', 'words', 'taps', 'off', 'looks'].map((k) => [k, f.answers[k]]));
-  shared.looksShown = [{value:f.answers.looks[0],pairing:'soft-serif',palette:'paper-orange',graphicSet:'drawn'}];
+  shared.looksShown = [{value:f.answers.looks[0],pairing:'hand-made',palette:'tangerine-and-sky-muted',graphicSet:'drawn'}];
   assert.deepEqual(validateAnswers(structuredClone(shared), taps, library, 'round1'), shared);
   f.save(); f.result(); const out = f.read(); assert.match(out, /Marked off by the member: soft or strong \(softStrong\), warm, Natural \(natural\)\./); assert.match(out, /Taste description as shown, before the parts marked off below: /); assert.doesNotMatch(out, /Dropped from the steer/);
 });
@@ -109,7 +109,7 @@ test('answers differing from the board are refused instead of silently selected'
 });
 for (const [name, mutate, pattern] of [
   ['unassembled selection', (f) => { f.spec.layout = 'selection'; }, /unassembled/],
-  ['unassembled palette', (f) => { f.spec.boards[0].palette = { id: 'paper-orange' }; }, /palette.light/],
+  ['unassembled palette', (f) => { f.spec.boards[0].palette = { id: 'tangerine-and-sky-muted' }; }, /palette.light/],
   ['unlocked', (f) => { f.answers.lock.confirmed = false; }, /unlocked/],
   ['unchecked', (f) => { f.answers.lock.contactSheetPassed = false; }, /unchecked/],
   ['unknown board', (f) => { f.answers.lock.board = 100; }, /lock.board/],
@@ -364,8 +364,11 @@ test('the documented provisional state line permits locking a fully populated pr
 
 test('m51-r3: lock retains every role and size axis, fallback and optical sizing with source read-back', () => {
   const f = fixture(), b = f.spec.boards[0];
-  b.type.heading = structuredClone(library.pairings.find(p => p.id === 'soft-serif').type.heading);
+  b.type.heading = structuredClone(library.pairings.find(p => p.id === 'hand-made').type.heading);
   b.type.heading.files = b.type.heading.files.map(file => ({ ...file, path: resolve(parts, file.path) }));
+  Object.assign(b.type.heading.sizes.display,{size:96,variations:{SOFT:100,WONK:1,opsz:144}});
+  Object.assign(b.type.heading.sizes.middle,{size:30,variations:{SOFT:100,WONK:1,opsz:72}});
+  Object.assign(b.type.heading.sizes.small,{size:22,variations:{SOFT:100,WONK:0,opsz:36}});
   b.type.heading.opticalSizing = 'auto';
   b.type.heading.sizes.display.opticalSizing = 'none';
   b.type.body.variations = { wght: 411, opsz: 18 };
@@ -500,7 +503,7 @@ test('carried place cites only P12 and its dated voice record, never T9', () => 
 });
 
 test('recorded look and board numbers come from the saved map, with same-page picks retained', () => {
-  const f = fixture(); f.answers.looks.push('look:humanist/olive-paper/stitch', 'look:lively/plum-peach/riso');
+  const f = fixture(); f.answers.looks.push('look:friendly-rounded/sunflower-and-espresso-muted/stitch', 'look:playful-display/pastel-sorbet-bold/riso');
   f.answers.answerNumbers.looks = ['L4', 'L4', 'L9'];
   f.answers.rounds.push({ question: 'Later board page', steer: 'Keep it quiet' });
   f.answers.answerNumbers.rounds = ['C6', 'C11']; f.answers.answerNumbers.board = 'C11'; f.save(); f.result();

@@ -119,12 +119,13 @@ test('M5.4 item 10: displayed replacements recompute recommendation order withou
   assert.ok(retries > 0);
 });
 
-test('M5.4 item 11: catalogue delegates choices and describes marker as retired', () => {
+test('M5.4 item 11: catalogue delegates choices and keeps handwriting in notes', () => {
   const text = read('parts/catalogue.md');
   assert.doesNotMatch(text, /rank its `pairings` against the visual answers/);
   assert.match(text, /paths\/simple.md/);
-  const row = text.split('\n').find(line => line.startsWith('| marker |'));
-  assert.match(row, /Retired[^|]*Instrument Sans[^|]*margin notes/);
+  assert.match(text, /Handwriting is for margin notes and the card back only/);
+  const pairings=text.split('## Pairings')[1].split('## Settings')[0];
+  assert.doesNotMatch(pairings,/\| marker \|/);
 });
 
 test('M5.4 item 12: citation checklist scopes O1 to O3 to organisation types', () => {

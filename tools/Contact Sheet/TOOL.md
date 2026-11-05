@@ -186,7 +186,7 @@ The calling skill supplies a whole brand per board. Contact Sheet sets those par
 | `buttonRadius` | Number from 0 to 100, in pixels; the open link and button sample's corner radius |
 | `palette` | Object in the palette table below; light and dark role values and swatch lists |
 | `type` | Object with required `heading`, `body`, optional `handwriting` face objects below |
-| `tags` | Object with required integer `paletteLoudness`, integer `typeLoudness`, each 1–3, and `typeCut`, string `contemporary` or `period`; used only for the match check |
+| `tags` | Optional descriptive object; when present, exactly `paletteLoudness` and `typeLoudness`, each integer 1–3, and `typeCut`, string `contemporary` or `period`, are required |
 | `graphics` | Object with required `hero`, `pattern`, `texture`, `title`, `description`, `legend` fields below |
 | `monogram` | Object with either required `initials` and `container`, or required `file`, never both. `initials` is a single-line string typeset in the heading face; `container` is SVG markup in currentColor. `file` is a local image path, replacing the monogram everywhere |
 | `content` | Object with the fields below; supplied words for the brand in use |
@@ -291,7 +291,7 @@ The tile places the headline and palette column in one row, a face strip below, 
 
 Each whole view contains both complete modes, primary first in the file, with one visible at a time through local fragment targets. The slim bar names the person, links to all N boards, says Board n of N and the visible mode, and links to the other complete mode. Each complete board also includes a composed panel in its other mode: name, headline, body, primary button, secondary link, content card and named palette chips. This works for dark-first boards too. The complete board shows: the name and monogram or supplied mark; headline, body, small print; palette; every face and sample; graphic language; social banner and business card front/back; marks from profile picture down to browser tab; photo rules and never list when supplied. These optional blocks are omitted in both modes, with no empty headings. Its closing question carries the supplied example answers; its foot names every face's licence and summarizes contrast results in a sentence, with a disclosure listing every pairing. Without a supplied mark it says the monogram is a placeholder, not a logo, and the real mark is drawn after a board is locked. The closing question is "What would you keep, and what would you change?"
 
-Before writing anything, every board is checked. Palette and type loudness may differ by at most one; loudness-3 palettes need contemporary type of loudness at least 2. Every text foreground/surface pairing in both modes meets WCAG 2: 4.5:1 below 24px, 3:1 for large headlines and monograms. Decorative marks are measured and reported with no required ratio; they cannot cause a contrast refusal. Text over a highlight, pattern or texture retains its required ratio. Tile names and all face names use the stricter 4.5:1 because they are smaller. Button text meets both 4.5:1 and APCA absolute Lc 60, using APCA-W3 0.1.9 / SAPC constants 0.0.98G-4g. File existence, signatures and licence names are checked for every face. Any failure refuses the whole spec; it is never overridden or silently repaired.
+Before writing anything, every board is checked. Every text foreground/surface pairing in both modes meets WCAG 2: 4.5:1 below 24px, 3:1 for large headlines and monograms. Decorative marks are measured and reported with no required ratio; they cannot cause a contrast refusal. Text over a highlight, pattern or texture retains its required ratio. Tile names and all face names use the stricter 4.5:1 because they are smaller. Button text meets both 4.5:1 and APCA absolute Lc 60, using APCA-W3 0.1.9 / SAPC constants 0.0.98G-4g. File existence, signatures and licence names are checked for every face. Any failure refuses the whole spec; it is never overridden or silently repaired.
 
 ## Board model and card geometry
 
@@ -349,7 +349,6 @@ The file contains inline styles and embedded image/font data only. All supplied 
 | Unknown option or missing flag | Run `node scripts/contact-sheet.js help`; use `--spec` and `--output` with absolute paths |
 | Unknown field or repeated field | Correct the JSON against Spec format; unsupported input is never silently dropped |
 | More than two recommendations | Keep at most two, with a single-line reason for each |
-| Type-to-colour mismatch | Replace the board with compatible palette/type tags; never override the check |
 | WCAG pairing failure | Replace the named foreground/surface in the named mode; small text needs 4.5:1 |
 | APCA button failure | Replace pop/onPop so button text meets both WCAG 4.5:1 and absolute Lc 60 |
 | Font file or licence failure | Supply every local font file with a matching font signature and give every face its licence name |
@@ -375,5 +374,5 @@ The suite installs nothing. Its browser check requires the existing runtime (`to
 - Help is available on Node 18 or later with nothing installed or configured.
 - Pick builds all four kinds; board composes whole brands in both modes, each in the same self-contained HTML file with measured bytes and the complete asset inventory in JSON.
 - Pick cards retain spec numbering, equal styling, escaped labels and at most two explicit recommendation reasons; board names, energy, why and recommendations sit above their boards.
-- Missing assets or licences, invalid fields, unsafe SVG, mismatched type/colour, failing contrast, an occupied destination or oversized output stop with exit 1 and a JSON error, with stdout empty.
+- Missing assets or licences, invalid fields, unsafe SVG, failing contrast, an occupied destination or oversized output stop with exit 1 and a JSON error, with stdout empty.
 - The same inputs give byte-identical HTML; long labels wrap and the grid reflows on narrow screens.

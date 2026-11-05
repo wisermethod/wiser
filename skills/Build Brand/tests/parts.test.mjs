@@ -17,147 +17,95 @@ const graphic = id => library.graphics.find(p => p.id === id);
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const rgb = hex => hex.slice(1).match(/../g).map(n => parseInt(n, 16));
 
-test('locked paper-orange recipe and drawn graphic set retain their exact content', () => {
-  // Ranking metadata and everyday swatch names may change; the approved
-  // colours, roles, shares and geometry retain the original pinned content.
-  const swatchNames = { ground:'Page base', panel:'Inset field', text:'Reading ink', deep:'Deep field', mark:'Drawing ink', pop:'Action fill', smallPrint:'Detail ink' };
-  const visual = part => {
-    const { tags, softStrongReason, ...unchanged } = structuredClone(part);
-    for (const list of [unchanged.swatches, ...Object.values(unchanged.modeSwatches ?? {})].filter(Boolean)) for (const s of list) s.name = swatchNames[s.key];
-    return unchanged;
+test('approved visual parts retain their exact colours, settings, geometry and font pins', () => {
+  const omit = (part, keys) => Object.fromEntries(Object.entries(part).filter(([key]) => !keys.includes(key)));
+  const visual = {
+    pairings: library.pairings.map(p => omit(p, ['settingsProvenance'])),
+    palettes: library.palettes.map(p => omit(p, ['description','adjustments','softStrongReason'])),
+    graphics: library.graphics.map(p => omit(p, ['adjustments'])),
+    styles: library.styles, fonts: library.fonts, containers: library.containers, refusedClusters: library.refusedClusters
   };
-  assert.equal(hash(JSON.stringify(visual(palette('paper-orange')))), '28cc8b687dc826f7514c6081857aa2dff2a104b82e28f51bcbc8a74a003a215b');
-  assert.equal(hash(JSON.stringify(visual(graphic('drawn')))), '3f4b50e46afe24f602a523468a4310d17c315ba33153761793a6d399811f0c13');
+  assert.equal(hash(JSON.stringify(visual)), 'a613742d276b37514b91acae7ec38cc9aba386f398fa8367a607738cda9cca0a');
 });
 
-test('white-blue and white-green are visibly tinted white sheets with hue-tinted small print', () => {
-  for (const [id, channel] of [['white-blue',2], ['white-green',1]]) {
-    const p = palette(id).light;
-    const ground = rgb(p.ground), ink = rgb(p.smallPrint);
-    assert.ok(Math.min(...ground) >= 235 && Math.max(...ground) <= 252);
-    assert.ok(ground[channel] - Math.min(...ground) >= 6);
-    for (const role of ['smallPrint','cardFrontSmallPrint','panelSmallPrint']) {
-      const ink = rgb(p[role]);
-      assert.ok(ink[channel] - Math.min(...ink) >= 20, `${id}.${role} has a hue`);
+test('ten colour families each provide muted, balanced and bold palettes with complete names', () => {
+  assert.equal(library.palettes.length, 30);
+  const families = new Map();
+  for (const p of library.palettes) {
+    const [,family,step] = p.id.match(/^(.+)-(muted|balanced|bold)$/);
+    if (!families.has(family)) families.set(family, []);
+    families.get(family).push(step);
+    assert.equal(Object.hasOwn(p,'draft'), false); assert.equal(Object.hasOwn(p,'draftFields'), false);
+    assert.ok(p.description.trim());
+    assert.deepEqual(p.swatches,p.modeSwatches.light);
+    for (const mode of ['light','dark']) {
+      assert.equal(p.modeSwatches[mode].reduce((n,s)=>n+s.share,0),100);
+      assert.equal(new Set(p.modeSwatches[mode].map(s=>s.name)).size,p.modeSwatches[mode].length);
+      assert.ok(p.modeSwatches[mode].every(s=>s.name.trim() && p[mode][s.key]));
     }
-    assert.ok(wcag(p.smallPrint,p.ground) >= 4.5);
-    assert.equal(p.cardFront,p.ground);
+    assert.equal(p.paletteLoudness,{muted:1,balanced:2,bold:3}[step]);
+    assert.equal(p.tags.quietBold,{muted:'quiet',balanced:'either',bold:'bold'}[step]);
+    assert.equal(p.tags.softStrong,{muted:'soft',balanced:'either',bold:'strong'}[step]);
   }
+  assert.equal(families.size,10);
+  for (const steps of families.values()) assert.deepEqual(steps,['muted','balanced','bold']);
 });
 
-test('print-pink uses blue panel reading ink and muted yellow card-back ink', () => {
-  const p = palette('print-pink'), ink = rgb(p.light.panelSmallPrint);
-  assert.ok(ink[2] - ink[0] >= 30);
-  assert.equal(p.dark.cardBackMark,p.dark.mark);
-  assert.notEqual(p.dark.cardBackMark,'#FFE800');
-});
-
-test('olive is a mid-olive field with cream words, separate from the pale sage sheet', () => {
-  const p = palette('olive-paper').light, ground = rgb(p.ground), ink = rgb(p.text);
-  assert.ok(Math.max(...ground) < 150 && ground[1] > ground[0] && ground[0] > ground[2]);
-  assert.ok(Math.min(...ink) > 225 && ink[0] > ink[2]);
-  assert.ok(wcag(p.text,p.ground) >= 4.5);
-  assert.ok(Math.min(...rgb(palette('sage-brass').light.ground)) > 200);
-});
-
-test('plum-peach light mode carries plum surfaces and draws in its plum ink', () => {
-  const p = palette('plum-peach').light;
-  for (const role of ['ground','panel','cardFront','cardBack']) {
-    const [r,g,b] = rgb(p[role]);assert.ok(r > g && b > g,role);
-  }
-  assert.equal(p.mark,p.text);assert.equal(p.cardBackMark,p.text);
-});
-
-test('citrus marks use the strong blue reading ink on orange', () => {
-  const p = palette('citrus-blue').light;
-  assert.equal(p.mark,p.text);assert.ok(wcag(p.mark,p.ground) >= 4.5);
-});
-
-test('white-oxblood retires emerald and gives deep warm red a large field', () => {
-  assert.ok(!palette('white-emerald'));
-  const p=palette('white-oxblood');assert.equal(p.energy,'white-and-one');assert.equal(p.temperature,'warm');
-  assert.ok(Math.min(...rgb(p.light.ground)) >= 240);
-  for(const role of ['headline','pop','mark','cardBack']) {
-    const [r,g,b]=rgb(p.light[role]);assert.ok(r>g*2 && r>b && r<150,role);
-  }
-});
-
-test('new rose, yellow and green-black recipes fill three distinct colour roles', () => {
-  const rose=palette('rose-ink'),yellow=palette('yellow-ink'),green=palette('green-black');
-  assert.equal(rose.energy,'colour-ground');assert.equal(yellow.energy,'colour-ground');assert.equal(green.energy,'dark-first');
-  const [r,g,b]=rgb(rose.light.ground);assert.ok(r>b && b>g && g<180);
-  const [yr,yg,yb]=rgb(yellow.light.ground);assert.ok(yr>230 && yg>190 && yb<130);
-  const [gr,gg,gb]=rgb(green.dark.ground);assert.ok(gg>gr && gg>gb && gg<50);
-  for(const p of [rose,yellow,green])for(const mode of ['light','dark'])for(const [role,value]of Object.entries(p[mode])) {
-    assert.ok(p.adjustments.some(a=>a.mode===mode && a.roles.includes(role) && a.fromValue===null),`${p.id}.${mode}.${role} initial value`);
-  }
-});
-
-test('adjustment history ends at every changed role value and contains concrete before/after values', () => {
-  for(const p of library.palettes) {
-    const latest=new Map();
-    for(const a of p.adjustments) {
-      assert.ok(['light','dark'].includes(a.mode));assert.match(a.toValue,/^#[\da-f]{6}$/i);assert.ok(a.reason);
-      assert.ok(a.fromValue===null || /^#[\da-f]{6}$/i.test(a.fromValue));
-      for(const role of a.roles) latest.set(`${a.mode}.${role}`,a);
+test('adjustment history ends at each changed role and records readable before/after values', () => {
+  for (const p of library.palettes) {
+    const latest = new Map();
+    for (const a of p.adjustments) {
+      assert.ok(['light','dark'].includes(a.mode)); assert.match(a.toValue,/^#[a-f\d]{6}$/i);
+      assert.ok(a.fromValue===null || /^#[a-f\d]{6}$/i.test(a.fromValue));
+      assert.ok(a.reason.trim());
+      for (const role of a.roles) latest.set(`${a.mode}.${role}`,a.toValue);
     }
-    for(const [key,a]of latest){const [mode,role]=key.split('.');assert.equal(p[mode][role],a.toValue,`${p.id}.${key}`);}
+    for (const [key,value] of latest) { const [mode,role]=key.split('.'); assert.equal(p[mode][role],value,`${p.id}.${key}`); }
   }
-  for(const [id,mode,role,before]of [
-    ['white-blue','light','ground','#FEFEFD'],['white-green','light','ground','#FEFEFD'],
-    ['print-pink','light','panelSmallPrint','#4A4A5A'],['print-pink','dark','cardBackMark','#FFE800'],
-    ['olive-paper','light','ground','#E7E8DB'],['plum-peach','light','ground','#F6EEE7'],
-    ['plum-peach','light','mark','#FFB38A'],['plum-peach','light','cardBackMark','#FFB38A'],['citrus-blue','light','mark','#D45920'],
-    ['white-oxblood','light','pop','#08744F']]) {
-    assert.ok(palette(id).adjustments.some(a=>a.mode===mode&&a.roles.includes(role)&&a.fromValue===before&&a.toValue===palette(id)[mode][role]),`${id}.${role}`);
+  for (const g of library.graphics) for (const a of g.adjustments??[]) {
+    assert.equal(g.pattern.strength[a.mode],a.toValue);
+    assert.ok(a.toValue<a.fromValue); assert.ok(a.reason.trim());
   }
 });
 
-const noteOrder = {
-  newspaper:['Covered By Your Grace','Caveat'], 'friendly-serif':['Kalam','Nothing You Could Do'],
-  'sharp-serif':['Covered By Your Grace','Architects Daughter'], marker:['Shantell Sans','Kalam'],
-  humanist:['Kalam','Nothing You Could Do'], 'high-contrast':['Architects Daughter','Covered By Your Grace'],
-  expressive:['Gochi Hand','Covered By Your Grace']
-};
-for(const [id,expected] of Object.entries(noteOrder))test(`${id} notes have the reviewed default and alternative`,()=>assert.deepEqual(pairing(id).handwriting.map(f=>f.family),expected));
-
-test('quiet-sans is light contemporary sans over the Source Serif 4 reading face',()=>{
-  assert.ok(!pairing('book'));const p=pairing('quiet-sans');
-  assert.equal(p.type.heading.family,'Work Sans');assert.equal(p.type.body.family,'Source Serif 4');
-  assert.equal(p.tags.typeLoudness,1);assert.equal(p.tags.typeCut,'contemporary');assert.equal(p.tags.classicContemporary,'contemporary');
-  assert.ok(p.type.heading.sizes.display.weight<=400);assert.equal(p.handwriting[0].family,'Covered By Your Grace');
-  assert.ok(p.type.body.sizes.middle.size>=16 && p.type.body.sizes.middle.lineHeight>=1.5);
-});
-
-test('display-serif uses Literata at warm reading optical sizes; DM Serif Display is retired',()=>{
-  const p=pairing('display-serif');assert.equal(p.type.heading.family,'Literata');
-  assert.equal(p.tags.warmCool,'warm');
-  for(const size of Object.values(p.type.heading.sizes))assert.ok(size.variations.opsz<=16);
-  assert.ok(!library.fonts['DM Serif Display']);assert.ok(!existsSync(resolve(parts,'fonts/DM Serif Display')));
-});
-test('the replacement text faces request only axes the bundled files actually carry',()=>{
-  for(const id of ['quiet-sans','display-serif'])for(const face of Object.values(pairing(id).type)) {
-    const axes=library.fonts[face.family].files[0].axes;
-    for(const settings of [face.variations,...Object.values(face.sizes).map(s=>s.variations)])for(const [key,value] of Object.entries(settings||{})) {
-      assert.ok(axes[key],`${id} ${face.family} has no ${key} axis`);assert.ok(value>=axes[key].min && value<=axes[key].max);
+test('the second pack pins all 19 families and 43 local files with unchanged licences', () => {
+  assert.deepEqual(library.fontPack, {
+    name:'build-brand-fonts-2',
+    url:'https://github.com/wisermethod/wiser/releases/download/build-brand-fonts-2/build-brand-fonts-2.tar',
+    sha256:'aea8a37f7252460119bb2fbdf93082eef95be7471bcf1af0589cd73e1106da4f',bytes:2457600
+  });
+  assert.equal(Object.keys(library.fonts).length,19);
+  let files=0;
+  for (const f of Object.values(library.fonts)) {
+    assert.equal(f.licence,'SIL Open Font License 1.1');
+    assert.equal(hash(readFileSync(resolve(parts,f.licenceFile))),f.licenceSha256); files++;
+    for (const file of f.files) {
+      const bytes=readFileSync(resolve(parts,file.path));
+      assert.equal(bytes.length,file.bytes); assert.equal(hash(bytes),file.sha256); files++;
     }
   }
-});
-test('the loud poster slab has contemporary match and ranking tags',()=>{
-  const p=pairing('slab');assert.equal(p.tags.typeLoudness,3);assert.equal(p.tags.typeCut,'contemporary');assert.equal(p.tags.classicContemporary,'contemporary');
+  assert.equal(files,43);
+  for (const p of library.pairings) {
+    assert.deepEqual(p.handwriting.map(f=>f.family),['Caveat']);
+    for (const f of [p.type.heading,p.type.body,...p.handwriting]) assert.ok(library.fonts[f.family]);
+  }
 });
 
-test('every declared font and unchanged licence exists and every font hash and size agrees',()=>{
-  for(const font of Object.values(library.fonts)) {
-    assert.ok(existsSync(resolve(parts,font.licenceFile)));
-    for(const f of font.files) {const file=resolve(parts,f.path);assert.equal(statSync(file).size,f.bytes);assert.equal(hash(readFileSync(file)),f.sha256);}
+test('ten styles preserve their pairing ids and closed depth recipes; eleven modes stay withheld', () => {
+  assert.deepEqual(library.styles.map(s=>s.id),library.pairings.map(p=>p.id));
+  assert.deepEqual(library.styles.map(s=>s.column),Array.from('ABCDEFGHIJ'));
+  for (const style of library.styles) {
+    assert.deepEqual(Object.keys(style),['id','column','name','depth']);
+    assert.equal(style.depth.band,'six');
   }
-  const f=library.fonts.Literata;
-  assert.equal(f.commit,'45e3d5269e4a17d823f6d84470bc084dc5ae46f6');assert.equal(f.sourcePath,'ofl/literata');
-  assert.equal(f.shippedForm,'latin-subset-woff2');assert.equal(f.reservedFontName,false);assert.deepEqual(f.reservedFontNames,[]);
-  assert.equal(hash(readFileSync(resolve(parts,f.licenceFile))),f.licenceSha256);
-  assert.match(readFileSync(resolve(parts,f.licenceFile),'utf8'),/SIL OPEN FONT LICENSE Version 1\.1/);
-  assert.deepEqual(readdirSync(resolve(parts,f.folder)).sort(),['Literata-Latin.woff2','OFL.txt']);
+  assert.equal(library.withheld.length,11);
+  assert.equal(new Set(library.withheld.map(w=>`${w.palette}/${w.style}/${w.mode}`)).size,11);
+  assert.equal(Object.hasOwn(library,'approval'),false);
+  for (const w of library.withheld) {
+    assert.deepEqual(Object.keys(w),['palette','style','mode','reason']);
+    assert.ok(palette(w.palette)); assert.ok(pairing(w.style)); assert.equal(w.mode,'light');
+    assert.match(w.reason,/mark:|P4-T8:/); assert.doesNotMatch(w.reason,/[\r\n]/);
+  }
 });
 
 test('three refined containers keep initials framed with intentional asymmetry and openings',()=>{
@@ -207,11 +155,11 @@ test('riso sample ring uses two shifted ellipses distinct from the drawn curve',
   assert.equal(shapesInRing.length,2);assert.ok(shapesInRing.every(s=>s.startsWith('ellipse:')));assert.notEqual(shapesInRing[0],shapesInRing[1]);
 });
 test('reviewed dark patterns have substantial cells and explicit visible strengths',()=>{
-  assert.equal(graphic('editorial').pattern.strength.dark,.45);
+  assert.equal(graphic('editorial').pattern.strength.dark,.32);
   assert.match(graphic('editorial').pattern.svg,/M8 12 H27/);
   assert.ok(graphic('marker').pattern.strength.dark>=.28);assert.match(graphic('marker').pattern.svg,/stroke-width="4"/);
   assert.match(graphic('geometric').pattern.svg,/r="4"/);
-  assert.equal(graphic('stitch').pattern.strength.dark,.4);assert.match(graphic('stitch').pattern.svg,/L20 20/);
+  assert.equal(graphic('stitch').pattern.strength.dark,.32);assert.match(graphic('stitch').pattern.svg,/L20 20/);
   assert.ok(graphic('stamp').pattern.strength.dark>=.28);assert.match(graphic('stamp').pattern.svg,/L36 11/);
   assert.equal(graphic('stamp').hero.shape,'underline');assert.match(graphic('stamp').hero.svg,/ Z" fill="currentColor"/);
 });
@@ -219,11 +167,11 @@ test('reviewed dark patterns have substantial cells and explicit visible strengt
 test('parts index documents every current id, the new face, and no stale recipe or pairing',()=>{
   const doc=readFileSync(resolve(parts,'catalogue.md'),'utf8');
   for(const key of ['palettes','pairings','graphics','containers'])for(const p of library[key])assert.ok(doc.includes(`| ${p.id} |`),p.id);
-  assert.ok(doc.includes('| Literata |'));assert.ok(!/\| (?:book|white-emerald|DM Serif Display) \|/.test(doc));
+  for(const family of Object.keys(library.fonts))assert.ok(doc.includes(`| ${family} |`));assert.ok(!/\| (?:book|white-emerald|DM Serif Display) \|/.test(doc));
   assert.ok(!/#[a-f\d]{6}\b/i.test(doc));
 });
 
-test('all 49 ranked parts carry six closed positions and a soft-to-strong reason',()=>{
+test('all 48 ranked parts carry six closed positions and a soft-to-strong reason',()=>{
   const axes={classicContemporary:['classic','contemporary'],quietBold:['quiet','bold'],warmCool:['warm','cool'],playfulSerious:['playful','serious'],handGeometric:['hand','geometric'],softStrong:['soft','strong']};
   let count=0;
   for(const kind of ['pairings','palettes','graphics'])for(const p of library[kind]) {
@@ -231,14 +179,16 @@ test('all 49 ranked parts carry six closed positions and a soft-to-strong reason
     for(const [axis,poles]of Object.entries(axes))assert.ok([...poles,'either'].includes(p.tags[axis]),`${kind}/${p.id}/${axis}`);
     assert.ok(p.softStrongReason.trim());
   }
-  assert.equal(count,49);assert.equal(pairing('chunky').tags.softStrong,'soft');
+  assert.equal(count,48);assert.equal(pairing('friendly-rounded').tags.softStrong,'soft');
   for(const p of library.palettes)assert.equal(p.tags.warmCool,p.temperature);
 });
 
-test('retired marker keeps Shantell Sans only in its margin-note role',()=>{
-  assert.equal(library.fonts['Shantell Sans'].role,'handwriting');
-  const p=pairing('marker');assert.equal(p.selectable,false);assert.equal(p.type.heading.family,'Instrument Sans');assert.equal(p.handwriting[0].family,'Shantell Sans');
-  assert.equal(p.type.body.family,'Instrument Sans');assert.ok(library.fonts[p.type.body.family]);
-  assert.deepEqual(p.type.body.weights,[400,700]);assert.ok(!p.type.body.variations);
-  for(const size of Object.values(p.type.body.sizes))assert.equal(size.variations,null);
+test('Caveat is notes-only and every approved text pairing remains selectable',()=>{
+  assert.equal(library.fonts.Caveat.role,'handwriting');
+  assert.equal(library.pairings.length,10);
+  for(const p of library.pairings) {
+    assert.notEqual(p.selectable,false);
+    assert.notEqual(p.type.heading.family,'Caveat'); assert.notEqual(p.type.body.family,'Caveat');
+    assert.deepEqual(p.handwriting.map(f=>f.family),['Caveat']);
+  }
 });

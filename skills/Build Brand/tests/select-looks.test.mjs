@@ -18,12 +18,14 @@ const identity=c=>`${c.pairing}/${c.palette}/${c.graphicSet}`;
 // Re-pinned 2026-11-02, M5.1 round 2: refused clusters, retired marker and descriptive labels.
 // M5.1 review: near-black cap 55 restores Paper and orange outside the cream cluster.
 // Every pin also asserts the page shape, refusals, history and Form contract.
+// M4.2d: for these fixtures the fallback adds abandoned greedy checks to the attempt
+// count; their pages, spares and replacements are unchanged. A refusal cached by an
+// abandoned attempt is not reported again, as with abandoned search branches.
 const fixtures=[
-  ['operator',operator,['2145241f997b547f621befce6a3c2bb7345ec209eb4fabee739b44d300c71c6f','25686b218c24f69ce01b10d948b30de0bf715020569b52b468fc2946e683faff'],
-    ['a3f5a8ac100d55c8b04eda5a27979b2df375a9458040109d1c75edfcd3f76968','9f576445964ecaf0c5ea4497ebabf6e93b7a25392c53e2f0a56ec22712e0ea8b']],
-  ['First Strategy',firstStrategy,['4bd890cd74387324893f084d562681a3f64fad9c5281f1c5c0a4e12db5713344','8f8624f4bd55655208ed4fd0e897060c634fdcbf0488d1997b7608727605afc1'],
-    ['fc9bab5ae223e0d2011cd477cc767e85df14131d36761fdc14cc92e7288c0cac','2f76f631ca3a40381295b67c56a0c029aec2d461a33558902c2fb01229cc0fb2']]
+  ["operator",operator,["bbe4bcd1c0accff9bab10849607f9025ddf37532a91c5436359edeec2e565181", "2538a2826d0e049e6dcd8f7d02e4392fac416e4f7ead83a5484c5152a4012c71"],["b9333504e044249c0137e176bb74846904f911514370a2ec465f1ae8168bdd4b", "b42bdc354db48fe07a7fc05ebdfa657964ffa81b7a2a282e844236f8b276cc27"]],
+  ["First Strategy",firstStrategy,["0f2287f60881f15d5b095da32661324b10cc9ea477251527e417d38d4bec5355", "8e483ae9a395fc11997b4c78348a79d9b23a7e078f590ade150887236f6f6805"],["205469c34e763ff2505bdf2278a5b3cf9daa3b38bf305d40a2d3acbb5d8322d7", "3649d6cc1918ac6e657ffc45300f8974d249216fd0a77a2eb16bcd340c1f072d"]]
 ];
+
 function assertPage(r,a,history=[]) {
   assert.equal(r.looks.length,12);assert.equal(r.options.length,12);
   assert.deepEqual(r.looks.map(l=>l.kind),[...Array(6).fill('top'),...Array(6).fill('contrast')]);
@@ -72,7 +74,7 @@ for(const [label,fixture,expected,keptExpected] of fixtures) {
     assertFirstPage(fixture(),expected);
   });
   test(`${label}: kept pairing and palette retain first-page bytes with any steer and no history`,()=>{
-    assertFirstPage({...fixture(),kept:{pairing:'condensed',palette:{id:'navy-gold'}}},keptExpected);
+    assertFirstPage({...fixture(),kept:{pairing:'industrial',palette:{id:'business-blue-bold'}}},keptExpected);
   });
   test(`${label}: a single duplicate history look leaves the entire next page unchanged`,()=>{
     const a=fixture(),one=select('looks',a),expected=JSON.stringify(select('looks',{...a,shown:one.looks}));
@@ -127,15 +129,15 @@ test('history options and records exclude the same identities, including a prior
   assert.equal(JSON.stringify(one),JSON.stringify(two));
   const repeated=select('looks',{...a,shown:[...first.looks,...first.options]});
   assert.deepEqual(repeated.looks.map(l=>l.value),one.looks.map(l=>l.value));
-  const kept={...a,kept:{pairing:'condensed',palette:{id:'navy-gold'}}},fixed=select('looks',kept);
+  const kept={...a,kept:{pairing:'industrial',palette:{id:'business-blue-bold'}}},fixed=select('looks',kept);
   assert.equal(JSON.stringify(select('looks',{...kept,shown:fixed.looks})),JSON.stringify(select('looks',{...kept,shown:fixed.options})));
 });
 test('later pages keep six contrasts available when another first look is needed',()=>{
   const a=operator(),shown=[];
   for(let page=0;page<21;page++) {const r=select('looks',{...a,shown});assertPage(r,a,shown);shown.push(...r.looks);}
 });
-test('page 2 checks report only winning-prefix refusals and their exact replacements, including a pattern-only refusal',()=>{
-  // Suit and tie with 2Modern makes page 2 backtrack on the taps of 2026-11-02, as the operator's own taps did before.
+test('page 2 checks report exact pattern refusals and retain that graphic in a plain slot',()=>{
+  // A full-strength text-coloured pattern forces checked replacements.
   const a={...operator(),taps:{...operator().taps,feel:'suit-and-tie',mood:'2modern'}},patterned=structuredClone(library),drawn=patterned.graphics.find(g=>g.id==='drawn');
   drawn.pattern={...drawn.pattern,
     svg:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 5H10" stroke="{{text}}"/></svg>',
@@ -143,15 +145,12 @@ test('page 2 checks report only winning-prefix refusals and their exact replacem
   const one=select('looks',a,{library:patterned,check:true});
   const two=select('looks',{...a,shown:one.looks},{library:patterned,check:true});
   assertPage(two,a,one.looks);
-  // These refusals occurred under the winning prefix. Earlier prefixes hit
-  // additional refusals before backtracking; none belongs in this report.
   assert.deepEqual(two.replacements.map(r=>[r.slot,identity(r.refused),identity(r.replacement)]),[
-    ...['newspaper','chunky','humanist','soft-serif'].map(pairing=>
-      [6,`${pairing}/forest-coral/editorial`,'newspaper/paper-orange/geometric']),
-    [9,'humanist/stone-cobalt/stitch','friendly-serif/stone-cobalt/drafting'],
-    [9,'friendly-serif/stone-cobalt/stamp','friendly-serif/stone-cobalt/drafting']
+    [1,'heritage-slab/acid-lime-balanced/drawn','heritage-slab/acid-lime-balanced/stitch'],
+    [7,'heritage-slab/hot-pink-balanced/drawn','heritage-slab/hot-pink-balanced/stitch'],
+    [9,'industrial/sunflower-and-espresso-balanced/drawn','industrial/sunflower-and-espresso-balanced/stitch']
   ]);
-  assert.ok(two.checks.attempts>12+two.replacements.length,'fixture must explore abandoned prefixes');
+  assert.equal(two.checks.attempts,12+two.replacements.length);
   const shown=new Set(one.looks.map(identity));
   for(const r of two.replacements) {
     assert.ok(r.reason);
@@ -162,13 +161,12 @@ test('page 2 checks report only winning-prefix refusals and their exact replacem
   }
   // The graphic that fails with its pattern is still legal in a plain slot.
   // Do not treat a pattern failure as exhaustion of that graphic in every slot.
-  assert.equal(two.looks[4].graphicSet,'drawn');assert.equal(two.looks[4].plainGround,true);
+  assert.equal(two.looks[1].graphicSet,'drawn');assert.equal(two.looks[1].plainGround,true);
 });
 
 function allLooks() {
   const result=[];
   for(const p of library.pairings) for(const c of library.palettes) for(const g of library.graphics) {
-    if(Math.abs(p.tags.typeLoudness-c.paletteLoudness)>1||(c.paletteLoudness===3&&(p.tags.typeCut!=='contemporary'||p.tags.typeLoudness<2))) continue;
     if(boardRefusal(library,{pairing:{id:p.id},palette:{id:c.id}})) continue;
     const look={pairing:p.id,palette:c.id,graphicSet:g.id};
     result.push({...look,value:'look-'+hash(identity(look)).slice(0,32)});
@@ -190,7 +188,7 @@ test('checked exhaustion accounts for leaders that can only pass in plain-ground
   const tags=Object.fromEntries(Object.keys(AXES).map(axis=>[axis,'either']));
   const limited={...library,
     pairings:library.pairings.slice(0,6).map(p=>({...p,tags:{...p.tags,...tags,typeLoudness:2,typeCut:'contemporary'}})),
-    palettes:library.palettes.filter(p=>!boardRefusal(library,{pairing:{id:'warm-grotesque'},palette:{id:p.id}})).slice(0,12).map((p,i)=>({...p,tags:{...p.tags,...tags,softStrong:i<6?'soft':'strong'}})),
+    palettes:library.palettes.filter(p=>!boardRefusal(library,{pairing:{id:'friendly-rounded'},palette:{id:p.id}})).slice(0,12).map((p,i)=>({...p,tags:{...p.tags,...tags,softStrong:i<6?'soft':'strong'}})),
     graphics:library.graphics.slice(0,6).map((g,i)=>({...g,tags:{...g.tags,...tags},pattern:{...g.pattern,
       svg:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 5H10" stroke="{{text}}"/></svg>',
       strength:{light:i<3?1:0,dark:i<3?1:0}}}))

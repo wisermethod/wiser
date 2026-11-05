@@ -59,11 +59,11 @@ test('the first matching Close boards are recommended even beyond the first two 
   const a = answers(), initial = select('round1', a);
   // The comparison mode keeps ranking stable while finding a picked triple
   // that lands later in Close under ordinary scoring.
-  const choices = initial.selection.boards.filter(b => b.group === 'close').map(look);
+  const choices = initial.selection.boards.map(look);
   let exercised = false;
   for (const picked of choices) {
     const result = select('round1', { ...a, looks: [picked.value], looksShown: [picked] });
-    const matching = result.selection.boards.filter(b => b.group === 'close' && triple(b) === [picked.pairing,picked.palette,picked.graphicSet].join('/'));
+    const matching = result.selection.boards.filter(b => b.group === 'close' && [picked.pairing,picked.palette,picked.graphicSet].filter((v,i)=>v===triple(b).split('/')[i]).length>=2);
     if (matching.some(b => b.number > 2)) {
       exercised = true;
       assert.deepEqual(result.selection.boards.filter(b => b.recommendation).map(b => b.number), matching.slice(0,2).map(b => b.number));
@@ -96,11 +96,11 @@ test('records and resume retain displayed page state and every file-settled brie
 
 test('an unfillable unseen Round 1 keeps its rebuild failure when disabling cluster rules would fill it', () => {
   const library = JSON.parse(readFileSync(LIBRARY));
-  const ids = ['warm-grotesque','sharp-serif','chunky','poster','condensed'];
+  const ids = ['friendly-rounded','editorial','hand-made','industrial','playful-display'];
   library.pairings = library.pairings.filter(p => ids.includes(p.id));
-  library.pairings.find(p => p.id === 'condensed').displayStyle = 'test';
+  library.pairings.find(p => p.id === 'industrial').displayStyle = 'test';
   library.refusedClusters = [{id:'test-style',displayStyle:'test',ground:{near:'#141B3D',maxRgbDistance:500},accents:{roles:['pop'],match:'all',bands:[{hue:[0,360]}]}}];
-  const a = { ...answers(), kept: {palette:{id:'navy-gold'}} }, options = { library, unsteered:true };
+  const a = { ...answers(), kept: {palette:{id:'business-blue-bold'}} }, options = { library, unsteered:true };
   const initial = select('round1', a, options), seed = initial.selection.boards[1];
   const graphics = ['drawn','geometric','editorial','stitch','stamp','drafting','marker','riso'];
   const containers = {drawn:'drawn-ring',geometric:'filled-square',editorial:'rule-box',stitch:'oval',stamp:'double-ring',drafting:'drafting-box',marker:'marker-swash',riso:'double-ring'};

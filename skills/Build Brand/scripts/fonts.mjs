@@ -32,7 +32,7 @@ Usage: node scripts/fonts.mjs help
 A plain check surveys, even with consent or WISER_ALLOW_INSTALL=1. It writes
 nothing and returns one JSON object, exit 0, with installed, missing and changed.
 With --family it also names the families, and fetches only their individual release
-assets. Without --family an install fetches the whole pack (about 4.5 MB).
+assets. Without --family an install fetches the whole pack (about 2.5 MB).
 assets prints a JSON array in parts.json order: asset, path, sha256 and bytes.
 Asset names drop fonts/, replace / with -- and each space with _.
 Installs verify sizes and hashes before writing fonts/; consent follows

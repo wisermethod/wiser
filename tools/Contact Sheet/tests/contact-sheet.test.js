@@ -469,14 +469,31 @@ test('30. Brand output embeds fonts and SVGs with no scripts, handlers or outwar
   assert.match(html, /default-src 'none'/);
 });
 
-test('31. Type-to-colour mismatches refuse the whole page and identify every failing board', (t) => {
-  const error = brandRefusal(t, (s) => {
-    s.boards[0].tags = { paletteLoudness: 3, typeLoudness: 1, typeCut: 'contemporary' };
-    s.boards[1].tags = { paletteLoudness: 3, typeLoudness: 2, typeCut: 'period' };
+test('31. Loud colours and period type are accepted, while contrast still refuses', (t) => {
+  const dir = temp(t), spec = brandFixture();
+  spec.boards[0].tags = { paletteLoudness: 3, typeLoudness: 1, typeCut: 'period' };
+  spec.boards[1].tags = { paletteLoudness: 3, typeLoudness: 2, typeCut: 'period' };
+  assert.equal(success(build(dir, spec).result).itemCount, 3);
+  const error = brandRefusal(t, s => {
+    s.boards[0].tags = { paletteLoudness: 3, typeLoudness: 1, typeCut: 'period' };
     s.boards[2].palette.dark.smallPrint = s.boards[2].palette.dark.ground;
-  }, /type-to-colour mismatch/);
-  for (const name of ['Useful Objects', 'Daily Practice', 'Late Edition']) assert.ok(error.includes(name));
-  assert.match(error, /dark small print/);
+  }, /dark small print/);
+  assert.ok(!error.includes('Useful Objects'));
+  assert.ok(error.includes('Late Edition'));
+});
+
+test('boards without tags are accepted', (t) => {
+  const dir = temp(t), spec = brandFixture();
+  for (const board of spec.boards) delete board.tags;
+  assert.equal(success(build(dir, spec).result).itemCount, 3);
+});
+
+test('present descriptive tags retain their closed shape and value checks', (t) => {
+  for (const tags of [
+    { paletteLoudness: 3, typeLoudness: 4, typeCut: 'period' },
+    { paletteLoudness: 3, typeLoudness: 1, typeCut: 'period', extra: true },
+    { paletteLoudness: 3, typeCut: 'period' }, null
+  ]) brandRefusal(t, s => { s.boards[0].tags = tags; }, /tags/);
 });
 
 test('32. A text pairing below 4.5 is refused in either mode, including card surfaces', (t) => {

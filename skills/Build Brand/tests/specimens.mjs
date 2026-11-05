@@ -14,29 +14,29 @@ export function specimens(argv=process.argv.slice(2)) {
   const out=canonical(argv[1]), skill=resolve(fileURLToPath(new URL('..',import.meta.url)));
   if(!relative(skill,out).startsWith('..'))throw Error('Use a work directory outside this skill.');
   const library=JSON.parse(readFileSync(LIBRARY));
-  const compatible=['warm-grotesque','newspaper','warm-grotesque','friendly-serif','sharp-serif','chunky','marker','poster','condensed','humanist','high-contrast','expressive'];
+  const compatible=['friendly-rounded','editorial','friendly-rounded','heritage-slab','editorial','friendly-rounded','crisp-modern','industrial','industrial','old-style','elegant-serif','playful-display'];
   const sets=['drawn','drafting','marker','marker','geometric','marker','marker','riso','geometric','stitch','riso','geometric','drafting','drafting','geometric','geometric','geometric','riso','geometric','stamp','drafting','editorial','marker','geometric','stitch'];
   const containers=['drafting-box','drafting-box','filled-square','double-ring','filled-square','filled-circle','marker-swash','drawn-ring','filled-square','oval','rule-box','filled-square'];
   const paletteBoards=library.palettes.map((p,i)=>{
     const pairing=compatible[i]||matchingPairing(library,p);
-    return board(library,{number:i+1,palette:p.id,pairing,graphic:sets[i],container:containers[i%containers.length],handwriting:library.pairings.find(x=>x.id===pairing).handwriting[0].family});
+    return board(library,{number:i+1,palette:p.id,pairing,graphic:sets[i%sets.length],container:containers[i%containers.length],handwriting:library.pairings.find(x=>x.id===pairing).handwriting[0].family});
   });
   const pairingBoards=library.pairings.map((p,i)=>{
-    const palette=p.tags.typeLoudness===1?'stone-cobalt':p.tags.typeLoudness===2?'white-oxblood':p.tags.typeCut==='period'?'ink-amber':'navy-gold';
-    const b=board(library,{number:i+1,palette,pairing:p.id,graphic:palette==='white-oxblood'?'editorial':'drafting',container:library.containers[i%8].id,handwriting:p.handwriting[0].family});
+    const palette=p.tags.typeLoudness===1?'ink-and-paper-muted':p.tags.typeLoudness===2?'signal-red-balanced':p.tags.typeCut==='period'?'ink-and-paper-bold':'business-blue-bold';
+    const b=board(library,{number:i+1,palette,pairing:p.id,graphic:palette==='signal-red-balanced'?'editorial':'drafting',container:library.containers[i%8].id,handwriting:p.handwriting[0].family});
     b.name=p.name;b.why=p.character;return b;
   });
   const graphicBoards=library.graphics.flatMap((g,i)=>['light','dark'].map((mode,j)=>{
-    const b=board(library,{number:i*2+j+1,palette:'green-black',pairing:'quiet-sans',graphic:g.id,container:library.containers[i].id,mode,handwriting:'Covered By Your Grace'});
+    const b=board(library,{number:i*2+j+1,palette:'ink-and-paper-muted',pairing:'crisp-modern',graphic:g.id,container:library.containers[i].id,mode,handwriting:'Caveat'});
     b.group=g.id;b.name=`${g.name} in ${mode}`;b.energy=`${mode} surface`;b.why=`${g.description} Container: ${library.containers[i].name}.`;return b;
   }));
-  const wholeIds=['paper-orange','white-oxblood','gold-pink','cobalt-yellow','navy-coral'];
-  const wholeBoards=wholeIds.map((id,i)=>board(library,{number:i+1,palette:id,pairing:['warm-grotesque','warm-grotesque','chunky','lively','sharp-serif'][i],graphic:['drawn','geometric','marker','drafting','editorial'][i],container:['drafting-box','filled-square','filled-circle','double-ring','rule-box'][i],handwriting:i===0?'Kalam':null}));
-  // Each strengthened pattern is also inspected on a complete dark-first board.
-  wholeBoards[4].name='Editorial marks on navy';
+  const wholeIds=['tangerine-and-sky-muted','signal-red-balanced','ink-and-paper-bold','business-blue-bold','business-blue-bold'];
+  const wholeBoards=wholeIds.map((id,i)=>board(library,{number:i+1,palette:id,pairing:['friendly-rounded','friendly-rounded','friendly-rounded','playful-display','editorial'][i],graphic:['drawn','geometric','marker','drafting','editorial'][i],container:['drafting-box','filled-square','filled-circle','double-ring','rule-box'][i],handwriting:i===0?'Caveat':null}));
+  // Each adjusted pattern is also inspected on a complete dark-mode board.
+  wholeBoards[4].name='Editorial marks on business blue';wholeBoards[4].primaryMode='dark';
   for(const [i,id] of ['marker','geometric','stitch','stamp'].entries()){
-    const b=board(library,{number:6+i,palette:'green-black',pairing:'quiet-sans',graphic:id,container:['marker-swash','filled-circle','oval','double-ring'][i],mode:'dark',handwriting:'Covered By Your Grace'});
-    b.name=`${library.graphics.find(g=>g.id===id).name} on green-black`;wholeBoards.push(b);
+    const b=board(library,{number:6+i,palette:'ink-and-paper-muted',pairing:'crisp-modern',graphic:id,container:['marker-swash','filled-circle','oval','double-ring'][i],mode:'dark',handwriting:'Caveat'});
+    b.name=`${library.graphics.find(g=>g.id===id).name} on ink and paper`;wholeBoards.push(b);
   }
   const selections={palettes:selection(paletteBoards,library),pairings:selection(pairingBoards,library),graphics:{...selection(graphicBoards,library),groups:library.graphics.map(g=>({id:g.id,label:g.name}))},whole:selection(wholeBoards,library)};
   const outputs=Object.keys(selections).flatMap(name=>[`${name}.selection.json`,`${name}.spec.json`,`${name}.html`]);outputs.push('checks.json');

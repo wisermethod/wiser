@@ -40,7 +40,7 @@ function keptColourName(value, library) {
   return nearest;
 }
 // Ranking provenance travels in the command's report, outside the deliberately
-// closed Contact Sheet spec (which accepts only its three match-check tags).
+// closed Contact Sheet spec (which accepts only its three descriptive tags).
 export function partPositions(library, board) {
   return Object.fromEntries([['pairing','pairings',board.pairing.headingFrom && typeof board.pairing.headingFrom === 'string' ? board.pairing.headingFrom : board.pairing.id],['palette','palettes',board.palette.id],['graphicSet','graphics',board.graphicSet.id]].map(([role,kind,id]) => [role, Object.fromEntries(Object.keys(AXES).map(axis => [axis,lookup(library,kind,id,role).tags[axis]]))]));
 }

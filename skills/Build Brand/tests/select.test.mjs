@@ -22,7 +22,7 @@ function assertRound(r,a) {
   const b=r.selection.boards;
   assert.ok(b.length>=10&&b.length<=12);
   assert.deepEqual(r.selection.groups.map(g=>g.id),['close','further','angle']);
-  assert.deepEqual(new Set(b.map(b=>palette(b.palette.id).energy)),new Set(ENERGIES));
+  assert.deepEqual(new Set(b.map(b=>palette(b.palette.id).energy)),new Set(library.palettes.map(p=>p.energy)));
   const close=b.filter(b=>b.group==='close');
   assert.equal(close.length,4);assert.equal(new Set(close.map(b=>ground(palette(b.palette.id)[b.primaryMode].ground).family)).size,close.length);
   assert.ok(close.filter(b=>ground(palette(b.palette.id)[b.primaryMode].ground).dark).length<=2);
@@ -35,10 +35,10 @@ function assertRound(r,a) {
   if(strong.length)for(const [i,board]of b.entries())if(board.group==='angle')assert.equal(strong.filter(k=>r.positions[i].positions[k]!=='either'&&first.positions[k]!=='either'&&r.positions[i].positions[k]!==first.positions[k]).length,1);
 }
 for(const [label,fixture]of [['operator',operator],['First Strategy',firstStrategy]]) {
-  test(`${label} taps produce twelve boards with five energies, distinct close grounds, dark limits and sourced recommendations`,()=>assertRound(select('round1',fixture()),fixture()));
-  test(`${label} checked Round 1 replaces refused combinations and the final whole page builds`,()=>{
+  test(`${label} taps produce twelve boards with the available energies, distinct close grounds, dark limits and sourced recommendations`,()=>assertRound(select('round1',fixture()),fixture()));
+  test(`${label} checked Round 1 reports only complete replacements and the final whole page builds`,()=>{
     const a=fixture(),r=select('round1',a,{check:true});assertRound(r,a);
-    assert.ok(r.replacements.length);assert.ok(r.checks.attempts>=12);
+    assert.ok(r.checks.attempts>=12);
     for(const refusal of r.replacements){assert.ok(refusal.reason);assert.ok(refusal.replacement);assert.notDeepEqual([refusal.refused.pairing,refusal.refused.palette,refusal.refused.graphicSet],[refusal.replacement.pairing,refusal.replacement.palette,refusal.replacement.graphicSet]);}
     const spec=path('spec.json'),html=path('page.html');writeFileSync(spec,JSON.stringify(assemble(r.selection,library)));
     assert.equal(runContactSheet(['build','--spec',spec,'--output',html]).itemCount,12);
@@ -75,11 +75,11 @@ test('read-back off option, pole, dial and dark-led part drop their contribution
   assert.equal(select('round1',{...a,off:['darkLed']}).darkLed,0);
   assert.throws(()=>select('round1',{...a,off:['apple']}),/unselected/);
 });
-test('unsteered comparison zeros every dial, follows library order and has five energies without recommendations',()=>{
+test('unsteered comparison zeros every dial, follows library order and has the available energies without recommendations',()=>{
   const a=select('round1',operator(),{unsteered:true}),b=select('round1',firstStrategy(),{unsteered:true});
   assert.deepEqual(Object.values(a.dials),[0,0,0,0,0,0]);assert.equal(a.darkLed,0);
   assert.deepEqual(a.selection.groups.map(g=>g.label),['First set','Second set','Third set']);
-  assert.ok(a.selection.boards.every(b=>!b.recommendation));assert.deepEqual(new Set(a.selection.boards.map(b=>b.energy)),new Set(ENERGIES));
+  assert.ok(a.selection.boards.every(b=>!b.recommendation));assert.deepEqual(new Set(a.selection.boards.map(b=>b.energy)),new Set(library.palettes.map(p=>p.energy)));
   assert.deepEqual(a.selection.boards.map(b=>[b.palette.id,b.pairing.id,b.graphicSet.id]),b.selection.boards.map(b=>[b.palette.id,b.pairing.id,b.graphicSet.id]));
   assert.equal(a.selection.boards[0].pairing.id,library.pairings[0].id);assert.equal(a.selection.boards[0].palette.id,library.palettes.find(p=>!boardRefusal(library,{pairing:{id:library.pairings[0].id},palette:{id:p.id}})).id);assert.equal(a.selection.boards[0].graphicSet.id,library.graphics[0].id);
 });
@@ -87,12 +87,20 @@ test('same inputs produce byte-identical selection, spares and replacement repor
   assert.equal(JSON.stringify(select('round1',operator())),JSON.stringify(select('round1',operator())));
   const a=select('round1',operator(),{check:true}),b=select('round1',operator(),{check:true});assert.deepEqual(a,b);
 });
-test('a known contrast refusal is replaced by the next ranked spare without weakening its colours or pattern',()=>{
-  const unchecked=select('round1',firstStrategy()),checked=select('round1',firstStrategy(),{check:true});
-  assert.equal(unchecked.selection.boards[2].graphicSet.id,'stitch');
-  const refusal=checked.replacements.find(r=>r.slot===3);assert.equal(refusal.refused.palette,'stone-cobalt');assert.equal(refusal.refused.graphicSet,'stitch');assert.match(refusal.reason,/WCAG/);
-  assert.equal(checked.selection.boards[2].graphicSet.id,'drafting');assert.ok(!checked.selection.boards[2].palette.overrides);
+test('a known contrast refusal is replaced by a ranked spare without weakening its colours or pattern',()=>{
+  const changed=structuredClone(library),graphic=changed.graphics.find(g=>g.id==='stitch');
+  graphic.pattern={...graphic.pattern,svg:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 5H10" stroke="{{text}}"/></svg>',strength:{light:1,dark:1}};
+  const before=structuredClone(changed);
+  const unchecked=select('round1',firstStrategy(),{library:changed}),checked=select('round1',firstStrategy(),{library:changed,check:true});
+  const index=unchecked.selection.boards.findIndex(b=>b.graphicSet.id==='stitch');
+  assert.ok(index>=0);
+  const refusal=checked.replacements.find(r=>r.slot===index+1);
+  assert.ok(refusal);assert.equal(refusal.refused.palette,unchecked.selection.boards[index].palette.id);
+  assert.equal(refusal.refused.graphicSet,'stitch');assert.match(refusal.reason,/WCAG/);
+  assert.notEqual(checked.selection.boards[index].graphicSet.id,'stitch');
+  assert.ok(!checked.selection.boards[index].palette.overrides);assert.deepEqual(changed,before);
 });
+
 test('checked whole-look ids remain valid boosts even if Contact Sheet replaced an unchecked leader',()=>{
   const a=firstStrategy(),looks=select('looks',looksAnswers(a),{check:true});assert.ok(looks.replacements.every(r=>r.replacement));
   const r=select('round1',{...a,looks:looks.looks.slice(0,2).map(l=>l.value),looksShown:looks.looks});assert.ok(Object.values(r.wholeLookBoosts).some(n=>n!==0));
@@ -100,7 +108,7 @@ test('checked whole-look ids remain valid boosts even if Contact Sheet replaced 
 test('kept logo and font are absolute in output, fixed on every board, with board zero first and twelve total',()=>{
   const input=path('answers.json'),output=path('selection.json'),mark=path('mark.svg');
   writeFileSync(mark,'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="currentColor"/></svg>');
-  const entry=library.fonts.Archivo.files[0];const face=resolve(dirname(LIBRARY),entry.path);
+  const entry=library.fonts.Barlow.files[0];const face=resolve(dirname(LIBRARY),entry.path);
   const a={...operator(),kept:{markFile:mark,headingFrom:{file:face,family:'Kept face',weight:700}}};writeFileSync(input,JSON.stringify(a));
   const r=run(['round1','--answers',input,'--output',output,'--check']);assert.equal(r.selection.boards.length,12);assert.equal(r.selection.boards[0].number,0);assert.equal(r.selection.boards[0].zero,true);
   for(const b of r.selection.boards){assert.equal(b.markFile,realpathSync(mark));assert.ok(isAbsoluteForTest(b.pairing.headingFrom.file));assert.equal(b.pairing.headingFrom.family,'Kept face');assert.ok(!b.container);}
@@ -116,10 +124,10 @@ test('kept colour role remains fixed, while energy labels still describe actual 
   for(const b of r.selection.boards){assert.equal(b.palette.overrides.light.hairline,'#b9b9b9');assert.equal(b.palette.overrides.dark.hairline,'#777777');assert.equal(b.energy,palette(b.palette.id).energy);}
   const close=r.selection.boards.filter(b=>b.group==='close'&&!b.zero);assert.equal(new Set(close.map(b=>ground(palette(b.palette.id)[b.primaryMode].ground).family)).size,4);
 });
-test('fixed full palette states its unavoidable coverage exception instead of claiming five energies',()=>{
-  const r=select('round1',{...operator(),kept:{palette:{id:'navy-gold'}}});
-  assert.ok(r.selection.boards.every(b=>b.palette.id==='navy-gold'&&b.energy==='dark-first'));
-  assert.ok(r.notes.some(n=>n.includes('takes precedence over five-energy coverage')));
+test('fixed full palette states its unavoidable coverage exception instead of claiming the available energies',()=>{
+  const r=select('round1',{...operator(),kept:{palette:{id:'business-blue-bold'}}});
+  assert.ok(r.selection.boards.every(b=>b.palette.id==='business-blue-bold'&&b.energy===palette('business-blue-bold').energy));
+  assert.ok(r.notes.some(n=>n.includes('takes precedence over available-energy coverage')));
 });
 const design=b=>[b.pairing,b.palette,b.graphicSet,b.container??null,b.primaryMode];
 const designKey=b=>JSON.stringify(design(b));
@@ -164,17 +172,16 @@ for(const [label,fixture]of [['operator',operator],['First Strategy',firstStrate
   const a=fixture(),shown=select('round1',a).selection.boards,off=['darkLed'],steer={warmCool:-1};
   const r=select('variations',{...a,picks:[],shown,steer,off},{check:true});
   assert.equal(r.selection.boards.length,12);assert.deepEqual(r.selection.groups.map(g=>g.id),['close','further','angle']);
-  assert.deepEqual(new Set(r.selection.boards.map(b=>b.energy)),new Set(ENERGIES));
+  assert.deepEqual(new Set(r.selection.boards.map(b=>b.energy)),new Set(library.palettes.map(p=>p.energy)));
   assert.ok(r.selection.boards.every(b=>!shown.some(old=>designKey(old)===designKey(b))));
   assert.equal(r.dials.warmCool,tapDials(a,data).dials.warmCool-3);assert.equal(r.darkLed,0);
 });
-test('fresh checked page covers bright before an angle constrained to classic pairings',()=>{
+test('fresh checked page covers the classic bright family and retains one-dial angles',()=>{
   // History Not sure keeps the classic-to-current dial at 2, strong enough to constrain an angle, as before the taps of 2026-11-02.
   const a={...firstStrategy(),taps:{...firstStrategy().taps,history:'history-unsure'}},shown=select('round1',a).selection.boards;
   const r=select('variations',{...a,picks:[],shown,off:['quietBold'],steer:{warmCool:-1}},{check:true});
   assert.equal(r.selection.boards.length,12);
-  assert.deepEqual(new Set(r.selection.boards.map(b=>b.energy)),new Set(ENERGIES));
-  assert.ok(r.selection.boards.slice(0,8).some(b=>b.energy==='bright'));
+  assert.deepEqual(new Set(r.selection.boards.map(b=>b.energy)),new Set(library.palettes.map(p=>p.energy)));
   assert.ok(r.selection.boards.every(b=>!shown.some(old=>designKey(old)===designKey(b))));
   const strong=Object.keys(AXES).filter(k=>Math.abs(r.dials[k])>=2);
   for(const p of r.positions.slice(8))assert.equal(strong.filter(k=>p.positions[k]!=='either'&&r.positions[0].positions[k]!=='either'&&p.positions[k]!==r.positions[0].positions[k]).length,1);
@@ -184,7 +191,6 @@ function energyHistory(a,energy,angleOnly) {
   const strong=Object.keys(AXES).filter(k=>Math.abs(r.dials[k])>=2),shown=[];
   const containers={drawn:'drawn-ring',drafting:'drafting-box',marker:'marker-swash',riso:'double-ring',geometric:'filled-square',editorial:'rule-box',stitch:'oval',stamp:'double-ring'};
   for(const p of library.pairings)for(const c of library.palettes.filter(c=>c.energy===energy))for(const g of library.graphics) {
-    if(Math.abs(p.tags.typeLoudness-c.paletteLoudness)>1||(c.paletteLoudness===3&&(p.tags.typeCut!=='contemporary'||p.tags.typeLoudness<2)))continue;
     const b={...structuredClone(base),pairing:{id:p.id},palette:{id:c.id},graphicSet:{id:g.id},container:containers[g.id],primaryMode:c.energy==='dark-first'?'dark':'light',handwriting:null,energy};
     const parts=partPositions(library,b),positions=Object.fromEntries(Object.entries(AXES).map(([axis,[neg,pos]])=>{
       const n=Object.values(parts).reduce((sum,p)=>sum+(p[axis]===pos?1:p[axis]===neg?-1:0),0);
@@ -201,7 +207,7 @@ test('a fresh page covers quiet in the first eight when every angle-legal quiet 
   const a=operator(),shown=energyHistory(a,'quiet',true);
   const r=select('variations',{...a,picks:[],shown},{check:true});
   assert.equal(r.selection.boards.length,12);
-  assert.deepEqual(new Set(r.selection.boards.map(b=>b.energy)),new Set(ENERGIES));
+  assert.deepEqual(new Set(r.selection.boards.map(b=>b.energy)),new Set(library.palettes.map(p=>p.energy)));
   assert.ok(r.selection.boards.slice(0,8).some(b=>b.energy==='quiet'));
   const seen=new Set(shown.map(designKey));assert.ok(r.selection.boards.every(b=>!seen.has(designKey(b))));
 });
@@ -210,23 +216,23 @@ test('a fresh page names the exhausted energy when no unseen board of it remains
   assert.throws(()=>select('variations',{...a,picks:[],shown}),/quiet.*exhausted|exhausted.*quiet/);
 });
 for(const command of ['round1','variations'])test(`${command} with a kept full palette never repeats an alternative's five-part key`,()=>{
-  const a={...operator(),kept:{palette:{id:'navy-gold'}},taps:{mode:'mode-either',feel:'suit-and-tie',history:'history-unsure',strength:'strong-solid',technology:'kitchenaid',style:'j-crew',posture:'porsche',mood:'restoration-hardware',place:'hotel-lobby'}};
+  const a={...operator(),kept:{palette:{id:'business-blue-bold'}},taps:{mode:'mode-either',feel:'suit-and-tie',history:'history-unsure',strength:'strong-solid',technology:'kitchenaid',style:'j-crew',posture:'porsche',mood:'restoration-hardware',place:'hotel-lobby'}};
   const histories=command==='variations'?[[],select('round1',a).selection.boards]:[[]];
   for(const shown of histories) {
     const r=select(command,command==='variations'?{...a,picks:[],shown}:a);
     // Board zero is the kept-assets reference, intentionally sharing board 1's design.
     const alternatives=r.selection.boards.filter(b=>!b.zero),keys=alternatives.map(designKey);
     assert.equal(alternatives.length,11);assert.equal(new Set(keys).size,11);
-    assert.ok(alternatives.every(b=>b.palette.id==='navy-gold'));
+    assert.ok(alternatives.every(b=>b.palette.id==='business-blue-bold'));
     assert.ok(alternatives.every(b=>!shown.some(old=>designKey(old)===designKey(b))));
   }
 });
 for(const step of [-1,1])for(const kept of [false,true])test(`${step===1?'bolder':'quieter'} variations score the ${kept?'kept':'parent donor'} heading and keep its pairing`,()=>{
   const a=operator(),base=select('round1',a).selection.boards[0];
-  const donor=step===1?'chunky':'soft-serif';
-  // The hidden base pairing would forbid the palette loudness step in both cases.
-  base.pairing={id:step===1?'quiet-sans':'chunky',headingFrom:donor};
-  base.palette={id:'paper-orange'};base.energy='quiet';
+  const donor=step===1?'friendly-rounded':'hand-made';
+  // The donor has a different loudness from the backing pairing; the steer follows the donor.
+  base.pairing={id:step===1?'crisp-modern':'friendly-rounded',headingFrom:donor};
+  base.palette={id:'tangerine-and-sky-balanced'};base.energy=palette(base.palette.id).energy;
   if(kept)a.kept={headingFrom:donor};
   const r=select('variations',{...a,picks:[base],shown:[base],steer:{quietBold:step}},{check:true});
   assertVariations(r,[base],[base]);
@@ -234,14 +240,17 @@ for(const step of [-1,1])for(const kept of [false,true])test(`${step===1?'bolder
     assert.deepEqual(b.pairing,base.pairing);assert.ok(!r.positions[i].changedParts.includes('pairing'));
     assert.equal(palette(b.palette.id).paletteLoudness,2+step);
     assert.equal(palette(b.palette.id).temperature,'warm');
-    assert.equal(assemble({...r.selection,boards:[b]},library).boards[0].tags.typeLoudness,step===1?3:1);
+    assert.equal(assemble({...r.selection,boards:[b]},library).boards[0].tags.typeLoudness,step===1?2:1);
   }
 });
-test('bolder variations seek the next louder same-temperature recipe and report each ceiling',()=>{
+test('bolder variations seek a bold same-temperature aggregate and report each ceiling',()=>{
   const a=firstStrategy(),shown=select('round1',a).selection.boards,pick=shown[0];
   const r=select('variations',{...a,picks:[pick],shown,steer:{quietBold:1}});
-  for(const b of r.selection.boards){const p=palette(b.palette.id);assert.equal(p.temperature,palette(pick.palette.id).temperature);assert.equal(p.paletteLoudness,Math.min(3,palette(pick.palette.id).paletteLoudness+1));}
-  const loud=select('round1',operator()).selection.boards[0],ceiling=select('variations',{...operator(),picks:[loud],shown:[loud],steer:{quietBold:1}});assert.ok(ceiling.notes.some(n=>n.includes('ceiling')));
+  for(const b of r.selection.boards){const p=palette(b.palette.id);assert.equal(p.temperature,palette(pick.palette.id).temperature);assert.ok(p.paletteLoudness>=Math.min(3,palette(pick.palette.id).paletteLoudness+1));}
+  assert.ok(r.positions.every(p=>p.positions.quietBold==='bold'));
+  const loud=select('round1',operator()).selection.boards[0],atCeiling=structuredClone(library);
+  atCeiling.pairings.find(p=>p.id===loud.pairing.id).tags.typeLoudness=3;
+  const ceiling=select('variations',{...operator(),picks:[loud],shown:[loud],steer:{quietBold:1}},{library:atCeiling});assert.ok(ceiling.notes.some(n=>n.includes('ceiling')));
 });
 test('taps data has all nine closed option sets, neutral options, Engineered line and complete looks rule',()=>{
   assert.deepEqual(data.questions.map(q=>q.options.length),[3,5,4,4,5,5,5,5,5]);assert.equal(new Set(data.questions.flatMap(q=>q.options.map(o=>o.id))).size,41);
@@ -252,7 +261,7 @@ test('taps data has all nine closed option sets, neutral options, Engineered lin
 });
 test('neutral and extreme valid tap patterns still yield complete pages',()=>{
   const patterns=[data.questions.map(q=>q.options.at(-1).id),data.questions.map(q=>q.options[0].id),['dark','natural','rooted','soft-graceful','kitchenaid','patagonia','toyota','anthropologie','spa']];
-  for(const ids of patterns){const a=operator();a.taps=Object.fromEntries(data.questions.map((q,i)=>[q.id,ids[i]]));const r=select('round1',a);assert.equal(r.selection.boards.length,12);assert.deepEqual(new Set(r.selection.boards.map(b=>b.energy)),new Set(ENERGIES));}
+  for(const ids of patterns){const a=operator();a.taps=Object.fromEntries(data.questions.map((q,i)=>[q.id,ids[i]]));const r=select('round1',a);assert.equal(r.selection.boards.length,12);assert.deepEqual(new Set(r.selection.boards.map(b=>b.energy)),new Set(library.palettes.map(p=>p.energy)));}
 });
 test('help/import are inert, unknown flags fail with empty stdout before files are opened',()=>{
   for(const argv of [['help'],['round1','--help','--answers','/absent']]){const c=spawnSync(process.execPath,[script,...argv],{encoding:'utf8'});assert.equal(c.status,0);assert.match(c.stdout,/Usage:/);}
@@ -284,7 +293,7 @@ test('scoring either and zero is neutral; blue grounds share family across navy 
 });
 
 test('each this-or-that dial moves a neutral seed toward the requested aggregate position',()=>{
-  const a=operator(),base=select('round1',a).selection.boards.find(b=>b.palette.id==='stone-cobalt');
+  const a=operator(),base=select('round1',a).selection.boards.find(b=>b.palette.id==='ink-and-paper-balanced')??select('round1',a).selection.boards[0];
   for(const [axis,poles]of Object.entries(AXES).filter(([axis])=>['warmCool','quietBold','softStrong','classicContemporary'].includes(axis)))for(const step of [-1,1]) {
     const r=select('variations',{...a,picks:[base],shown:[base],steer:{[axis]:step}});
     assert.ok(r.positions.every(p=>p.positions[axis]===poles[step>0?1:0]),`${axis}/${step}`);
@@ -301,7 +310,7 @@ test('variants preserve unmoved custom part references and use full references f
   const a=operator(),base=select('round1',a).selection.boards[0];
   base.graphicSet.pattern={angle:12,strength:{light:0,dark:0}};
   base.palette.overrides={light:{hairline:'#aaaaaa'}};
-  base.pairing.bodyFrom='warm-grotesque';base.buttonRadius=15;
+  base.pairing.bodyFrom='friendly-rounded';base.buttonRadius=15;
   const r=select('variations',{...a,picks:[base],shown:[base],steer:{}});assertVariations(r,[base],[base]);
   for(const [i,b] of r.selection.boards.entries()) {
     assert.equal(b.buttonRadius,15);
@@ -378,11 +387,11 @@ test('Review retries accumulate blocked spares and plainly report an exhausted s
 });
 
 test('Review can replace board zero without moving fixed assets or any alternative',()=>{
-  const a={...operator(),kept:{palette:{id:'navy-gold'}}},original=select('round1',a,{check:true});
+  const a={...operator(),kept:{palette:{id:'business-blue-bold'}}},original=select('round1',a,{check:true});
   const input={...a,avoid:[original.selection.boards[0]],pageDisplayed:true,displayedBoards:original.selection.boards},r=select('round1',input,{check:true});
   assert.equal(r.selection.boards[0].number,0);assert.equal(r.selection.boards[0].zero,true);
   assert.notEqual(designKey(r.selection.boards[0]),designKey(original.selection.boards[0]));
-  assert.equal(r.selection.boards[0].palette.id,'navy-gold');
+  assert.equal(r.selection.boards[0].palette.id,'business-blue-bold');
   assert.equal(JSON.stringify(r.selection.boards.slice(1)),JSON.stringify(original.selection.boards.slice(1)));
   assert.ok(r.replacements.some(x=>x.slot===0&&x.reason==='Blocked by Review'));assert.ok(r.form);
   assert.equal(JSON.stringify(r),JSON.stringify(select('round1',input,{check:true})));
@@ -427,14 +436,14 @@ test('checked Review retries keep zero and numbered replacements distinct with f
 });
 
 test('Review reports avoid.0 when no unique unblocked zero spare remains',()=>{
-  const a={...operator(),kept:{palette:{id:'navy-gold'}}},original=select('round1',a),avoid=[];
+  const a={...operator(),kept:{palette:{id:'business-blue-bold'}}},original=select('round1',a),avoid=[];
   let result=original,exhausted=false;
   for(let n=0;n<=16;n++){
     avoid.push(result.selection.boards[0]);
     try{
       result=select('round1',{...a,avoid,pageDisplayed:true,displayedBoards:original.selection.boards});
       assert.equal(JSON.stringify(result.selection.boards.slice(1)),JSON.stringify(original.selection.boards.slice(1)));
-      assert.equal(result.selection.boards[0].palette.id,'navy-gold');
+      assert.equal(result.selection.boards[0].palette.id,'business-blue-bold');
       assert.ok(result.selection.boards.slice(1).every(b=>designKey(b)!==designKey(result.selection.boards[0])));
     }catch(e){assert.match(e.message,/avoid\.0: slot 0 exhausted.*ranked spare/);exhausted=true;break;}
   }

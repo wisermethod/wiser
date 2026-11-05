@@ -1,6 +1,6 @@
 // Invented specimen content. Every design choice is explicit in the selection.
 export const energies = ['quiet', 'white-and-one', 'bright', 'colour-ground', 'dark-first'];
-export function board(library, { number = 1, palette = 'paper-orange', pairing = 'warm-grotesque', graphic = 'drawn', container = 'drafting-box', mode, handwriting = null } = {}) {
+export function board(library, { number = 1, palette = 'tangerine-and-sky-muted', pairing = 'friendly-rounded', graphic = 'drawn', container = 'drafting-box', mode, handwriting = null } = {}) {
   const p = library.palettes.find((p) => p.id === palette);
   return {
     number, name: p.name, group: p.energy, energy: p.energy.replaceAll('-', ' '), why: p.description,
@@ -19,6 +19,6 @@ export function selection(boards, library) {
   return { person: 'Sample Person', intro: ['A brand board brings colour, type and marks together so you can judge a whole direction.', 'Tell us what to keep or change, for example the colours of one with the type of another.'], groups: energies.filter((energy) => boards.some((b) => b.group === energy)).map((id) => ({id, label:id.replaceAll('-', ' ')})), footnote: 'These monograms are placeholders. A real mark follows the chosen direction.', boards };
 }
 export function matchingPairing(library, palette) {
-  const choices = { 1: 'soft-serif', 2: 'warm-grotesque', 3: 'lively' };
+  const choices = { 1: 'hand-made', 2: 'friendly-rounded', 3: 'playful-display' };
   return choices[palette.paletteLoudness];
 }

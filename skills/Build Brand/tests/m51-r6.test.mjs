@@ -41,80 +41,80 @@ const dana = {
   "photoRules": "When a photograph is used, show real restaurant work in warm natural light, with simple surroundings and no staged poses.",
   "heroPhrase": "books for restaurants",
   "looks": [
-    "look-f9b2fe71682c236f0a35cf2d923bf7b4",
-    "look-cdd001427ccd75e9e9064fe092873fd8"
+    "look-80570fb5d7f54e8f851a2c3d4e9217d3",
+    "look-fca63ffb59c742da9714ad26fc9b29a5"
   ],
   "looksShown": [
     {
-      "value": "look-26aa27ff64d3e414276513eb841156c2",
-      "pairing": "soft-serif",
-      "palette": "paper-orange",
+      "value": "look-00f29b45cfcba77c5cbfe0d2b5d8eef3",
+      "pairing": "hand-made",
+      "palette": "tangerine-and-sky-muted",
       "graphicSet": "drawn"
     },
     {
-      "value": "look-f9b2fe71682c236f0a35cf2d923bf7b4",
-      "pairing": "warm-grotesque",
-      "palette": "draft-paper",
+      "value": "look-80570fb5d7f54e8f851a2c3d4e9217d3",
+      "pairing": "friendly-rounded",
+      "palette": "business-blue-muted",
       "graphicSet": "editorial"
     },
     {
-      "value": "look-cdd001427ccd75e9e9064fe092873fd8",
-      "pairing": "humanist",
-      "palette": "olive-paper",
+      "value": "look-fca63ffb59c742da9714ad26fc9b29a5",
+      "pairing": "old-style",
+      "palette": "sage-mist-and-green-balanced",
       "graphicSet": "stitch"
     },
     {
-      "value": "look-52c06deb3ad6ddc999391f6b1e995b9e",
-      "pairing": "lively",
-      "palette": "plaster-red",
+      "value": "look-fcabee2513cf6c42282c445c4f380be1",
+      "pairing": "playful-display",
+      "palette": "signal-red-muted",
       "graphicSet": "drafting"
     },
     {
-      "value": "look-59a43e35c01e4889a938ddf0b1c73739",
-      "pairing": "friendly-serif",
-      "palette": "plum-peach",
+      "value": "look-ce310bbc151ce20b70a5411c57240567",
+      "pairing": "heritage-slab",
+      "palette": "orchid-and-plum-balanced",
       "graphicSet": "riso"
     },
     {
-      "value": "look-95183e207aa653e18fc0cd39034dfd10",
-      "pairing": "chunky",
-      "palette": "gold-pink",
+      "value": "look-b67248e5afc4c84766c0e788e89fcecf",
+      "pairing": "friendly-rounded",
+      "palette": "pastel-sorbet-balanced",
       "graphicSet": "marker"
     },
     {
-      "value": "look-6d8f4a41b5a7bfc266659dc3a791c97b",
-      "pairing": "soft-serif",
-      "palette": "tan-blue",
+      "value": "look-0c6a9d272aed57753cccb79ccca048b4",
+      "pairing": "hand-made",
+      "palette": "sunflower-and-espresso-muted",
       "graphicSet": "drafting"
     },
     {
-      "value": "look-0cce75bfd9d3a1388cab5a882a02b013",
-      "pairing": "soft-serif",
-      "palette": "stone-cobalt",
+      "value": "look-4e76f94b9b0da3cddd4d34fb0c61d798",
+      "pairing": "hand-made",
+      "palette": "ink-and-paper-muted",
       "graphicSet": "drawn"
     },
     {
-      "value": "look-af801e317f317dacc8c32042d234e19d",
-      "pairing": "soft-serif",
-      "palette": "white-oxblood",
+      "value": "look-9be712a7dc4eb6349f6bcb94fe542b0c",
+      "pairing": "hand-made",
+      "palette": "signal-red-balanced",
       "graphicSet": "marker"
     },
     {
-      "value": "look-33175486f45eaa5c1d9b63f524de4da1",
-      "pairing": "soft-serif",
-      "palette": "white-vermilion",
+      "value": "look-e3f7cf965eb281d4d95846e785657741",
+      "pairing": "hand-made",
+      "palette": "tangerine-and-sky-balanced",
       "graphicSet": "drafting"
     },
     {
-      "value": "look-39bc92079a6b2feab3f96e9c1e59a2fc",
-      "pairing": "soft-serif",
-      "palette": "ink-amber",
+      "value": "look-2aef7357b3ae226e250635753a91ce80",
+      "pairing": "hand-made",
+      "palette": "ink-and-paper-bold",
       "graphicSet": "marker"
     },
     {
-      "value": "look-b8a84012a8f00b9b8c510173cf7d66d9",
-      "pairing": "soft-serif",
-      "palette": "navy-coral",
+      "value": "look-b6a966ad07ea1d1ffb6186fbf6aad659",
+      "pairing": "hand-made",
+      "palette": "business-blue-bold",
       "graphicSet": "drawn"
     }
   ]

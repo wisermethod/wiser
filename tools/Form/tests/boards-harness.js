@@ -7,10 +7,12 @@ import {FONT_HOSTS} from '../scripts/format.js';
 import {PUBLIC_FONT_FILES} from '../engine/boards-lib.js';
 const options={bundle:true,format:'iife',target:'es2022',minify:true,write:false,legalComments:'none'};
 export async function browserKit({nativeScrollbars=false}={}) {
+ const parts=JSON.parse(readFileSync(new URL('../../../skills/Build Brand/parts/parts.json',import.meta.url)));
+ const missing=Object.keys(parts.fonts).filter(family=>!PUBLIC_FONT_FILES[family]);
+ if(missing.length)throw Error('The public font map is missing Build Brand families: '+missing.join(', '));
  const [chat,host]=await Promise.all([build({...options,entryPoints:[fileURLToPath(new URL('../engine/chat.js',import.meta.url))]}),build({...options,entryPoints:[fileURLToPath(new URL('./host-harness.js',import.meta.url))]})]);
  const html=composePage({script:chat.outputFiles[0].text}),browser=await launch({headless:true,timeout:30000,...(nativeScrollbars?{ignoreDefaultArgs:['--hide-scrollbars']}:{})});
- const parts=JSON.parse(readFileSync(new URL('../../../skills/Build Brand/parts/parts.json',import.meta.url)));
- const fonts=new Map();for(const [family,files]of Object.entries(PUBLIC_FONT_FILES))for(const f of files){
+ const fonts=new Map();for(const [family,files]of Object.entries(PUBLIC_FONT_FILES).filter(([family])=>parts.fonts[family]))for(const f of files){
   const weight=Array.isArray(f.weight)?f.weight[0]:f.weight;
   const local=parts.fonts[family].files.find(x=>{const r=Array.isArray(x.weight)?x.weight:[x.weight,x.weight];return r[0]<=weight&&r[1]>=weight;})??parts.fonts[family].files[0];
   fonts.set(f.url,new URL('../../../skills/Build Brand/parts/'+local.path,import.meta.url));

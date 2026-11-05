@@ -63,14 +63,18 @@ test('Model imports and executes in a realm denying every import and all Node gl
 
 test('Every font-pack family and used weight has a public upright WOFF2 reference', () => {
   const library = JSON.parse(readFileSync(new URL('../../../skills/Build Brand/parts/parts.json', import.meta.url)));
-  assert.deepEqual(Object.keys(PUBLIC_FONT_FILES).sort(), Object.keys(library.fonts).sort());
+  assert.equal(Object.keys(library.fonts).length,19);
+  for(const family of Object.keys(library.fonts))assert.ok(PUBLIC_FONT_FILES[family],family);
   for (const [family, meta] of Object.entries(library.fonts)) {
     const files = PUBLIC_FONT_FILES[family];
     assert.ok(files.length, family);
     for (const f of files) {
       assert.match(f.url, /^https:\/\/(fonts\.gstatic\.com|cdn\.jsdelivr\.net)\/\S+\.woff2$/);
       assert.equal(f.style, 'normal');
-      assert.equal(f.verified, '2026-10-29');
+      // Each URL answered HEAD 200, font/woff2, on its verified date; the second
+      // date's entries are the library's own public references for its files.
+      assert.ok(['2026-10-29', '2026-11-05'].includes(f.verified), `${family} ${f.url}`);
+      if (f.verified === '2026-11-05') assert.ok(meta.files.some((file) => file.gstaticUrl === f.url), f.url);
     }
     const used = [...library.pairings.flatMap((p) => [p.type.heading, p.type.body, ...p.handwriting])].filter((v) => v.family === family).flatMap((v) => v.weights);
     for (const weight of used) assert.ok(files.some((f) => Array.isArray(f.weight) ? weight >= f.weight[0] && weight <= f.weight[1] : weight === f.weight), `${family} ${weight}`);

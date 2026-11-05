@@ -155,9 +155,114 @@ export function createBoardModel(spec) {
   return model;
 }
 
-// Latin upright public files. Each URL answered HEAD 200, font/woff2, on
-// 2026-10-29. These references never trigger a fetch from this module.
+// Latin upright public files. Each URL answered HEAD 200, font/woff2, on the
+// date its `verified` field carries. These references never trigger a fetch
+// from this module.
 export const PUBLIC_FONT_FILES = {
+  "Bodoni Moda": [
+    {
+      "url": "https://fonts.gstatic.com/s/bodonimoda/v28/aFTQ7PxzY382XsXX63LUYJSKSKjWXFBP.woff2",
+      "weight": [
+        400,
+        900
+      ],
+      "style": "normal",
+      "verified": "2026-11-05"
+    }
+  ],
+  "Fredoka": [
+    {
+      "url": "https://fonts.gstatic.com/s/fredoka/v17/X7nl4b87HvSqjb_WCCGa4ebjEgg.woff2",
+      "weight": [
+        300,
+        700
+      ],
+      "style": "normal",
+      "verified": "2026-11-05"
+    }
+  ],
+  "Manrope": [
+    {
+      "url": "https://fonts.gstatic.com/s/manrope/v23/xn7gYHE41ni1AdIRggexSvfedN4.woff2",
+      "weight": [
+        200,
+        800
+      ],
+      "style": "normal",
+      "verified": "2026-11-05"
+    }
+  ],
+  "Libre Franklin": [
+    {
+      "url": "https://fonts.gstatic.com/s/librefranklin/v20/jizDREVItHgc8qDIbSTKq4XkRiUf2zcZiVbJ.woff2",
+      "weight": [
+        100,
+        900
+      ],
+      "style": "normal",
+      "verified": "2026-11-05"
+    }
+  ],
+  "Barlow": [
+    {
+      "url": "https://fonts.gstatic.com/s/barlow/v13/7cHpv4kjgoGqM7E_DMs5ynghnQ.woff2",
+      "weight": 400,
+      "style": "normal",
+      "verified": "2026-11-05"
+    },
+    {
+      "url": "https://fonts.gstatic.com/s/barlow/v13/7cHqv4kjgoGqM7E3t-4s51ostz0rdg.woff2",
+      "weight": 700,
+      "style": "normal",
+      "verified": "2026-11-05"
+    }
+  ],
+  "Zilla Slab": [
+    {
+      "url": "https://fonts.gstatic.com/s/zillaslab/v12/dFa6ZfeM_74wlPZtksIFajo6_V6LVlA.woff2",
+      "weight": 400,
+      "style": "normal",
+      "verified": "2026-11-05"
+    },
+    {
+      "url": "https://fonts.gstatic.com/s/zillaslab/v12/dFa5ZfeM_74wlPZtksIFYskZ6HOpW3pwfa0.woff2",
+      "weight": 500,
+      "style": "normal",
+      "verified": "2026-11-05"
+    },
+    {
+      "url": "https://fonts.gstatic.com/s/zillaslab/v12/dFa5ZfeM_74wlPZtksIFYuUe6HOpW3pwfa0.woff2",
+      "weight": 600,
+      "style": "normal",
+      "verified": "2026-11-05"
+    },
+    {
+      "url": "https://fonts.gstatic.com/s/zillaslab/v12/dFa5ZfeM_74wlPZtksIFYoEf6HOpW3pwfa0.woff2",
+      "weight": 700,
+      "style": "normal",
+      "verified": "2026-11-05"
+    }
+  ],
+  "EB Garamond": [
+    {
+      "url": "https://fonts.gstatic.com/s/ebgaramond/v33/SlGUmQSNjdsmc35JDF1K5GR1SDk_YAPI.woff2",
+      "weight": [
+        400,
+        800
+      ],
+      "style": "normal",
+      "verified": "2026-11-05"
+    }
+  ],
+  "Marcellus": [
+    {
+      "url": "https://fonts.gstatic.com/s/marcellus/v14/wEO_EBrOk8hQLDvIAF81VvoK_kgXiQ.woff2",
+      "weight": 400,
+      "style": "normal",
+      "verified": "2026-11-05"
+    }
+  ],
+
   "Fraunces": [
     {
       "url": "https://fonts.gstatic.com/s/fraunces/v38/6NUV8FyLNQOQZAnv9ZwIlOkuy91B.woff2",
