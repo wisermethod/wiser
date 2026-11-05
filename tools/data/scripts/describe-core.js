@@ -96,11 +96,14 @@ function describeColumn(name, rows) {
 }
 
 /**
- * @param {{ content: string, format?: 'csv'|'json'|'tsv', delimiter?: string, columns?: string[] }} input
+ * @param {{ content: string|Uint8Array, format?: 'csv'|'json'|'tsv', delimiter?: string, columns?: string[] }} input
  * @returns {{ columns: Array<Record<string, number|string>>, skippedColumns: Array<{ name: string, reason: string }>, totalRows: number, errors: string[] }}
  */
 export function executeDescribe(input) {
-  const { content, format, delimiter, columns: requestedColumns } = input;
+  const { format, delimiter, columns: requestedColumns } = input;
+  // Both hosts use the same reader and statistics; byte input is UTF-8, as the CLI's readFileSync.
+  const content = input.content instanceof Uint8Array
+    ? new TextDecoder('utf-8', { ignoreBOM: true }).decode(input.content) : input.content;
 
   const table = readTable({ content, format, delimiter });
   if (table.rows.length === 0) {
