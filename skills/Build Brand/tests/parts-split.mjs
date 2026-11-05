@@ -180,6 +180,11 @@ CONTRACT_EDITS["Selection from answers"].push(...[
     "Thus a taste contribution can be removed"
   ]
 ]);
+// 2026-11-04, card matrix M5.1a: optional depth travels on a selection board.
+CONTRACT_EDITS['Assembly'].push([
+  '`primaryMode`, and `buttonRadius`.',
+  '`primaryMode`, and `buttonRadius`; optional `depth` follows the depth table under the look view in `tools/Form/TOOL.md`.'
+]);
 function edited(text, heading) {
   for (const [from, to] of CONTRACT_EDITS[heading] ?? []) { assert.equal(text.split(from).length, 2, `contract edit not found once in the archive: ${heading}`); text = text.replace(from, to); }
   return text;

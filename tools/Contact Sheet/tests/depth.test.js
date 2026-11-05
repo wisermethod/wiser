@@ -6,6 +6,7 @@ import vm from 'node:vm';
 import {fileURLToPath} from 'node:url';
 import {validateBrandBoards} from '../scripts/brand-boards.js';
 import {createBoardModel} from '../scripts/board-model.js';
+import {depthOptions,depthSchema} from '../scripts/board-depth.js';
 import {acceptedDepths,rejectedDepths,gradientCases,styleDepths,nullDepths,hueTieStops,exactHueTieSource} from './depth-cases.js';
 const fixtures=fileURLToPath(new URL('fixtures/',import.meta.url));
 const fixture=()=>JSON.parse(readFileSync(resolve(fixtures,'brand-boards.json')));
@@ -13,6 +14,15 @@ function validate(spec) {
  return validateBrandBoards(spec,{add(path){const full=resolve(fixtures,path);return {extension:extname(full),uri:'data:font/ttf;base64,'+readFileSync(full).toString('base64')};}},()=>{});
 }
 function withDepth(depth) {const spec=fixture();spec.boards=spec.boards.slice(0,1);spec.groups=spec.groups.filter(g=>g.id===spec.boards[0].group);spec.boards[0].depth=structuredClone(depth);return spec;}
+test('depth publishes one deeply frozen schema',()=>{
+ function frozen(value) {
+  assert.equal(Object.isFrozen(value),true);
+  for(const child of Object.values(value))if(child&&typeof child==='object')frozen(child);
+ }
+ frozen(depthSchema);
+ assert.throws(()=>depthSchema.properties.band.enum.push('other'),TypeError);
+ assert.throws(()=>{depthSchema.properties.block.properties.corner.enum[0]=9;},TypeError);
+});
 test('depth closed schema accepts every choice and rejects every unsupported key, value and effect',()=>{
  for(const depth of acceptedDepths)assert.deepEqual(validate(withDepth(depth)).boards[0].depth,depth);
  for(const [depth,error] of rejectedDepths)assert.throws(()=>validate(withDepth(depth)),error,JSON.stringify(depth));

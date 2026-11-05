@@ -1,4 +1,27 @@
 // Closed depth schema and colour rules for board validation and look drawing.
+function freezeDepthSchema(value) {
+  for(const child of Object.values(value))if(child&&typeof child==='object')freezeDepthSchema(child);
+  return Object.freeze(value);
+}
+export const depthSchema=freezeDepthSchema({type:'object',additionalProperties:false,required:[],properties:{
+  background:{enum:['plain','gradient','texture']},
+  groundTo:{type:'string',description:'An opaque hex colour or a palette role on this board.'},
+  groundThird:{type:'string',description:'An opaque hex colour or a palette role on this board.'},
+  gradient:{enum:['linear','radial']},
+  angle:{type:'number',description:'Finite degrees.'},
+  texture:{enum:['pattern','grain']},
+  block:{type:'object',additionalProperties:false,required:[],properties:{
+    corner:{enum:[0,12,24,'pill']},gradient:{type:'boolean'},inset:{enum:[false,true,'lighter','darker']}
+  }},
+  popTo:{type:'string',description:'An opaque hex colour or a palette role on this board.'},
+  card:{type:'object',additionalProperties:false,required:[],properties:{corner:{enum:[0,16,28]}}},
+  band:{enum:['three','none','strip','six']},
+  allowHueShift:{type:'boolean'},
+  mark:{enum:['badge','initials','seal','letter','stack']},
+  seal:{type:'object',additionalProperties:false,required:[],properties:{on:{enum:['ground','block']}}},
+  stack:{type:'object',additionalProperties:false,required:[],properties:{on:{enum:['block','ground']}}},
+  ink:{enum:['pop','mark','deep','text','headline']}
+}});
 const depthFail=message=>{throw Error(`${message}. Correct depth in TOOL.md.`);};
 function depthObject(value,keys,at) {
   if(!value||typeof value!=='object'||Array.isArray(value))depthFail(`${at} must be an object`);
@@ -55,30 +78,31 @@ export function depthInset(pop,direction) {
 }
 export function depthOptions(b) {
   const d=b.depth,c=b.palette[b.primaryMode],orDefault=(value,fallback)=>value===undefined?fallback:value;
-  depthObject(d,['background','groundTo','groundThird','gradient','angle','texture','block','popTo','card','band','allowHueShift','mark','seal','stack','ink'],'depth');
-  const ink=depthChoice(orDefault(d.ink,'pop'),['pop','mark','deep','text','headline'],'depth.ink');
+  const fields=depthSchema.properties;
+  depthObject(d,Object.keys(fields),'depth');
+  const ink=depthChoice(orDefault(d.ink,'pop'),fields.ink.enum,'depth.ink');
   depthColour(ink,c,'depth.ink');
-  const mark=depthChoice(orDefault(d.mark,'badge'),['badge','initials','seal','letter','stack'],'depth.mark');
+  const mark=depthChoice(orDefault(d.mark,'badge'),fields.mark.enum,'depth.mark');
   const seal=orDefault(d.seal,{}),stack=orDefault(d.stack,{});
-  depthObject(seal,['on'],'depth.seal');depthObject(stack,['on'],'depth.stack');
-  const sealOn=depthChoice(orDefault(seal.on,'ground'),['ground','block'],'depth.seal.on'),stackOn=depthChoice(orDefault(stack.on,'block'),['block','ground'],'depth.stack.on');
-  const background=depthChoice(orDefault(d.background,'plain'),['plain','gradient','texture'],'depth.background');
-  const kind=depthChoice(orDefault(d.gradient,'linear'),['linear','radial'],'depth.gradient');
+  depthObject(seal,Object.keys(fields.seal.properties),'depth.seal');depthObject(stack,Object.keys(fields.stack.properties),'depth.stack');
+  const sealOn=depthChoice(orDefault(seal.on,'ground'),fields.seal.properties.on.enum,'depth.seal.on'),stackOn=depthChoice(orDefault(stack.on,'block'),fields.stack.properties.on.enum,'depth.stack.on');
+  const background=depthChoice(orDefault(d.background,'plain'),fields.background.enum,'depth.background');
+  const kind=depthChoice(orDefault(d.gradient,'linear'),fields.gradient.enum,'depth.gradient');
   if(d.angle!==undefined&&(typeof d.angle!=='number'||!Number.isFinite(d.angle)))depthFail('depth.angle must be finite degrees');
   if(d.allowHueShift!==undefined&&typeof d.allowHueShift!=='boolean')depthFail('depth.allowHueShift must be boolean');
-  const texture=depthChoice(orDefault(d.texture,'pattern'),['pattern','grain'],'depth.texture');
+  const texture=depthChoice(orDefault(d.texture,'pattern'),fields.texture.enum,'depth.texture');
   const block=orDefault(d.block,{}),card=orDefault(d.card,{});
-  depthObject(block,['corner','gradient','inset'],'depth.block');depthObject(card,['corner'],'depth.card');
-  const corner=depthChoice(orDefault(block.corner,0),[0,12,24,'pill'],'depth.block.corner'),cardCorner=depthChoice(orDefault(card.corner,0),[0,16,28],'depth.card.corner');
+  depthObject(block,Object.keys(fields.block.properties),'depth.block');depthObject(card,Object.keys(fields.card.properties),'depth.card');
+  const corner=depthChoice(orDefault(block.corner,0),fields.block.properties.corner.enum,'depth.block.corner'),cardCorner=depthChoice(orDefault(card.corner,0),fields.card.properties.corner.enum,'depth.card.corner');
   if(block.gradient!==undefined&&typeof block.gradient!=='boolean')depthFail('depth.block.gradient must be boolean');
-  const inset=depthChoice(orDefault(block.inset,false),[false,true,'lighter','darker'],'depth.block.inset');
-  const band=depthChoice(orDefault(d.band,'three'),['three','none','strip','six'],'depth.band');
+  const inset=depthChoice(orDefault(block.inset,false),fields.block.properties.inset.enum,'depth.block.inset');
+  const band=depthChoice(orDefault(d.band,'three'),fields.band.enum,'depth.band');
   // No inferred endpoint: each gradient stop is literally listed in depth or
   // resolves to a role in this board. The exception never invents a colour.
   const ground=depthColour('ground',c,'ground'),pop=depthColour('pop',c,'pop');
   for(const role of ['headline','onPop'])depthColour(role,c,`solid text ${role} (gradient text is forbidden)`);
   const groundStops=[ground],popStops=[pop];
-  for(const key of ['groundTo','groundThird','popTo'])if(d[key]!==undefined)depthColour(d[key],c,`depth.${key}`);
+  for(const [key,field] of Object.entries(fields))if(field.type==='string'&&d[key]!==undefined)depthColour(d[key],c,`depth.${key}`);
   if(background==='gradient') {
     groundStops.push(depthColour(d.groundTo,c,'depth.groundTo'));
     if(d.groundThird!==undefined)groundStops.push(depthColour(d.groundThird,c,'depth.groundThird'));

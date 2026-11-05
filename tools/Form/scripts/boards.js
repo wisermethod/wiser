@@ -10,8 +10,8 @@ export function checkLogo(logo) {
   if(typeof logo !== 'string' || new TextEncoder().encode(logo).length > BOARD_LIMITS.logoBytes) throw Error('Logo must be SVG text, at most 8192 UTF-8 bytes.');
   checkSvg(new TextEncoder().encode(logo));
 }
-export const BOARD_KEYS = ['pairing','palette','graphicSet','container','primaryMode','handwriting','buttonRadius','heroPhrase','content','note','sample','items','closingExamples'];
-export const BOARD_DEFAULT_KEYS = BOARD_KEYS.filter(k=>!['pairing','palette','graphicSet','container','primaryMode'].includes(k));
+export const BOARD_KEYS = ['pairing','palette','graphicSet','container','primaryMode','depth','handwriting','buttonRadius','heroPhrase','content','note','sample','items','closingExamples'];
+export const BOARD_DEFAULT_KEYS = BOARD_KEYS.filter(k=>!['pairing','palette','graphicSet','container','primaryMode','depth'].includes(k));
 export function resolveBoards(brand,options,boardDefaults={}) {
   if(!boardDefaults || typeof boardDefaults !== 'object' || Array.isArray(boardDefaults)) throw Error('boardDefaults must be an object.');
   for(const k of Object.keys(boardDefaults)) if(!BOARD_DEFAULT_KEYS.includes(k)) throw Error(`Unknown boardDefaults field ${k}.`);
