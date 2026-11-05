@@ -7,10 +7,18 @@ import {build} from 'esbuild';
 import {composePage} from '../scripts/page.js';
 import {launch} from '../../lib/browser-runtime/browser-runtime.js';
 import {validateBrandBoards,createBoardModel} from '../engine/boards-lib.js';
-import {acceptedDepths,rejectedDepths,gradientCases,styleDepths} from '../../Contact Sheet/tests/depth-cases.js';
+import {acceptedDepths,rejectedDepths,gradientCases,styleDepths,nullDepths,hueTieStops,exactHueTieSource} from '../../Contact Sheet/tests/depth-cases.js';
 const spec=JSON.parse(readFileSync(new URL('../../Contact Sheet/tests/fixtures/brand-boards.json',import.meta.url)));
 spec.boards=spec.boards.slice(0,1);spec.groups=spec.groups.filter(g=>g.id===spec.boards[0].group);
 const valid=validateBrandBoards(spec,{add(path){return {path};}},()=>{}),model=createBoardModel(valid);
+const parts=JSON.parse(readFileSync(new URL('../../../skills/Build Brand/parts/parts.json',import.meta.url)));
+const headings=['Instrument Serif','Bricolage Grotesque'].map(family=>parts.pairings.find(p=>p.type.heading.family===family).type.heading);
+// Match boards-harness: select a pack file that covers the approved style weight.
+const packFonts=headings.map(heading=>{
+ const weight=heading.sizes.display.weight;
+ const local=parts.fonts[heading.family].files.find(f=>{const r=Array.isArray(f.weight)?f.weight:[f.weight,f.weight];return r[0]<=weight&&r[1]>=weight;});
+ return {family:heading.family,weight:local.weight,style:local.style,data:readFileSync(new URL('../../../skills/Build Brand/parts/'+local.path,import.meta.url)).toString('base64')};
+});
 let browser,page;const requests=[];
 before(async()=>{
  const bundled=await build({entryPoints:[fileURLToPath(new URL('../engine/boards-lib.js',import.meta.url))],bundle:true,format:'iife',globalName:'WiserBoards',write:false});
@@ -18,12 +26,12 @@ before(async()=>{
  await page.route('**/*',route=>{requests.push(route.request().url());return route.abort();});
  await page.setContent('<!doctype html><style>body{margin:0}.look-art{display:block;width:600px;height:360px;overflow:visible}</style><div id="stage"></div>');
  await page.addScriptTag({content:bundled.outputFiles[0].text});await page.addScriptTag({content:readFileSync(new URL('../engine/boards.js',import.meta.url),'utf8')});
- const font=readFileSync(new URL('../../Contact Sheet/tests/fixtures/fixture.ttf',import.meta.url)).toString('base64');
- await page.evaluate(async({model,font})=>{
+
+ await page.evaluate(async({model,packFonts})=>{
   globalThis.depthModel=model;
-  const face=new FontFace('Contact Sheet Fixture',`url(data:font/ttf;base64,${font})`);document.fonts.add(face);await face.load();await document.fonts.ready;
+  for(const f of packFonts){const face=new FontFace(f.family,`url(data:font/woff2;base64,${f.data})`,{weight:Array.isArray(f.weight)?f.weight.join(' '):String(f.weight),style:f.style});document.fonts.add(face);await face.load();}await document.fonts.ready;
   globalThis.drawDepth=(depth,edit={})=>{const b=structuredClone(depthModel.boards[0]);b.depth=depth;Object.assign(b,edit);return WiserBoardView.look(depthModel,b);};
- },{model,font});
+ },{model,packFonts});
 });
 after(async()=>{await browser?.close();assert.deepEqual(requests,[]);});
 test('direct look shares the complete closed depth schema with validation',async()=>{
@@ -80,16 +88,21 @@ test('depth geometry retains two-unit badge overlap, unique ids, clipping, textu
 });
 test('whole RF and HBL ink fits the loaded face on every band and card corner without scaling or clipping',async()=>{
  const rows=[];
- for(const initials of ['RF','HBL'])for(const band of ['six','three','strip','none'])for(const corner of [0,16,28]) {
-  const row=await page.evaluate(({initials,band,corner})=>{
+ for(const heading of headings)for(const initials of ['RF','HBL'])for(const band of ['six','three','strip','none'])for(const corner of [0,16,28]) {
+  const row=await page.evaluate(({heading,initials,band,corner})=>{
    const b=structuredClone(depthModel.boards[0]);b.monogram.initials=initials;b.depth={mark:'initials',band,card:{corner}};
+   const style=heading.sizes.display;b.textStyles.headline={...b.textStyles.headline,family:heading.family,weight:style.weight,variations:style.variations};
    const svg=WiserBoardView.look(depthModel,b);document.getElementById('stage').replaceChildren(svg);WiserBoardView.fitLooks();
    const glyph=svg.querySelector('.look-large-initials');if(!glyph)return {initials,band,corner,missing:true};
    // Rasterize the live SVG with its loaded document font; SVG images have an isolated font set.
    svg.style.background='#000';for(const n of svg.querySelector('.look-surface').querySelectorAll('*'))n.style.visibility='hidden';
    glyph.style.visibility='visible';glyph.setAttribute('fill','#fff');
-   return {initials,band,corner,bottom:band==='six'||band==='three'?302:band==='strip'?352:332,text:glyph.textContent,textLength:glyph.getAttribute('textLength'),lengthAdjust:glyph.getAttribute('lengthAdjust'),transform:glyph.getAttribute('transform')};
-  },{initials,band,corner});
+   const face=getComputedStyle(glyph),canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
+   ctx.font=`${face.fontStyle} ${face.fontWeight} 100px ${face.fontFamily}`;
+   const ink=letter=>{const m=ctx.measureText(letter);return [m.width,m.actualBoundingBoxLeft,m.actualBoundingBoxRight,m.actualBoundingBoxAscent,m.actualBoundingBoxDescent];};
+   const missingInk=ink('\u0378'),letters=Object.fromEntries([...new Set('RFHBL')].map(letter=>[letter,ink(letter)]));
+   return {family:heading.family,loaded:document.fonts.check(`${face.fontWeight} 100px ${JSON.stringify(heading.family)}`),letters,missingInk,initials,band,corner,bottom:band==='six'||band==='three'?302:band==='strip'?352:332,text:glyph.textContent,textLength:glyph.getAttribute('textLength'),lengthAdjust:glyph.getAttribute('lengthAdjust'),transform:glyph.getAttribute('transform')};
+  },{heading,initials,band,corner});
   if(!row.missing){
    const png=(await page.locator('#stage > svg').screenshot()).toString('base64');
    Object.assign(row,await page.evaluate(async({png,bottom})=>{
@@ -102,8 +115,8 @@ test('whole RF and HBL ink fits the loaded face on every band and card corner wi
   }
   rows.push(row);
  }
- assert.equal(rows.length,24);
- for(const r of rows){assert.equal(r.missing,undefined,JSON.stringify(r));assert.equal(r.text,r.initials);assert.ok(r.count>0,JSON.stringify(r));assert.equal(r.outside,0,JSON.stringify(r));assert.ok(Math.abs(r.maxY+1-r.bottom)<=1,JSON.stringify(r));assert.equal(r.textLength,null);assert.equal(r.lengthAdjust,null);assert.equal(r.transform,null);}
+ assert.equal(rows.length,48);
+ for(const r of rows){assert.equal(r.missing,undefined,JSON.stringify(r));assert.equal(r.loaded,true);for(const [letter,ink] of Object.entries(r.letters))assert.notDeepEqual(ink,r.missingInk,`${r.family} ${letter} is the missing-glyph box`);assert.equal(r.text,r.initials);assert.ok(r.count>0,JSON.stringify(r));assert.equal(r.outside,0,JSON.stringify(r));assert.ok(Math.abs(r.maxY+1-r.bottom)<=1,JSON.stringify(r));assert.equal(r.textLength,null);assert.equal(r.lengthAdjust,null);assert.equal(r.transform,null);}
 });
 test('ten approved depth recipes validate, survive modelling and draw without post-model overlays',async()=>{
  const results=await page.evaluate(({spec,recipes})=>recipes.map(depth=>{
@@ -123,4 +136,51 @@ test('the composed Form page exposes the shared depth rules to its actual look r
   },model);
   assert.deepEqual(result,{mark:'stack',bands:6});
  }finally{await actual.close();}
+});
+
+test('direct look refuses null in every depth field with the validator message',async()=>{
+ const results=await page.evaluate(cases=>cases.map(([depth,error])=>{
+  let message='';try{drawDepth(depth);}catch(e){message=e.message;}
+  return {depth,error,message,ok:new RegExp(error).test(message)};
+ }),nullDepths.map(([depth,error])=>[depth,error.source]));
+ assert.deepEqual(results.filter(r=>!r.ok),[]);
+});
+test('undefined depth is absent to both validation and direct look',async()=>{
+ const result=await page.evaluate(spec=>{
+  const input=structuredClone(spec);input.boards[0].depth=undefined;
+  const checked=WiserBoards.validateBrandBoards(input,{add(path){return {path};}},()=>{}),m=WiserBoards.createBoardModel(checked);
+  const b=m.boards[0],modelHasDepth=Object.hasOwn(b,'depth'),absent=WiserBoardView.look(m,b);b.depth=undefined;const present=WiserBoardView.look(m,b);
+  const summary=n=>({depth:n.hasAttribute('data-depth'),mark:n.hasAttribute('data-mark'),initials:n.querySelector('.look-initials')?.textContent,patterns:n.querySelectorAll('.look-pattern').length});
+  return {modelHasDepth,absent:summary(absent),present:summary(present)};
+ },spec);
+ // The model omitted depth before the direct-call fixture deliberately supplied undefined.
+ assert.equal(result.modelHasDepth,false);assert.deepEqual(result.absent,result.present);assert.equal(result.present.depth,false);assert.equal(result.present.mark,false);
+});
+test('badge ground plate fills onPop and its whole initials use pop',async()=>{
+ const container=parts.containers.find(c=>c.id==='filled-square');
+ const result=await page.evaluate(({container,spec})=>{
+  const input=structuredClone(spec),b=input.boards[0];b.depth={mark:'badge'};
+  b.monogram.container=container.svg;b.monogram.surfaces={ground:{background:'ground',ink:'headline',frame:'headline',radius:container.plate.radius}};
+  const checked=WiserBoards.validateBrandBoards(input,{add(path){return {path};}},()=>{}),m=WiserBoards.createBoardModel(checked),board=m.boards[0],c=board.palette[board.primaryMode],svg=WiserBoardView.look(m,board);
+  return {plate:svg.querySelector('.look-plate')?.getAttribute('fill'),ink:svg.querySelector('.look-initials')?.getAttribute('fill'),initials:svg.querySelector('.look-initials')?.textContent,expected:{onPop:c.onPop,pop:c.pop,initials:board.monogram.initials}};
+ },{container,spec});
+ assert.equal(result.plate,result.expected.onPop);assert.equal(result.ink,result.expected.pop);assert.equal(result.initials,result.expected.initials);assert.notEqual(result.plate,result.ink);
+});
+test('exact 180-degree hue tie checks both arcs in direct ground and block drawing',async()=>{
+ const boundary=await browser.newPage();try{
+  const source=exactHueTieSource(readFileSync(new URL('../engine/boards-lib.js',import.meta.url),'utf8'));
+  await boundary.addScriptTag({content:source.replace(/\bexport /g,'')+';globalThis.WiserBoards={depthLch};'});
+  await boundary.addScriptTag({content:readFileSync(new URL('../engine/boards.js',import.meta.url),'utf8')});
+  const result=await boundary.evaluate(({model,stops})=>{
+   const measured=stops.map(WiserBoards.depthLch),results=[];
+   for(const surface of ['ground','block'])for(const pair of [stops,[...stops].reverse()]){
+    const b=structuredClone(model.boards[0]);b.palette[b.primaryMode][surface==='ground'?'ground':'pop']=pair[0];
+    b.depth=surface==='ground'?{background:'gradient',groundTo:pair[1],allowHueShift:true}:{block:{gradient:true},popTo:pair[1],allowHueShift:true};
+    let message='';try{WiserBoardView.look(model,b);}catch(e){message=e.message;}results.push({surface,pair,message});
+   }
+   return {measured,results};
+  },{model,stops:hueTieStops});
+  assert.deepEqual(result.measured.map(c=>c.H),[70,250]);assert.equal(result.measured[1].H-result.measured[0].H,180);assert.ok(result.measured.every(c=>c.C>=.025));
+  for(const r of result.results)assert.match(r.message,/purple-to-blue.*60.0 degrees/,JSON.stringify(r));
+ }finally{await boundary.close();}
 });

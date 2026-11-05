@@ -34,9 +34,11 @@ function depthStops(stops,allowHueShift,at) {
     const a=hues[i],b=hues[j],distance=Math.min(Math.abs(a.H-b.H),360-Math.abs(a.H-b.H));
     // Purple to blue: the shorter hue arc between the stops covers 15 degrees or more of
     // OKLCH 260 to 320, including gradients with a stop outside that window.
-    // A single blue hue stays tonal. Both hue rules require visible chroma.
-    const lo=Math.min(a.H,b.H),hi=Math.max(a.H,b.H),arcs=hi-lo<=180?[[lo,hi]]:[[hi,360],[0,lo]];
-    const purpleArc=arcs.reduce((sum,[x,y])=>sum+Math.max(0,Math.min(y,320)-Math.max(x,260)),0);
+    // A single blue hue stays tonal. Both hue rules apply only to visible chroma.
+    const lo=Math.min(a.H,b.H),hi=Math.max(a.H,b.H),direct=[[lo,hi]],wrapped=[[hi,360],[0,lo]];
+    // At 180 degrees both arcs are shortest, so either can trigger the refusal.
+    const arcs=hi-lo<180?[direct]:hi-lo>180?[wrapped]:[direct,wrapped];
+    const purpleArc=Math.max(...arcs.map(arc=>arc.reduce((sum,[x,y])=>sum+Math.max(0,Math.min(y,320)-Math.max(x,260)),0)));
     if(a.C>=.025&&b.C>=.025&&purpleArc>=15)depthFail(`${at}: purple-to-blue gradient stops (the hue arc covers ${purpleArc.toFixed(1)} degrees of OKLCH 260 to 320) are forbidden, even with allowHueShift`);
     if(a.C>=.025&&b.C>=.025&&distance>40&&!allowHueShift)depthFail(`${at}: gradient must be tonal (OKLCH hue distance ${distance.toFixed(1)} > 40 degrees); allowHueShift requires explicit board stops`);
   }
@@ -54,25 +56,25 @@ function depthInset(pop,direction) {
   depthFail('could not form an in-gamut tonal inset');
 }
 function depthOptions(b) {
-  const d=b.depth,c=b.palette[b.primaryMode];
+  const d=b.depth,c=b.palette[b.primaryMode],orDefault=(value,fallback)=>value===undefined?fallback:value;
   depthObject(d,['background','groundTo','groundThird','gradient','angle','texture','block','popTo','card','band','allowHueShift','mark','seal','stack','ink'],'depth');
-  const ink=depthChoice(d.ink??'pop',['pop','mark','deep','text','headline'],'depth.ink');
+  const ink=depthChoice(orDefault(d.ink,'pop'),['pop','mark','deep','text','headline'],'depth.ink');
   depthColour(ink,c,'depth.ink');
-  const mark=depthChoice(d.mark??'badge',['badge','initials','seal','letter','stack'],'depth.mark');
-  const seal=d.seal??{},stack=d.stack??{};
+  const mark=depthChoice(orDefault(d.mark,'badge'),['badge','initials','seal','letter','stack'],'depth.mark');
+  const seal=orDefault(d.seal,{}),stack=orDefault(d.stack,{});
   depthObject(seal,['on'],'depth.seal');depthObject(stack,['on'],'depth.stack');
-  const sealOn=depthChoice(seal.on??'ground',['ground','block'],'depth.seal.on'),stackOn=depthChoice(stack.on??'block',['block','ground'],'depth.stack.on');
-  const background=depthChoice(d.background??'plain',['plain','gradient','texture'],'depth.background');
-  const kind=depthChoice(d.gradient??'linear',['linear','radial'],'depth.gradient');
+  const sealOn=depthChoice(orDefault(seal.on,'ground'),['ground','block'],'depth.seal.on'),stackOn=depthChoice(orDefault(stack.on,'block'),['block','ground'],'depth.stack.on');
+  const background=depthChoice(orDefault(d.background,'plain'),['plain','gradient','texture'],'depth.background');
+  const kind=depthChoice(orDefault(d.gradient,'linear'),['linear','radial'],'depth.gradient');
   if(d.angle!==undefined&&(typeof d.angle!=='number'||!Number.isFinite(d.angle)))depthFail('depth.angle must be finite degrees');
   if(d.allowHueShift!==undefined&&typeof d.allowHueShift!=='boolean')depthFail('depth.allowHueShift must be boolean');
-  const texture=depthChoice(d.texture??'pattern',['pattern','grain'],'depth.texture');
-  const block=d.block??{},card=d.card??{};
+  const texture=depthChoice(orDefault(d.texture,'pattern'),['pattern','grain'],'depth.texture');
+  const block=orDefault(d.block,{}),card=orDefault(d.card,{});
   depthObject(block,['corner','gradient','inset'],'depth.block');depthObject(card,['corner'],'depth.card');
-  const corner=depthChoice(block.corner??0,[0,12,24,'pill'],'depth.block.corner'),cardCorner=depthChoice(card.corner??0,[0,16,28],'depth.card.corner');
+  const corner=depthChoice(orDefault(block.corner,0),[0,12,24,'pill'],'depth.block.corner'),cardCorner=depthChoice(orDefault(card.corner,0),[0,16,28],'depth.card.corner');
   if(block.gradient!==undefined&&typeof block.gradient!=='boolean')depthFail('depth.block.gradient must be boolean');
-  const inset=depthChoice(block.inset??false,[false,true,'lighter','darker'],'depth.block.inset');
-  const band=depthChoice(d.band??'three',['three','none','strip','six'],'depth.band');
+  const inset=depthChoice(orDefault(block.inset,false),[false,true,'lighter','darker'],'depth.block.inset');
+  const band=depthChoice(orDefault(d.band,'three'),['three','none','strip','six'],'depth.band');
   // No inferred endpoint: each gradient stop is literally listed in depth or
   // resolves to a role in this board. The exception never invents a colour.
   const ground=depthColour('ground',c,'ground'),pop=depthColour('pop',c,'pop');
@@ -85,7 +87,7 @@ function depthOptions(b) {
     depthStops(groundStops,d.allowHueShift,'ground');
   }
   if(block.gradient){popStops.push(depthColour(d.popTo,c,'depth.popTo'));depthStops(popStops,d.allowHueShift,'block');}
-  return {ink,mark,sealOn,stackOn,background,kind,angle:d.angle??135,texture,corner,cardCorner,inset,band,groundStops,popStops};
+  return {ink,mark,sealOn,stackOn,background,kind,angle:orDefault(d.angle,135),texture,corner,cardCorner,inset,band,groundStops,popStops};
 }
 
 return {depthOptions,depthColour,depthLch,depthInset};
@@ -1103,7 +1105,7 @@ function validateBrandBoards(spec, assets, readAsset) {
     });
     result.palette = b.palette ? { ...b.palette } : {};
     if (validPalette) for (const m of MODES) result.palette[m] = { sub: b.palette[m].text, note: b.palette[m].smallPrint, panelSmallPrint: b.palette[m].smallPrint, hairline: b.palette[m].panel, ...b.palette[m] };
-    if (own(b, 'depth') && validPalette && MODES.includes(b.primaryMode)) attempt(() => depthOptions(result));
+    if (b.depth !== undefined && validPalette && MODES.includes(b.primaryMode)) attempt(() => depthOptions(result));
     attempt(() => {
       swatchList(b.palette?.swatches, 'palette.swatches');
       if (own(b.palette, 'chips')) {

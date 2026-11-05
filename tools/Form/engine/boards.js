@@ -179,7 +179,7 @@ function fitLooks() {
   }
 }
 // Depth cards use a closed set of drawing effects.
-// A closed schema prevents arbitrary CSS/SVG effects from bypassing the taxonomy.
+// The closed schema keeps depth from adding effects the taxonomy refuses.
 const {depthOptions,depthColour,depthInset}=globalThis.WiserBoardDepth;
 function depthGradient(defs,stops,kind,angle,box) {
   const id=`depth-gradient-${++drawingId}`;

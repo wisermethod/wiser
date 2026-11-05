@@ -13,10 +13,16 @@ export const acceptedDepths = [
   ...['pop','mark','deep','text','headline'].map(ink=>({ink})),
   {groundTo:'#abc',groundThird:'text',popTo:'pop',allowHueShift:false},
   {background:'gradient',groundTo:'#f00',allowHueShift:true},
-  // Nullish optional choices retain the renderer's established defaults.
-  {background:null,gradient:null,texture:null,block:null,card:null,band:null,mark:null,seal:null,stack:null,ink:null}
+  Object.fromEntries(['background','groundTo','groundThird','gradient','angle','texture','block','popTo','card','band','allowHueShift','mark','seal','stack','ink'].map(key=>[key,undefined])),
+  {block:{corner:undefined,gradient:undefined,inset:undefined},card:{corner:undefined},seal:{on:undefined},stack:{on:undefined}}
 ];
+// Null is a supplied wrong value, for every scalar and object field.
+export const nullDepths = [
+ ...['background','groundTo','groundThird','gradient','angle','texture','block','popTo','card','band','allowHueShift','mark','seal','stack','ink'].map(key=>[key,{[key]:null}]),
+ ...[['block','corner'],['block','gradient'],['block','inset'],['card','corner'],['seal','on'],['stack','on']].map(([parent,key])=>[`${parent}.${key}`,{[parent]:{[key]:null}}])
+].map(([path,depth])=>[depth,new RegExp('depth\\.'+path.replaceAll('.','\\.')+' must ')]);
 export const rejectedDepths = [
+  ...nullDepths,
   [null,/depth must be an object/], [[],/depth must be an object/], ['plain',/depth must be an object/],
   ...['blur','glass','glow','shadow','drop-shadow'].map(key=>[{[key]:true},/blur, glass, glow and all shadows are forbidden/]),
   [{textGradient:true},/gradient text is forbidden/], [{headlineGradient:true},/gradient text is forbidden/],
@@ -55,3 +61,13 @@ export const styleDepths = [
   {mark:'initials',background:'gradient',gradient:'radial',groundTo:'panel',card:{corner:28},band:'six'},
   {mark:'stack',stack:{on:'ground'},background:'plain',card:{corner:16},band:'six'}
 ];
+
+export const hueTieStops = ['#A67537','#4F84BA'];
+// Eight-bit hex rounds the desired 70/250 hues slightly. Quantize only the
+// measured hue in this exact-boundary fixture; keep real measured chroma and
+// the production arc selection, depth options and validation/drawing intact.
+export function exactHueTieSource(source) {
+ const measurement='H:(Math.atan2(B,A)*180/Math.PI+360)%360';
+ if(!source.includes(measurement))throw Error('Inspect the OKLCH measurement seam for the exact hue-tie fixture.');
+ return source.replace(measurement,'H:Math.round((Math.atan2(B,A)*180/Math.PI+360)%360)');
+}

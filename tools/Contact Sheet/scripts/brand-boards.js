@@ -278,7 +278,7 @@ export function validateBrandBoards(spec, assets, readAsset) {
     });
     result.palette = b.palette ? { ...b.palette } : {};
     if (validPalette) for (const m of MODES) result.palette[m] = { sub: b.palette[m].text, note: b.palette[m].smallPrint, panelSmallPrint: b.palette[m].smallPrint, hairline: b.palette[m].panel, ...b.palette[m] };
-    if (own(b, 'depth') && validPalette && MODES.includes(b.primaryMode)) attempt(() => depthOptions(result));
+    if (b.depth !== undefined && validPalette && MODES.includes(b.primaryMode)) attempt(() => depthOptions(result));
     attempt(() => {
       swatchList(b.palette?.swatches, 'palette.swatches');
       if (own(b.palette, 'chips')) {

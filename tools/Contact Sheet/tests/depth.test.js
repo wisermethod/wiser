@@ -2,10 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {resolve,extname} from 'node:path';
+import vm from 'node:vm';
 import {fileURLToPath} from 'node:url';
 import {validateBrandBoards} from '../scripts/brand-boards.js';
 import {createBoardModel} from '../scripts/board-model.js';
-import {acceptedDepths,rejectedDepths,gradientCases,styleDepths} from './depth-cases.js';
+import {acceptedDepths,rejectedDepths,gradientCases,styleDepths,nullDepths,hueTieStops,exactHueTieSource} from './depth-cases.js';
 const fixtures=fileURLToPath(new URL('fixtures/',import.meta.url));
 const fixture=()=>JSON.parse(readFileSync(resolve(fixtures,'brand-boards.json')));
 function validate(spec) {
@@ -42,4 +43,33 @@ test('model carries detached depth unchanged, omits absent depth and drops no ot
  delete model.boards[0].depth;assert.deepEqual(model,base);
  const copy=createBoardModel(valid);copy.boards[0].depth.block.corner=0;
  assert.equal(valid.boards[0].depth.block.corner,'pill');assert.equal(depth.block.corner,'pill');
+});
+
+test('null is refused for every depth field, including nested fields and objects',()=>{
+ const failures=[];
+ for(const [depth,error] of nullDepths) {
+  let message='';try{validate(withDepth(depth));}catch(e){message=e.message;}
+  if(!error.test(message))failures.push({depth,error:error.source,message});
+ }
+ assert.deepEqual(failures,[]);
+});
+test('an explicitly undefined depth validates and models exactly as absent depth',()=>{
+ const absent=withDepth(undefined);delete absent.boards[0].depth;
+ const present=withDepth(undefined);
+ const checked=validate(present);
+ assert.deepEqual(createBoardModel(checked),createBoardModel(validate(absent)));
+ assert.equal(Object.hasOwn(createBoardModel(checked).boards[0],'depth'),false);
+});
+test('exact opposite measured hues 70 and 250 refuse either arc on ground and block',()=>{
+ const source=readFileSync(new URL('../scripts/board-depth.js',import.meta.url),'utf8');
+ const context=vm.createContext({});
+ vm.runInContext(exactHueTieSource(source).replace(/\bexport /g,'')+';globalThis.boundary={depthOptions,depthLch};',context);
+ const measured=hueTieStops.map(context.boundary.depthLch);
+ assert.deepEqual(measured.map(c=>c.H),[70,250]);assert.equal(measured[1].H-measured[0].H,180);
+ assert.ok(measured.every(c=>c.C>=.025),JSON.stringify(measured));
+ for(const surface of ['ground','block'])for(const stops of [hueTieStops,[...hueTieStops].reverse()]) {
+  const b=fixture().boards[0],c=b.palette[b.primaryMode];c[surface==='ground'?'ground':'pop']=stops[0];
+  b.depth=surface==='ground'?{background:'gradient',groundTo:stops[1],allowHueShift:true}:{block:{gradient:true},popTo:stops[1],allowHueShift:true};
+  assert.throws(()=>context.boundary.depthOptions(b),/purple-to-blue.*60.0 degrees/);
+ }
 });
