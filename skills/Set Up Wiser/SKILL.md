@@ -3,7 +3,7 @@ name: Set Up Wiser
 type: skill
 category: onboarding
 description: Take a new member, in one chat, from no folder open to their own Wiser folder on their Desktop, set up and with their voice and look recorded, and then to a project in their app with that folder attached, checking their Wiser connection first
-version: 0.3.0
+version: 0.3.1
 ---
 
 # Set Up Wiser
@@ -70,7 +70,7 @@ Was the folder new or empty, and made where this session can write it? Yes: run 
 
 They will leave this chat to make the project, so give every step in one message and do not wait between them. Open the message with: "Next, you'll make a project. A project is a space in your app where every chat already knows about your folder, so you never have to point me to it again. You'll leave this chat to do it, so here's every step at once." Then give that app's steps below as one numbered list, writing in their first name and the folder's place wherever a step names them, and end the list with the last step for their folder. After the list, give the same steps as a page they can keep open beside the app: the address is the `url` of the `wiser` server in this plugin's `.mcp.json` with its path replaced by `/setup/claude` for Claude Cowork or `/setup/chatgpt` for the ChatGPT desktop app, and `#name=` and their first name, URL-encoded, after it; say "Here are the same steps on a page you can keep open:" and the address. Where this session can run a command on their computer, open that address in their browser too. Then stop: this chat is done.
 
-- **Claude Cowork:** open Projects, choose the plus button, then Use an existing folder; choose Desktop, then Wiser, then the folder with their first name; name the project with their first name; where there is a description box, type Wiser Managed Project; create the project.
+- **Claude Cowork:** open Projects and choose New project; under What are you working on, type their first name; under What are you trying to achieve, type Wiser Managed Project; choose Use a folder, then Desktop, then Wiser, then the folder with their first name, and choose Open; choose Create project.
 - **The ChatGPT desktop app:** open Projects and make a new project on this computer, named with their first name; open its menu and choose Edit project, then Add folder; choose Desktop, then Wiser, then the folder with their first name; where it offers Make primary, choose it. There is no description to fill in.
 
 Where step 4 could not make the folders, the step that chooses the folder makes them instead: in that window, open the Desktop, choose New Folder and name it Wiser, open it, choose New Folder again and name it with their first name, and choose it.
