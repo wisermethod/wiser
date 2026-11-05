@@ -412,7 +412,7 @@ The stops every tool shares, an unknown flag and a path that is relative or insi
 
 These are the message bodies from `composite-alpha.js` and `evidence-media.js`. Each is wrapped by the shared error prefix and correction/help suffix. Expressions written as `${...}` below are the source's placeholders, replaced by the failing flag, field, chunk or sample in a run.
 
-An FFmpeg MP4 with a 1,000 movie timescale meets the exact identity-edit duration test only when its length is a whole number of milliseconds. Does its video already meet Base and layer's format and exact zero-origin grid? Yes: rewrite only that video stream to a fresh MP4 with `ffmpeg -nostdin -n -copyts -i INPUT -map 0:v:0 -c:v copy -avoid_negative_ts disabled -color_primaries bt709 -color_trc bt709 -colorspace bt709 -color_range tv -use_editlist 0 OUTPUT`, then composite using the new file and its SHA-256. No: prepare the video to that contract first; copying timestamps or setting tags cannot correct a nonzero origin or convert colour.
+An FFmpeg MP4 with a 1,000 movie timescale meets the exact identity-edit duration test only when its length is a whole number of milliseconds. Does its video already meet Base and layer's format and exact zero-origin grid? Yes: rewrite only that video stream to a fresh MP4 with `ffmpeg -nostdin -n -copyts -i INPUT -map 0:v:0 -c:v copy -avoid_negative_ts disabled -color_primaries bt709 -color_trc bt709 -colorspace bt709 -color_range tv -movflags +negative_cts_offsets -use_editlist 0 OUTPUT`, then composite using the new file and its SHA-256. No: prepare the video to that contract first; copying timestamps or setting tags cannot correct a nonzero origin or convert colour.
 
 | Message body | Cause | Fix |
 |--------------|-------|-----|

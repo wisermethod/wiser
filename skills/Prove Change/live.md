@@ -13,7 +13,8 @@
 - Does each way the code can reach out have its own fixture, including linked stylesheets, style elements and WebRTC? Yes: limit the claim to those paths. No: add the missing fixtures before making the claim.
 - Is the host macOS? Yes: supplement any Node hook with outside observation, running each arm under `sandbox-exec -p '(version 1)(allow default)(deny network-outbound (remote ip))'`, reading `/usr/bin/log show` for `Sandbox: <process>(<pid>) deny(1) network-outbound`, and running a control that tries a connection beside it. No: go on.
 - Did a macOS sandbox probe refuse without a kernel line? Yes: identical denials from the same profile are deduplicated; read refusal from the probe itself and use a host not yet tried when the kernel line is needed. No: keep the observed result.
-- Did a sandboxed probe refuse a connection? Yes: count that attempt as a connection in either arm's no-call decision, and require an outside-sandbox control to reach the host before treating it as evidence. No: use the observed result.
+- Did the tested child attempt a connection that the sandbox refused? Yes: count that attempt only in the arm that made it; a separate control's refusal counts in neither arm's no-call decision. No: go on.
+- Did an outside-sandbox control reach the refused probe's host? Yes: the refusal is usable evidence. No: do not use the refusal as evidence.
 
 ## Host sessions
 

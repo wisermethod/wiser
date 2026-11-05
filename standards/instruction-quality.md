@@ -62,7 +62,7 @@ Every effective instruction file follows this structure. Not every file needs ev
 
 **Evidence a rule names:** name a durable record a resumed run can still read, including evidence kept by earlier runs.
 
-**Questions to a person:** when asking with a question tool, put everything the person is asked to judge inside the question itself. For each question shaped as a choice, including one gathering missing facts or preferences, state whether blanket acceptance of recommendations answers it; register that outcome in any case whose request gives such acceptance.
+**Questions to a person:** when asking with a question tool, put everything the person is asked to judge inside the question itself. For each question shaped as a choice, a gather question included, state whether blanket acceptance of recommendations answers it; register that outcome in any case whose request gives such acceptance. A gather question settles facts, preferences or an approach before work continues; sources and a recommendation do not make it a contested choice.
 
 **A gate with a fixed number of correction passes:** a step that gates its own output that way says what a residue after the last pass gets. Is every held finding small and local, and cured solely by removing or narrowing the text it names, without widening a claim, adding an unsupported one, or losing an obligation? Yes: make those changes and deliver without another gate. No: the gate's own outcome for running out of passes stands. This governs a step's gate on its own output, not a review of an instruction file, whose fixes Review Process governs.
 

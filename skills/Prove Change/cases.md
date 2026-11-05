@@ -17,7 +17,7 @@
 ## Real inputs
 
 - Does the claim join one tool's output to another's input? Yes: before its first review, run the producing tool's real output bytes through the consuming tool's own input checks and operation; a stand-in made to look like that output cannot carry the claim. No: go on.
-- Does the claim introduce a media tool or path? Yes: before its first review, run the vendor's real output through the target tool's own input checks and operation; a prototype also runs the first caller's real input through those checks, not only its arithmetic. Synthetic fixtures alone cannot carry this claim. No: use the acceptance's inputs.
+- Does the claim introduce a media tool or path? Yes: before its first review, run the vendor's real output through the target tool's own input checks and operation; a prototype also runs the first caller's real input through those checks, not only its arithmetic. Synthetic fixtures alone cannot carry this claim. No: go on, using the acceptance's inputs only if the join question was also No.
 - Does the proof move a file? Yes: file it onto the volume real work uses, including a cross-volume move where that is the real path. No: go on.
 - Does the run write records? Yes: read every record against its skill's declared shape, including all keys, types and any key-equals-hash relation, not only fields the verifier uses. No: go on.
 - Is a tool being proved? Yes: include one run from the plugin copy a member installs. No: go on.

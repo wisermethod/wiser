@@ -101,7 +101,7 @@ Then classify the request against Three input states. State (c) ends the run at 
 
 Read the scoped plugin's permitted text files one by one with the host, excluding credential-bearing files and what tools install for themselves. Keep this plugin-only inventory separate from the broader scan, so no scan cap can displace its files. Read by path every primitive whose family-index row could cover a candidate, even without a domain-word hit; these are known-file reads, which `skills/Internal Research/` Context leaves to the host, not instructions inside its search material.
 
-Direct `skills/Internal Research/` by name, separately for each other directory in scope: `wiser`, any composed user root, and the root already named to own the plan. Hand it `<scan_request>` with the constitution's domain as topic, an explicit whole-word multi-keyword regex pattern (`\b(term1|term2)\b`, terms escaped as literals), one directory as `scope`, and tool installs as `exclusions`. Does the work belong to a series? Yes: give its own gate directory a separate call, excluding the collection of gate fixtures from the broader scopes. No: use the named scopes. Keep the returned inventory and the known-file reads together, with their paths; do not ask the sibling to change its cap, search procedure or path signals.
+Direct `skills/Internal Research/` by name, separately for each other directory in scope: `wiser`, any composed user root, and the root already named to own the plan. Hand it `<scan_request>` with `topic` set to a whole-word multi-keyword expression of the constitution's domain terms (`\b(term1|term2)\b`, terms escaped as literals), one directory as `scope`, and tool installs as `exclusions`; Internal Research's Step 3 accepts a pattern as a multi-keyword topic. Does the work belong to a series? Yes: give its own gate directory a separate call, excluding the collection of gate fixtures from the broader scopes. No: use the named scopes. Keep the returned inventory and the known-file reads together, with their paths; do not ask the sibling to change its cap, search procedure or path signals.
 
 Has the owner done this domain's work by hand in a root this workspace does not compose? Ask once, before the slice is proposed. Yes, and they name the root: read its shape first, its directory names, the routers that describe those directories, and the section headings of its files. Read a file's contents only where the owner says yes to that: before the first such read, name the files or directories you would read and why, and read only what the yes covers. Carry what that root holds and the inventory misses to step 4 as scenarios, each written as a synthetic case: step 4 puts each in the slice where the demonstration needs it, and otherwise names it a deferral with the condition that brings it forward. Let no fact from that root enter the inventory, a proposal or the hand-off. No: go on. They cannot say: go on, and name the question as open in the proposal.
 
@@ -187,7 +187,7 @@ Deliver this package, and nothing else as the yield. Does the demonstration used
   <key_files>
     the plugin being scoped, by path: its AGENTS.md;
     its family indexes;
-    the inventory from skills/Internal Research/;
+    the combined inventory from step 2, including the plugin-only inventory, known-file reads and skills/Internal Research/ cards, each with its permitted path;
     the report from skills/Deep Research/, or the statement that none ran;
     each Job 2 verdict
   </key_files>

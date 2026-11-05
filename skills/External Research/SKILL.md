@@ -87,16 +87,48 @@ Null values are stated explicitly, never omitted; a field that could not be dete
 
 ### Quote check
 
-Use a separate record directory per source under the owning root's work directory: its directly fetched text as `direct.txt`, its proposed quotes as a JSON string array in `quotes.json`. Run this check there, retaining the inputs and results for the gate; after a correction, run it again. A missing direct copy takes Gather step 3's unavailable branch, never a pass.
+Is there an owning root? Yes: use a separate record directory per source under its work directory. No: use the host's ephemeral scratch and return the check's inputs and results with the output for the gate; no writable scratch means Gather step 3's unavailable branch. Save directly fetched HTML as `direct.html`, or plain text or `pdftotext` output as `direct.txt`, and proposed quotes as a JSON string array in `quotes.json`. Run this check with that source filename as its first argument, retaining the inputs and results for the gate; after a correction, run it again. A missing direct copy takes Gather step 3's unavailable branch, never a pass.
 
 ```sh
-python3 - direct.txt quotes.json <<'PY'
+python3 - direct.html quotes.json <<'PY'
 import json
 import sys
+from html.parser import HTMLParser
 from pathlib import Path
 
+class PageText(HTMLParser):
+    blocks = set("p div br hr h1 h2 h3 h4 h5 h6 li ul ol table tr td th section article header footer main aside nav blockquote pre dl dt dd figure figcaption".split())
+    hidden_tags = {"script", "style", "template"}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.parts, self.hidden = [], 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag in self.hidden_tags:
+            self.hidden += 1
+        if not self.hidden and tag in self.blocks:
+            self.parts.append(" ")
+
+    def handle_endtag(self, tag):
+        if tag in self.hidden_tags:
+            self.hidden = max(0, self.hidden - 1)
+        if not self.hidden and tag in self.blocks:
+            self.parts.append(" ")
+
+    def handle_data(self, data):
+        if not self.hidden:
+            self.parts.append(data)
+
 normalize = lambda value: " ".join(value.split())
-source = normalize(Path(sys.argv[1]).read_text(encoding="utf-8"))
+source_path = Path(sys.argv[1])
+source = source_path.read_text(encoding="utf-8")
+if source_path.suffix.lower() in {".html", ".htm"}:
+    page = PageText()
+    page.feed(source)
+    page.close()
+    source = "".join(page.parts)
+source = normalize(source)
 quotes = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
 if not isinstance(quotes, list) or any(not isinstance(q, str) or not q.strip() for q in quotes):
     raise SystemExit("quotes must be an array of nonempty strings")

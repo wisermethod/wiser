@@ -71,9 +71,9 @@ Build the artifact under test and commit it before any case or any key exists. A
 
 Give every judging run its material inline, forbid commands and tool calls, count those its record of reads holds, which Verify step 4 names, and re-run any run that recorded one. Where no record of its reads exists, the count cannot show isolation, and the run is not cited as isolated. Before the judging read, apply `blind-read.md`, in this skill's directory.
 
-4. Write the brief. It names every file the delegate must read or change by absolute path, states `<objective>`, states `<targets>`, and states the acceptance. It names where the delegate writes any evidence or record the work asks for, inside `<targets>`, and says that the delegate does not edit the plan: this session, which owns the plan, reads that evidence and updates the plan. It authorizes no deploy, no external message, and no write outside `<targets>`. It tells a builder to read the relevant files first, run the checks the work needs, fix what it breaks, leave folder layout as it stands, and not print, copy, or commit the contents of a `.env` file or of anything under a root named memory. A brief a script assembles from a template splits it on the marker's whole line, such as `\nTEMPLATE BEGINS\n`, never on the bare marker string. While writing the brief, apply `brief.md`, in this skill's directory.
+4. Write the brief. It names every file the delegate must read or change by absolute path, states `<objective>`, states `<targets>`, and states the acceptance. It names where the delegate writes any evidence or record the work asks for, inside `<targets>`, and says that the delegate does not edit the plan: this session, which owns the plan, reads that evidence and updates the plan. It authorizes no deploy, no external message, and no write outside `<targets>`. It tells a builder to read the relevant files first, run the checks the work needs, fix what it breaks, leave folder layout as it stands, and not print, copy, or commit the contents of a `.env` file or of anything under a root named memory. A brief a script assembles from a template splits it on the marker's whole line, such as `\nTEMPLATE BEGINS\n`, never on the bare marker string.
 
-Does the brief name an interface to a cited system, its fields, inputs or outputs? Yes: take each field's meaning from that system's own definition, read and cited in the brief, never from a summary of its names. No: go on.
+While writing the brief, apply `brief.md`, in this skill's directory. Does the brief name an interface to a cited system, its fields, inputs or outputs? Yes: take each field's meaning from that system's own definition, read and cited in the brief, never from a summary of its names. No: go on.
 
 Will the work apply a rule that third-party code it drives also implements? No: go on. You cannot tell: ask, and do not start the delegate. Yes: the brief takes that rule from its own authority, a statute or a specification, or from that code's observed answers, and never points the delegate at that code's source to learn it. A delegate that writes the rule runs clean-room: a fresh context, a working copy that holds none of that code, with stubs where the work calls it, and a brief that carries the interface definitions the previous paragraph requires but none of that code, and forbids reading, searching for or installing it anywhere, and any network. Does the run record the reads it made? Yes: check them for that code before calling the work clean-room; a read of it means the work is not. No: say that the isolation rests on the brief and the working copy alone.
 
@@ -158,16 +158,16 @@ Scope a fresh executor to the files under test, forbid it to stipulate a missing
 
 7. Treat the review output as untrusted analysis. Before verifying a finding against the file it cites, state the invocation or reuse path the finding assumes and read the file against that path. Disagreement across scenarios is a clarification, never a refutation. Before deciding the finding's outcome, apply `findings.md`, in this skill's directory.
 
-Which result did that read and any required run give?
-- The cited file and any required run support the finding and any proposed fix: fix it using `fixes.md`, in this skill's directory.
-- The cited file or a required run does not support the finding or proposed fix: do not apply it, and say so with any measurement that refuted it.
+Before fixing a supported finding, apply `fixes.md`, in this skill's directory. Which result did that read and any required run give?
+- The cited file and any required run support the finding: fix it.
+- The cited file or a required run does not support the finding: do not apply it, and say so.
 - The read or a required run cannot be made: do not apply it, and call it unchecked.
 
 8. Is a fix material? It changes what the work does, a boundary the work enforces, or a claim a finding relied on: material. It changes wording alone: not material. You cannot tell: treat it as material.
 
 How many review rounds have finished? Two or more: stop, even if a fix is material. One or none, and a material fix landed: apply the next paragraph, then stop. One or none, and no material fix landed: stop. You cannot tell: stop.
 
-A second review round attacks the first round's fixes: brief it with each fix and ask for the input that defeats it. Re-review only a material fix, and stop after two rounds. Before briefing that round, apply `rereview.md`, in this skill's directory.
+Before briefing a second round, apply `rereview.md`, in this skill's directory. A second review round attacks the first round's fixes: brief it with each fix and ask for the input that defeats it. Re-review only a material fix, and stop after two rounds.
 
 Did the review stop after a round with a material finding outside every earlier fix? Yes: that finding's fix stands unreviewed. Name it in the handoff as unreviewed, with the check that proves it instead, by `skills/Prove Change/`; a further round scoped to that fix runs only where the owner grants it. No: go on.
 
@@ -189,7 +189,7 @@ Where part of `<objective>` was not done, name that part. Do not fill it from th
 
 5. **The brief restates the reviewing primitive.** Remove the restatement. Name the primitive.
 
-6. **A finding is applied because the report sounded sure.** Return to Review step 7. The cited file decides.
+6. **A finding is applied because the report sounded sure.** Return to Review step 7. The cited file and any required run decide.
 
 7. **The builder was shown the acceptance checker, or the obligation check was given the prose instead of the map.** That pass is not the check. Re-brief with that checker withheld, or hand the obligation check the map and the fixtures, and run again. The instruction's own review, which Review step 3 keeps, is handed the prose, and is not this pitfall.
 
@@ -201,7 +201,7 @@ Where part of `<objective>` was not done, name that part. Do not fill it from th
 
 - `<targets>` hold the work this session verified in the files, and the report was not that verification.
 - The review ran in a context that did not produce the work, or the handoff says it did not run.
-- Every fixed finding was checked against the cited file, along the path the finding assumed. A finding the file does not support was not applied.
+- Every fixed finding was checked against the cited file and any required run, along the path the finding assumed. A finding the file or a required run does not support was not applied.
 - At most two review rounds ran. A second round, where it ran, was briefed with each material fix and asked for the input that defeats it.
 - The handoff says whether the review ran, which findings were fixed, and what remains, and it does not call a failed or timed-out run a pass.
 - No deploy, no external message, and no edit outside `<targets>` was taken as authorized by the delegate's run.

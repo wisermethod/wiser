@@ -127,7 +127,7 @@ Pass `--audio` in a format listed under Inputs and `--words` as an absolute path
 
 `--output` is an absolute **new JSON file** outside this tool, rather than the directory transcription takes. An existing output is refused. The file is an array with exactly one `{text, start, end}` per supplied word, in order and in the supplied spelling. Times are finite seconds relative to decoded audio time zero, within its actual sample count/rate, with `start <= end` and nondecreasing starts. No silence trim or encoder-delay correction is performed: pass the prepared audio the consumer reads. The tool writes no take registry. Success prints one object with `ok: true`, `file`, `model`, `language`, `words`, `sample_rate` and `samples`.
 
-These `start` and `end` values, apart from the first-word start that `--layout` anchors below, bound a word's emission peak, not its spoken extent; place a cut or bleep's edges from the sound's levels.
+These `start` and `end` values, apart from the first-word start that `--layout` anchors below, bound a word's emission peak, not its spoken extent; place a cut or bleep's unanchored edges from the sound's levels.
 
 Optionally pass `--layout` as an absolute strict JSON file:
 
