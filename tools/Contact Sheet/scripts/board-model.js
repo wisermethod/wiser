@@ -129,7 +129,7 @@ export function createBoardModel(spec) {
     groups: copy(spec.groups), footnote: spec.footnote, showChecks: spec.showChecks === true, boards: [] };
   model.boards = spec.boards.map((source) => {
     const b = Object.fromEntries(['number', 'name', 'group', 'energy', 'why', 'recommendation', 'zero', 'primaryMode', 'buttonRadius',
-      'palette', 'graphics', 'content', 'words', 'note', 'sample', 'items', 'closingExamples', 'swatchInks', 'checks'].filter((k) => source[k] !== undefined).map((k) => [k, copy(source[k])]));
+      'palette', 'graphics', 'content', 'words', 'note', 'sample', 'items', 'closingExamples', 'swatchInks', 'checks', 'depth'].filter((k) => source[k] !== undefined).map((k) => [k, copy(source[k])]));
     b.showChecks = model.showChecks;
     b.labels = copy(BOARD_LABELS);
     b.why = source.recommendation === source.why ? null : source.why;

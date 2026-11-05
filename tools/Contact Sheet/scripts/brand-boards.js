@@ -1,6 +1,7 @@
 // Brand-board composition only. The caller supplies every choice; no inference,
 // primitive, model, network, clock or script in the generated page.
 import { fail } from './paths.js';
+import { depthOptions } from './board-depth.js';
 import { checkSvg } from './svg.js';
 import { renderBrandBoards } from './brand-board-view.js';
 
@@ -246,7 +247,7 @@ export function validateBrandBoards(spec, assets, readAsset) {
     const label = `Board ${b?.number ?? index + 1} (${typeof b?.name === 'string' ? b.name : 'unnamed'})`;
     const attempt = (fn) => { try { return fn(); } catch (e) { errors.push(`${label}: ${e.message}`); return undefined; } };
     const result = { ...b, checks: [] };
-    attempt(() => object(b, ['number', 'name', 'group', 'energy', 'why', 'recommendation', 'zero', 'primaryMode', 'palette', 'type', 'tags', 'graphics', 'monogram', 'content', 'buttonRadius', 'words', 'sample', 'items', 'closingExamples', 'note'], label));
+    attempt(() => object(b, ['number', 'name', 'group', 'energy', 'why', 'recommendation', 'zero', 'primaryMode', 'palette', 'type', 'tags', 'graphics', 'monogram', 'content', 'buttonRadius', 'words', 'sample', 'items', 'closingExamples', 'note', 'depth'], label));
     if (!b || typeof b !== 'object') return result;
     attempt(() => {
       number(b.number, 0, Number.MAX_SAFE_INTEGER, 'number');
@@ -277,6 +278,7 @@ export function validateBrandBoards(spec, assets, readAsset) {
     });
     result.palette = b.palette ? { ...b.palette } : {};
     if (validPalette) for (const m of MODES) result.palette[m] = { sub: b.palette[m].text, note: b.palette[m].smallPrint, panelSmallPrint: b.palette[m].smallPrint, hairline: b.palette[m].panel, ...b.palette[m] };
+    if (own(b, 'depth') && validPalette && MODES.includes(b.primaryMode)) attempt(() => depthOptions(result));
     attempt(() => {
       swatchList(b.palette?.swatches, 'palette.swatches');
       if (own(b.palette, 'chips')) {

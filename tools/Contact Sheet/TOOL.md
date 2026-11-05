@@ -182,6 +182,7 @@ The calling skill supplies a whole brand per board. Contact Sheet sets those par
 | `recommendation` | Optional single-line string; marks Recommended and says why there. At most two boards may carry it |
 | `zero` | Optional boolean, default false. One board at most; with `number: 0`, labels the person's brand as it is today and places it before the groups |
 | `primaryMode` | String `light` or `dark`; the tile's mode and first whole mode |
+| `depth` | Optional closed look-drawing object; fields, values, defaults and refusals are documented in Form TOOL.md under the look view |
 | `buttonRadius` | Number from 0 to 100, in pixels; the open link and button sample's corner radius |
 | `palette` | Object in the palette table below; light and dark role values and swatch lists |
 | `type` | Object with required `heading`, `body`, optional `handwriting` face objects below |
@@ -297,7 +298,7 @@ Before writing anything, every board is checked. Palette and type loudness may d
 `scripts/board-model.js` exports `createBoardModel(validatedSpec)`, `BOARD_LAYOUT`, `BOARD_LABELS`, `DEFAULT_MARK_CAPTION`, `FACE_ROLES`, `PUBLIC_FONT_FILES`, `faceSetting`, `resolveDrawing`, `heroRole` and `oppositeMode`. It has no imports, Node built-ins, `Buffer`, file access, network access or side effects. Pass the successful result of `validateBrandBoards`, not an unchecked spec. It returns detached JSON data:
 
 - Page identity, intro, groups, footnote, display option and the shared layout description.
-- Each board’s metadata, supplied text, palette, face descriptions and `display`, `middle`, `small` settings. Resolved face settings name family, weight, style, size in pixels, line height, letter spacing in em and variation axes. `textStyles` supplies the exact settings for each application (hero, face specimens, cards, banner, notes and every mark size); `variants` describe weight/style coverage; no font path or font bytes enter the model.
+- Each board’s metadata, supplied text, palette, optional unchanged `depth`, face descriptions and `display`, `middle`, `small` settings. Resolved face settings name family, weight, style, size in pixels, line height, letter spacing in em and variation axes. `textStyles` supplies the exact settings for each application (hero, face specimens, cards, banner, notes and every mark size); `variants` describe weight/style coverage; no font path or font bytes enter the model.
 - `modes.light` and `modes.dark`: role colours, named swatches/chips and their measured inks, every drawing as resolved standalone SVG text, and ordered `blocks` for the whole board and `tile` for its preview. The blocks describe hero, palette, faces/words, graphic language, cards/mark sizes, banner, alternate panel, optional rules and tile navigation. A supplied mark is only `{supplied: true}`; its asset remains the caller’s responsibility.
 - Complete contrast checks, independent of label visibility. `markCaption`, `closing` and the deduplicated `why` are the resolved display words; `footer` describes the closing/examples, licences and optional designer contrast notes.
 
