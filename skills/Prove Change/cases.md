@@ -7,7 +7,8 @@
 
 ## Chained runs
 
-- Did later runs change the same artifact? Yes: read each earlier run against the snapshot and record copy the next run took before starting, never the live folder; recheck every file opened by path against that snapshot's hashes. No: read the run's own after-state.
+- Is this run part of a chain that changes one artifact? Yes: before each run after the first starts, have it take a snapshot and record copy of the preceding run's after-state. No: go on.
+- Has another run since changed the artifact whose result you are reading? Yes: read that earlier run against the snapshot and record copy the next run took before starting, never the live folder, and recheck every file opened by path against that snapshot's hashes; either copy is missing or a hash differs: leave the earlier result unverified. No: read the run's own after-state.
 
 ## Branch contracts
 
@@ -15,7 +16,8 @@
 
 ## Real inputs
 
-- Does the claim join one tool's output to another's input, or introduce a media tool or path? Yes: before its first review, run the vendor's real output or the first caller's real input through the consuming tool's own input checks and the operation, not only prototype arithmetic; a stand-in or synthetic fixture cannot carry this claim. No: use the acceptance's inputs.
+- Does the claim join one tool's output to another's input? Yes: before its first review, run the producing tool's real output bytes through the consuming tool's own input checks and operation; a stand-in made to look like that output cannot carry the claim. No: go on.
+- Does the claim introduce a media tool or path? Yes: before its first review, run the vendor's real output through the target tool's own input checks and operation; a prototype also runs the first caller's real input through those checks, not only its arithmetic. Synthetic fixtures alone cannot carry this claim. No: use the acceptance's inputs.
 - Does the proof move a file? Yes: file it onto the volume real work uses, including a cross-volume move where that is the real path. No: go on.
 - Does the run write records? Yes: read every record against its skill's declared shape, including all keys, types and any key-equals-hash relation, not only fields the verifier uses. No: go on.
 - Is a tool being proved? Yes: include one run from the plugin copy a member installs. No: go on.

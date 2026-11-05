@@ -18,7 +18,7 @@ Not for designing a type system; that is Typography Design. Not for judging whet
 
 ## Objective
 
-A complete palette delivered as CSS custom properties in OKLCH with hex fallbacks: a primary scale, a neutral scale tinted toward the brand hue, four semantic colors, surface layers, and a dark mode when the target needs one. Aesthetic choices follow Creative Director's Direction, and OKLCH mathematics builds their scales; every color carries a named role, and every foreground/background pairing that will appear passes WCAG AA. Verified against Success, below.
+A complete palette delivered as CSS custom properties in OKLCH with hex fallbacks: a primary scale, a neutral scale tinted toward the brand hue, four semantic colors, surface layers, and a dark mode when the target needs one. Aesthetic choices follow Creative Director's Direction, and OKLCH mathematics builds their scales; every color carries a named role, and every foreground/background pairing that will appear passes Step 6's applicable contrast checks. Verified against Success, below.
 
 ## Inputs
 
@@ -40,7 +40,7 @@ When `<existing_tokens>` carries a palette, this run extends it rather than rege
 
 **1. Primary hue.** Anchor in this precedence: a brand color the user supplies, converted to OKLCH and read for its hue angle; else the leading color in the bound `design` memory; else current references the owner picks under Creative Director's Direction. No pick: settle that direction before deriving scales. The Hue-Personality table describes tendencies and never replaces that choice.
 
-**2. Primary scale.** Build the lightness scale for the primary hue from the Scale Structure table, reducing chroma at the light and dark extremes. Use the L values as starting anchors across scales; Step 6's measured adjustments govern any failing pairing, and a new hue is checked again.
+**2. Primary scale.** Build the lightness scale for the primary hue from the Scale Structure table, reducing chroma at the light and dark extremes. Hold the L values constant across every scale you build; Step 6's measured adjustments govern any failing pairing, and a new hue is checked again.
 
 **3. Neutral scale.** Take the primary hue angle, set chroma to roughly 0.01 to 0.02, and generate the same scale. Never pure gray: the tint is small but perceptible and ties the neutrals to the brand.
 
@@ -137,5 +137,5 @@ Sixty, thirty, ten by visual weight, not pixel area: about 60% neutral surfaces 
 - The primary hue and accents trace to supplied colors, an existing palette, bound design, or the owner's chosen references.
 - A supplied palette's values survive unchanged except where the output names them as adjusted.
 - Dark mode, when produced, holds its contrast ratios and uses neither pure black nor pure white.
-- Scale anchors and their contrast adjustments are stated; a re-themed palette is checked again.
+- Lightness anchors stay constant across scales except for the stated contrast adjustments; a re-themed palette is checked again.
 - `experts/Creative Director/` returned a verdict on the palette, or the requester declined the review.

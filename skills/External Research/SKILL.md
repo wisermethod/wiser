@@ -44,13 +44,13 @@ Both modes run the same Gather engine and the same Counter-Evidence step; they d
 
 ### Gather (both modes)
 
-Use TinyFish first. When an action is unavailable, record the returned stop and degrade that operation to the host's search/fetch, then to supplied sources only; with no readable sources, say what could not run and stop without an answer. A missing grant is `needs_connect`, not a plugin gap; follow the constitution's Behavioral Core for its next human turn. Do not retry a stopped action or connect an account inside this run. Name which route supplied the evidence and any search or fetch that remained unavailable.
+Use TinyFish first. When an action is unavailable, record the returned stop and degrade that operation to the host's search/fetch, then to supplied sources only; with no readable sources, say what could not run and stop without an answer. A missing grant is `needs_connect`, not a plugin gap; follow the constitution's Behavioral Core for its next human turn. Do not retry a stopped action or connect an account inside this run. Name which route supplied the evidence and any search or fetch that remained unavailable. Before drafting any question to a vendor, apply Pitfalls' A question to a vendor below.
 
 For each query:
 
 1. **Search or fetch** through `tinyfish.web.search` and `tinyfish.web.fetch` via the gateway; read `connectors/tinyfish/CONNECTOR.md` and its `manifest.json` for the declared request shapes. Use Search to discover sources and Fetch for known URLs. Set `domain_type` from the angle: `web` for general sources, `news` for reporting, `research_paper` for academic evidence, and `web` when the request names no angle. Mixed questions use parallel typed queries where independent. Paper queries carry no recency filter or publication-year bounds. Search returns no date field; date screening waits until Tag. When the request named a domain, pass `include_domains` (declared). Pass only fields the manifest declares.
 2. **Select** up to five sources, fewer at Quick depth, the cap applied after the tests below and not before them. Favor diversity of domain and source type over volume from one domain, and prefer a primary source to a higher-ranked aggregator of it rather than taking the top results by rank. Is the hit a standard? A search ranks the most-linked version of a standard, which may not be the current one: open the standards body's own index and cite the version that index lists as current. A version named only by the search hit is not cited until that index agrees. Honor any domain preferences the request carried. If a Search hit's `url` is only an origin, no path or path `/`, and the title names a specific page, do not Fetch that origin as the titled page; prefer hits whose `url` path is specific. Never invent a path Search did not return. A set still over the cap keeps the ones Search ranked higher, and names what was dropped. Sources from `<source_material>` enter the pool here rather than through Search, and are read and tagged in the steps below like any other; the cap bounds what search adds, not what the caller supplied.
-3. **Read and extract** through Fetch the content in each selected source that bears on the query; inspect successes and failures separately so a partial fetch never makes an unread source appear read. Each extracted claim carries the supporting excerpt, the passage on the fetched page the claim rests on, copied not paraphrased. Did Fetch answer through a summarizing model or a cache? Yes: it may be stale; before the gate, run a script locating every proposed quote in a direct copy of its source, raw page text or a PDF fetched with `curl` and read with `pdftotext`. Found there: quote it and keep the script's per-quote results for the gate. Missing: correct or drop it, never tag it `direct`. The source refuses direct fetch, including HTTP 403 or a browser challenge: quotes may rest on the fetch tool alone, labelled as such with currency unverified. Only search excerpts are readable: label them search excerpts and leave the page unread. No readable excerpt: leave it unread and quote nothing. No summarizing model or cache: check the excerpt against the fetched source. Orchestrated mode returns that excerpt with the claim so the caller can verify; omitting it is a bug.
+3. **Read and extract** through Fetch the content in each selected source that bears on the query; inspect successes and failures separately so a partial fetch never makes an unread source appear read. Each extracted claim carries the supporting excerpt, copied not paraphrased. Fetch, including `tinyfish.web.fetch`, may return a stale copy without identifying it as cached or summarized. Before the gate, check every proposed quote and supporting excerpt with Quote check below against a direct copy of its source, raw page text or a PDF fetched with `curl` and read with `pdftotext`, never the Fetch answer itself. Found there: quote it and keep the per-quote results for the gate. Missing: correct or drop it, never tag it `direct`. The source refuses direct fetch, including HTTP 403 or a browser challenge: quotes may rest on the fetch tool alone, labelled as such with currency unverified. Direct fetching unavailable for another reason: name that limit and keep currency unverified. Only search excerpts are readable: label them search excerpts and leave the page unread. No readable excerpt: leave it unread and quote nothing. Orchestrated mode returns the supporting excerpt with the claim so the caller can verify; omitting it is a bug.
 4. **Tag** each source with the eight metadata fields below. A source behind a paywall or that will not resolve is recorded with its liveness and left unread; its content is never fabricated, per the evidence labels in `standards/conventions.md`. A source is `redirect` only when the text read is a different page from the one asked for, such as a home page, a sign-in page or another article; the same document reached at another address, including the host given as its numeric address, `http` for `https`, `www` added or dropped, a trailing slash, or a DOI resolving to the document it names, is `live`.
 
 Source metadata, structural throughout, read from observable signals and not from domain expertise:
@@ -84,6 +84,27 @@ Source type, by the strongest observable signal, the first matching row from the
 **Provenance and duplication.** When a source is an aggregator, trace the original it cites and record that URL in `provenance`. No original, or none of several presented as the original: `provenance` is null and every cited URL is named in the duplication note. One of several presented as the original: record that URL and name the others. A source that is not an aggregator has `provenance` null. After a query's sources are gathered, flag any that trace to the same original: several copies of one wire report are one data point, not several, and must not read later as independent corroboration.
 
 Null values are stated explicitly, never omitted; a field that could not be determined reads as "not identified", so an absent field is always a bug and never a shrug.
+
+### Quote check
+
+Use a separate record directory per source under the owning root's work directory: its directly fetched text as `direct.txt`, its proposed quotes as a JSON string array in `quotes.json`. Run this check there, retaining the inputs and results for the gate; after a correction, run it again. A missing direct copy takes Gather step 3's unavailable branch, never a pass.
+
+```sh
+python3 - direct.txt quotes.json <<'PY'
+import json
+import sys
+from pathlib import Path
+
+normalize = lambda value: " ".join(value.split())
+source = normalize(Path(sys.argv[1]).read_text(encoding="utf-8"))
+quotes = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
+if not isinstance(quotes, list) or any(not isinstance(q, str) or not q.strip() for q in quotes):
+    raise SystemExit("quotes must be an array of nonempty strings")
+results = [{"quote": i, "found": normalize(q) in source} for i, q in enumerate(quotes, 1)]
+print(json.dumps(results))
+sys.exit(0 if all(row["found"] for row in results) else 1)
+PY
+```
 
 ### Counter-Evidence (both modes, required wherever search runs)
 

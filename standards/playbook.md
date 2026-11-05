@@ -37,7 +37,7 @@ Put each question where its answer is used, in the running session at the task t
 
 Would a scope limit or Witness finding make the objective unusable for the owner's purpose? Yes: at Interrogate put it as a question with its consequence, in plain words, even if it is written as non-scope. No: go on.
 
-Is the owner choosing or judging something by eye or ear? Yes: run every check that binds what it shows, not only those it illustrates, and resolve failures before presenting it. Put it in front of them to view or play before asking; name in the question the pages or frames your checks found and what each should show. Is a change being judged? Yes: set it beside the unchanged original, over material where the difference shows; an alpha change needs picture detail. No: show the item itself. No sensory judgment: ask the question directly.
+Is the owner choosing or judging something by eye or ear? Yes: run every check that binds what it shows, not only those it illustrates. Put it in front of them to view or play before asking; name in the question the pages or frames your checks found and what each should show. Is a change being judged? Yes: set it beside the unchanged original, over material where the difference shows; an alpha change needs picture detail. No: show the item itself. No sensory judgment: ask the question directly.
 
 ## Required Sections
 
@@ -189,7 +189,7 @@ Dates, naming charset, and archiving follow `standards/conventions.md`.
 **Checkpoint:** [Condition]
 
 ## Refine
-- [ ] [Human testing step]
+- [ ] [Human testing step; apply the Refine checkpoint evidence in The WISER Method]
 - [ ] [Iteration task]
 
 **Checkpoint:** [Condition]

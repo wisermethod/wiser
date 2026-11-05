@@ -115,7 +115,7 @@ Model choice trades time for accuracy, and the weights are downloaded once per m
 | `medium` | Large | The transcript will be quoted or acted on |
 | `large` | Largest, slowest | Accuracy outranks time, or the audio is genuinely hard |
 
-To reuse an existing Whisper `base.pt` without downloading, copy it into `<dir>/speech-models/` and pass `--model-cache <dir>`; this tool does not read Whisper's cache.
+Does an existing Whisper `base.pt` match the SHA-256 in the installed Whisper's `base` model URL? Yes: copy it into `<dir>/speech-models/` and pass `--model-cache <dir>` to reuse it without downloading. No: a replacement download needs install consent per `tools/RUNNING.md`. This tool does not read Whisper's cache.
 
 When the request states more than one of these, pass the first match in the order `large`, then `medium`, then `small`, then `tiny`, from what the request states rather than by listening. A `--model` name outside that list: ask, and do not substitute `base`.
 
@@ -127,7 +127,7 @@ Pass `--audio` in a format listed under Inputs and `--words` as an absolute path
 
 `--output` is an absolute **new JSON file** outside this tool, rather than the directory transcription takes. An existing output is refused. The file is an array with exactly one `{text, start, end}` per supplied word, in order and in the supplied spelling. Times are finite seconds relative to decoded audio time zero, within its actual sample count/rate, with `start <= end` and nondecreasing starts. No silence trim or encoder-delay correction is performed: pass the prepared audio the consumer reads. The tool writes no take registry. Success prints one object with `ok: true`, `file`, `model`, `language`, `words`, `sample_rate` and `samples`.
 
-These `start` and `end` values bound a word's emission peak, not its spoken extent; place a cut or bleep's edges from the sound's levels.
+These `start` and `end` values, apart from the first-word start that `--layout` anchors below, bound a word's emission peak, not its spoken extent; place a cut or bleep's edges from the sound's levels.
 
 Optionally pass `--layout` as an absolute strict JSON file:
 

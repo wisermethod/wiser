@@ -10,11 +10,10 @@
 
 ## Network
 
-- Is the claim that a child process makes no network call? Yes: observe connections without and with the fix on fresh caches, list everything each run leaves behind, and use one fixture per way the code can reach out, including linked stylesheets, style elements and WebRTC. Source inspection is not observation. No: go on.
-- Is the child a Node process? Yes: observe with a `NODE_OPTIONS=--require` hook patching `http`, `https` and `net`, each arm on a fresh `HOME` and `TMPDIR`; on macOS also use the outside observation below. No: observe from outside the process on fresh caches.
-- Is the host macOS? Yes: run the child under `sandbox-exec -p '(version 1)(allow default)(deny network-outbound (remote ip))'`, read `/usr/bin/log show` for `Sandbox: <process>(<pid>) deny(1) network-outbound`, and run a control that tries a connection beside it. No: use the host's outside connection observer with a connecting control.
-- Is a sandbox denial absent from the log? Yes: macOS deduplicates identical denials from the same profile; read refusal from the probe itself, keep an outside-sandbox control that reaches the host, and use a host not yet tried when the kernel line is needed. No: keep the logged denial as observation.
-- Did the arm without the fix connect, or did its sandboxed probe refuse while the outside control reached the host? Yes: the observation can see or block a call. No: rebuild the observation before claiming anything. Did the fixed arm attempt a connection, even if refused, or leave unexpected files? Yes: do not claim it makes no call. No: record only the paths the fixtures exercised.
+- Does each way the code can reach out have its own fixture, including linked stylesheets, style elements and WebRTC? Yes: limit the claim to those paths. No: add the missing fixtures before making the claim.
+- Is the host macOS? Yes: supplement any Node hook with outside observation, running each arm under `sandbox-exec -p '(version 1)(allow default)(deny network-outbound (remote ip))'`, reading `/usr/bin/log show` for `Sandbox: <process>(<pid>) deny(1) network-outbound`, and running a control that tries a connection beside it. No: go on.
+- Did a macOS sandbox probe refuse without a kernel line? Yes: identical denials from the same profile are deduplicated; read refusal from the probe itself and use a host not yet tried when the kernel line is needed. No: keep the observed result.
+- Did a sandboxed probe refuse a connection? Yes: count that attempt as a connection in either arm's no-call decision, and require an outside-sandbox control to reach the host before treating it as evidence. No: use the observed result.
 
 ## Host sessions
 

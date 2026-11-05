@@ -125,7 +125,7 @@ read every shipped connector, so they live where the loader does rather than in 
 ships no test runner: `agreement.test.js` holds a manifest against its module, and
 `guide-conformance.test.js` holds every connector guide against `connectors/shared-text.md` and
 against the rule that no shipped guide carries operator state. Neither touches an account; both
-are ratchets whose baselines may only shrink. Test homes go under the system temporary directory; the gateway refuses a home inside this plugin.
+are ratchets whose baselines may only shrink. Test homes go under the system temporary directory, screened under Everything the gateway writes.
 
 **`test/agreement.test.js` holds the two sides together.** It calls every shipped action behind this validator with a schema-valid instance and with one violation per declared constraint, and fails on a divergence in either direction. Its baseline may only shrink, so the file going empty is the class closing.
 
@@ -194,7 +194,7 @@ A host chooses its words from `reason`, `provider_status` and `steps`, not `tear
 | `absent_but_teardown_failed` | The provider reads `ABSENT` after recorded teardown steps, but the last step failed; teardown is ambiguous |
 | `binding_denied_after_revoke` | The provider reads `ABSENT` after the final teardown step succeeded; a newly denied binding prevented local removal |
 
-Only an `ABSENT` reading after recorded teardown steps means the credential is out of the provider's reach; it does not establish revocation at the vendor. Recovery for each reason is in `skills/Connection Troubleshooter/` Pitfalls.
+Recovery for each reason is in `skills/Connection Troubleshooter/` Pitfalls.
 
 ## Standing approvals
 
