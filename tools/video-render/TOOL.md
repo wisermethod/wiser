@@ -3,7 +3,7 @@ name: video-render
 type: tool
 category: media
 description: Renders one local HTML page whose motion answers the tool's seek to a picture-only MP4, a PNG sequence, or stills at named times, the same frames on every run at a set worker count, under one pinned HyperFrames, with a cache keyed over every input
-version: 0.2.1
+version: 0.2.2
 gaps:
   - rendering on Windows or Linux, which no run has tested
 ---
@@ -27,6 +27,7 @@ Classifier seam: none.
 This section is the one home of what a page must be for this tool to render it.
 
 - **One directory**, absolute, holding `index.html` and every file the page loads, as local files.
+- **Stills from video.** Write stills extracted from BT.709-tagged video with `setparams=color_primaries=unknown:color_trc=unknown:colorspace=unknown` so their inherited `cICP`, `cHRM` and `gAMA` tags do not make Chrome colour-manage a page background darker than its video.
 - **One root.** `index.html` has exactly one element carrying `data-video-root`, laid out at the frame's size in CSS pixels. The tool sets the renderer's own attributes on that element in its copy of the project; a page carries none of them.
 - **The seek.** On every frame the tool dispatches, on `window`, a `CustomEvent` named `video-render:seek` whose `detail.time` is the frame's time in seconds: frame n shows time n / fps. The page's listener sets the frame for that time before it returns. A render given more than one worker splits the frames among browsers that each start at their own first frame, so the page sets each frame from its time alone, never from an earlier seek, the browser's clock, or `requestAnimationFrame` and timers, which do not advance between seeks.
 - **No `will-change` inside a zoom.** A page marks no element `will-change` that sits inside an element whose scale changes. How Chrome draws such a layer then depends on timing: measured on Chrome 152, elements marked inside a zooming container drew up to three frames differently between two one-worker renders, by up to 4 levels of 255.
@@ -75,7 +76,7 @@ Every path is absolute. Every output path is new, outside this tool's directory 
 `sequence`, `render` and `frames` also take `--workers N|auto` (default 1, for the reason `## Same frames, and their scope` gives), `--gpu hardware|software` (default `hardware`), `--capture screenshot|fast` (default `screenshot`) and `--install`. Each command answers `help` and `--help` before any dependency check, its help lists every flag, and an unknown flag is refused by name.
 
 - **Frame count.** Every output holds exactly round(duration × fps) frames.
-- **`frames`.** Frame n is drawn at exactly n / fps, and a time names the last frame drawn at or before it, floor(t × fps) in exact arithmetic, chosen by that same division so 4.1 s at 30 fps is frame 123; a time at or past the last frame's time names the last frame. With `--select after`, each time names the frame after that one, the first drawn past it, which is where a moment timed at that time first shows; a time with no frame past it within the duration is refused. At most 60 times, none twice. Its files are named by frame number from 0, `frame_000000.png` for frame 0; read each still's file from `frames.json`.
+- **`frames`.** Frame n is drawn at exactly n / fps, and a time names the last frame drawn at or before it, floor(t × fps) in exact arithmetic, chosen by that same division so 4.1 s at 30 fps is frame 123; a time at or past the last frame's time names the last frame. With `--select after`, each time names the frame after that one, the first drawn past it, which is where a moment timed at that time first shows; a time with no frame past it within the duration is refused. At most 60 times, none twice. Its files are named by frame number from 0, `frame_000000.png` for frame 0; to request frame n with `--select at`, use its midpoint `(n + 0.5) / fps` and check both the frame number and file returned in `frames.json`.
 
 ## Profiles
 

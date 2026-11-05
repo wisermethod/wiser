@@ -3,7 +3,7 @@ name: Media Generator
 type: skill
 category: media
 description: Produce an image or a video that does not exist yet, or a photograph with its background removed, by finishing the prompt, choosing the model, and running the billed generation through a generation connector to a file the user named.
-version: 0.11.5
+version: 0.11.6
 gaps:
   - judgment of a generated clip's motion, which no expert in this root carries; the clip is judged by its still frame
 ---
@@ -20,7 +20,7 @@ Do not use it on media that exists already in some other form. Vector artwork be
 
 Two properties separate this skill from every tool beside it, and both bind every step below. Each generation run spends real money, an image's worth of cents and a video's worth of many times that, and it spends it whether or not the result is usable. And each run is non-repeatable: the same prompt sent twice returns two different results, so a result that missed cannot be nudged, only re-argued.
 
-Account access is the gateway's `replicate` / `models` grant. The manifest owns which calls bill and their confirmation. A price to the cent comes from the chosen model's public page, never a copied rate. No second generation provider is present in this root, so a run that fails is reported to the user, never quietly rerouted.
+Account access is the gateway's `replicate` / `models` grant. The manifest owns which calls bill and their confirmation. A price to the cent comes from the chosen model's public page, never a copied rate: read the raw HTML's `"prices"` blocks, keeping each per-image price with its condition, such as target resolution or model variant. No matching condition: report the exact price unavailable; rendered or summarized text and a generic per-second rate do not establish it. No second generation provider is present in this root, so a run that fails is reported to the user, never quietly rerouted.
 
 ## Objective
 

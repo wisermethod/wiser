@@ -3,7 +3,7 @@ name: Build Concepts
 type: skill
 category: authoring
 description: Develop one tested core insight from source material or a bare direction, with the angles, specifics, and boundaries a piece can be drafted from
-version: 0.2.3
+version: 0.2.4
 ---
 
 # Build Concepts
@@ -64,7 +64,7 @@ Then the gate, before anything is handed on. A vague core insight, angles that a
 
 When the package is written down rather than carried in the session, it goes where `standards/conventions.md` puts the owning root's working files.
 
-Then the gate: hand the package, wrapped in `<draft>`, with the intended reader (the reader of the piece it will lead to, named with the format) and the owning root named, to `experts/Ghost Writer/` in a second context that did not produce it. It ships on that expert's ship verdict or the requester's explicit decline; a return goes back to the step its findings name, and a declined review is named in the delivery. The self-check above is this skill's own stop and is not that gate; a decline waives the gate and not the self-check.
+Then the gate: hand the package, wrapped in `<draft>`, with the intended reader (the reader of the piece it will lead to, named with the format) and the owning root named, to `experts/Ghost Writer/` in a second context that did not produce it. What did the gate return? Ship: deliver. First return: make one correction pass at the steps its findings name, then gate once more. Returned again: is every held finding small and local, cured solely by removing or narrowing the named text without widening a claim, adding an unsupported one or losing an obligation? Yes: make those cuts and deliver without another gate. No: stop and return the unfinished package and the held findings to the requester. The requester's explicit decline releases the package with that decline named. The self-check above is this skill's own stop and is not that gate; a decline waives the gate and not the self-check.
 
 ## Pitfalls
 
@@ -85,4 +85,4 @@ Then the gate: hand the package, wrapped in `<draft>`, with the intended reader 
 - The boundaries name contexts and conditions, never degrees of confidence.
 - The package names the formats the concept fits and the gaps still open, and carries nothing about the process that produced it.
 - A package failing the step 8 gate stopped there instead of being handed on.
-- `experts/Ghost Writer/` read the package as the reader of the piece it will lead to and returned ship, or the requester declined the review.
+- Step 8's Ghost Writer gate returned ship, the requester declined, its final local cuts cleared the residue, or the unfinished package stopped with its held findings named.

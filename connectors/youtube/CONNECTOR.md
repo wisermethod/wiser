@@ -3,7 +3,7 @@ name: youtube
 type: connector
 category: media
 description: Reads the signed-in YouTube channel, uploads and updates videos, sets thumbnails, inserts captions, and manages playlists, with channel and ownership checks and confirmation on every write
-version: 0.1.0
+version: 0.1.1
 ---
 
 # YouTube
@@ -41,11 +41,13 @@ The API charges no money. Quota belongs to your own Google Cloud project: 10,000
 
 Video titles are 1 to 100 code points; playlist titles are 1 to 150. Titles and descriptions exclude `<` and `>`. Descriptions are at most 5,000 UTF-8 bytes. Tags number at most 50 and total at most 500 code points, counting separating commas and two quotation marks for each tag containing a space. Caption `name` is at most 150 code points. `videos.update` requires at least one editable field, reads the current snippet and status, and sends only writable fields with the named changes. It always sends the category and preserves the made-for-kids declaration, using the current `madeForKids` when `selfDeclaredMadeForKids` is absent. It sends an existing `publishAt` only when the resulting privacy is private and that time is still in the future. `language` sets both default language and default audio language.
 
+Writing chapters in `description`? Yes: require the first timestamp `00:00`, at least three chapters in ascending timestamp order, each at least 10 seconds, and Advanced features enabled on the channel; refuse any timestamp outside the chapter lines in the complete assembled description, since one stray timestamp anywhere drops all chapters and checking the chapter lines alone misses it. No: apply the description bounds above.
+
 Uploads require a boolean `made_for_kids`. They default to `privacy: private` and allow `unlisted`; public requires a separate `videos.update` confirmation. Playlist creation defaults to private; it and video updates allow private, unlisted or public.
 
 Local files must exist as readable regular files. The screen canonicalizes the path, refuses the gateway user-config directory and its file identities (including hard links), and refuses resolved `.env` and `.env.*` names. It opens the resolved path with `O_NOFOLLOW` and checks device, inode, regular-file type and size through the descriptor before reading. The extension is checked on the resolved name. Nothing writes a file.
 
-- Videos: `.mp4`, `.mov`, `.webm`, 1 to 274,877,906,944 bytes, sent as `video/mp4`, `video/quicktime`, `video/webm`.
+- Videos: `.mp4`, `.mov`, `.webm`, 1 to 274,877,906,944 bytes, sent as `video/mp4`, `video/quicktime`, `video/webm`. Under the [host's stdio idle window](../../gateway/AGENTS.md#what-a-host-keeps), one local-gateway upload call must finish inside 30 minutes whatever its wall-clock limit; at about 1.46 MB/second it reaches that window near 2.6 GB.
 - Thumbnails: `.jpg`, `.jpeg`, `.png`, at most 3,145,728 bytes. The cap is the proxy body's bound, lower than YouTube's 50 MB bound. The signed-in channel's `status.longUploadsStatus` must be `allowed` before a thumbnail call.
 - Captions: `.srt`, `.vtt`, `.sbv`, at most 3,145,728 bytes. Sent as `multipart/related` with metadata and file parts, always `isDraft: false`.
 

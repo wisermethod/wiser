@@ -1,6 +1,6 @@
 ---
 standard: script-contract
-version: 0.8.1
+version: 0.9.0
 description: The rules every script a tool ships follows, and the clauses that bind a connector module; users read tools/RUNNING.md
 ---
 
@@ -20,6 +20,8 @@ Fixed rules for every script a tool ships, in every runtime. Tools cite this fil
 
 **Runtimes.** Node is the default runtime and the one the templates ship. A script may use another runtime when the typed file's Dependencies section declares that runtime's interpreter per System dependencies above. The interpreter is the one dependency a script cannot check from inside itself; the agent runs the declared presence check before the script's first invocation. Every other rule here binds unchanged in every runtime: help before configuration, `--env`, the output and error discipline, the write rules. Packages beyond the runtime's standard library install into a first-run cache inside the primitive's own directory (for Python, a virtual environment beside the scripts), by the same pattern as the `npm ci` above, consent included: check one named package's own marker inside the cache; missing, open with a question said to the member word for word, put hosts, paths and flags in the details for the assistant, and exit 1; on `--install`, `WISER_ALLOW_INSTALL=1`, or a valid person marker or matching copy marker, create the cache, install, and finish the run. **The installer's own cache is part of what installs, and it is not inside that directory unless the script puts it there.** pip's default download cache is `~/Library/Caches/pip` or `~/.cache/pip`, it survives deleting the virtual environment, and on one tool here it reached several hundred megabytes; npm's is `~/.npm` and is disclosed in `tools/AGENTS.md` rather than suppressed, because `npm ci` has no equivalent of `--no-cache-dir` that is worth the re-download across eight tools. So a non-Node runtime's install either switches its cache off (`pip install --no-cache-dir --disable-pip-version-check`, with `PIP_NO_CACHE_DIR`, `PIP_CACHE_DIR` and `XDG_CACHE_HOME` set in the child's environment so a variable cannot reopen what a flag closed) or adds a row to that inventory. It never states that nothing installs outside the primitive's directory while leaving the installer's default cache in place. A runtime's standard library is preferred over a package that only saves typing.
 
+For pinned compiled Python packages, intersect every compiled pin's wheel list before a plan names supported interpreters or platforms. Does a wheels-only install (`pip install --only-binary=:all:`) succeed for the proposed interpreter/platform pair? Yes: it is supported. No: exclude it; a source-built install proves no wheel support.
+
 **Help without configuration.** `help` and `--help` are parsed and answered before the dependency check, so usage is available on a copy that has never been installed or configured.
 
 **Unknown flags.** An option a script does not name is refused by that name, before any work, any dependency install, and any network request. The refusal points at the script's own help.
@@ -38,7 +40,7 @@ The typed file lists them too. Where the typed file groups or summarises, it sti
 
 **Unchanged.** A re-run that reports `unchanged` checks that what it vouches for is complete and usable, and refuses when that is in doubt. Does this run report `unchanged`? Yes: make that check, and refuse rather than report success over a missing or unusable part. It reports a change, or it is not a re-run: this check does not apply.
 
-**Matching a result.** Does an exit code or a structured field carry the fact? Yes: match that, and do not match the prose. No: the text has to be matched, so anchor on the token and ignore case.
+**Matching a result.** Does a wrapped program log recovery from failure while returning success? Yes: read that version's recovery paths and refuse the class of line they log, not a list of known messages. No: go on. Does a system program write a file? Yes: require the expected file to exist and both captured output streams to be empty; exit 0 alone does not prove a write. No: go on. Does an exit code or a structured field carry the remaining fact? Yes: match that, and do not match the prose. No: the text has to be matched, so anchor on the token and ignore case.
 
 **Where files are written.** Beyond the dependency install above, a script never writes inside its own directory. A script accepting an output path refuses one that resolves inside that directory; the agent passes a work directory in the owning root, per `standards/conventions.md`.
 

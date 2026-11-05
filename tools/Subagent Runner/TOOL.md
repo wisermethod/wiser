@@ -3,7 +3,7 @@ name: Subagent Runner
 type: tool
 category: automation
 description: Run one builder or reviewer through a vendor command-line tool named by flags, or survey the boundary that run would use
-version: 0.1.1
+version: 0.1.2
 ---
 
 # Subagent Runner
@@ -182,6 +182,8 @@ Nothing else is written inside this tool directory. `survey` writes nothing. `he
 | `report.md` | A real run that reaches an exit path | The parsed report, or `No report returned. See stderr.log in the run folder.` when the parse produced nothing |
 
 A caller decides whether a delegate started by reading `status.json`, not by reading stdout. Stdout is empty until the run finishes, and it is empty after any outcome other than `completed`.
+
+Do parallel driver runs finish into one shared results file? Yes: serialize each update and read the file again immediately before merging and writing the run's entry; no: retain separate run records.
 
 `--dry-run` stops after `prompt.md`. It does not start the vendor, does not write `status.json`, and does not write the logs. If the vendor process fails to start, or the run is interrupted before the spawn, the run folder is removed. A run folder that remains and has no `status.json` means the runner died before the start record was published. The vendor never ran, and there is no process group to stop.
 

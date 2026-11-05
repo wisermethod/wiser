@@ -3,7 +3,7 @@ name: cloudflare
 type: connector
 category: development
 description: Reaches Cloudflare DNS, zones and their settings, the zone's configuration reads, D1 databases, Pages projects, domains and custom-domain status, production deploys of a kit site with its fingerprinted Pages Function, of a site with its Pages Functions, or of a plain static build output, Web Analytics on a Pages project, rulesets, redirect rules and Bulk Redirects, with every removal, setting change, analytics change, redirect write and production deploy confirmed
-version: 0.10.3
+version: 0.10.4
 ---
 
 # Cloudflare
@@ -397,6 +397,8 @@ A successful organization read must include a usable team domain. These actions
 never create the organization or change its identity providers. The team must
 already offer emailed-code sign-in if staff are to use it.
 An Allow policy admits the listed emails through any identity provider the team has, so the team should keep only providers it trusts.
+
+The edge strips a client-sent `Cf-Access-Authenticated-User-Email` before any Worker runs, on `workers.dev` too, while `Cf-Access-Jwt-Assertion` passes through; verify the JWT rather than trusting a supplied email header. A service token's Access JWT has empty `sub`, `common_name` equal to its Client ID and `aud` as a string. Need the application's audience tag without dashboard access? Read `kid=` in an unauthenticated request's redirect; otherwise use `access.get_app`. Wrangler's OAuth sign-in has no Access scope, so applications, policies and service tokens require the dashboard or an API token with Access permissions.
 
 `access.create_app` takes `account_id`, `hostname`, `name` and 1 to 50 `policy_ids`.
 It reads a counted application list first: the number of object rows read must

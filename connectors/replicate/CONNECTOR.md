@@ -3,7 +3,7 @@ name: replicate
 type: connector
 category: media
 description: Lists curated model collections, starts confirmed predictions, and returns prediction status and output URLs
-version: 0.3.0
+version: 0.3.1
 ---
 
 # Replicate
@@ -26,6 +26,8 @@ replicate.models.get_prediction  { prediction_id }
 ```
 
 The module writes no files. `create_prediction` returns the catalog prediction object with an id; `get_prediction` returns status and output URLs when ready. The caller retrieves and files outputs. A prediction is billed and uses confirmation always; a caller picks the model and the run length, so the cost of a single call is set by its input. This connector does not infer a model or a version.
+
+For a model's file input, does the request body allow a data URL? Yes: send one with the file's media type; a model can refuse a Files API `urls.get` address its page says it accepts. No: prove that model accepts the file address before relying on it. Take file-id patterns from a live answer: Files API ids can contain dots, including a filename extension.
 
 ## Credentials
 

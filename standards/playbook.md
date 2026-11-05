@@ -1,6 +1,6 @@
 ---
 standard: playbook
-version: 0.3.1
+version: 0.3.2
 description: The Playbook format; the WISER method for multi-session execution with decision tracking and learning capture
 ---
 
@@ -20,7 +20,7 @@ Preconditions come first: prerequisites that must be true before work begins (ar
 | Interrogate | Surface unknowns, assumptions, and execution risks | Unknowns listed; assumptions stated; every risk carries a specific mitigation; riskiest piece named; reuse check done |
 | Solve | Build the riskiest piece first | The riskiest piece works, or it demonstrably does not and the plan pivoted |
 | Expand | Build out the full objective | Every milestone verified; documentation impact addressed |
-| Refine | A human stress-tests; the agent iterates | Tested in real use; feedback incorporated; the success criteria testable at this stage pass |
+| Refine | A human stress-tests; the agent iterates | Tested in real use; feedback incorporated; the success criteria testable at this stage pass. Is this a reading comparison? Yes: did the reader know the earlier text? Yes: ask whether it reads better. No: ask whether it reads clearly and does no less. No reading comparison: use the real-use test |
 | Final Check | Confirm nothing was left inconsistent | Every item on the Final Check list in the Structure passes |
 
 Status is never Complete until Final Check passes.
@@ -29,9 +29,15 @@ Status is never Complete until Final Check passes.
 
 Interrogate drives Solve. This ordering is the load-bearing idea of the method: the riskiest piece is the assumption whose failure would invalidate the plan, not the task that looks hardest. Build it before anything that depends on it, so a wrong plan fails in the first session rather than the last. Each risk carries a status (Active, Mitigated, Realized, Retired), a concrete countermeasure, and notes updated as work proceeds. A mitigation that names no action is not a mitigation. Risks keep their detail even when the rest of the document is compressed.
 
+Does the build add a skill? Yes: run the same request without it at Witness or Solve, before building its process, to find which rules earn their place. No: go on. Does Solve also score ordinary quality? Yes: give the riskiest piece its own pass rule; record the rest as findings for Expand. No: use that piece's pass rule.
+
 ## Questions
 
 Put each question where its answer is used, in the running session at the task that first uses it, in units the owner can judge, with a recommended default. Upfront questions do not block the start, and the one gate is the authorization to proceed. A surprising measurement is raised as a question, never absorbed.
+
+Would a scope limit or Witness finding make the objective unusable for the owner's purpose? Yes: at Interrogate put it as a question with its consequence, in plain words, even if it is written as non-scope. No: go on.
+
+Is the owner choosing or judging something by eye or ear? Yes: run every check that binds what it shows, not only those it illustrates, and resolve failures before presenting it. Put it in front of them to view or play before asking; name in the question the pages or frames your checks found and what each should show. Is a change being judged? Yes: set it beside the unchanged original, over material where the difference shows; an alpha change needs picture detail. No: show the item itself. No sensory judgment: ask the question directly.
 
 ## Required Sections
 
@@ -42,6 +48,8 @@ Order is fixed and cognitive: constraints, then objective, then unknowns, then p
 ## Milestones and Tasks
 
 Expand holds milestones; each groups a few tasks, typically 3 to 5, toward one verifiable outcome. For multi-session builds a milestone is a session with a coherent theme. A Playbook sets no target dates: a milestone is done when its tasks are, not when a date arrives.
+
+Order milestones by what a user needs first, not by which part is easiest to analyse.
 
 Every task is atomic (one action, not two joined by "and" or "then"), verifiable (a done-state checkable on disk or by a run, not by opinion), right-sized (completable inside its session), and independent of its siblings where possible. Warning signs: vague verbs (handle, address, improve); no observable done state; a milestone holding one or two tasks, which is a task; a task that is really a project.
 
@@ -68,11 +76,13 @@ Autonomous guardrails. Stop and notify a human when:
 - Solve disproves the approach (this stops both modes; pivot, descope, or abandon is a human decision)
 - A high-severity risk emerges (one that could invalidate the plan), or a risk realizes with impact beyond what its mitigation contains
 
-An unattended run, before it stops, lists every unticked box with the rule that blocks it, does each one no rule stops, and has a reviewer test the list. The reviewer works in a context that did not produce the list.
+An unattended run writes its stop list before its first stop and checks it at every stop: each unticked box names the clause that gates it and the check on disk showing that gate still closed. Run those checks, do each box no rule stops, and have a reviewer test the list in a context that did not produce it.
 
 Authority is the gate: anything under Needs human input pauses in both modes, and is asked before the action rather than left to a stop the action may raise, which another build can remove. Where a plan requires a person's approval for a billable call, ask before the first call, after reading the action's current `confirmation` with the gateway's `describe_action`. A guardrail stop sets Status to Paused and records the blocker. Mode is declared in the header and may change mid-execution; log the change as a decision.
 
 **Run in a loop.** A Playbook a standing goal runs unattended, one iteration after another, states three things a single session can leave implicit: what one iteration is, the rule that derives the next action (the first unticked task whose gate is open, for example), and the conditions that stop the run. Progress still names the one next action, the one that rule gives now, and carries the rule beside it, so an iteration that finds the sentence stale re-derives it rather than following it. A restated entry point is not what such a run lacks.
+
+Must a rule bind another session? Yes: put it in that session's start prompt or Playbook. No: keep it in this one.
 
 ## Living Document
 
@@ -90,7 +100,7 @@ The document is updated as the work happens, never reconstructed afterward.
 - A gap found mid-run goes to the owner as an authorization decision, never a quietly added task or a ticked criterion, above all for a public file
 - A count is re-derived from what it counts whenever it is used, by re-measuring its rule rather than carrying the number, this document's own bookkeeping and a number put to the owner included
 - On a task failure: log it in Learnings and attempt one recovery if a clear fix exists. On a second failure, stop. Collaborative discusses; Autonomous documents the blocker and stops. A checkpoint whose plan names what its failure gets, such as restoring what moved, pausing, and leaving the next course to the owner, gets that response, in an unattended run told to go as far as it can too: before any recovery after a checkpoint, read its own failure clause, run the response it names, and put any other recovery to the owner as one of the options
-- On a release, a version stamp, a tag, or a deployment: reconcile this document in the same change. Shipping is when the document is most likely to be wrong and most certain to be trusted
+- On a release, a version stamp, a tag, or a deployment: reconcile this document in the same change; a deployment also reconciles every Playbook that describes the production it changes
 
 **Session-end protocol.** A session ends by reconciling the document against disk, never by asserting it is current. Reconcile what a later reader will act on: each checkbox against the artifact it claims, each count and version against the file that carries it, each statement about what is committed, pushed, tagged, released, or deployed against the repository and the destination themselves, and Progress against the last thing that actually happened. A claim that cannot be checked against something on disk is rewritten until it can be. A session working a Playbook ends through `skills/Playbook Author/` Hand Off, which owns the steps.
 
@@ -154,7 +164,7 @@ Dates, naming charset, and archiving follow `standards/conventions.md`.
 | [What could go wrong] | Active / Mitigated / Realized / Retired | [Specific countermeasure] | [Updated as work proceeds] |
 
 **Reuse check:**
-- [ ] [Existing primitive, Play, or prior work to leverage]
+- [ ] [Existing primitive, Play, or prior work to leverage. Does its pattern come from another payload? Yes: re-read the new payload's size limits and release path before planning on it. No: reuse it]
 
 **Riskiest piece:** [The assumption whose failure invalidates the plan]
 **Checkpoint:** [Condition]. [Result, evidence, and date]

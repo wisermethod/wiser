@@ -107,7 +107,7 @@ Otherwise `status` is `draft`, and `Missing:` names each absent item. An extensi
 
 ## Role
 
-One event per line, naming the organization. `Kind` on every line. Tokens: `Role statement:`, `Role sighting:`, `Former role:`, `Departure:`, `Return:`, `Retirement:`, `Move:`. A `Role statement:` rests on `Kind: statement` or `Kind: report`. A sighting never does.
+One event per line, naming the organization. `Kind` on every line. Tokens: `Role statement:`, `Role sighting:`, `Former role:`, `Departure:`, `Return:`, `Retirement:`, `Move:`. A `Role statement:` rests on `Kind: statement` or `Kind: report`. A sighting never does. Is a role statement itself past-tense, including "formerly" or "served as"? Yes: `Former role:`, never `Role statement:`. No: use the event the evidence states.
 
 An event is written only where the evidence shows it. No `Not available` line for an event not found. No `Role statement:` leaves one `Not available` line for that token.
 
@@ -206,7 +206,7 @@ A personal-life reason repeats nothing of the content. Nothing to name: `None as
 
 ## Currency
 
-An organization is current when its in-force role line is a `Role statement:` or a `Return:`, or a dated item there falls within 365 days of the as-of date, or the ask names it. A dated `Kind: report` counts as a statement does. A sighting does not. An unresolved field is not current. A page that lists the person, other than their organization's own, is a sighting, never the in-force role.
+Does the organization's in-force role line state `Departure:`, `Retirement:`, `Move:` or `Former role:`? Yes: it is not current, even when an item there is within 365 days or the ask names it. No: it is current when that line is `Role statement:` or `Return:`, a dated item there falls within 365 days of the as-of date, or the ask names it. A dated `Kind: report` counts as a statement does. A sighting does not. An unresolved field is not current. A page that lists the person, other than their organization's own, is a sighting, never the in-force role.
 
 The currency fields are the in-force role, standing, and each `Route works:`. Each carries its own source and as-of date. Past staleness, Open gaps names an unrefreshed one. `status`, `last_verified`, and a dated item elsewhere do not refresh one.
 

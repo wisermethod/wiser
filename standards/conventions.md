@@ -1,6 +1,6 @@
 ---
 standard: conventions
-version: 0.4.3
+version: 0.5.0
 description: The cross-cutting conventions every file and agent in a Wiser workspace follows: formatting, dates, portable names, working files, root layout, archives, sourcing, and evidence labels
 ---
 
@@ -10,7 +10,7 @@ These rules bind every file in this root and every agent working in a workspace 
 
 Division of labor: how instructions are written belongs to `instruction-quality.md`; the Play and Playbook formats, including the file naming specific to each, belong to `play.md` and `playbook.md`. Cite those standards; do not restate them here.
 
-Precedence: a user root's AGENTS.md may localize placement, naming its own work directories and archive home. It may not lift the formatting, date, or naming rules; those hold everywhere.
+Precedence: a user root's AGENTS.md may localize placement, naming its own work directories and archive home. It may not lift the formatting, date, or naming rules; those hold within their stated scopes.
 
 ## Formatting
 
@@ -24,7 +24,9 @@ Applies both to prose written in a response and to the files you author.
 
 ## Dates
 
-Absolute only, `YYYY-MM-DD`, in prose, filenames, logs, and frontmatter; never relative. When a source states a date relatively, resolve it to an absolute date before writing it down; if you cannot, ask. The archive prefix below is the single exception.
+Use absolute `YYYY-MM-DD` dates in records, filenames, logs and frontmatter; the archive prefix below is the exception. Reader-facing copy takes its date wording from the owning root's bound voice and applicable design instructions.
+
+Which date is unresolved? A source's own date: resolve it, including a relative date, where detectable; otherwise record it as not identified without asking. A date the work's own facts need: resolve it before recording; if unresolved, ask.
 
 ## Names
 
@@ -63,7 +65,7 @@ Directories whose structure another standard already fixes are exempt:
 
 ## Archives
 
-Before deleting a file or rewriting it substantially, copy it to a `zArchive/` directory in the same directory as the file, unless the owning root's AGENTS.md declares a different archive home or declares git history as its recovery path. Only a repository that is committed and current counts.
+Before deleting a file or rewriting it substantially, copy it to a `zArchive/` directory in the same directory as the file, unless the owning root's AGENTS.md declares a different archive home covering that file or declares git history as its recovery path. A declared home binds only the files its declaration names. Only a repository that is committed and current counts.
 
 The archive name is the date, a space, V with the version number, then " - " and the file's original name and extension unchanged. Numbering starts at 1 and resets each day:
 
@@ -71,7 +73,7 @@ The archive name is the date, a space, V with the version number, then " - " and
 26-07-25 V1 - competitors.md
 ```
 
-The `YY-MM-DD` prefix is the one deliberate exception to the date format above; it is inherited convention and existing archives sort by it. Everywhere else, `YYYY-MM-DD`.
+The `YY-MM-DD` archive prefix is inherited convention; existing archives sort by it. Other dates follow Dates above.
 
 ## Sourcing Registers
 

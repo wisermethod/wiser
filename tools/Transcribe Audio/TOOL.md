@@ -3,7 +3,7 @@ name: Transcribe Audio
 type: tool
 category: media
 description: Transcribes an audio file or aligns known English words to its sample clock on this machine
-version: 0.3.2
+version: 0.3.3
 gaps:
   - Speaker labeling, which would say which speaker said each turn
 ---
@@ -115,6 +115,8 @@ Model choice trades time for accuracy, and the weights are downloaded once per m
 | `medium` | Large | The transcript will be quoted or acted on |
 | `large` | Largest, slowest | Accuracy outranks time, or the audio is genuinely hard |
 
+To reuse an existing Whisper `base.pt` without downloading, copy it into `<dir>/speech-models/` and pass `--model-cache <dir>`; this tool does not read Whisper's cache.
+
 When the request states more than one of these, pass the first match in the order `large`, then `medium`, then `small`, then `tiny`, from what the request states rather than by listening. A `--model` name outside that list: ask, and do not substitute `base`.
 
 ## Align known words
@@ -124,6 +126,8 @@ Run `python3 scripts/transcribe.py align --help` for its closed flag set. `--mod
 Pass `--audio` in a format listed under Inputs and `--words` as an absolute path to a strict JSON array of spoken words, for example `["Here", "are", "your", "boards."]`. Each string is one word, with its original spelling and punctuation. No control/comparison tags are removed: the caller supplies spoken words without tags. Normalization uppercases ASCII letters, converts curly apostrophes/quotes, strips edge `.,!?;:"()` and quote apostrophes, and retains internal apostrophes. The result must contain English letters with optional internal apostrophes. Digits, accented letters, hyphens, symbols, whitespace, tags and empty tokens are refused by index and original word. Write numbers or abbreviations as spoken words when needed. Nothing is dropped or substituted. `--language` defaults to `en`; any other value is refused by name. The caller supplies the language truthfully; there is no language detector.
 
 `--output` is an absolute **new JSON file** outside this tool, rather than the directory transcription takes. An existing output is refused. The file is an array with exactly one `{text, start, end}` per supplied word, in order and in the supplied spelling. Times are finite seconds relative to decoded audio time zero, within its actual sample count/rate, with `start <= end` and nondecreasing starts. No silence trim or encoder-delay correction is performed: pass the prepared audio the consumer reads. The tool writes no take registry. Success prints one object with `ok: true`, `file`, `model`, `language`, `words`, `sample_rate` and `samples`.
+
+These `start` and `end` values bound a word's emission peak, not its spoken extent; place a cut or bleep's edges from the sound's levels.
 
 Optionally pass `--layout` as an absolute strict JSON file:
 
@@ -136,6 +140,8 @@ Optionally pass `--layout` as an absolute strict JSON file:
 Only those keys are accepted. Rates, bounds and indices are integers, never booleans. Sample bounds are zero-based and end-exclusive; nonempty passages must fit the decoded audio and may have gaps but cannot overlap. Word indices are zero-based, `last_word` inclusive; ranges must cover all supplied words exactly once, contiguously and in order. The layout rate must equal the source rate read by FFprobe. Paths, words and layout are validated against the audio **before model loading or package installation**. Source sample counts use a positive whole container sample count agreeing within one 16 kHz sample, otherwise the decoded duration converted to that rate; absent or unusable duration metadata does not fail a successful decode. After conversion to 16 kHz, every passage, including the whole recording without a layout, must satisfy `start < end <= decoded length`.
 
 FFmpeg decodes the whole file to mono 16 kHz signed 16-bit PCM, scaled by 1/32768, with the same command as `whisper.audio.load_audio`. Each passage is cut from that waveform at `int(start_sample / sample_rate * 16000)` and `int(end_sample / sample_rate * 16000)`, then led by 0.3 s of added silence for model context. There is no per-passage resampling. Timings subtract that lead and add the passage offset on the layout's source clock. Its first word starts exactly at the passage's start sample divided by the layout rate, retaining its aligned end. Without a layout, the recording is one passage with the same lead and no first-word anchor.
+
+Is there a word onset after a silence (frames below about -45 dBFS) to judge the timings against? Yes: measure against that waveform onset; no: use Whisper's word starts.
 
 Alignment pins **torch 2.8.0 and torchaudio 2.8.0** and accepts **CPython 3.9–3.13**, the Python minors listed in both releases' installed `METADATA` Programming Language classifiers. A wheel must also match the host's platform and architecture. The timing proof ran on **CPython 3.9.6 on macOS arm64**; that patch version is evidence, not a requirement. `requirements-align.txt` installs only the two engine packages and their dependencies into this tool's `.venv`. Transcription's `requirements.txt` and install selection are unchanged; alignment neither installs nor imports Whisper. A shared `.venv` with other engine versions needs the pinned alignment versions under the existing install consent. Help and the existing offline `check` import no engine, load no model and neither install nor download anything. `check` retains its transcription survey shape; it does not certify alignment compatibility.
 

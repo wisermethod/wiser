@@ -3,7 +3,7 @@ name: vm
 type: connector
 category: development
 description: Reads health, facts and mapped host identifiers, runs a root command, reads and writes one file, and controls a systemd unit, with every command, write and unit change confirmed
-version: 0.1.4
+version: 0.1.5
 ---
 
 # Virtual machines
@@ -47,7 +47,7 @@ vm.units.service          { machine, verb, unit }    confirmation: always
 
 Every action returns the router's JSON, read from `outcome`. `ok`, `remote_failure`, `timeout`, `busy`, `path_refused`, `unknown_machine`, `truncated`, `oversize` and `quote_refused` are results. An outer provider or transport failure stays `vendor_error`.
 
-**Through the Wiser endpoint, a `vm` action has 65 seconds.** Every `vm` action is one provider call, which carries the request to the router and waits for its answer, so a command that has not answered within 65 seconds, transit included, comes back as `status` `uncertain` with no `outcome`, and the endpoint does not retry it. A router that allows a command more time does not extend that bound. The endpoint's other provider calls, the bookkeeping around that one and every other connector's, keep 20 seconds. The app a person uses can stop waiting sooner, by its own limit on a tool call, and the endpoint cannot lift that limit. **The command may still run to completion on the host.** Keep a command's own runtime well inside that bound there, and start longer work as a unit systemd runs, reading its state in later calls. The local gateway has no such bound of its own.
+**Through the Wiser endpoint, a `vm` action has 65 seconds.** Every `vm` action is one provider call, which carries the request to the router and waits for its answer, so a command that has not answered within 65 seconds, transit included, comes back as `status` `uncertain` with no `outcome`, and the endpoint does not retry it. A router that allows a command more time does not extend that bound. The endpoint's other provider calls, the bookkeeping around that one and every other connector's, keep 20 seconds. The app a person uses can stop waiting sooner, by its own limit on a tool call, and the endpoint cannot lift that limit. **The command may still run to completion on the host.** Must the command end inside that bound, cleanup included? Yes: run it as a `vm-job` unit; GNU `timeout` signals its own process group, so an inner `timeout` can escape the outer one, and killing a `docker run` client leaves its container with the daemon. No: keep a direct call's runtime well inside the bound, and start longer work as a systemd unit, reading its state in later calls. The local gateway has no such bound of its own.
 
 ## Credentials
 

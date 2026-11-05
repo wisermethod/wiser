@@ -3,7 +3,7 @@ name: video-edit
 type: tool
 category: media
 description: Edits existing video with FFmpeg, including audio-correlated silent conform, exact decoded frame evidence, timed silent video composition, full-frame transparent composition, trim, resize, speed, text, audio removal, concatenation, sampled frames, GIF, narration mux, loudness and the final joined encode
-version: 0.4.0
+version: 0.4.1
 ---
 
 # video-edit
@@ -267,7 +267,7 @@ Audio with no gated block, nothing above EBU R128's −70 LUFS floor, has no lou
 
   The gain corrections and those encodes share one bound of 12 passes, for `loudness` and `finish` alike.
 
-**The same bytes.** The same inputs and flags give byte-identical files on every run, through fixed thread counts and FFmpeg's `bitexact` flags.
+**The same bytes.** The same inputs and flags give byte-identical files on every run, through fixed thread counts and FFmpeg's `bitexact` flags. Because `finish` encodes the join once, changing one input can change an unchanged neighbour's decoded output frames; check retained input identities when a request must prove untouched scenes unchanged.
 
 ## Usage
 
@@ -411,6 +411,8 @@ The stops every tool shares, an unknown flag and a path that is relative or insi
 ### Full-frame alpha composition refusals
 
 These are the message bodies from `composite-alpha.js` and `evidence-media.js`. Each is wrapped by the shared error prefix and correction/help suffix. Expressions written as `${...}` below are the source's placeholders, replaced by the failing flag, field, chunk or sample in a run.
+
+An FFmpeg MP4 with a 1,000 movie timescale meets the exact identity-edit duration test only when its length is a whole number of milliseconds; rewrite its container with `-c copy -use_editlist 0` to a fresh MP4 before compositing.
 
 | Message body | Cause | Fix |
 |--------------|-------|-----|

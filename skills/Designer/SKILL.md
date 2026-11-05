@@ -3,7 +3,7 @@ name: Designer
 type: skill
 category: design
 description: Run a design job end to end, from brief and visual direction through foundations, composition, and validation, producing the wireframe, style guide, or extracted system itself and directing every other phase to the design skill that owns it
-version: 0.9.11
+version: 0.9.12
 memory:
   - design
 gaps:
@@ -64,7 +64,7 @@ Understand what is being designed before any visual decision. Four things are re
 - **The job.** What the design must accomplish, in one sentence, including the single most important action or impression.
 - **The constraints.** Brand, technical, accessibility, fixed content, and anything it must differentiate from.
 
-A vague request gets at most three questions, each carrying a recommended default; where more than three would be needed, ask only the deliverable, the audience, and the job, and infer the constraints. The rest is inferred and the inferences are stated. Summarize the brief in a few lines and confirm it before designing. If the user corrects anything, update and confirm again rather than proceeding with an unresolved ambiguity. The brief is a working document, not a deliverable, and is not saved as a file unless the user asks for one.
+A vague request gets at most three questions, each carrying a recommended default; where more than three would be needed, ask only the deliverable, the audience, and the job, and infer the constraints. The rest is inferred and the inferences are stated. Summarize the brief in a few lines and confirm it before designing. If the user corrects anything, update and confirm again rather than proceeding with an unresolved ambiguity. The brief is a working document, not a deliverable, and is not saved as a file unless the user asks for one. Does the design move a legal string? Yes: name every string and its old and proposed place in the owner's choices list. The shipped place holds until the owner approves that move by name; approving a mockup alone does not approve it. No: no placement decision is owed.
 
 ### 2. Direction
 
@@ -78,7 +78,7 @@ State five things:
 - **Color mood and typographic voice.** Warm or cool, saturated or muted, light or dark; geometric or humanist, sharp or rounded, condensed or wide. This is direction for the Phase 3 skills to work from, not values decided here.
 - **Signature.** The single element this design will be remembered by, and the one place boldness is spent, with everything around it quiet and disciplined. Take one real aesthetic risk the brief can justify; where it justifies none, still name one signature, say the brief did not justify it, and confirm it with the direction. A design with no memorable anchor reads as templated, so declining the risk is itself a risk.
 
-Where the direction already exists in work that shipped but was never written down, a live site or a codebase, read it back first (Reference: Brand extraction) and let what it returns stand as the direction, and as Phase 3's existing tokens. State the direction before proceeding, and confirm before proceeding where the request was ambiguous or names no direction, or where it contradicts the extraction.
+Where the direction already exists in work that shipped but was never written down, a live site or a codebase, read it back first (Reference: Brand extraction), naming the register it shipped in. Apply Creative Director's Context Registers transfer check before treating it as this direction and Phase 3's existing tokens. State the direction before proceeding, and confirm before proceeding where the request was ambiguous or names no direction, or where it contradicts the extraction.
 
 ### 3. Foundation
 
@@ -131,7 +131,7 @@ Then the review, by surface (ship-gate routing):
 | Taxonomy, direction, and Context Registers | `experts/Creative Director/` owns those in its direction mode; the same expert's verdict mode is the UI ship gate |
 | A single component composed only through `skills/Component Design/` | No expert ship gate unless the caller requests one; mid-work consult to Creative Director for density or type judgment stays optional |
 
-Hand a UI or page artifact to `experts/Creative Director/` for a verdict, with Phase 1's brief plus Phase 2's direction and register as its `<brief>`, so any axis a deliberate choice already fixed is judged as fixed, and work the findings before delivering; a finding that reorders or replaces a region so another element's place would no longer exist as composed sends the affected work back through Phase 4 and re-runs this phase, and any other finding is worked in place. Where a Phase 4 skill already ran its own pre-ship design review, work those findings first so the expert judges a revised artifact rather than a draft, and never run the same review twice. Where the expert is absent from the workspace, say the review degraded and stand on the three checks above.
+Is the artifact a page the owner will decide from? Yes: apply `experts/Creative Director/EXPERT.md` Context's pre-show Review. No: use the pre-ship gate above. Hand a UI or page artifact to `experts/Creative Director/` for that verdict, with Phase 1's brief plus Phase 2's direction and register as its `<brief>`, so any axis a deliberate choice already fixed is judged as fixed, and work the findings before delivering; a finding that reorders or replaces a region so another element's place would no longer exist as composed sends the affected work back through Phase 4 and re-runs this phase, and any other finding is worked in place. Where a Phase 4 skill already ran its own pre-ship design review, work those findings first so the expert judges a revised artifact rather than a draft, and never run the same review twice. Where the expert is absent from the workspace, say the review degraded and stand on the three checks above.
 
 Delivery states, beside the artifact: which phases ran and which were already settled, which skill produced each foundation and each composed piece, and anything Phase 4 named as unproduced.
 
@@ -152,7 +152,7 @@ A wireframe answers what goes where and why, before how it looks. It is a differ
 | States | Noted | Designed |
 | Job | Validate the structure | Deliver the design |
 
-Four moves. Inventory the content and rank it in tiers: what the page's job requires, what supports it, what can sit lower. Choose a structural pattern and state why: a single column for content and forms, two columns for a sidebar beside a main area, a grid for collections, alternating blocks for a narrative page, a top-and-left shell for data-heavy screens, a hub for a portal. Two that match equally are both stated, with the one that will be written named and why, and confirmed before the file is written. When none matches, ask which of the six, and do not invent a seventh, before writing the file. Write it as one self-contained HTML file with a small grayscale custom-property set, a system font, and no decoration. Then annotate, since the annotations carry what a grayscale block cannot: interaction behavior, content rules, conditional content, and what changes at each breakpoint.
+Four moves. Inventory the content and rank it in tiers: what the page's job requires, what supports it, what can sit lower. Choose a structural pattern and state why: a single column for content and forms, two columns for a sidebar beside a main area, a grid for collections, alternating blocks for a narrative page, a top-and-left shell for data-heavy screens, a hub for a portal. Two that match equally are both stated, with the one that will be written named and why, and confirmed before the file is written. When none matches, ask which of the six, and do not invent a seventh, before writing the file. Write it as one self-contained HTML file with a small grayscale custom-property set, a system font, and no decoration. Then annotate, since the annotations carry what a grayscale block cannot: interaction behavior, content rules, conditional content, and what changes at each breakpoint. Does an onboarding state describe a member's app? Yes: state only the account fact the page can observe, never what this computer has installed; keep install steps reachable for a second computer or a reinstall. No: describe the observed state.
 
 Hierarchy has to survive without color, carried by size, weight, and space alone. Every label is the real thing ("Add to cart", "Unit price"), never "Heading 1" and never Lorem ipsum, and every placeholder block states its aspect ratio and what belongs in it.
 

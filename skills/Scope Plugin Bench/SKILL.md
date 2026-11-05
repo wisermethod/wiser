@@ -3,7 +3,7 @@ name: Scope Plugin Bench
 type: skill
 category: system
 description: Decide what experts, skills, tools and connectors a named domain plugin should hold in its first slice, and hand Playbook Author the source material to plan it
-version: 0.2.0
+version: 0.2.1
 ---
 
 # Scope Plugin Bench
@@ -74,7 +74,7 @@ You are the bench's designer. You choose the first slice and name what waits. Yo
 
 ## The failing-lens test
 
-An expert earns its place on the proposed bench when its lens catches a failure no other primitive on that bench catches, and no primitive already in `wiser` catches.
+An expert earns its place on the proposed bench when its lens catches a failure no other primitive on that bench catches, and no primitive already in `wiser` catches. Is the proposed value judgment? Yes: test the lens against a capable reader with no lens on identical material before proposing the expert. It catches a failure that reader missed: carry the candidate. It does not: propose the procedure or missing evidence the work needs instead. Not tested: leave the expert unproposed. No: apply the failure test above.
 
 Type is not this skill's call. `standards/primitives.md` carries the litmus and `experts/System Expert/` Job 2 applies it; cite the standard and let the verdict return the type. Do not infer a type from a name, and do not paraphrase the litmus here.
 
@@ -99,7 +99,7 @@ Then classify the request against Three input states. State (c) ends the run at 
 
 ### 2. Inventory what the workspace already holds
 
-Direct `skills/Internal Research/` by name. Hand it `<scan_request>` whose topic is the domain the plugin's constitution says it is for, and whose scope is named rather than left open: the plugin being scoped, `wiser`, any composed user root, and the root that will own the plan where the request or the workspace already names it, since research saved for this work lands there; in each, excluding what tools install for themselves. Take the inventory it returns.
+Direct `skills/Internal Research/` by name. Hand it `<scan_request>` whose topic is the domain the plugin's constitution says it is for, with search terms matched as whole words. Give the plugin being scoped its own scope, file by file, so other hits cannot spend its hit-count-ordered read cap. Name the other scopes: `wiser`, any composed user root, and the root already named to own the plan, where research for this work lands; exclude what tools install for themselves. Include by path every primitive whose index row could cover a candidate, even without a domain-word hit. Does the work belong to a series? Yes: name that series' own gate directory, never the whole collection of gate fixtures. No: use the named scopes. Take the inventory it returns.
 
 Has the owner done this domain's work by hand in a root this workspace does not compose? Ask once, before the slice is proposed. Yes, and they name the root: read its shape first, its directory names, the routers that describe those directories, and the section headings of its files. Read a file's contents only where the owner says yes to that: before the first such read, name the files or directories you would read and why, and read only what the yes covers. Carry what that root holds and the inventory misses to step 4 as scenarios, each written as a synthetic case: step 4 puts each in the slice where the demonstration needs it, and otherwise names it a deferral with the condition that brings it forward. Let no fact from that root enter the inventory, a proposal or the hand-off. No: go on. They cannot say: go on, and name the question as open in the proposal.
 
@@ -176,7 +176,7 @@ The output is the source material `skills/Playbook Author/` Create asks for. Ass
 
 ## The hand-off
 
-Deliver this package, and nothing else as the yield.
+Deliver this package, and nothing else as the yield. Does the demonstration used to size the slice still stand? Put that question first on the owner's decision page, before any question that rests on it. Yes: decide the proposed slice. Changed: re-size the slice and re-derive its riskiest piece before those dependent questions. Unanswered: leave them pending.
 
 ```xml
 <hand_off>

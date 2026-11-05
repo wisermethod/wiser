@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeSession } from '../../hooks/lib/binding.mjs';
 
@@ -415,6 +415,14 @@ export function createFakeProviders({ proxyRules: suppliedRules = [] } = {}) {
     },
     measureProxyBody: measureFakeProxyBody,
     async proxy(request, { proxyBodyMaxBytes } = {}) {
+      if (request.binary_body !== undefined) {
+        const binary = request.binary_body;
+        assert.ok(binary && typeof binary === 'object' && !Array.isArray(binary)
+          && Object.keys(binary).length === 2
+          && Object.hasOwn(binary, 'base64') && typeof binary.base64 === 'string'
+          && Object.hasOwn(binary, 'content_type') && typeof binary.content_type === 'string',
+          'binary_body must be { base64: string, content_type: string }');
+      }
       if (proxyBodyMaxBytes !== undefined) {
         if (!Number.isSafeInteger(proxyBodyMaxBytes) || proxyBodyMaxBytes <= 0) {
           throw statusSignal(STATUS.NEEDS_PROVIDER_CAPABILITY);
@@ -642,3 +650,40 @@ export async function putActive(store, fake, { service, module, privilege = 'wri
 }
 
 export { DEFAULT_POLICY, DEFAULT_CONNECTORS };
+
+// Run directly with: node --test test/fake-provider.js
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+  const { test } = await import('node:test');
+  const valid = { base64: 'ZXhhbXBsZQ==', content_type: 'multipart/form-data; boundary=example' };
+  for (const [name, binary_body] of [
+    ['bare base64', valid.base64], ['null', null], ['array', [valid]],
+    ['number', 1], ['boolean', false], ['buffer', Buffer.from('example')],
+    ['empty object', {}], ['missing content_type', { base64: valid.base64 }],
+    ['missing base64', { content_type: valid.content_type }],
+    ['non-string base64', { ...valid, base64: 1 }],
+    ['non-string content_type', { ...valid, content_type: null }],
+    ['extra field', { ...valid, body: 'example' }],
+    ['inherited fields', Object.assign(Object.create(valid), { other: 1, another: 2 })],
+  ]) test(`fake proxy refuses binary_body: ${name}`, async () => {
+    let matched = false;
+    const { auth } = createFakeProviders({ proxyRules: [{
+      match() { matched = true; return true; }, result: { status: 200, data: {} },
+    }] });
+    const request = { endpoint: '/upload', method: 'POST', binary_body,
+      parameters: [{ name: 'Content-Type', value: valid.content_type, type: 'header' }] };
+    for (const options of [undefined, { proxyBodyMaxBytes: 10000 }]) {
+      await assert.rejects(auth.proxy(request, options), /binary_body must be/);
+    }
+    assert.equal(matched, false, 'invalid bodies must not reach canned rules');
+  });
+  test('fake proxy accepts the binary envelope and ordinary JSON calls', async () => {
+    const { auth } = createFakeProviders();
+    for (const fields of [{}, { body: { example: true } }, { binary_body: undefined },
+      { binary_body: valid }, { binary_body: { ...valid, base64: '' } }]) {
+      const request = { endpoint: '/upload', method: 'POST', ...fields };
+      for (const options of [undefined, { proxyBodyMaxBytes: 10000 }]) {
+        assert.deepEqual(await auth.proxy(request, options), { status: 200, data: {} });
+      }
+    }
+  });
+}

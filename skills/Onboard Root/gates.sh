@@ -16,11 +16,81 @@
 #   gates.sh --short <root path>      the personal-path file gates only; chosen on its
 #                                     own for a personal root with no run record
 #   gates.sh --list                   list the gates and exit
+#   gates.sh --test-g10               run G10 regression tests (requires Node)
 #
 # Exit 0 only when every gate passes. Exit 1 when any gate fails or skips
 # in a way that is not a pass. Exit 2 on a usage error.
 
 set -u
+
+if [ "${1:-}" = "--test-g10" ]; then
+  node --input-type=module - "$0" <<'G10TEST'
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
+// Redirect only the fixture shelf; exercise the actual G10 and driver.
+const source = readFileSync(process.argv[2], 'utf8');
+const harness = source.replace(/^MEM=.*$/m, 'MEM="$ROOT/shelf"');
+function check(citation, ids, expected, { voice = false, type = 'personal', scope = false } = {}) {
+  const root = mkdtempSync(join(tmpdir(), 'g10-range-'));
+  try {
+    const answers = `shelf/answers/${new Date(0).toISOString().slice(0, 10)} voice answers.md`;
+    for (const [path, text] of Object.entries({
+      'AGENTS.md': `---\ntype: ${type}\n---\n`,
+      [`shelf/${voice ? 'voice' : 'about'}.md`]: `A rule. (${citation})\n`,
+      [answers]: '| Number | Answer |\n|---|---|\n' + ids.map(id => `| ${id} | supplied |\n`).join(''),
+    })) {
+      mkdirSync(dirname(join(root, path)), { recursive: true });
+      writeFileSync(join(root, path), text);
+    }
+    const args = ['-c', harness, 'gates.sh', '--json', '--gate', 'G10'];
+    if (scope) args.push('--file', 'shelf/about.md');
+    const result = spawnSync('bash', [...args, root], { encoding: 'utf8', timeout: 10000 });
+    assert.ifError(result.error);
+    assert.equal(result.status, expected.length ? 1 : 0, result.stdout + result.stderr);
+    assert.equal(result.stderr, '');
+    const [gate, summary] = result.stdout.trim().split('\n').map(line => JSON.parse(line));
+    assert.equal(gate.status, expected.length ? 'fail' : 'pass');
+    assert.equal(summary.total, 1); assert.equal(summary.skip, 0);
+    for (const id of expected) assert.ok(gate.detail.includes(id), `missing diagnostic for ${id}`);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+}
+for (const separator of [' to ', '-', '\u2013']) {
+  test(`G10 refuses missing interior answers in a ${JSON.stringify(separator)} range`, () => {
+    check(`Research inference: W1${separator}W4`, ['W1', 'W4'], ['W2', 'W3']);
+  });
+  test(`G10 accepts a fully recorded ${JSON.stringify(separator)} range`, () => {
+    check(`Research inference: W1${separator}W4`, ['W1', 'W2', 'W3', 'W4'], []);
+  });
+}
+test('G10 expands bare voice ranges against the newest answers file', () => {
+  check('W1 to W4', ['W1', 'W4'], ['W2', 'W3'], { voice: true });
+  check('W1 to W4', ['W1', 'W2', 'W3', 'W4'], [], { voice: true });
+});
+test('G10 checks every range beside an evidence row and in file scope', () => {
+  check('Research inference: E1, W1 to W4, B1 to B3', ['W1', 'W4', 'B1', 'B3'], ['W2', 'W3', 'B2'], { scope: true });
+});
+test('G10 preserves individual suffixed answers, lists and token boundaries', () => {
+  check('Research inference: W1a, P2; R3 and prefixW99suffix', ['W1a', 'P2', 'R3'], []);
+  check('Research inference: W1a, P2', ['W1a'], ['P2']);
+});
+test('G10 expands descending ranges and ranges with matching letter suffixes', () => {
+  check('Research inference: W4 to W1', ['W1', 'W4'], ['W2', 'W3']);
+  check('Research inference: W1a to W3a', ['W1a', 'W3a'], ['W2a']);
+});
+test('G10 still checks range endpoints and adjacent bare citations', () => {
+  check('Research inference: W1 to W4', ['W2', 'W3'], ['W1', 'W4']);
+  check('W1,W2', ['W1'], ['W2'], { voice: true });
+});
+test('G10 keeps answer-number inference personal-only', () => {
+  check('Research inference: W1 to W4', ['W1', 'W2', 'W3', 'W4'], ['no E<n>'], { type: 'org' });
+});
+G10TEST
+  exit $?
+fi
 
 PROG=$(basename "$0")
 US=$(printf '\037')
@@ -1727,6 +1797,34 @@ build_person_registry() {
   mv "$TMPD/people-names.txt" "$TMPD/people.txt"
 }
 
+# Emit cited ids, expanding same-class numeric ranges inclusively for both
+# register payloads and bare voice citations. Preserve optional letter suffixes.
+g10_citation_ids() {
+  awk -v prefixes="$1" '
+  {
+    line=$0; gsub(/\342\200\223|\342\200\224/, "-", line)
+    pos=1; last=""; last_end=1
+    while(match(substr(line,pos), "[" prefixes "][0-9]+[a-z]?")){
+      start=pos+RSTART-1; end=start+RLENGTH
+      id=substr(line,start,RLENGTH); pos=end
+      if(start>1 && substr(line,start-1,1) ~ /[A-Za-z0-9]/) continue
+      if(substr(line,end,1) ~ /[A-Za-z0-9]/) continue
+      gap=substr(line,last_end,start-last_end)
+      if(last!="" && gap ~ /^[ \t]*(to|-)[ \t]*$/ && substr(last,1,1)==substr(id,1,1)){
+        a=substr(last,2); b=substr(id,2)
+        sa=a; sb=b; sub(/^[0-9]+/,"",sa); sub(/^[0-9]+/,"",sb)
+        sub(/[a-z]$/,"",a); sub(/[a-z]$/,"",b)
+        if(sa==sb){
+          step=(a+0<=b+0 ? 1 : -1)
+          for(n=a+step; step>0 ? n<b+0 : n>b+0; n+=step)
+            printf "%s%.0f%s\n", substr(id,1,1), n, sa
+        }
+      }
+      print id; last=id; last_end=end
+    }
+  }'
+}
+
 gate_G10() {
   build_person_registry
   if [ ! -d "$MEM" ]; then
@@ -1803,7 +1901,7 @@ gate_G10() {
           # of those rows, an E<n> beside it or not.
           ids=""
           if [ "$ROOT_TYPE" = "personal" ]; then
-            ids=$(printf '%s' "$payload" | tr -cs 'A-Za-z0-9' '\n' | grep -E '^[WYPRHSAXFBCGJKLOT][0-9]+[a-z]?$')
+            ids=$(printf '%s' "$payload" | g10_citation_ids WYPRHSAXFBCGJKLOT)
           fi
           if [ -n "$ids" ]; then
             missing=""
@@ -1847,7 +1945,7 @@ gate_G10() {
       [ -n "$hit" ] || continue
       ln=${hit%%:*}
       grp=$(printf '%s' "$hit" | sed 's/^[0-9]*://')
-      ids=$(printf '%s' "$grp" | grep -oE '(^|[^A-Za-z0-9])[WYPRHSAXFE][0-9]+[a-z]?([^A-Za-z0-9]|$)' | grep -oE '[WYPRHSAXFE][0-9]+[a-z]?')
+      ids=$(printf '%s' "$grp" | g10_citation_ids WYPRHSAXFE)
       [ -n "$ids" ] || continue
       missing=""
       for id in $ids; do

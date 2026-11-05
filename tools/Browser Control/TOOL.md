@@ -3,7 +3,7 @@ name: Browser Control
 type: tool
 category: automation
 description: Drives a persistent Chromium session to read, navigate, and act on pages that need a real browser, answering every command with the page state that followed
-version: 0.9.1
+version: 0.9.2
 ---
 
 # Browser Control
@@ -84,7 +84,7 @@ One entry script, one command per line, subcommands where a command has modes.
 | Command | Purpose |
 |---------|---------|
 | `session start\|stop\|status\|restart` | Manage the browser host; `start` and `restart` need `--profile` |
-| `navigate` | Go to `--url`, or `back`, `forward`, `reload`; `--wait` sets what counts as arrived |
+| `navigate` | Go to `--url`, or `back`, `forward`, `reload`; `--wait` sets what counts as arrived. A URL differing only by `#fragment` jumps within the page without reloading; use `navigate reload` to read a new build |
 | `snapshot` | Read the page: `--format accessibility\|text\|html\|interactive` |
 | `click` | Click by `--index`, `--selector`, `--text`, or `--coords`; `--button`, `--count`, `--delay`, `--force` |
 | `type` | Enter `--text` into a target, or press `--key`. **Read the per-command options below before using it**: the default replaces the field |
@@ -99,8 +99,8 @@ One entry script, one command per line, subcommands where a command has modes.
 | `console start\|stop` | Capture page console output |
 | `network start\|stop\|block\|unblock` | Capture requests, or abort ones matching `--pattern` |
 | `emulate set\|reset` | Viewport, device viewport, geolocation, or reduced motion |
-| `execute` | Run `--code` in the page and return its value |
-| `screenshot` | Write a PNG to `--output` |
+| `execute` | Evaluate one `--code` expression in the page; a returned Promise is awaited to its result |
+| `screenshot` | Write a PNG to `--output`; a headed window covered by another app draws nothing, so no file is written until it is shown again |
 | `download` | Save `--url` to `--output`, or click `--selector` into `--output-dir` |
 | `upload` | Attach `--file` to `--selector`; needs `--confirm` |
 | `cookies list\|get\|set\|delete\|clear` | Cookie metadata and page-state cookies; `--domain`, `--path`, `--expires` |
@@ -133,6 +133,8 @@ Per-command options. Each belongs to the one command named and is refused elsewh
 | `frame switch` | `--src`, `--name` | Choose the iframe by a substring of its `src` or by its `name`; `--index` picks by position | None; one of the three is required |
 | `mouse drag` | `--from` | The selector the drag starts at; `--to` is where it ends | None; both required |
 | `emulate set` | `--device`, `--viewport`, `--geolocation`, `--reduced-motion` | Emulate a named device, a `WxH` viewport, a `lat,long` position, or the `prefers-reduced-motion` setting, `reduce` or `no-preference`, on the current tab. `emulate reset` restores the default viewport and the person's own motion setting | None; one of the four is required |
+
+There is no colour-scheme emulation: for a dark capture, rewrite the page's own `prefers-color-scheme` queries, linked stylesheets included.
 
 `type` replaces by default, and this is the one thing to get right.
 
@@ -191,8 +193,9 @@ Each of these requires `--confirm`. The gate is checked before anything is read,
 - **Sign-ins are not injected.** `cookies set` is for page state such as a consent or locale cookie. Authenticate by having the person sign in in the visible window; the profile keeps it.
 - **Nothing is overwritten.** A screenshot, download, or trace whose target path already exists is refused, not replaced.
 - **Locale, timezone, and touch emulation are not offered.** They are fixed when the context is created and cannot be changed on a live session; a command that appeared to set them would be reporting a change that never happened.
+- **Has the vendor route been proved in this automated browser?** Yes: a guide may name it; no: prove it first, and if the vendor's bot check blocks it, route through the person's own browser, which may pass on the same machine.
 
-`execute` runs whatever code it is handed, in a page carrying the profile's sign-ins. It is the widest surface here and it is not gated, because its effect is entirely the caller's own code and a gate that fires on every call teaches the caller to ignore it. Blast radius is the caller's to name before running it. That includes credential material: `--code "document.cookie"` returns what any script on that page could read, which is every non-HttpOnly cookie. It cannot reach an HttpOnly cookie, and most session cookies are HttpOnly.
+`execute` runs whatever code it is handed, in a page carrying the profile's sign-ins. Use that session through same-origin requests with `credentials: 'same-origin'`, without reading a token: the session may be an HttpOnly cookie. It is the widest surface here and it is not gated, because its effect is entirely the caller's own code and a gate that fires on every call teaches the caller to ignore it. Blast radius is the caller's to name before running it. `--code "document.cookie"` can still return every non-HttpOnly cookie, so keep credential material out of the result.
 
 ## Script Contract
 
@@ -203,6 +206,8 @@ Two scripts ship. `scripts/browser.js` is the only one a caller runs. `scripts/s
 ## Output
 
 Success is one JSON object on stdout and exit 0. Most commands return the page's `url` and `title` after the action, plus whatever they were asked for: `content` for a snapshot, `passed` for a check, `result` for executed code, a written path for an artifact.
+
+Does the page's title say not found? Yes: read it as no data; otherwise, page-text and accessibility reads still include decorative content, so counts and records come from the system's own API or database, never from a page.
 
 `check` is the one to read carefully. It exits 0 when the assertion ran and reports the verdict in `passed`; an assertion that did not hold is a finding to report, never something to work around by loosening the assertion.
 

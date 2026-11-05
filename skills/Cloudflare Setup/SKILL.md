@@ -3,7 +3,7 @@ name: Cloudflare Setup
 type: skill
 category: development
 description: Take a member from no Cloudflare connection to one account-owned token, made from the pre-filled link for their job and pasted once, with each Cloudflare module their job needs proved by a read through it, the account id and, where an app needs sign-in, the Zero Trust team domain handed back, and a domain's DNS move handed to Zone Publisher
-version: 0.1.0
+version: 0.1.1
 gaps:
   - a token link for installing an app on Cloudflare Workers, its staff sign-in included
 ---
@@ -101,6 +101,7 @@ The member does not narrow these rows: the domain being moved is not on the acco
 4. **One connect.** Only after "copied", run `skills/Connect Account/` for `cloudflare` / `zones`, telling it the token is already made and copied. Its link lasts minutes, which is why the token comes first. How did that turn end?
    - `connected`: step 5.
    - The link expired before the paste, or `connect_status` answered `needs_connect` with `EXPIRED` before any paste: run Connect Account again for a fresh link, never the old one.
+   - Its proof read returned HTTP 401 with code `10000`: step 7's token recovery.
    - Any other stop: report it; this skill ends there.
 
 5. **The other modules.** Call `list_connections` again. For each of `dns`, `pages` and `rulesets` the job needs, what does it show?
@@ -114,14 +115,17 @@ The member does not narrow these rows: the domain being moved is not on the acco
    - For a site: `cloudflare.pages.list_projects` with `{ account_id }`, showing the projects.
    - `rulesets` is not proved here: its reads need a permission the link cannot tick, which redirect work adds later through step 7.
 
+   Does a diagnostic read need the member to enter the token in Terminal? Yes: take it at a hidden prompt (`read -rs` in zsh), never from the clipboard; copying the command has replaced the clipboard's secret with that command. No: use the connected route.
+
    Each read proves that its module answers and that the token can read; whether it can edit shows at the first write, and a write answering `vendor_error` with `http_status` 403 goes to step 7. What did each call return?
    - `success: true`: that module answers.
+   - `vendor_error` with `http_status` 401 and code `10000`: step 7's token recovery.
    - `vendor_error` with `http_status` 403, on a call the job's link covers: a box is missing or was narrowed. Name it, run step 7, then the call again.
    - `needs_connect`: give that module its own Connect Account turn with the same token.
    - `invalid_arguments`: correct the input from the earlier reads and run it again.
    - Any other status: `skills/Connection Troubleshooter/`.
 
-7. **Edit the token, never make a second.** For a permission a 403 or a later job needs: the member opens Cloudflare's Manage account, Account API tokens, the token's Edit, ticks the row a link's table names, or for any other permission the one `connectors/cloudflare/auth.md` names for the action, or, where zone rows were narrowed and a domain outside them is needed, sets those rows back to all zones, and presses Review token, then Update token. The token keeps its value, so nothing is reconnected. The call that needed it runs again; `vendor_error` with `http_status` 403 again: name the permission and the row they ticked, and stop there. Account Settings Edit goes on only as that guide says, for the one run that needs it, and comes off afterwards; an API token or billing permission never goes on.
+7. **Repair the token.** Did the first read return HTTP 401 with code `10000`? Yes: the connected listing proves only that a value was stored, and this value is not a token the vendor accepts. The member rolls it, checks the replacement with one direct read using step 6's hidden prompt, then reconnects through Connect Account as a rotation and retries the module read; adding permissions cannot cure this failure. The direct read fails: stop with its sanitized result. No: for a permission a 403 or a later job needs, edit this token rather than make a second: the member opens Cloudflare's Manage account, Account API tokens, the token's Edit, ticks the row a link's table names, or for any other permission the one `connectors/cloudflare/auth.md` names for the action, or, where zone rows were narrowed and a domain outside them is needed, sets those rows back to all zones, and presses Review token, then Update token. The token keeps its value, so nothing is reconnected. The call that needed it runs again; `vendor_error` with `http_status` 403 again: name the permission and the row they ticked, and stop there. Account Settings Edit goes on only as that guide says, for the one run that needs it, and comes off afterwards; an API token or billing permission never goes on.
 
 8. **Zero Trust, when the job or the caller needs app sign-in.** Call `cloudflare.zones.list_access_apps` with `{ account_id }`. What did it return?
    - `success: true` and `access_enabled: true`: ask the member for the team domain Cloudflare shows in Zero Trust's settings, and take only a hostname ending in `.cloudflareaccess.com`; a team's display name is not it.

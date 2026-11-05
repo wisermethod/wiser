@@ -3,7 +3,7 @@ name: xai
 type: connector
 category: media
 description: Synthesizes MP3 speech to a local file with word or character timings, and lists xAI's built-in voices and the team's voice clones
-version: 0.1.0
+version: 0.1.1
 ---
 
 # xAI
@@ -44,6 +44,8 @@ The module calls `POST /v1/tts` on the toolkit's own API host, sending `text`, `
 Before returning a file slot, the module requires an object containing nonempty strict standard base64 `audio` that decodes and re-encodes identically, `content_type: "audio/mpeg"`, a finite positive numeric `duration`, and equal-length `audio_timestamps.graph_chars` and `graph_times` arrays. Character entries must be strings and each time entry must be a pair of finite numbers. An unexpected answer returns exactly `{ status: 'vendor_error', endpoint: '/v1/tts', method: 'POST', reason: 'unexpected answer' }`, without a file slot or any vendor body.
 
 A success returns `duration`, `content_type`, `voice_id`, `characters` (code points sent), optional `timings`, and `file: { path, bytes, sha256, media_type }`. The module passes decoded bytes only in `output_file: { media_type: 'audio/mpeg', data }`; the gateway consumes that slot and writes a new MP3 under its own `outputs/`. Neither audio bytes nor their base64 are returned in the result or audit. The manifest declares only `audio/mpeg` with a maximum of 16,777,216 bytes (16 MiB). Output naming, access modes and retention belong to `gateway/AGENTS.md`; file outputs must be filed elsewhere before their seven-day cleanup.
+
+The MP3 has no gapless header: decoding at any of the four sample rates retains 1,105 samples of LAME priming before speech. For timing against decoded audio, trim those samples; even trimmed, a word's reported start is within about two MP3 frames of its audible onset, not one.
 
 - `words`: `timings` is an array of `{ text, start, end }`. Complete square-bracket and angle-bracket tags, such as `[pause]`, `[breath]`, `<emphasis>` and `</emphasis>`, are dropped. Remaining whitespace separates words; punctuation stays attached. A tag inside a word does not split it. Start and end come from the first and last retained character's timing, in seconds.
 - `characters`: `timings` is `{ graph_chars, graph_times }`, preserving the two arrays as xAI sent them, including tags.

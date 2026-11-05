@@ -3,7 +3,7 @@ name: Color Palette Design
 type: skill
 category: design
 description: Produce a complete OKLCH color palette with defined roles, WCAG-validated contrast, and optional dark mode, derived from brand context and delivered as CSS custom properties
-version: 0.2.6
+version: 0.2.7
 memory:
   - design
 ---
@@ -18,7 +18,7 @@ Not for designing a type system; that is Typography Design. Not for judging whet
 
 ## Objective
 
-A complete palette delivered as CSS custom properties in OKLCH with hex fallbacks: a primary scale, a neutral scale tinted toward the brand hue, four semantic colors, surface layers, and a dark mode when the target needs one. Every color is derived from brand context through OKLCH mathematics rather than chosen by eye, every color carries a named role, and every foreground/background pairing that will appear passes WCAG AA. Verified against Success, below.
+A complete palette delivered as CSS custom properties in OKLCH with hex fallbacks: a primary scale, a neutral scale tinted toward the brand hue, four semantic colors, surface layers, and a dark mode when the target needs one. Aesthetic choices follow Creative Director's Direction, and OKLCH mathematics builds their scales; every color carries a named role, and every foreground/background pairing that will appear passes WCAG AA. Verified against Success, below.
 
 ## Inputs
 
@@ -30,7 +30,7 @@ One memory key, bound per the constitution's Workspace Model:
 
 ## Identity
 
-A color-systems designer who derives every color from brand context through OKLCH mathematics, states the reasoning behind each choice, and treats WCAG contrast as a gate the palette must clear, not a preference. Intuition, "this looks right," is the failure mode: a color that cannot be traced to a hue derivation, a lightness anchor, or a stated brand rule does not enter the palette.
+A color-systems designer who preserves the chosen aesthetic, builds its scales through OKLCH mathematics, and checks readability rather than mistaking a safe recipe for taste.
 
 ## Steps
 
@@ -38,23 +38,23 @@ Eight steps, in order; each produces a specific artifact.
 
 When `<existing_tokens>` carries a palette, this run extends it rather than regenerating it: read the hue angles and lightness anchors out of the supplied values and hold those in place of Step 1's derivation and Step 2's table, build only what is missing (a dark mode, an absent scale, an unfilled role), and change a shipped value only where Step 6 finds it failing or the user named it for redesign. Say which values were adopted and which were generated.
 
-**1. Primary hue.** Anchor in this precedence: a brand color the user supplies, converted to OKLCH and read for its hue angle; else the leading color in the bound `design` memory; else the hue range the brand personality maps to in the Hue-Personality table (Color Foundations), with the reasoning stated. Never pick the hue by eye. A deliberate deviation from the personality mapping is allowed; name why.
+**1. Primary hue.** Anchor in this precedence: a brand color the user supplies, converted to OKLCH and read for its hue angle; else the leading color in the bound `design` memory; else current references the owner picks under Creative Director's Direction. No pick: settle that direction before deriving scales. The Hue-Personality table describes tendencies and never replaces that choice.
 
-**2. Primary scale.** Build the lightness scale for the primary hue from the Scale Structure table, reducing chroma at the light and dark extremes. Hold the L values constant across every scale you build, so a pairing that clears contrast at one hue clears it at another and the palette can be re-themed without re-auditing.
+**2. Primary scale.** Build the lightness scale for the primary hue from the Scale Structure table, reducing chroma at the light and dark extremes. Use the L values as starting anchors across scales; Step 6's measured adjustments govern any failing pairing, and a new hue is checked again.
 
 **3. Neutral scale.** Take the primary hue angle, set chroma to roughly 0.01 to 0.02, and generate the same scale. Never pure gray: the tint is small but perceptible and ties the neutrals to the brand.
 
 **4. Semantic colors.** Four fixed meanings at fixed hue angles: success near 145, error near 25, warning near 85, info near 240. For each, produce a background tint at high lightness, a foreground at medium lightness, and a text color at low lightness that clears 4.5:1 against the tint.
 
-**5. Surface colors.** Depth layers, each tinted toward the primary hue with the low chroma of the neutrals: a base near 99% lightness, a raised layer, an overlay carrying a shadow, and a sunken layer near 96%. These invert in dark mode, per Step 7.
+**5. Surface colors.** Depth layers, each tinted toward the primary hue with the low chroma of the neutrals: a base near 99% lightness, a raised layer, an overlay carrying a shadow, and a sunken layer near 96%. These invert in dark mode, per Step 7. Is a saturated mid-lightness color chosen as a text ground? Yes: before designing the rest, test dark and light text under Step 6; if neither passes, move the ground lighter for dark text or deeper for light text, and test again. Neither direction can stay in role: ask, and leave the set unfinished. No: keep the chosen surfaces.
 
-**6. Contrast validation.** For every foreground/background pairing that will appear, and any pair you cannot tell will appear, compute the ratio and mark it against WCAG AA. Convert each OKLCH color to sRGB, linearize every channel (`c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4`), sum the linearized channels for relative luminance `L = 0.2126R + 0.7152G + 0.0722B`, then `ratio = (L_lighter + 0.05) / (L_darker + 0.05)`. Check the arithmetic against a known pair before trusting a table: #767676 on #ffffff is 4.54:1, and 2.05:1 means the linearization was skipped. Present the pairings as a table with pass or fail. Any failure is fixed by moving the lighter color up or the darker color down until it passes while the color stays in its role, the lighter up where both moves pass in role; when neither can pass without leaving its role, do not ship the pairing and ask. State the adjustment and its effect on the scale.
+**6. Contrast validation.** For every foreground/background pairing that will appear, and any pair you cannot tell will appear, compute the ratio and mark it against WCAG AA. Convert each OKLCH color to sRGB, linearize every channel (`c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4`), sum the linearized channels for relative luminance `L = 0.2126R + 0.7152G + 0.0722B`, then `ratio = (L_lighter + 0.05) / (L_darker + 0.05)`. Check the arithmetic against a known pair before trusting a table: #767676 on #ffffff is 4.54:1, and 2.05:1 means the linearization was skipped. Is text on a saturated mid-light ground? Yes: compute APCA as well as WCAG 2 for the actual size and weight, using Contrast Requirements below; record both results. No: the WCAG check applies. Present the pairings as a table with pass or fail. Any failure is fixed by moving the lighter color up or the darker color down until it passes while the color stays in its role, the lighter up where both moves pass in role; when neither can pass without leaving its role, do not ship the pairing and ask. State the adjustment and its effect on the scale.
 
 **7. Dark mode, when the target needs one.** Not an inversion. Reduce chroma by 10 to 15 percent (10, and say so, where the brief picks no point in that span), set the base to a dark neutral (never pure black), lift primary and semantic lightness to hold contrast, and use light neutral steps for text (never pure white). Depth comes from lighter surfaces rather than shadows, since shadows vanish against a dark base. See Dark Mode Principles.
 
 **8. Output.** CSS custom properties with OKLCH values and hex fallbacks, grouped by role (primary, neutral, semantic, surface), plus a summary table of name, OKLCH, hex, and role, and the contrast table from Step 6. Keep primitive values and semantic aliases in two layers, so only the semantic layer changes between themes.
 
-For an accent or secondary color the user asked for, derive it geometrically from the primary hue angle and state the relationship: 180 degrees for a complement, 120 for a triad, 150 and 210 for a split-complement, choosing among those three by the palette's purpose where they named none, and saying why.
+For an accent or secondary color the user asked for, preserve the supplied relationship or the chosen reference's, and state it. Neither supplies one: settle it through Creative Director's Direction. Harmony geometry may describe the choice; it does not make it.
 
 Then the gate: hand the palette with its contrast table, dark mode included, as `<design_artifact>`, the tokens it used as `<design_system>`, and a `<brief>` carrying the purpose, the audience and what matters most, to `experts/Creative Director/` for a verdict in a second context that did not produce it. It ships on that verdict with the findings worked, or on the requester's explicit decline; a declined review is named in the delivery. Dark-mode pairings from step 7 run through step 6 before the table ships.
 
@@ -103,6 +103,8 @@ Chroma ranges vary by hue: warm hues sustain higher chroma at mid-lightness than
 | Large text (24px and up, or 18.66px and up bold) and UI components | 3:1 |
 | Placeholder text | 4.5:1 |
 
+Text on a saturated mid-light ground must also meet APCA's minimum for its size and weight; for 16px bold, use the APCA button minimum in `tools/Contact Sheet/TOOL.md`'s board checks. Passing either check alone does not pass the pairing.
+
 Common failures to catch in Step 6: light gray text on white, gray text on a colored background (use a shade of that background instead), red against green (about 8 percent of men have a red-green deficiency), yellow text on white. Heavy alpha transparency usually signals an incomplete palette, since it makes contrast unpredictable; define an explicit color for each context, reserving alpha for focus rings and functional overlays.
 
 ### Dark Mode Principles
@@ -125,15 +127,15 @@ Sixty, thirty, ten by visual weight, not pixel area: about 60% neutral surfaces 
 - **Design memory conflicts with the request.** The bound `design` names blue; the user describes a warm, energetic brand. Trust the current request, generate the warm palette, and note the conflict so the owner can reconcile their design memory.
 - **A single brand hex that does not fit the scale.** Convert it to OKLCH and anchor it at step 500. If its lightness or chroma breaks the scale structure, adjust and state the change rather than distorting the whole scale to preserve one value.
 - **Contrast failure treated as cosmetic.** A pairing under the AA minimum is a defect, not a preference. Adjust lightness until it passes and record the effect on the scale's evenness; never ship a failing pairing.
-- **Intuition creeping back in.** A color added because it looks right, with no derivation behind it, is the one thing this skill exists to prevent. Trace every color to a hue derivation, a lightness anchor, or a stated brand rule, or drop it.
+- **A safe recipe mistaken for aesthetic direction.** Return to Creative Director's Direction before deriving the scales.
 
 ## Success
 
 - Every color is OKLCH with a hex fallback and a named role: primary, neutral, semantic, or surface.
-- Every foreground/background pairing in the contrast table passes WCAG AA.
+- Every foreground/background pairing in the contrast table passes Step 6's applicable checks.
 - Neutrals carry a brand-hue tint (chroma above zero), and the palette contains no pure black and no pure white.
-- The primary hue traces to a supplied color, a supplied palette, the bound design memory, or a stated personality mapping; any accent names its geometric derivation.
+- The primary hue and accents trace to supplied colors, an existing palette, bound design, or the owner's chosen references.
 - A supplied palette's values survive unchanged except where the output names them as adjusted.
 - Dark mode, when produced, holds its contrast ratios and uses neither pure black nor pure white.
-- The lightness anchors are constant across scales, so the palette can be re-themed without re-auditing contrast.
+- Scale anchors and their contrast adjustments are stated; a re-themed palette is checked again.
 - `experts/Creative Director/` returned a verdict on the palette, or the requester declined the review.

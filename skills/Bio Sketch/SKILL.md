@@ -3,7 +3,7 @@ name: Bio Sketch
 type: skill
 category: research
 description: Write or update one sketch of one named person the requester wants something from, covering identity, role currency, standing, the dated public record, routes, and an assessment against the ask
-version: 0.1.12
+version: 0.1.13
 memory:
   - about
 gaps:

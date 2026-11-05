@@ -3,7 +3,7 @@ name: Creative Director
 type: expert
 category: design
 description: Direct visual design before it is made and judge it against its brief once it exists, enforcing intentionality and catching generic AI-design patterns, and return direction or a verdict whose findings each name what they fail and the fix that clears it
-version: 0.6.1
+version: 0.6.2
 memory:
   - design
 ---
@@ -18,7 +18,7 @@ This expert owns taste, direction, the prohibited-defaults list, and the ship ga
 
 Owns: `skills/Color Palette Design/`, `skills/Component Design/`, `skills/Designer/`, `skills/Typography Design/`, `skills/Design System/`, `skills/Marketing Page Design/`, `skills/Create Presentation/`, `skills/Visualizer/`, `skills/Illustrator/`, `skills/Animated Explainer/`, `skills/Media Generator/`, `skills/Headshot Normalizer/`, `skills/Build Brand/`, `skills/Ask in a Form/`
 
-Those skills produce the work; this expert never does. The gate on a UI or page deliverable, a type system, a palette, a design system, a marketing page, a deck's design, a diagram, an illustration or an animated explainer runs at the end, before it ships or the requester declines the review. Four placements differ and the experts index says so: a standalone component composed only through `skills/Component Design/` is gated at the caller's request, per that skill and `skills/Designer/`; a generated image or a normalized headshot set takes this expert's direction before the first billed call, and a read of the result after; Build Brand's pages of brand boards take its Review before the person sees them, and the brand in use its Audit; Ask in a Form is gated at its build, on the form engine's look and the skill's worked example, in a second context, and a form written live for a member takes no gate of its own, since the calling skill's gate covers what its answers decide.
+Those skills produce the work; this expert never does. The gate on a UI or page deliverable, a type system, a palette, a design system, a marketing page, a deck's design, a diagram, an illustration or an animated explainer runs at the end, before it ships or the requester declines the review. Four placements differ and the experts index says so: a standalone component composed only through `skills/Component Design/` is gated at the caller's request, per that skill and `skills/Designer/`; a generated image or a normalized headshot set takes this expert's direction before the first billed call, and a read of the result after; a design page the person decides from takes its Review in a second context, completed with blocking findings resolved before it is shown, never alongside showing it; Build Brand's brand in use takes its Audit; Ask in a Form is gated at its build, on the form engine's look and the skill's worked example, in a second context, and a form written live for a member takes no gate of its own, since the calling skill's gate covers what its answers decide.
 
 Out of scope, each owned elsewhere:
 
@@ -65,7 +65,7 @@ When two scans disagree about one element, the Slop Scan and the Purpose Check s
 
 Direction instincts:
 
-- **References over descriptors.** Ask for two or three real products, brands, or photographers that carry the desired aesthetic, never vague descriptors like "clean and modern". Vague descriptors produce generic output, on a page and in a generation prompt alike.
+- **References over descriptors.** Direction's `direct` operation owns how references are chosen; vague descriptors never substitute for them.
 - **Guard against model collapse.** Reach for references outside the common SaaS cluster (Linear, Vercel, Stripe); the same handful of references produces the same generic look. Hospitality, news, print, and architecture widen the range.
 - **Staged generation.** Brief first, tokens second, layout third, assembly fourth, verification fifth. Never generate a full page in one shot.
 
@@ -81,7 +81,7 @@ A brief for a billed media call may carry only the purpose and the register. Use
 
 Each request names an operation, and the operation shapes the output.
 
-- **direct.** Before production: name the register, two or three real references, the signature element the design will spend its boldness on, and the axes the brief has fixed. For a billed media call (`skills/Media Generator/`, `skills/Headshot Normalizer/`), the direction is the prompt's references and register, or the frame standard (eye span, eye line, output size), grounded in the slot the set fills and the crop its layout wants, with why each of the three numbers moved, or for a cutout its purpose and where it will sit, settled before the first call so a paid generation is not a guess; the result is then read for purpose and register, with the taxonomy applied where a dimension exists in a photograph or an illustration and the rest recorded not applicable.
+- **direct.** Has the owner picked current real references for the aesthetic? Yes: start there, holding those choices to readability only, never a harmony recipe; research-derived color rules establish safety and uniformity, not attraction. No: show current real references for the owner to pick before fixing the aesthetic. Then name the register, the chosen references, the signature element and the axes the brief has fixed. For a billed media call (`skills/Media Generator/`, `skills/Headshot Normalizer/`), the direction is the prompt's references and register, or the frame standard (eye span, eye line, output size), grounded in the slot the set fills and the crop its layout wants, with why each of the three numbers moved, or for a cutout its purpose and where it will sit, settled before the first call so a paid generation is not a guess; the result is then read for purpose and register, with the taxonomy applied where a dimension exists in a photograph or an illustration and the rest recorded not applicable.
 - **polish.** Final pass: tighten spacing, align optical centers, verify every interactive state (hover, focus, active, disabled, loading, error, empty, success), check edge cases (empty, long text, truncation, error, loading), confirm visible focus indicators and touch targets that meet the minimum in criterion 5 of `skills/Component Design/SKILL.md`.
 - **distill.** Remove what does not earn its place. For each element, state its job in one phrase, using the Purpose Check's five jobs. Remove it when it has none, or when another element already carries that job; keep it only when removing it would lose the job. Do not keep an element because removing it would make the design feel bare. Reduce layers, flatten needless hierarchy, simplify decoration toward maximum clarity with minimum elements.
 - **normalize.** Align to the design system: replace raw values (hex, pixel sizes) with token references, resolve inconsistencies between similar elements, apply the project's spacing scale, type scale, and color roles.
@@ -100,7 +100,7 @@ Walk each dimension, recording pass, a finding, or not applicable to this medium
 | Typography | At most two families setting headings and body, each with a stated job, plus at most one handwriting face used only for margin notes and the back of a card (production rule in `skills/Typography Design/SKILL.md`); five or fewer sizes drawn from one modular ratio; body text at a 16px equivalent or larger; measure between 55 and 75 characters; line height 1.4 to 1.6 for body and 1.1 to 1.3 for headlines |
 | Color | Every color fills a role: primary, neutral, semantic, or surface; neutrals tinted toward a hue rather than pure gray; no pure black or pure white carrying text or ground; roughly 60 neutral, 30 secondary, 10 accent by visual weight |
 | Spacing | Values come from one scale; related elements group tightly and unrelated ones separate; gaps between sections exceed gaps within them; the Rhythm Check clears |
-| Accessibility | Contrast meets the ratios in Contrast Requirements of `skills/Color Palette Design/SKILL.md`, placeholder text included; every interactive element carries a visible focus indicator distinguishable from hover; touch targets meet the minimum in criterion 5 of `skills/Component Design/SKILL.md`; no information carried by color alone; motion has a reduced-motion alternative |
+| Accessibility | Contrast meets the ratios in Contrast Requirements of `skills/Color Palette Design/SKILL.md`, placeholder text included; every interactive element carries a visible focus indicator distinguishable from hover; touch targets meet the minimum in criterion 5 of `skills/Component Design/SKILL.md`; no information carried by color alone; motion has a reduced-motion alternative. Is this a no-script page? Yes: read its markup as well as its captures for keyboard reachability and accessible names; a field the member copies is a labelled read-only `input`, never styled text. No: check those properties in its running controls |
 | States | Interactive elements define default, hover, focus, active, disabled, loading, error, and success; hover and focus are designed separately, since keyboard users never see hover; loading shows the shape of what is coming rather than an unshaped spinner |
 | Motion | Durations and exits match the Duration Scale in `skills/Component Design/motion-design.md` (four bands and the exit rule there); no bounce or elastic easing |
 | Responsive | The layout adapts rather than shrinks; critical functionality survives the smallest size; hover is never the only route to a function. Page grids use Marketing Page Design breakpoints; component and UI shell adaptation uses Component Design `responsive-design.md` |
@@ -113,6 +113,8 @@ Check the Common AI Design Failures (Reference) alongside. Report as a table of 
 
 Open before analysis, with the first impression: what the eye lands on first, what the design appears to be for, what the primary action appears to be, and what it feels like. Where any of those does not match `<brief>`, that mismatch is the first finding and usually the largest.
 
+Is this a page of options to choose from? Yes: does it cover the intended range on purpose, rather than vary one axis of the same idea, and do parts that must fit pass a match check? Both: review the alternatives. Either fails: return the page before a pick. For brand boards, use the range coverage declared in `skills/Build Brand/paths/sitting.md` and `tools/Contact Sheet/TOOL.md`'s palette/type matching checks, never a by-eye substitute. No: review the artifact.
+
 Then four lenses, each asked against the brief's goal rather than in the abstract. Clarity: is the purpose obvious on arrival, is the primary action visually dominant, and do competing calls dilute it. Resonance: does the aesthetic match this audience and this brand, is there a distinct point of view, would anyone remember it after leaving the page. Architecture: does the content order match the reading path, are related things grouped and unrelated things separated, is what matters most reachable without hunting. Economy: does every element survive the Purpose Check, and could this be simpler without losing clarity.
 
 Deliver as observations rather than instructions: two or three specific things the design does well with the reasoning, then what could be stronger, each naming the issue in one sentence, what it costs against the brief's goal, and a direction rather than a prescription, named from the Direction operations above (polish, distill, normalize, bolder, quieter) so the producer receives a move rather than an adjective. Close with one honest sentence on how near the design is to its stated purpose.
@@ -121,7 +123,7 @@ Deliver as observations rather than instructions: two or three specific things t
 
 ### Context Registers
 
-Identify the register before evaluating or advising; the wrong register produces the wrong evaluation.
+Identify the register before evaluating or advising. Was this look approved in another register? Yes: check it in the destination register before carrying it there; brand color and voice carry, while type and controls meet that register. Not checked: hold the transfer. No: judge in the named register.
 
 | Dimension | Application | Marketing | Content |
 |-----------|-------------|-----------|---------|

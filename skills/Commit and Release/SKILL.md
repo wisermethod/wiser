@@ -3,7 +3,7 @@ name: Commit and Release
 type: skill
 category: system
 description: Named paths committed with what landed verified, and a release pushed, tagged and confirmed where it is served, or an explicit incomplete result
-version: 0.2.1
+version: 0.2.2
 ---
 
 # Commit and Release
@@ -51,7 +51,7 @@ A change touching two repositories is two commits, one through each repository's
 
 2. Which paths does this session name? Those in `<paths>`, and no others. None: ask, and do not commit whatever the staging area holds.
 
-3. Before committing any file: does its uncommitted difference contain an edit this session did not make? Yes: leave the path and name it in the result. Do not commit it, and do not hand it to a mechanism that would stage the file whole. No: keep the path in the named set. You cannot tell: ask, and do not commit that path.
+3. Before committing any file: does its uncommitted difference contain an edit this session did not make? Yes: is it untracked, with earlier writers who are finished sessions of this same work? Yes: put the whole file's inclusion and provenance to the operator for approval by name; only that explicit approval keeps it in the named set. No, or no approval: leave the path, name it in the result and never hand it to a mechanism that stages it whole. No outside edit: keep it. You cannot tell: ask, and do not commit that path. A file this session creates in a tracked root is committed this session or named as owed in the root's own record.
 
 4. Would a named path put a secret's contents into the commit? Yes: drop it, per the constitution's Irreversibles. No: keep it. You cannot tell: ask, and do not commit it.
 
@@ -59,7 +59,7 @@ A change touching two repositories is two commits, one through each repository's
 
 6. Does the change depart from the primitive that owns the rule it touches? Yes: Record any departure from the owning primitive in the commit. No: record no departure.
 
-7. Single-quote a commit message, with no backticks or double quotes. The message contains a backtick or a double quote, or it cannot be passed in single quotes: ask for a message that meets that sentence, and do not commit with this one.
+7. Have the checks finished? No: wait before writing the message. Yes: copy any counts from what that run printed, then write the message in a separate command, never alongside the run. Single-quote it, with no backticks or double quotes. The message contains a backtick or a double quote, or it cannot be passed in single quotes: ask for a message that meets that sentence, and do not commit with this one.
 
 8. Does the owning root declare a commit mechanism? Read it against the guarantees it has to give. It takes only the paths the session names. It refuses when the staging area holds anything not named. It asserts the staged set equals the named set. It verifies after committing what actually landed and reports an absorption loudly. It holds a per-repository lock where two sessions can share one staging area, and against a session that bypasses the mechanism it detects rather than prevents. It gives each of those: use it in step 11, with any option it declares for keeping a verified staged state, such as committing a staged deletion without staging it again. A check run beside it is not that lock. It is missing one: stop, and name the guarantee it does not give. It is declared and cannot be run: stop, and do not commit by hand in its place. It declares none: prepare with step 10, and say in the result that no lock serializes the by-hand steps. You cannot tell: ask, and do not commit.
 
@@ -120,7 +120,7 @@ A change touching two repositories is two commits, one through each repository's
 
 1. **The request is ambiguous** about the repository, the paths, the destination, the tags, whether a push or a release is authorized, whose edits a file carries, or whether a mechanism is declared. Ask before proceeding. Do not commit, push, or tag the part the ambiguity touches. When you cannot tell which part it touches, ask before any of it.
 
-2. **A path another session has edited is about to be committed.** Return to Commit step 3. Leave the path and name it.
+2. **A path another session has edited is about to be committed.** Apply Commit step 3, including its question for an untracked file from finished sessions.
 
 3. **A by-hand compare is being reported as a lock.** Say that no lock serializes those steps, and that they detect a difference rather than prevent one.
 
@@ -139,7 +139,7 @@ A change touching two repositories is two commits, one through each repository's
 ## Success
 
 - The result names each repository and each commit by its hash. Every path in the commit was named, every named path is in the commit, or the result names every path that differs and calls that difference an absorption.
-- A path that carries another session's uncommitted edits is absent from the commit and named in the result.
+- A path that carries another session's uncommitted edits is withheld and named, unless Commit step 3's explicit approval covers it.
 - Where a mechanism ran, the result says so. Where the steps were by hand, the result says that no lock serializes them.
 - A push names one captured commit and one explicit destination, says that destination was fetched, and says the remote read back as that commit, or says the push is incomplete.
 - Each published tag was named, names a commit already on the destination's main line, and did not overwrite a tag that names another object. The result says what the destination read back.
