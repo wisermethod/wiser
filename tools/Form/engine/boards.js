@@ -118,7 +118,7 @@ function board(model,b,mode,compact,logo) {
     }
   };
   const rows=b.modes[mode][thumbnail?'tile':'blocks'].map(block).filter(Boolean);
-  if(thumbnail)n.append(el('div','thumbnail-column',null,...rows,footer(b)),el('div','thumbnail-column'));
+  if(thumbnail){rows.push(footer(b));const split=model.layout.thumbnail.splitAfter;n.append(el('div','thumbnail-column',null,...rows.slice(0,split)),el('div','thumbnail-column',null,...rows.slice(split)));}
   else n.append(...rows);
   return n;
 }

@@ -8,10 +8,10 @@
       "kept": false,
       "theme": "light",
       "width": 734,
-      "height": 2478,
+      "height": 2570,
       "thumbnails": 12,
-      "drawMs": 5.7,
-      "renderLayoutMs": 68.4,
+      "drawMs": 6.4,
+      "renderLayoutMs": 60.2,
       "clippedText": [],
       "elementsBefore": 416,
       "elementsAfter": 416,
@@ -20,22 +20,86 @@
       "thumbnailHeights": [
         215.41,
         217.63,
-        216.64,
+        217.63,
         217.63,
         217.45,
-        205.41,
         217.63,
-        218.59,
+        217.63,
+        220.72,
         215.41,
-        217.66,
+        218.45,
         217.63,
         217.63
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
       ],
       "patches": [
         {
           "width": 155.63,
           "height": 66.98,
-          "badge": true,
+          "badge": false,
           "swatches": [
             "panel",
             "pop",
@@ -55,8 +119,8 @@
           "overlayOnly": true
         },
         {
-          "width": 155.64,
-          "height": 70.05,
+          "width": 155.63,
+          "height": 72.02,
           "badge": false,
           "swatches": [
             "panel",
@@ -88,8 +152,8 @@
           "overlayOnly": true
         },
         {
-          "width": 155.64,
-          "height": 58.81,
+          "width": 155.63,
+          "height": 83.25,
           "badge": false,
           "swatches": [
             "panel",
@@ -110,8 +174,8 @@
           "overlayOnly": true
         },
         {
-          "width": 155.64,
-          "height": 68.91,
+          "width": 155.63,
+          "height": 73.16,
           "badge": false,
           "swatches": [
             "panel",
@@ -132,8 +196,8 @@
           "overlayOnly": true
         },
         {
-          "width": 155.64,
-          "height": 70.23,
+          "width": 155.63,
+          "height": 71.83,
           "badge": false,
           "swatches": [
             "panel",
@@ -175,44 +239,97 @@
       "kept": false,
       "theme": "light",
       "width": 390,
-      "height": 4765,
+      "height": 4885,
       "thumbnails": 12,
-      "drawMs": 5.3,
-      "renderLayoutMs": 64.8,
+      "drawMs": 6.2,
+      "renderLayoutMs": 61.3,
       "clippedText": [],
       "elementsBefore": 416,
       "elementsAfter": 416,
       "unchanged": true,
       "domInputs": 12,
       "thumbnailHeights": [
-        227.09,
-        227.75,
-        226.27,
-        227.52,
-        228.61,
-        214.55,
-        228.69,
-        228.3,
-        227.09,
-        227.36,
-        227.75,
-        227.52
+        225.14,
+        227.28,
+        227.28,
+        227.28,
+        227.14,
+        227.28,
+        227.28,
+        230.55,
+        225.14,
+        227.28,
+        227.28,
+        227.28
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
       ],
       "patches": [
         {
           "width": 162.88,
-          "height": 63.06,
-          "badge": true,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 63.72,
+          "height": 70.47,
           "badge": false,
           "swatches": [
             "panel",
@@ -223,7 +340,7 @@
         },
         {
           "width": 162.88,
-          "height": 62.23,
+          "height": 74.09,
           "badge": false,
           "swatches": [
             "panel",
@@ -234,7 +351,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.48,
+          "height": 75.58,
           "badge": false,
           "swatches": [
             "panel",
@@ -245,7 +362,7 @@
         },
         {
           "width": 162.88,
-          "height": 64.72,
+          "height": 74.33,
           "badge": false,
           "swatches": [
             "panel",
@@ -256,7 +373,7 @@
         },
         {
           "width": 162.88,
-          "height": 50.52,
+          "height": 73.09,
           "badge": false,
           "swatches": [
             "panel",
@@ -267,7 +384,7 @@
         },
         {
           "width": 162.88,
-          "height": 64.66,
+          "height": 87.3,
           "badge": false,
           "swatches": [
             "panel",
@@ -278,7 +395,7 @@
         },
         {
           "width": 162.88,
-          "height": 64.41,
+          "height": 73.16,
           "badge": false,
           "swatches": [
             "panel",
@@ -289,7 +406,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.06,
+          "height": 76.81,
           "badge": false,
           "swatches": [
             "panel",
@@ -300,7 +417,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.33,
+          "height": 70.47,
           "badge": false,
           "swatches": [
             "panel",
@@ -311,7 +428,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.72,
+          "height": 74.48,
           "badge": false,
           "swatches": [
             "panel",
@@ -322,7 +439,18 @@
         },
         {
           "width": 162.88,
-          "height": 63.48,
+          "height": 74.09,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 74.33,
           "badge": false,
           "swatches": [
             "panel",
@@ -342,10 +470,10 @@
       "kept": false,
       "theme": "dark",
       "width": 734,
-      "height": 2470,
+      "height": 2561,
       "thumbnails": 12,
-      "drawMs": 5.9,
-      "renderLayoutMs": 28.3,
+      "drawMs": 5.8,
+      "renderLayoutMs": 19.2,
       "clippedText": [],
       "elementsBefore": 416,
       "elementsAfter": 416,
@@ -357,19 +485,83 @@
         215,
         215.63,
         215.63,
-        205.41,
         217.63,
-        218.59,
+        217.63,
+        220.72,
         215.41,
         215,
         217.25,
         215.63
       ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
+      ],
       "patches": [
         {
           "width": 155.63,
           "height": 65.72,
-          "badge": true,
+          "badge": false,
           "swatches": [
             "panel",
             "pop",
@@ -422,8 +614,8 @@
           "overlayOnly": true
         },
         {
-          "width": 155.64,
-          "height": 58.81,
+          "width": 155.63,
+          "height": 83.25,
           "badge": false,
           "swatches": [
             "panel",
@@ -444,8 +636,8 @@
           "overlayOnly": true
         },
         {
-          "width": 155.64,
-          "height": 68.91,
+          "width": 155.63,
+          "height": 73.16,
           "badge": false,
           "swatches": [
             "panel",
@@ -509,44 +701,97 @@
       "kept": false,
       "theme": "dark",
       "width": 390,
-      "height": 4761,
+      "height": 4872,
       "thumbnails": 12,
-      "drawMs": 6.1,
-      "renderLayoutMs": 28.8,
+      "drawMs": 5.7,
+      "renderLayoutMs": 19.2,
       "clippedText": [],
       "elementsBefore": 416,
       "elementsAfter": 416,
       "unchanged": true,
       "domInputs": 12,
       "thumbnailHeights": [
+        223.59,
+        227.28,
+        224.61,
+        225.17,
+        225.17,
+        227.28,
+        227.28,
+        230.55,
         225.14,
-        227.75,
-        226.27,
-        227.28,
-        227.14,
-        214.55,
-        228.69,
-        228.3,
-        227.09,
-        227.28,
-        227.28,
-        227.28
+        224.61,
+        226.92,
+        225.17
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
       ],
       "patches": [
         {
           "width": 162.88,
-          "height": 70.47,
-          "badge": true,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 63.72,
+          "height": 68.92,
           "badge": false,
           "swatches": [
             "panel",
@@ -557,7 +802,1415 @@
         },
         {
           "width": 162.88,
-          "height": 73.55,
+          "height": 74.09,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 72.91,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 72.22,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 71.13,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 87.3,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 73.16,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 76.81,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 70.47,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 71.81,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 73.73,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 72.22,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        }
+      ],
+      "overflow": false,
+      "inputElements": 416,
+      "render": "bakery-round1-plain-dark-390.png"
+    },
+    {
+      "business": "bakery",
+      "page": "variations",
+      "kept": false,
+      "theme": "light",
+      "width": 734,
+      "height": 2453,
+      "thumbnails": 12,
+      "drawMs": 6.1,
+      "renderLayoutMs": 54.7,
+      "clippedText": [],
+      "elementsBefore": 415,
+      "elementsAfter": 415,
+      "unchanged": true,
+      "domInputs": 12,
+      "thumbnailHeights": [
+        215.41,
+        215.41,
+        215.41,
+        215.41,
+        217.63,
+        217.63,
+        217.63,
+        215.41,
+        217.63,
+        217.63,
+        217.63,
+        217.63
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
+      ],
+      "patches": [
+        {
+          "width": 155.63,
+          "height": 66.98,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 66.98,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 66.98,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 66.98,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 70.64,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 70.64,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 70.64,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 66.98,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 72.02,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 72.02,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 72.02,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 72.02,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        }
+      ],
+      "overflow": false,
+      "inputElements": 415,
+      "render": "bakery-variations-plain-light-734.png"
+    },
+    {
+      "business": "bakery",
+      "page": "variations",
+      "kept": false,
+      "theme": "light",
+      "width": 390,
+      "height": 4742,
+      "thumbnails": 12,
+      "drawMs": 5.9,
+      "renderLayoutMs": 55.2,
+      "clippedText": [],
+      "elementsBefore": 415,
+      "elementsAfter": 415,
+      "unchanged": true,
+      "domInputs": 12,
+      "thumbnailHeights": [
+        225.14,
+        225.14,
+        225.14,
+        225.14,
+        227.28,
+        227.28,
+        227.28,
+        225.14,
+        227.28,
+        227.28,
+        227.28,
+        227.28
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
+      ],
+      "patches": [
+        {
+          "width": 162.88,
+          "height": 70.47,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 70.47,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 70.47,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 70.47,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 74.09,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 74.09,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 74.09,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 70.47,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 75.58,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 75.58,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 75.58,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 75.58,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        }
+      ],
+      "overflow": false,
+      "inputElements": 415,
+      "render": "bakery-variations-plain-light-390.png"
+    },
+    {
+      "business": "bakery",
+      "page": "variations",
+      "kept": false,
+      "theme": "dark",
+      "width": 734,
+      "height": 2448,
+      "thumbnails": 12,
+      "drawMs": 6.6,
+      "renderLayoutMs": 18.4,
+      "clippedText": [],
+      "elementsBefore": 415,
+      "elementsAfter": 415,
+      "unchanged": true,
+      "domInputs": 12,
+      "thumbnailHeights": [
+        214.14,
+        214.14,
+        214.14,
+        214.14,
+        217.25,
+        217.25,
+        217.63,
+        215.41,
+        215,
+        215,
+        217.63,
+        217.63
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
+      ],
+      "patches": [
+        {
+          "width": 155.63,
+          "height": 65.72,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 65.72,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 65.72,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 65.72,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 70.27,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 70.27,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 70.64,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 66.98,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 69.39,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 69.39,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 72.02,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 72.02,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        }
+      ],
+      "overflow": false,
+      "inputElements": 415,
+      "render": "bakery-variations-plain-dark-734.png"
+    },
+    {
+      "business": "bakery",
+      "page": "variations",
+      "kept": false,
+      "theme": "dark",
+      "width": 390,
+      "height": 4730,
+      "thumbnails": 12,
+      "drawMs": 6.7,
+      "renderLayoutMs": 20,
+      "clippedText": [],
+      "elementsBefore": 415,
+      "elementsAfter": 415,
+      "unchanged": true,
+      "domInputs": 12,
+      "thumbnailHeights": [
+        223.59,
+        223.59,
+        223.59,
+        223.59,
+        226.92,
+        226.92,
+        227.28,
+        225.14,
+        224.61,
+        224.61,
+        227.28,
+        227.28
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
+      ],
+      "patches": [
+        {
+          "width": 162.88,
+          "height": 68.92,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 68.92,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 68.92,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 68.92,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 73.73,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 73.73,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 74.09,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 70.47,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 72.91,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 72.91,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 75.58,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 75.58,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        }
+      ],
+      "overflow": false,
+      "inputElements": 415,
+      "render": "bakery-variations-plain-dark-390.png"
+    },
+    {
+      "business": "bakery",
+      "page": "round1",
+      "kept": true,
+      "theme": "light",
+      "width": 734,
+      "height": 2610,
+      "thumbnails": 12,
+      "drawMs": 9.2,
+      "renderLayoutMs": 47.4,
+      "clippedText": [],
+      "elementsBefore": 716,
+      "elementsAfter": 716,
+      "unchanged": true,
+      "domInputs": 12,
+      "thumbnailHeights": [
+        215.41,
+        215.41,
+        217.63,
+        217.63,
+        217.63,
+        217.45,
+        217.63,
+        217.63,
+        220.72,
+        215.41,
+        217.63,
+        217.63
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
+      ],
+      "patches": [
+        {
+          "width": 155.63,
+          "height": 66.98,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 66.98,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 70.64,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 72.02,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 70.84,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 69.58,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 83.25,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 69.75,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 73.16,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 66.98,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 70.64,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 72.02,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        }
+      ],
+      "overflow": false,
+      "inputElements": 716,
+      "render": "bakery-round1-kept-light-734.png"
+    },
+    {
+      "business": "bakery",
+      "page": "round1",
+      "kept": true,
+      "theme": "light",
+      "width": 390,
+      "height": 4756,
+      "thumbnails": 12,
+      "drawMs": 7.9,
+      "renderLayoutMs": 48.4,
+      "clippedText": [],
+      "elementsBefore": 716,
+      "elementsAfter": 716,
+      "unchanged": true,
+      "domInputs": 12,
+      "thumbnailHeights": [
+        225.14,
+        225.14,
+        227.28,
+        227.28,
+        227.28,
+        227.14,
+        227.28,
+        227.28,
+        230.55,
+        225.14,
+        227.28,
+        227.28
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
+      ],
+      "patches": [
+        {
+          "width": 162.88,
+          "height": 70.47,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 70.47,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 74.09,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 75.58,
           "badge": false,
           "swatches": [
             "panel",
@@ -590,7 +2243,7 @@
         },
         {
           "width": 162.88,
-          "height": 50.52,
+          "height": 87.3,
           "badge": false,
           "swatches": [
             "panel",
@@ -601,7 +2254,7 @@
         },
         {
           "width": 162.88,
-          "height": 64.66,
+          "height": 73.16,
           "badge": false,
           "swatches": [
             "panel",
@@ -612,620 +2265,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.31,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 63.06,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 74.48,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 74.09,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 74.33,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        }
-      ],
-      "overflow": false,
-      "inputElements": 416,
-      "render": "bakery-round1-plain-dark-390.png"
-    },
-    {
-      "business": "bakery",
-      "page": "variations",
-      "kept": false,
-      "theme": "light",
-      "width": 734,
-      "height": 2451,
-      "thumbnails": 12,
-      "drawMs": 6.1,
-      "renderLayoutMs": 64.6,
-      "clippedText": [],
-      "elementsBefore": 415,
-      "elementsAfter": 415,
-      "unchanged": true,
-      "domInputs": 12,
-      "thumbnailHeights": [
-        215.41,
-        215.41,
-        215.41,
-        215.41,
-        217.63,
-        217.63,
-        217.63,
-        215.41,
-        216.64,
-        216.64,
-        216.64,
-        216.64
-      ],
-      "patches": [
-        {
-          "width": 155.63,
-          "height": 66.98,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 66.98,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 66.98,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 66.98,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 70.64,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 70.64,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 70.64,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 66.98,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.64,
-          "height": 70.05,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.64,
-          "height": 70.05,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.64,
-          "height": 70.05,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.64,
-          "height": 70.05,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        }
-      ],
-      "overflow": false,
-      "inputElements": 415,
-      "render": "bakery-variations-plain-light-734.png"
-    },
-    {
-      "business": "bakery",
-      "page": "variations",
-      "kept": false,
-      "theme": "light",
-      "width": 390,
-      "height": 4680,
-      "thumbnails": 12,
-      "drawMs": 6.1,
-      "renderLayoutMs": 63.5,
-      "clippedText": [],
-      "elementsBefore": 415,
-      "elementsAfter": 415,
-      "unchanged": true,
-      "domInputs": 12,
-      "thumbnailHeights": [
-        227.09,
-        227.09,
-        227.09,
-        227.09,
-        227.75,
-        227.75,
-        227.75,
-        227.09,
-        226.27,
-        226.27,
-        226.27,
-        226.27
-      ],
-      "patches": [
-        {
-          "width": 162.88,
-          "height": 63.06,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 63.06,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 63.06,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 63.06,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 63.72,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 63.72,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 63.72,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 63.06,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 62.23,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 62.23,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 62.23,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 62.23,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        }
-      ],
-      "overflow": false,
-      "inputElements": 415,
-      "render": "bakery-variations-plain-light-390.png"
-    },
-    {
-      "business": "bakery",
-      "page": "variations",
-      "kept": false,
-      "theme": "dark",
-      "width": 734,
-      "height": 2447,
-      "thumbnails": 12,
-      "drawMs": 5.9,
-      "renderLayoutMs": 27.2,
-      "clippedText": [],
-      "elementsBefore": 415,
-      "elementsAfter": 415,
-      "unchanged": true,
-      "domInputs": 12,
-      "thumbnailHeights": [
-        214.14,
-        214.14,
-        214.14,
-        214.14,
-        217.25,
-        217.25,
-        217.63,
-        215.41,
-        215,
-        215,
-        216.64,
-        216.64
-      ],
-      "patches": [
-        {
-          "width": 155.63,
-          "height": 65.72,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 65.72,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 65.72,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 65.72,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 70.27,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 70.27,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 70.64,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 66.98,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 69.39,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 69.39,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.64,
-          "height": 70.05,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.64,
-          "height": 70.05,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        }
-      ],
-      "overflow": false,
-      "inputElements": 415,
-      "render": "bakery-variations-plain-dark-734.png"
-    },
-    {
-      "business": "bakery",
-      "page": "variations",
-      "kept": false,
-      "theme": "dark",
-      "width": 390,
-      "height": 4671,
-      "thumbnails": 12,
-      "drawMs": 6,
-      "renderLayoutMs": 27,
-      "clippedText": [],
-      "elementsBefore": 415,
-      "elementsAfter": 415,
-      "unchanged": true,
-      "domInputs": 12,
-      "thumbnailHeights": [
-        225.14,
-        225.14,
-        225.14,
-        225.14,
-        227.28,
-        227.28,
-        227.75,
-        227.09,
-        226.27,
-        226.27,
-        226.27,
-        226.27
-      ],
-      "patches": [
-        {
-          "width": 162.88,
-          "height": 70.47,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 70.47,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 70.47,
+          "height": 76.81,
           "badge": false,
           "swatches": [
             "panel",
@@ -1258,407 +2298,7 @@
         },
         {
           "width": 162.88,
-          "height": 74.09,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 63.72,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 63.06,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 73.55,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 73.55,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 62.23,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 62.23,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        }
-      ],
-      "overflow": false,
-      "inputElements": 415,
-      "render": "bakery-variations-plain-dark-390.png"
-    },
-    {
-      "business": "bakery",
-      "page": "round1",
-      "kept": true,
-      "theme": "light",
-      "width": 734,
-      "height": 2499,
-      "thumbnails": 12,
-      "drawMs": 5.9,
-      "renderLayoutMs": 56.1,
-      "clippedText": [],
-      "elementsBefore": 716,
-      "elementsAfter": 716,
-      "unchanged": true,
-      "domInputs": 12,
-      "thumbnailHeights": [
-        215.41,
-        215.41,
-        217.63,
-        216.64,
-        217.63,
-        217.45,
-        205.41,
-        217.63,
-        218.59,
-        215.41,
-        217.63,
-        216.64
-      ],
-      "patches": [
-        {
-          "width": 155.63,
-          "height": 66.98,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 66.98,
-          "badge": true,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 70.64,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.64,
-          "height": 70.05,
-          "badge": true,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 70.84,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 69.58,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.64,
-          "height": 58.81,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 69.75,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.64,
-          "height": 68.91,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 66.98,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 70.64,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.64,
-          "height": 70.05,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        }
-      ],
-      "overflow": false,
-      "inputElements": 716,
-      "render": "bakery-round1-kept-light-734.png"
-    },
-    {
-      "business": "bakery",
-      "page": "round1",
-      "kept": true,
-      "theme": "light",
-      "width": 390,
-      "height": 4687,
-      "thumbnails": 12,
-      "drawMs": 5.8,
-      "renderLayoutMs": 55,
-      "clippedText": [],
-      "elementsBefore": 716,
-      "elementsAfter": 716,
-      "unchanged": true,
-      "domInputs": 12,
-      "thumbnailHeights": [
-        227.09,
-        227.09,
-        227.75,
-        226.27,
-        227.52,
-        228.61,
-        214.55,
-        228.69,
-        228.3,
-        227.09,
-        227.75,
-        226.27
-      ],
-      "patches": [
-        {
-          "width": 162.88,
-          "height": 63.06,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 63.06,
-          "badge": true,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 63.72,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 62.23,
-          "badge": true,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 63.48,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 64.72,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 50.52,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 64.66,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 64.41,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 63.06,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 63.72,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 62.23,
+          "height": 75.58,
           "badge": false,
           "swatches": [
             "panel",
@@ -1678,10 +2318,10 @@
       "kept": true,
       "theme": "dark",
       "width": 734,
-      "height": 2499,
+      "height": 2610,
       "thumbnails": 12,
-      "drawMs": 6.2,
-      "renderLayoutMs": 28.9,
+      "drawMs": 6.9,
+      "renderLayoutMs": 21.2,
       "clippedText": [],
       "elementsBefore": 716,
       "elementsAfter": 716,
@@ -1691,15 +2331,79 @@
         215.41,
         215.41,
         217.63,
-        216.64,
+        217.63,
         217.63,
         217.45,
-        205.41,
         217.63,
-        218.59,
+        217.63,
+        220.72,
         215.41,
         217.63,
-        216.64
+        217.63
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
       ],
       "patches": [
         {
@@ -1716,7 +2420,7 @@
         {
           "width": 155.63,
           "height": 66.98,
-          "badge": true,
+          "badge": false,
           "swatches": [
             "panel",
             "pop",
@@ -1736,9 +2440,9 @@
           "overlayOnly": true
         },
         {
-          "width": 155.64,
-          "height": 70.05,
-          "badge": true,
+          "width": 155.63,
+          "height": 72.02,
+          "badge": false,
           "swatches": [
             "panel",
             "pop",
@@ -1769,8 +2473,8 @@
           "overlayOnly": true
         },
         {
-          "width": 155.64,
-          "height": 58.81,
+          "width": 155.63,
+          "height": 83.25,
           "badge": false,
           "swatches": [
             "panel",
@@ -1791,8 +2495,8 @@
           "overlayOnly": true
         },
         {
-          "width": 155.64,
-          "height": 68.91,
+          "width": 155.63,
+          "height": 73.16,
           "badge": false,
           "swatches": [
             "panel",
@@ -1824,8 +2528,8 @@
           "overlayOnly": true
         },
         {
-          "width": 155.64,
-          "height": 70.05,
+          "width": 155.63,
+          "height": 72.02,
           "badge": false,
           "swatches": [
             "panel",
@@ -1845,33 +2549,97 @@
       "kept": true,
       "theme": "dark",
       "width": 390,
-      "height": 4687,
+      "height": 4756,
       "thumbnails": 12,
-      "drawMs": 5.9,
-      "renderLayoutMs": 28.7,
+      "drawMs": 6.8,
+      "renderLayoutMs": 20.2,
       "clippedText": [],
       "elementsBefore": 716,
       "elementsAfter": 716,
       "unchanged": true,
       "domInputs": 12,
       "thumbnailHeights": [
-        227.09,
-        227.09,
-        227.75,
-        226.27,
-        227.52,
-        228.61,
-        214.55,
-        228.69,
-        228.3,
-        227.09,
-        227.75,
-        226.27
+        225.14,
+        225.14,
+        227.28,
+        227.28,
+        227.28,
+        227.14,
+        227.28,
+        227.28,
+        230.55,
+        225.14,
+        227.28,
+        227.28
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
       ],
       "patches": [
         {
           "width": 162.88,
-          "height": 63.06,
+          "height": 70.47,
           "badge": false,
           "swatches": [
             "panel",
@@ -1882,18 +2650,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.06,
-          "badge": true,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 63.72,
+          "height": 70.47,
           "badge": false,
           "swatches": [
             "panel",
@@ -1904,18 +2661,7 @@
         },
         {
           "width": 162.88,
-          "height": 62.23,
-          "badge": true,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 63.48,
+          "height": 74.09,
           "badge": false,
           "swatches": [
             "panel",
@@ -1926,7 +2672,7 @@
         },
         {
           "width": 162.88,
-          "height": 64.72,
+          "height": 75.58,
           "badge": false,
           "swatches": [
             "panel",
@@ -1937,7 +2683,7 @@
         },
         {
           "width": 162.88,
-          "height": 50.52,
+          "height": 74.33,
           "badge": false,
           "swatches": [
             "panel",
@@ -1948,7 +2694,7 @@
         },
         {
           "width": 162.88,
-          "height": 64.66,
+          "height": 73.09,
           "badge": false,
           "swatches": [
             "panel",
@@ -1959,7 +2705,7 @@
         },
         {
           "width": 162.88,
-          "height": 64.41,
+          "height": 87.3,
           "badge": false,
           "swatches": [
             "panel",
@@ -1970,7 +2716,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.06,
+          "height": 73.16,
           "badge": false,
           "swatches": [
             "panel",
@@ -1981,7 +2727,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.72,
+          "height": 76.81,
           "badge": false,
           "swatches": [
             "panel",
@@ -1992,7 +2738,29 @@
         },
         {
           "width": 162.88,
-          "height": 62.23,
+          "height": 70.47,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 74.09,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 75.58,
           "badge": false,
           "swatches": [
             "panel",
@@ -2012,10 +2780,10 @@
       "kept": true,
       "theme": "light",
       "width": 734,
-      "height": 2379,
+      "height": 2403,
       "thumbnails": 12,
-      "drawMs": 9.7,
-      "renderLayoutMs": 48.8,
+      "drawMs": 6.2,
+      "renderLayoutMs": 42.5,
       "clippedText": [],
       "elementsBefore": 714,
       "elementsAfter": 714,
@@ -2034,6 +2802,70 @@
         217.63,
         217.63,
         217.63
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
       ],
       "patches": [
         {
@@ -2179,33 +3011,97 @@
       "kept": true,
       "theme": "light",
       "width": 390,
-      "height": 4608,
+      "height": 4612,
       "thumbnails": 12,
-      "drawMs": 9.1,
-      "renderLayoutMs": 47.8,
+      "drawMs": 6.4,
+      "renderLayoutMs": 43.5,
       "clippedText": [],
       "elementsBefore": 714,
       "elementsAfter": 714,
       "unchanged": true,
       "domInputs": 12,
       "thumbnailHeights": [
-        227.09,
-        227.09,
-        227.09,
-        227.09,
-        227.09,
-        227.09,
-        227.09,
-        227.09,
-        227.09,
-        227.75,
-        227.75,
-        227.75
+        225.14,
+        225.14,
+        225.14,
+        225.14,
+        225.14,
+        225.14,
+        225.14,
+        225.14,
+        225.14,
+        227.28,
+        227.28,
+        227.28
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
       ],
       "patches": [
         {
           "width": 162.88,
-          "height": 63.06,
+          "height": 70.47,
           "badge": false,
           "swatches": [
             "panel",
@@ -2216,7 +3112,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.06,
+          "height": 70.47,
           "badge": false,
           "swatches": [
             "panel",
@@ -2227,7 +3123,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.06,
+          "height": 70.47,
           "badge": false,
           "swatches": [
             "panel",
@@ -2238,7 +3134,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.06,
+          "height": 70.47,
           "badge": false,
           "swatches": [
             "panel",
@@ -2249,7 +3145,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.06,
+          "height": 70.47,
           "badge": false,
           "swatches": [
             "panel",
@@ -2260,7 +3156,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.06,
+          "height": 70.47,
           "badge": false,
           "swatches": [
             "panel",
@@ -2271,7 +3167,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.06,
+          "height": 70.47,
           "badge": false,
           "swatches": [
             "panel",
@@ -2282,7 +3178,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.06,
+          "height": 70.47,
           "badge": false,
           "swatches": [
             "panel",
@@ -2293,7 +3189,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.06,
+          "height": 70.47,
           "badge": false,
           "swatches": [
             "panel",
@@ -2304,7 +3200,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.72,
+          "height": 74.09,
           "badge": false,
           "swatches": [
             "panel",
@@ -2315,7 +3211,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.72,
+          "height": 74.09,
           "badge": false,
           "swatches": [
             "panel",
@@ -2326,7 +3222,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.72,
+          "height": 74.09,
           "badge": false,
           "swatches": [
             "panel",
@@ -2346,10 +3242,10 @@
       "kept": true,
       "theme": "dark",
       "width": 734,
-      "height": 2379,
+      "height": 2403,
       "thumbnails": 12,
-      "drawMs": 5.9,
-      "renderLayoutMs": 24.2,
+      "drawMs": 6.5,
+      "renderLayoutMs": 18.1,
       "clippedText": [],
       "elementsBefore": 714,
       "elementsAfter": 714,
@@ -2368,6 +3264,70 @@
         217.63,
         217.63,
         217.63
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
       ],
       "patches": [
         {
@@ -2513,33 +3473,97 @@
       "kept": true,
       "theme": "dark",
       "width": 390,
-      "height": 4608,
+      "height": 4612,
       "thumbnails": 12,
-      "drawMs": 6.3,
-      "renderLayoutMs": 24.8,
+      "drawMs": 6.4,
+      "renderLayoutMs": 18,
       "clippedText": [],
       "elementsBefore": 714,
       "elementsAfter": 714,
       "unchanged": true,
       "domInputs": 12,
       "thumbnailHeights": [
-        227.09,
-        227.09,
-        227.09,
-        227.09,
-        227.09,
-        227.09,
-        227.09,
-        227.09,
-        227.09,
-        227.75,
-        227.75,
-        227.75
+        225.14,
+        225.14,
+        225.14,
+        225.14,
+        225.14,
+        225.14,
+        225.14,
+        225.14,
+        225.14,
+        227.28,
+        227.28,
+        227.28
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
       ],
       "patches": [
         {
           "width": 162.88,
-          "height": 63.06,
+          "height": 70.47,
           "badge": false,
           "swatches": [
             "panel",
@@ -2550,7 +3574,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.06,
+          "height": 70.47,
           "badge": false,
           "swatches": [
             "panel",
@@ -2561,7 +3585,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.06,
+          "height": 70.47,
           "badge": false,
           "swatches": [
             "panel",
@@ -2572,7 +3596,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.06,
+          "height": 70.47,
           "badge": false,
           "swatches": [
             "panel",
@@ -2583,7 +3607,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.06,
+          "height": 70.47,
           "badge": false,
           "swatches": [
             "panel",
@@ -2594,7 +3618,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.06,
+          "height": 70.47,
           "badge": false,
           "swatches": [
             "panel",
@@ -2605,7 +3629,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.06,
+          "height": 70.47,
           "badge": false,
           "swatches": [
             "panel",
@@ -2616,7 +3640,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.06,
+          "height": 70.47,
           "badge": false,
           "swatches": [
             "panel",
@@ -2627,7 +3651,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.06,
+          "height": 70.47,
           "badge": false,
           "swatches": [
             "panel",
@@ -2638,7 +3662,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.72,
+          "height": 74.09,
           "badge": false,
           "swatches": [
             "panel",
@@ -2649,7 +3673,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.72,
+          "height": 74.09,
           "badge": false,
           "swatches": [
             "panel",
@@ -2660,7 +3684,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.72,
+          "height": 74.09,
           "badge": false,
           "swatches": [
             "panel",
@@ -2680,10 +3704,10 @@
       "kept": false,
       "theme": "light",
       "width": 734,
-      "height": 2549,
+      "height": 2595,
       "thumbnails": 12,
-      "drawMs": 5.6,
-      "renderLayoutMs": 62.5,
+      "drawMs": 6.2,
+      "renderLayoutMs": 59.4,
       "clippedText": [],
       "elementsBefore": 416,
       "elementsAfter": 416,
@@ -2693,21 +3717,85 @@
         217.63,
         217.45,
         218.45,
-        205.41,
-        217.66,
+        217.63,
+        218.45,
         220.56,
         217.63,
-        206.25,
+        215.41,
         217.63,
         217.63,
         217.45,
-        205.41
+        217.63
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
       ],
       "patches": [
         {
           "width": 155.63,
           "height": 58.7,
-          "badge": true,
+          "badge": false,
           "swatches": [
             "panel",
             "pop",
@@ -2738,8 +3826,8 @@
           "overlayOnly": true
         },
         {
-          "width": 155.64,
-          "height": 58.81,
+          "width": 155.63,
+          "height": 83.25,
           "badge": false,
           "swatches": [
             "panel",
@@ -2749,8 +3837,8 @@
           "overlayOnly": true
         },
         {
-          "width": 155.64,
-          "height": 70.23,
+          "width": 155.63,
+          "height": 71.83,
           "badge": false,
           "swatches": [
             "panel",
@@ -2782,8 +3870,8 @@
           "overlayOnly": true
         },
         {
-          "width": 155.64,
-          "height": 59.83,
+          "width": 155.63,
+          "height": 78.14,
           "badge": false,
           "swatches": [
             "panel",
@@ -2826,8 +3914,8 @@
           "overlayOnly": true
         },
         {
-          "width": 155.64,
-          "height": 58.81,
+          "width": 155.63,
+          "height": 83.25,
           "badge": false,
           "swatches": [
             "panel",
@@ -2847,368 +3935,98 @@
       "kept": false,
       "theme": "light",
       "width": 390,
-      "height": 4626,
-      "thumbnails": 12,
-      "drawMs": 5,
-      "renderLayoutMs": 60.7,
-      "clippedText": [],
-      "elementsBefore": 416,
-      "elementsAfter": 416,
-      "unchanged": true,
-      "domInputs": 12,
-      "thumbnailHeights": [
-        238.59,
-        228.61,
-        238.45,
-        214.55,
-        227.36,
-        233.77,
-        227.75,
-        215.44,
-        238.59,
-        238.59,
-        228.61,
-        214.55
-      ],
-      "patches": [
-        {
-          "width": 162.88,
-          "height": 72.92,
-          "badge": true,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 64.72,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 73.25,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 50.52,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 63.33,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 69.88,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 63.72,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 51.41,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 74.33,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 72.92,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 64.72,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 50.52,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        }
-      ],
-      "overflow": false,
-      "inputElements": 416,
-      "render": "politician-round1-plain-light-390.png"
-    },
-    {
-      "business": "politician",
-      "page": "round1",
-      "kept": false,
-      "theme": "dark",
-      "width": 734,
-      "height": 2546,
+      "height": 4887,
       "thumbnails": 12,
       "drawMs": 5.4,
-      "renderLayoutMs": 28.1,
+      "renderLayoutMs": 57.8,
       "clippedText": [],
       "elementsBefore": 416,
       "elementsAfter": 416,
       "unchanged": true,
       "domInputs": 12,
       "thumbnailHeights": [
-        217.63,
-        215.63,
-        218.45,
-        205.41,
-        215,
-        220.56,
-        217.25,
-        206.25,
-        217.63,
-        217.63,
-        215.63,
-        205.41
-      ],
-      "patches": [
-        {
-          "width": 155.63,
-          "height": 58.7,
-          "badge": true,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 67.75,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 59.91,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.64,
-          "height": 66.09,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 68.38,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 67.72,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 70.27,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.64,
-          "height": 59.83,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 60.02,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 58.7,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.63,
-          "height": 67.75,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 155.64,
-          "height": 66.09,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        }
-      ],
-      "overflow": false,
-      "inputElements": 416,
-      "render": "politician-round1-plain-dark-734.png"
-    },
-    {
-      "business": "politician",
-      "page": "round1",
-      "kept": false,
-      "theme": "dark",
-      "width": 390,
-      "height": 4619,
-      "thumbnails": 12,
-      "drawMs": 5.7,
-      "renderLayoutMs": 26.7,
-      "clippedText": [],
-      "elementsBefore": 416,
-      "elementsAfter": 416,
-      "unchanged": true,
-      "domInputs": 12,
-      "thumbnailHeights": [
-        238.59,
+        227.28,
         227.14,
-        238.45,
-        214.55,
+        227.14,
+        227.28,
         227.28,
         230.36,
         227.28,
-        215.44,
-        238.59,
-        238.59,
+        225.14,
+        227.28,
+        227.28,
         227.14,
-        214.55
+        227.28
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
       ],
       "patches": [
         {
           "width": 162.88,
-          "height": 72.92,
-          "badge": true,
+          "height": 61.61,
+          "badge": false,
           "swatches": [
             "panel",
             "pop",
@@ -3229,7 +4047,7 @@
         },
         {
           "width": 162.88,
-          "height": 73.25,
+          "height": 61.94,
           "badge": false,
           "swatches": [
             "panel",
@@ -3240,7 +4058,7 @@
         },
         {
           "width": 162.88,
-          "height": 61.83,
+          "height": 87.3,
           "badge": false,
           "swatches": [
             "panel",
@@ -3284,7 +4102,7 @@
         },
         {
           "width": 162.88,
-          "height": 51.41,
+          "height": 82.13,
           "badge": false,
           "swatches": [
             "panel",
@@ -3295,7 +4113,7 @@
         },
         {
           "width": 162.88,
-          "height": 74.33,
+          "height": 63.02,
           "badge": false,
           "swatches": [
             "panel",
@@ -3306,7 +4124,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -3328,7 +4146,469 @@
         },
         {
           "width": 162.88,
-          "height": 61.83,
+          "height": 87.3,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        }
+      ],
+      "overflow": false,
+      "inputElements": 416,
+      "render": "politician-round1-plain-light-390.png"
+    },
+    {
+      "business": "politician",
+      "page": "round1",
+      "kept": false,
+      "theme": "dark",
+      "width": 734,
+      "height": 2593,
+      "thumbnails": 12,
+      "drawMs": 6.1,
+      "renderLayoutMs": 20.9,
+      "clippedText": [],
+      "elementsBefore": 416,
+      "elementsAfter": 416,
+      "unchanged": true,
+      "domInputs": 12,
+      "thumbnailHeights": [
+        217.63,
+        215.63,
+        218.45,
+        210.34,
+        215,
+        220.56,
+        217.25,
+        215.41,
+        217.63,
+        217.63,
+        215.63,
+        210.34
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
+      ],
+      "patches": [
+        {
+          "width": 155.63,
+          "height": 58.7,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 67.75,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 59.91,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 75.97,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 68.38,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 67.72,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 70.27,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 78.14,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 60.02,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 58.7,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 67.75,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 155.63,
+          "height": 75.97,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        }
+      ],
+      "overflow": false,
+      "inputElements": 416,
+      "render": "politician-round1-plain-dark-734.png"
+    },
+    {
+      "business": "politician",
+      "page": "round1",
+      "kept": false,
+      "theme": "dark",
+      "width": 390,
+      "height": 4865,
+      "thumbnails": 12,
+      "drawMs": 6.4,
+      "renderLayoutMs": 20.6,
+      "clippedText": [],
+      "elementsBefore": 416,
+      "elementsAfter": 416,
+      "unchanged": true,
+      "domInputs": 12,
+      "thumbnailHeights": [
+        227.28,
+        225.17,
+        227.14,
+        219.7,
+        224.61,
+        230.36,
+        226.92,
+        225.14,
+        227.28,
+        227.28,
+        225.17,
+        219.7
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
+      ],
+      "patches": [
+        {
+          "width": 162.88,
+          "height": 61.61,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 71.13,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 61.94,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 79.72,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 71.81,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 71.16,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 73.73,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 82.13,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 63.02,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 61.61,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 71.13,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 79.72,
           "badge": false,
           "swatches": [
             "panel",
@@ -3348,10 +4628,10 @@
       "kept": false,
       "theme": "light",
       "width": 734,
-      "height": 2483,
+      "height": 2506,
       "thumbnails": 12,
-      "drawMs": 5.5,
-      "renderLayoutMs": 58.7,
+      "drawMs": 9,
+      "renderLayoutMs": 57.2,
       "clippedText": [],
       "elementsBefore": 415,
       "elementsAfter": 415,
@@ -3370,6 +4650,70 @@
         217.63,
         218.45,
         218.45
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
       ],
       "patches": [
         {
@@ -3515,33 +4859,97 @@
       "kept": false,
       "theme": "light",
       "width": 390,
-      "height": 4649,
+      "height": 4798,
       "thumbnails": 12,
-      "drawMs": 5.9,
-      "renderLayoutMs": 63.3,
+      "drawMs": 8.3,
+      "renderLayoutMs": 58.5,
       "clippedText": [],
       "elementsBefore": 415,
       "elementsAfter": 415,
       "unchanged": true,
       "domInputs": 12,
       "thumbnailHeights": [
-        238.59,
-        238.59,
-        238.59,
-        238.59,
-        228.61,
-        238.59,
-        228.61,
-        228.61,
-        238.45,
-        238.59,
-        238.45,
-        238.45
+        227.28,
+        227.28,
+        227.28,
+        227.28,
+        227.14,
+        227.28,
+        227.14,
+        227.14,
+        227.14,
+        227.28,
+        227.14,
+        227.14
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
       ],
       "patches": [
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -3552,7 +4960,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -3563,7 +4971,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -3574,7 +4982,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -3585,7 +4993,7 @@
         },
         {
           "width": 162.88,
-          "height": 64.72,
+          "height": 73.09,
           "badge": false,
           "swatches": [
             "panel",
@@ -3596,7 +5004,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -3607,7 +5015,7 @@
         },
         {
           "width": 162.88,
-          "height": 64.72,
+          "height": 73.09,
           "badge": false,
           "swatches": [
             "panel",
@@ -3618,7 +5026,7 @@
         },
         {
           "width": 162.88,
-          "height": 64.72,
+          "height": 73.09,
           "badge": false,
           "swatches": [
             "panel",
@@ -3629,7 +5037,7 @@
         },
         {
           "width": 162.88,
-          "height": 73.25,
+          "height": 61.94,
           "badge": false,
           "swatches": [
             "panel",
@@ -3640,7 +5048,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -3651,7 +5059,7 @@
         },
         {
           "width": 162.88,
-          "height": 73.25,
+          "height": 61.94,
           "badge": false,
           "swatches": [
             "panel",
@@ -3662,7 +5070,7 @@
         },
         {
           "width": 162.88,
-          "height": 73.25,
+          "height": 61.94,
           "badge": false,
           "swatches": [
             "panel",
@@ -3682,10 +5090,10 @@
       "kept": false,
       "theme": "dark",
       "width": 734,
-      "height": 2475,
+      "height": 2500,
       "thumbnails": 12,
-      "drawMs": 5.8,
-      "renderLayoutMs": 24.1,
+      "drawMs": 6.3,
+      "renderLayoutMs": 19.7,
       "clippedText": [],
       "elementsBefore": 415,
       "elementsAfter": 415,
@@ -3704,6 +5112,70 @@
         217.63,
         214.5,
         214.5
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
       ],
       "patches": [
         {
@@ -3849,33 +5321,97 @@
       "kept": false,
       "theme": "dark",
       "width": 390,
-      "height": 4613,
+      "height": 4787,
       "thumbnails": 12,
-      "drawMs": 5.2,
-      "renderLayoutMs": 23.8,
+      "drawMs": 6.7,
+      "renderLayoutMs": 19.3,
       "clippedText": [],
       "elementsBefore": 415,
       "elementsAfter": 415,
       "unchanged": true,
       "domInputs": 12,
       "thumbnailHeights": [
-        238.59,
-        238.59,
-        238.59,
-        238.59,
-        228.61,
+        227.28,
+        227.28,
+        227.28,
         227.28,
         227.14,
+        225.73,
+        225.17,
+        225.17,
         227.14,
-        238.45,
-        238.59,
-        227.14,
-        227.14
+        227.28,
+        224.05,
+        224.05
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
       ],
       "patches": [
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -3886,7 +5422,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -3897,29 +5433,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 72.92,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 64.72,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -3952,7 +5466,7 @@
         },
         {
           "width": 162.88,
-          "height": 73.09,
+          "height": 60.06,
           "badge": false,
           "swatches": [
             "panel",
@@ -3963,7 +5477,7 @@
         },
         {
           "width": 162.88,
-          "height": 73.25,
+          "height": 71.13,
           "badge": false,
           "swatches": [
             "panel",
@@ -3974,18 +5488,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
-          "badge": false,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 61.94,
+          "height": 71.13,
           "badge": false,
           "swatches": [
             "panel",
@@ -3997,6 +5500,39 @@
         {
           "width": 162.88,
           "height": 61.94,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 61.61,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 58.84,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 58.84,
           "badge": false,
           "swatches": [
             "panel",
@@ -4016,10 +5552,10 @@
       "kept": true,
       "theme": "light",
       "width": 734,
-      "height": 2524,
+      "height": 2641,
       "thumbnails": 12,
-      "drawMs": 5.4,
-      "renderLayoutMs": 54.6,
+      "drawMs": 6.5,
+      "renderLayoutMs": 50.3,
       "clippedText": [],
       "elementsBefore": 716,
       "elementsAfter": 716,
@@ -4030,14 +5566,78 @@
         217.63,
         217.45,
         218.45,
-        217.66,
-        205.41,
+        218.45,
+        217.63,
         220.56,
         217.63,
-        206.25,
+        215.41,
         217.63,
         217.63,
-        217.66
+        218.45
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
       ],
       "patches": [
         {
@@ -4054,7 +5654,7 @@
         {
           "width": 155.63,
           "height": 58.7,
-          "badge": true,
+          "badge": false,
           "swatches": [
             "panel",
             "pop",
@@ -4085,9 +5685,9 @@
           "overlayOnly": true
         },
         {
-          "width": 155.64,
-          "height": 70.23,
-          "badge": true,
+          "width": 155.63,
+          "height": 71.83,
+          "badge": false,
           "swatches": [
             "panel",
             "pop",
@@ -4096,8 +5696,8 @@
           "overlayOnly": true
         },
         {
-          "width": 155.64,
-          "height": 58.81,
+          "width": 155.63,
+          "height": 83.25,
           "badge": false,
           "swatches": [
             "panel",
@@ -4129,8 +5729,8 @@
           "overlayOnly": true
         },
         {
-          "width": 155.64,
-          "height": 59.83,
+          "width": 155.63,
+          "height": 78.14,
           "badge": false,
           "swatches": [
             "panel",
@@ -4162,8 +5762,8 @@
           "overlayOnly": true
         },
         {
-          "width": 155.64,
-          "height": 70.23,
+          "width": 155.63,
+          "height": 71.83,
           "badge": false,
           "swatches": [
             "panel",
@@ -4183,33 +5783,97 @@
       "kept": true,
       "theme": "light",
       "width": 390,
-      "height": 4525,
+      "height": 4764,
       "thumbnails": 12,
-      "drawMs": 5.2,
-      "renderLayoutMs": 51.5,
+      "drawMs": 7.1,
+      "renderLayoutMs": 48.5,
       "clippedText": [],
       "elementsBefore": 716,
       "elementsAfter": 716,
       "unchanged": true,
       "domInputs": 12,
       "thumbnailHeights": [
-        238.59,
-        238.59,
-        228.61,
-        238.45,
-        227.36,
-        214.55,
-        233.77,
-        227.75,
-        215.44,
-        238.59,
-        238.59,
-        227.36
+        227.28,
+        227.28,
+        227.14,
+        227.14,
+        227.28,
+        227.28,
+        230.36,
+        227.28,
+        225.14,
+        227.28,
+        227.28,
+        227.28
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
       ],
       "patches": [
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -4220,18 +5884,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
-          "badge": true,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 64.72,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -4242,7 +5895,7 @@
         },
         {
           "width": 162.88,
-          "height": 73.25,
+          "height": 73.09,
           "badge": false,
           "swatches": [
             "panel",
@@ -4253,18 +5906,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.33,
-          "badge": true,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 50.52,
+          "height": 61.94,
           "badge": false,
           "swatches": [
             "panel",
@@ -4275,7 +5917,7 @@
         },
         {
           "width": 162.88,
-          "height": 69.88,
+          "height": 74.48,
           "badge": false,
           "swatches": [
             "panel",
@@ -4286,7 +5928,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.72,
+          "height": 87.3,
           "badge": false,
           "swatches": [
             "panel",
@@ -4297,7 +5939,7 @@
         },
         {
           "width": 162.88,
-          "height": 51.41,
+          "height": 71.16,
           "badge": false,
           "swatches": [
             "panel",
@@ -4308,7 +5950,7 @@
         },
         {
           "width": 162.88,
-          "height": 74.33,
+          "height": 74.09,
           "badge": false,
           "swatches": [
             "panel",
@@ -4319,7 +5961,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 82.13,
           "badge": false,
           "swatches": [
             "panel",
@@ -4330,7 +5972,29 @@
         },
         {
           "width": 162.88,
-          "height": 63.33,
+          "height": 63.02,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 61.61,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 74.48,
           "badge": false,
           "swatches": [
             "panel",
@@ -4350,10 +6014,10 @@
       "kept": true,
       "theme": "dark",
       "width": 734,
-      "height": 2524,
+      "height": 2641,
       "thumbnails": 12,
-      "drawMs": 5.5,
-      "renderLayoutMs": 27.3,
+      "drawMs": 6.6,
+      "renderLayoutMs": 21.2,
       "clippedText": [],
       "elementsBefore": 716,
       "elementsAfter": 716,
@@ -4364,14 +6028,78 @@
         217.63,
         217.45,
         218.45,
-        217.66,
-        205.41,
+        218.45,
+        217.63,
         220.56,
         217.63,
-        206.25,
+        215.41,
         217.63,
         217.63,
-        217.66
+        218.45
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
       ],
       "patches": [
         {
@@ -4388,7 +6116,7 @@
         {
           "width": 155.63,
           "height": 58.7,
-          "badge": true,
+          "badge": false,
           "swatches": [
             "panel",
             "pop",
@@ -4419,9 +6147,9 @@
           "overlayOnly": true
         },
         {
-          "width": 155.64,
-          "height": 70.23,
-          "badge": true,
+          "width": 155.63,
+          "height": 71.83,
+          "badge": false,
           "swatches": [
             "panel",
             "pop",
@@ -4430,8 +6158,8 @@
           "overlayOnly": true
         },
         {
-          "width": 155.64,
-          "height": 58.81,
+          "width": 155.63,
+          "height": 83.25,
           "badge": false,
           "swatches": [
             "panel",
@@ -4463,8 +6191,8 @@
           "overlayOnly": true
         },
         {
-          "width": 155.64,
-          "height": 59.83,
+          "width": 155.63,
+          "height": 78.14,
           "badge": false,
           "swatches": [
             "panel",
@@ -4496,8 +6224,8 @@
           "overlayOnly": true
         },
         {
-          "width": 155.64,
-          "height": 70.23,
+          "width": 155.63,
+          "height": 71.83,
           "badge": false,
           "swatches": [
             "panel",
@@ -4517,33 +6245,97 @@
       "kept": true,
       "theme": "dark",
       "width": 390,
-      "height": 4525,
+      "height": 4764,
       "thumbnails": 12,
-      "drawMs": 5.6,
-      "renderLayoutMs": 25.7,
+      "drawMs": 6.8,
+      "renderLayoutMs": 21.2,
       "clippedText": [],
       "elementsBefore": 716,
       "elementsAfter": 716,
       "unchanged": true,
       "domInputs": 12,
       "thumbnailHeights": [
-        238.59,
-        238.59,
-        228.61,
-        238.45,
-        227.36,
-        214.55,
-        233.77,
-        227.75,
-        215.44,
-        238.59,
-        238.59,
-        227.36
+        227.28,
+        227.28,
+        227.14,
+        227.14,
+        227.28,
+        227.28,
+        230.36,
+        227.28,
+        225.14,
+        227.28,
+        227.28,
+        227.28
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
       ],
       "patches": [
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -4554,18 +6346,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
-          "badge": true,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 64.72,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -4576,7 +6357,7 @@
         },
         {
           "width": 162.88,
-          "height": 73.25,
+          "height": 73.09,
           "badge": false,
           "swatches": [
             "panel",
@@ -4587,18 +6368,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.33,
-          "badge": true,
-          "swatches": [
-            "panel",
-            "pop",
-            "deep"
-          ],
-          "overlayOnly": true
-        },
-        {
-          "width": 162.88,
-          "height": 50.52,
+          "height": 61.94,
           "badge": false,
           "swatches": [
             "panel",
@@ -4609,7 +6379,7 @@
         },
         {
           "width": 162.88,
-          "height": 69.88,
+          "height": 74.48,
           "badge": false,
           "swatches": [
             "panel",
@@ -4620,7 +6390,7 @@
         },
         {
           "width": 162.88,
-          "height": 63.72,
+          "height": 87.3,
           "badge": false,
           "swatches": [
             "panel",
@@ -4631,7 +6401,7 @@
         },
         {
           "width": 162.88,
-          "height": 51.41,
+          "height": 71.16,
           "badge": false,
           "swatches": [
             "panel",
@@ -4642,7 +6412,7 @@
         },
         {
           "width": 162.88,
-          "height": 74.33,
+          "height": 74.09,
           "badge": false,
           "swatches": [
             "panel",
@@ -4653,7 +6423,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 82.13,
           "badge": false,
           "swatches": [
             "panel",
@@ -4664,7 +6434,29 @@
         },
         {
           "width": 162.88,
-          "height": 63.33,
+          "height": 63.02,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 61.61,
+          "badge": false,
+          "swatches": [
+            "panel",
+            "pop",
+            "deep"
+          ],
+          "overlayOnly": true
+        },
+        {
+          "width": 162.88,
+          "height": 74.48,
           "badge": false,
           "swatches": [
             "panel",
@@ -4684,10 +6476,10 @@
       "kept": true,
       "theme": "light",
       "width": 734,
-      "height": 2388,
+      "height": 2481,
       "thumbnails": 12,
-      "drawMs": 5.2,
-      "renderLayoutMs": 44.8,
+      "drawMs": 5.8,
+      "renderLayoutMs": 41.7,
       "clippedText": [],
       "elementsBefore": 714,
       "elementsAfter": 714,
@@ -4706,6 +6498,70 @@
         217.45,
         217.45,
         217.45
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
       ],
       "patches": [
         {
@@ -4851,33 +6707,97 @@
       "kept": true,
       "theme": "light",
       "width": 390,
-      "height": 4482,
+      "height": 4608,
       "thumbnails": 12,
-      "drawMs": 5.1,
-      "renderLayoutMs": 44.9,
+      "drawMs": 6.2,
+      "renderLayoutMs": 42.2,
       "clippedText": [],
       "elementsBefore": 714,
       "elementsAfter": 714,
       "unchanged": true,
       "domInputs": 12,
       "thumbnailHeights": [
-        238.59,
-        238.59,
-        238.59,
-        238.59,
-        238.59,
-        238.59,
-        238.59,
-        238.59,
-        238.59,
-        228.61,
-        228.61,
-        228.61
+        227.28,
+        227.28,
+        227.28,
+        227.28,
+        227.28,
+        227.28,
+        227.28,
+        227.28,
+        227.28,
+        227.14,
+        227.14,
+        227.14
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
       ],
       "patches": [
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -4888,7 +6808,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -4899,7 +6819,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -4910,7 +6830,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -4921,7 +6841,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -4932,7 +6852,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -4943,7 +6863,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -4954,7 +6874,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -4965,7 +6885,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -4976,7 +6896,7 @@
         },
         {
           "width": 162.88,
-          "height": 64.72,
+          "height": 73.09,
           "badge": false,
           "swatches": [
             "panel",
@@ -4987,7 +6907,7 @@
         },
         {
           "width": 162.88,
-          "height": 64.72,
+          "height": 73.09,
           "badge": false,
           "swatches": [
             "panel",
@@ -4998,7 +6918,7 @@
         },
         {
           "width": 162.88,
-          "height": 64.72,
+          "height": 73.09,
           "badge": false,
           "swatches": [
             "panel",
@@ -5018,10 +6938,10 @@
       "kept": true,
       "theme": "dark",
       "width": 734,
-      "height": 2388,
+      "height": 2481,
       "thumbnails": 12,
-      "drawMs": 5.1,
-      "renderLayoutMs": 23,
+      "drawMs": 5.9,
+      "renderLayoutMs": 17.1,
       "clippedText": [],
       "elementsBefore": 714,
       "elementsAfter": 714,
@@ -5040,6 +6960,70 @@
         217.45,
         217.45,
         217.45
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
       ],
       "patches": [
         {
@@ -5185,33 +7169,97 @@
       "kept": true,
       "theme": "dark",
       "width": 390,
-      "height": 4482,
+      "height": 4608,
       "thumbnails": 12,
-      "drawMs": 5.2,
-      "renderLayoutMs": 22.7,
+      "drawMs": 5.9,
+      "renderLayoutMs": 18,
       "clippedText": [],
       "elementsBefore": 714,
       "elementsAfter": 714,
       "unchanged": true,
       "domInputs": 12,
       "thumbnailHeights": [
-        238.59,
-        238.59,
-        238.59,
-        238.59,
-        238.59,
-        238.59,
-        238.59,
-        238.59,
-        238.59,
-        228.61,
-        228.61,
-        228.61
+        227.28,
+        227.28,
+        227.28,
+        227.28,
+        227.28,
+        227.28,
+        227.28,
+        227.28,
+        227.28,
+        227.14,
+        227.14,
+        227.14
+      ],
+      "bannerSentences": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "splits": [
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          2,
+          5
+        ]
       ],
       "patches": [
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -5222,7 +7270,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -5233,7 +7281,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -5244,7 +7292,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -5255,7 +7303,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -5266,7 +7314,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -5277,7 +7325,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -5288,7 +7336,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -5299,7 +7347,7 @@
         },
         {
           "width": 162.88,
-          "height": 72.92,
+          "height": 61.61,
           "badge": false,
           "swatches": [
             "panel",
@@ -5310,7 +7358,7 @@
         },
         {
           "width": 162.88,
-          "height": 64.72,
+          "height": 73.09,
           "badge": false,
           "swatches": [
             "panel",
@@ -5321,7 +7369,7 @@
         },
         {
           "width": 162.88,
-          "height": 64.72,
+          "height": 73.09,
           "badge": false,
           "swatches": [
             "panel",
@@ -5332,7 +7380,7 @@
         },
         {
           "width": 162.88,
-          "height": 64.72,
+          "height": 73.09,
           "badge": false,
           "swatches": [
             "panel",

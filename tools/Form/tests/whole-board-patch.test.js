@@ -6,7 +6,7 @@ import {wholeBoardForms} from './whole-board-fixtures.js';
 import {resolveBoards} from '../scripts/boards.js';
 let kit;before(async()=>{kit=await browserKit();});after(async()=>{await kit?.browser.close();});
 
-test('thumbnail split is the closest intact section boundary, with left-then-right reading order',async()=>{
+test('thumbnail split uses the shared row boundary, with left-then-right reading order',async()=>{
  const h=await kit.open(wholeBoardForms('bakery').round1,390);
  try{
   const boards=await h.f.locator('.board-thumbnail').evaluateAll(nodes=>nodes.map(n=>{
@@ -16,11 +16,7 @@ test('thumbnail split is the closest intact section boundary, with left-then-rig
   }));
   for(const b of boards){
    assert.equal(b.columns,2);
-   const height=(from,to)=>b.heights.slice(from,to).reduce((s,h)=>s+h,0)+b.gap*Math.max(0,to-from-1);
-   const differences=b.heights.slice(1).map((_,i)=>Math.abs(height(0,i+1)-height(i+1,b.heights.length)));
-   const actual=Math.abs(height(0,b.split)-height(b.split,b.heights.length));
-   assert.ok(actual<=Math.min(...differences)+.5,JSON.stringify(b));
-   assert.ok(actual<=Math.max(...b.heights)+b.gap+.5);
+   assert.equal(b.split,2);
    // Every section still occurs once; the source reading order is unchanged.
    assert.ok(b.split>0&&b.split<b.heights.length);
    assert.deepEqual(b.order,['brand-hero,palette','face-sample heading-face,face-sample body-face,words','graphic-language,items','banner-section','other-mode','rules','footer']);
@@ -60,7 +56,7 @@ for(const kept of [false,true])test(`patch swatches on every board use the looks
  }finally{await h.context.close();}
 });
 
-test('patch fit gives the badge priority, keeps the reason in the caption, fits only an ordered swatch prefix, and restores the badge when too small',async()=>{
+test('swatch fit keeps the top-right badge independent of patch height and retains only an ordered prefix',async()=>{
  const form=wholeBoardForms('bakery').round1,h=await kit.open(form,390);
  try{
   const result=await h.frame.evaluate(()=>{
@@ -68,7 +64,7 @@ test('patch fit gives the badge priority, keeps the reason in the caption, fits 
    const surface=tile.querySelector('.thumbnail-surface');
    if(!surface)return null;
    const board=surface.querySelector('.brand-board'),cols=[...board.querySelectorAll('.thumbnail-column')],rows=cols.flatMap(c=>[...c.children]);
-   // Three equal-width sections make the optimum split's remaining height exact.
+   // Keep the fixed split after row two and set an exact leftover height.
    rows.slice(3).forEach(n=>n.remove());
    rows.slice(0,3).forEach(n=>{n.replaceChildren();n.style.height='100px';});
    const out=[];
@@ -78,7 +74,7 @@ test('patch fit gives the badge priority, keeps the reason in the caption, fits 
     rows[2].style.height=(224+pixels/currentScale)+'px';
     WiserBoardView.fitLooks();
     const patch=surface.querySelector('.thumbnail-patch'),badge=tile.querySelector('.thumbnail-badge');
-    out.push({pixels,badge:patch.contains(badge),caption:!!tile.querySelector('.board-recommendation b'),reason:tile.querySelector('.recommendation-reason').textContent,
+    out.push({pixels,badge:patch.contains(badge),caption:!!tile.querySelector('.board-recommendation b'),topRight:badge.parentElement===surface,reason:tile.querySelector('.recommendation-reason').textContent,
      swatches:[...patch.querySelectorAll('.thumbnail-swatch')].filter(n=>!n.hidden).map(n=>n.dataset.swatch),height:surface.getBoundingClientRect().height,
      patch:patch.getBoundingClientRect().toJSON(),badgeBox:badge.getBoundingClientRect().toJSON()});
    };
@@ -87,19 +83,12 @@ test('patch fit gives the badge priority, keeps the reason in the caption, fits 
    return out;
   });
   assert.ok(result,'thumbnail has a real-size patch');
-  const [room,badgeOnly,tiny,narrow,restored]=result;
-  assert.ok(room.badge&&!room.caption);assert.deepEqual(room.swatches,['panel','pop','deep']);
-  assert.ok(room.reason.includes(form.questions[0].options.find(o=>o.recommendation).recommendation));
-  assert.ok(badgeOnly.badge&&!badgeOnly.caption);assert.deepEqual(badgeOnly.swatches,[]);
-  assert.ok(!tiny.badge&&tiny.caption);assert.deepEqual(tiny.swatches,[]);
-  assert.ok(!narrow.badge&&narrow.caption);assert.deepEqual(narrow.swatches,['panel']);
-  assert.ok(restored.badge&&!restored.caption);assert.equal(restored.reason,room.reason);
-  assert.ok(!result[5].badge&&result[5].caption,'below measured badge height');
-  assert.ok(result[6].badge&&!result[6].caption,'above measured badge height');
-  assert.deepEqual(result[7].swatches,[],'below badge plus gap plus chip height');
-  assert.deepEqual(result[8].swatches,['panel','pop','deep'],'above badge plus gap plus chip height');
-  assert.deepEqual(result[9].swatches,['panel','pop'],'two-chip width keeps the prefix');
-  for(const r of [room,badgeOnly,restored])assert.ok(r.badgeBox.left>=r.patch.left&&r.badgeBox.right<=r.patch.right+.1&&r.badgeBox.top>=r.patch.top&&r.badgeBox.bottom<=r.patch.bottom+.1);
+  const expected=[3,3,0,1,3,3,3,3,3,2];
+  for(const [i,r]of result.entries()){
+   assert.ok(!r.badge&&!r.caption&&r.topRight);
+   assert.deepEqual(r.swatches,['panel','pop','deep'].slice(0,expected[i]));
+   assert.equal(r.reason,form.questions[0].options.find(o=>o.recommendation).recommendation);
+  }
   assert.deepEqual(h.errors,[]);
  }finally{await h.context.close();}
 });

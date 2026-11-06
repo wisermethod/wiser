@@ -20,13 +20,13 @@ try{
     const measured=await measureWholeBoard(h,form,theme);
     assert.ok(measured.height<5000);assert.equal(measured.thumbnails,12);
     assert.ok(measured.unchanged&&measured.inputElements<1000);assert.equal(measured.elementsBefore,measured.elementsAfter);
-    assert.deepEqual(measured.clippedText,[]);
+    assert.deepEqual(measured.clippedText,[]);assert.ok(measured.bannerSentences.every(n=>n>0));
     const name=`${business}-${page}-${kept?'kept':'plain'}-${theme}-${width}`;
     await h.page.locator('iframe').evaluate((n,height)=>n.style.height=height+'px',measured.height+2);
     await h.f.locator('#root').screenshot({path:resolve(output,name+'.png')});
     if(business==='bakery'&&!kept&&page==='round1'&&theme==='light'&&width===390){
      await h.f.locator('.boards-tile').first().screenshot({path:resolve(output,'bakery-thumbnail.png')});
-     await h.f.locator('.board-thumbnail:has(.thumbnail-patch .thumbnail-badge)').first().screenshot({path:resolve(output,'bakery-recommended-thumbnail.png')});
+     await h.f.locator('.board-thumbnail:has(.thumbnail-badge)').first().screenshot({path:resolve(output,'bakery-recommended-thumbnail.png')});
      await h.f.locator('.boards-tile:not(:has(.thumbnail-badge)) .board-thumbnail').first().screenshot({path:resolve(output,'bakery-other-thumbnail.png')});
      await h.f.locator('.board-thumbnail').first().click();
      const height=await h.f.locator('#root').evaluate(n=>Math.ceil(n.getBoundingClientRect().height));

@@ -1,6 +1,6 @@
 // Static brand-board views. Validation supplies fonts, role colours and every
 // decision; fragment targets switch views. A hash-authorized local fitter only
-// balances thumbnails and moves their existing badge; it loads no assets.
+// fits thumbnail swatches and positions their existing badge; it loads no assets.
 import { createHash } from 'node:crypto';
 import { checkSvg } from './svg.js';
 import { BRAND_BOARD_CSS } from './brand-board-style.js';
@@ -115,11 +115,12 @@ function board(spec, b, mode, compact = false) {
       default: throw new Error(`Unknown board block: ${block.kind}`);
     }
   };
-  const rows = b.modes[mode][thumbnail ? 'tile' : 'blocks'].map(renderBlock).join('');
-  return `<div class="brand-board${thumbnail ? ' tile' : ''}" data-board="${b.number}" data-mode="${mode}" style="${vars(b, mode)}${thumbnail ? `;--thumbnail-note-size:${b.textStyles.note.size}px` : ''}"><div class="page-pattern" aria-hidden="true" style="background-image:url('${uri(b.modes[mode].drawings.pattern)}');opacity:${b.graphics.pattern.strength[mode]};transform:rotate(${b.graphics.pattern.angle || 0}deg)"></div>${thumbnail ? `<div class="thumbnail-column">${rows}${foot(b)}</div><div class="thumbnail-column"></div>` : rows}</div>`;
+  const rows = b.modes[mode][thumbnail ? 'tile' : 'blocks'].map(renderBlock);
+  const split = spec.layout.thumbnail.splitAfter;
+  return `<div class="brand-board${thumbnail ? ' tile' : ''}" data-board="${b.number}" data-mode="${mode}" style="${vars(b, mode)}${thumbnail ? `;--thumbnail-note-size:${b.textStyles.note.size}px` : ''}"><div class="page-pattern" aria-hidden="true" style="background-image:url('${uri(b.modes[mode].drawings.pattern)}');opacity:${b.graphics.pattern.strength[mode]};transform:rotate(${b.graphics.pattern.angle || 0}deg)"></div>${thumbnail ? `<div class="thumbnail-column">${rows.slice(0, split).join('')}</div><div class="thumbnail-column">${rows.slice(split).join('')}${foot(b)}</div>` : rows.join('')}</div>`;
 }
 function metadata(b, thumbnail = false) {
-  return `<div class="board-meta"><p class="energy">${esc(b.energy)}</p><h2>${b.number} · ${esc(b.name)}</h2>${b.zero ? '<p class="board-zero">Your brand as it is today · Board zero</p>' : ''}${b.recommendation ? `<p class="recommendation">${thumbnail ? `<b class="thumbnail-badge">Recommended</b><span class="recommendation-reason">${esc(b.recommendation)}</span>` : `<b>Recommended</b> · ${esc(b.recommendation)}`}</p>` : ''}${b.why ? `<p>${esc(b.why)}</p>` : ''}</div>`;
+  return `<div class="board-meta"><p class="energy">${esc(b.energy)}</p><h2>${b.number} · ${esc(b.name)}</h2>${b.zero ? '<p class="board-zero">Your brand as it is today · Board zero</p>' : ''}${b.recommendation ? `<p class="recommendation">${thumbnail ? `<b class="thumbnail-badge">Recommended</b><span class="visually-hidden">Recommended</span> <span class="recommendation-reason">${esc(b.recommendation)}</span>` : `<b>Recommended</b> · ${esc(b.recommendation)}`}</p>` : ''}${b.why ? `<p>${esc(b.why)}</p>` : ''}</div>`;
 }
 function foot(b) {
   const v = b.footer, min = v.contrast?.minimum;
@@ -134,7 +135,7 @@ export function renderBrandBoards(validatedSpec) {
   const label = `{OvO} Wiser · Brand boards for ${esc(spec.person)}`;
   const zero = spec.boards.find((b) => b.zero), single = spec.boards.length === 1;
   const ordered = [...(zero ? [zero] : []), ...spec.groups.flatMap((g) => spec.boards.filter((b) => b.group === g.id && !b.zero))];
-  const tile = (b) => `<article class="board-option">${metadata(b, true)}<a class="board-thumbnail" href="#whole-${b.number}" aria-label="${esc(b.labels.open)}: ${esc(b.name)}"><div class="thumbnail-surface" aria-hidden="true" inert>${board(spec, b, b.primaryMode, true)}<div class="thumbnail-patch"><div class="thumbnail-swatches">${spec.layout.thumbnail.swatches.map(key => `<span class="thumbnail-swatch" data-swatch="${key}" data-colour="${b.palette[b.primaryMode][key]}" style="background:${b.palette[b.primaryMode][key]}"></span>`).join('')}</div></div></div></a></article>`;
+  const tile = (b) => `<article class="board-option">${metadata(b, true)}<a class="board-thumbnail" href="#whole-${b.number}" aria-label="${b.recommendation ? 'Recommended: ' : ''}${esc(b.labels.open)}: ${esc(b.name)}"><div class="thumbnail-surface" aria-hidden="true" inert>${board(spec, b, b.primaryMode, true)}<div class="thumbnail-patch"><div class="thumbnail-swatches">${spec.layout.thumbnail.swatches.map(key => `<span class="thumbnail-swatch" data-swatch="${key}" data-colour="${b.palette[b.primaryMode][key]}" style="background:${b.palette[b.primaryMode][key]}"></span>`).join('')}</div></div></div></a></article>`;
   const intro = spec.intro.map((s) => `<p>${esc(s)}</p>`).join('');
   const index = single ? '' : `<div class="index-page"><header id="all-boards"><h1>${label}</h1>${intro}</header>${zero ? `<div class="boards-grid zero-first">${tile(zero)}</div>` : ''}${spec.groups.map((g) => `<section class="board-group"><h2 class="group-label">${esc(g.label)}</h2><div class="boards-grid">${spec.boards.filter((b) => b.group === g.id && !b.zero).map(tile).join('')}</div></section>`).join('')}<footer class="page-foot">${esc(spec.footnote)}</footer></div>`;
   const wholes = ordered.map((b, i) => `<section class="whole-view" id="whole-${b.number}" aria-label="${esc(b.name)} whole board">${[b.primaryMode, opposite(b.primaryMode)].map((mode) => `<div class="mode-sheet${mode === b.primaryMode ? ' primary' : ''}" id="whole-${b.number}-${mode}"><header class="sheet-head"${single && mode === b.primaryMode ? ' id="all-boards"' : ''}><div><p class="wiser-label">${label}</p>${single ? `<div class="sheet-intro">${intro}</div>` : ''}<p class="board-nav">${single ? '' : `<a href="#all-boards">← All ${ordered.length} boards</a> · Board ${i + 1} of ${ordered.length} · `}${mode} · <a href="#whole-${b.number}-${opposite(mode)}">See it in ${opposite(mode)}</a></p>${metadata(mode === b.primaryMode ? b : { ...b, recommendation: undefined })}</div></header>${board(spec, b, mode)}${foot(b)}</div>`).join('')}</section>`).join('\n');

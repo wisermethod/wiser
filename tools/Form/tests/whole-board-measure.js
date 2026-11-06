@@ -31,6 +31,8 @@ export async function measureWholeBoard(h,form,mode) {
   return {height,thumbnails,drawMs:+drawMs.toFixed(2),renderLayoutMs,clippedText,
    elementsBefore,elementsAfter:count({form}),unchanged:before===JSON.stringify({form}),
    domInputs:root.querySelectorAll('input').length,thumbnailHeights:[...root.querySelectorAll('.board-thumbnail')].map(n=>+n.getBoundingClientRect().height.toFixed(2)),
+   bannerSentences:[...root.querySelectorAll('.board-thumbnail .banner-copy>p')].map(n=>n.getClientRects().length),
+   splits:[...root.querySelectorAll('.board-thumbnail .brand-board')].map(n=>[...n.querySelectorAll('.thumbnail-column')].map(c=>c.children.length)),
    patches:[...root.querySelectorAll('.thumbnail-surface')].map(n=>{
     const patch=n.querySelector('.thumbnail-patch'),box=patch.getBoundingClientRect();
     return {width:+box.width.toFixed(2),height:+box.height.toFixed(2),badge:!!patch.querySelector('.thumbnail-badge'),swatches:[...patch.querySelectorAll('.thumbnail-swatch')].filter(s=>!s.hidden).map(s=>s.dataset.swatch),

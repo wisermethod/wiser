@@ -197,7 +197,7 @@ function boardQuestion(fieldset,q,id) {
       const b=showing(row);
       if(row.input)row.input.value=row.steps[row.index].value;
       if(row.caption)row.caption.textContent=b.name;
-      if(row.thumbnail){row.thumbnail.setAttribute("aria-label",`${WORDS.seeBoard}: ${b.name}`);row.input.setAttribute("aria-label",b.name);}
+      if(row.thumbnail){row.thumbnail.setAttribute("aria-label",`${WORDS.seeBoard}: ${b.name}`);row.input.setAttribute("aria-label",`${row.badge?WORDS.recommended+": ":""}${b.name}`);}
       if(row.preview){
         if(row.badge)row.recommendation.prepend(row.badge);
         const art=look?globalThis.WiserBoardView.look(model,b,{logo:state.form.brand.logo}):globalThis.WiserBoardView.draw(model,b,{compact:!single,logo:state.form.brand.logo,...(pageMode?{mode:pageMode}:{})});
@@ -274,14 +274,14 @@ function boardQuestion(fieldset,q,id) {
     input.addEventListener("change",()=>{pick(input,input.checked);if(activeInput===input)syncViewer();});
     input.addEventListener("keydown",event=>{if(event.key==='Enter'){event.preventDefault();if(!event.repeat){pick(input,!input.checked);if(activeInput===input)syncViewer();}}});
     const caption=el("span",{class:"tile-label"},el("span",{text:label}),el("span",{class:"mark check","aria-hidden":true}),note?el("small",{id:`${id}-${i}-note`,text:note}):null,
-      !look&&o.recommendation?el("small",{class:"board-recommendation"},el("b",{class:"thumbnail-badge",text:WORDS.recommended}),el("span",{class:"recommendation-reason",text:o.recommendation})):null);
+      !look&&o.recommendation?el("small",{class:"board-recommendation"},el("b",{class:"thumbnail-badge",text:WORDS.recommended}),el("span",{class:"visually-hidden",text:WORDS.recommended}),el("span",{class:"recommendation-reason",text:o.recommendation})):null);
     row.caption=caption.firstElementChild;
     row.recommendation=caption.querySelector('.board-recommendation');row.badge=row.recommendation?.querySelector('b');
     const preview=look?globalThis.WiserBoardView.look(model,b,{logo:state.form.brand.logo}):globalThis.WiserBoardView.draw(model,b,{compact:true,logo:state.form.brand.logo,...(pageMode?{mode:pageMode}:{})});
     if(!look)preview.setAttribute("aria-hidden","true");
     row.preview=preview;
     if(look){grid.append(el("label",{class:"tile boards-tile looks-tile",for:input.id},input,preview,caption));continue;}
-    input.setAttribute("aria-label",label);
+    input.setAttribute("aria-label",`${o.recommendation?WORDS.recommended+": ":""}${label}`);
     const full=el("button",{class:"board-thumbnail",type:"button","aria-label":`${WORDS.seeBoard}: ${label}`,"aria-expanded":"false"},preview);
     row.thumbnail=full;
     caption.append(input);
