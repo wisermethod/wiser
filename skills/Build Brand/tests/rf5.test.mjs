@@ -68,7 +68,8 @@ test('RF5 B3: missing fonts get a line before install, checked fonts stay quiet,
   assert.match(text,/installed: true.*say nothing/s);
   assert.match(text,/installed: false.*Getting your looks ready/s);
   assert.ok(text.indexOf(lines.setup)<text.indexOf('fonts.mjs check --install'));
-  assert.ok(text.includes(lines.failed));
+  assert.match(text,/line for the cause shown.*plain failure line where no listed cause is shown/s);
+  assert.ok(bank.includes(lines.failed));
   assert.match(text,/failed install or check.*return `stopped`/s);
   assert.match(text,/bounded.*no automatic retry/s);
   assert.match(text,/State: provisional/);

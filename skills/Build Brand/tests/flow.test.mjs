@@ -272,7 +272,19 @@ const rf5Drafts=[
  "I don't have them: build one with me",
  'Leave this for later',
  "Your looks can't show in this card, so I'll open them on their own page instead.",
- "Your boards can't show in this card, so I'll open them on their own page instead."
+ "Your boards can't show in this card, so I'll open them on their own page instead.",
+ 'Your looks can\'t show in this app until Wiser is reconnected. Reconnect it in the app\'s settings, then say "build my brand" and we\'ll pick up from here.',
+ 'Your boards can\'t show in this app until Wiser is reconnected. Reconnect it in the app\'s settings, then say "build my brand" and we\'ll pick up from here.',
+ 'I couldn\'t get your boards ready just now. Say "build my brand" any time and we\'ll pick up from here.',
+ 'I couldn\'t get your looks ready: this computer couldn\'t reach the internet to fetch the lettering. Check you\'re online, then say "build my brand" and we\'ll pick up from here.',
+ 'I couldn\'t get your looks ready: your network blocked the lettering download. If you\'re on a work or school network, try another one, then say "build my brand" and we\'ll pick up from here.',
+ 'I couldn\'t get your looks ready: the lettering download isn\'t answering right now. That\'s on our side, not yours. Say "build my brand" in a little while and we\'ll pick up from here.',
+ 'I couldn\'t get your looks ready: the lettering download was taking too long. A steadier connection helps. Say "build my brand" any time and we\'ll pick up from here.',
+ 'I couldn\'t get your looks ready: there wasn\'t room on this computer to save the lettering. Free up some space, then say "build my brand" and we\'ll pick up from here.',
+ ...['looks','boards'].flatMap(k=>[
+  `Your ${k} didn't show in this card. Reconnecting Wiser in the app's settings usually fixes it. Then say "build my brand" and we'll pick up from here.`,
+  `Your ${k} couldn't open in a browser window on this computer. Say "build my brand" to try again, and we'll pick up from here.`,
+  `I couldn't get your ${k} ready: something went wrong on our side while making them. Say "build my brand" any time and we'll pick up from here.`])
 ];
 for(const [i,line] of rf5Drafts.entries())test(`RF5 draft ${i+1} is marked in the journey and a copy change fails on either side`,()=>{
  assert.ok(bank.includes(line),line);
@@ -280,11 +292,18 @@ for(const [i,line] of rf5Drafts.entries())test(`RF5 draft ${i+1} is marked in th
  const tail=journey.slice(at+line.length);
  // Blockquotes/options have a separate marker; inline variants carry it on
  // that line. The marker must immediately follow this draft, not another.
- // Approved on 2026-11-06 (relayed by the first run session), except the
- // looks failure line, which stays a draft until its reasons are approved.
- const marker=line.startsWith("I couldn't get your looks ready")?/\(draft, 2026-11-05, for the operator's approval\)/:/\(the operator's (?:yes|wording) of 2026-11-06/;
+ // Every RF5 line was approved on 2026-11-06, relayed by the first run session.
+ const marker=/\(the operator's (?:yes|wording) of 2026-11-06/;
  assert.match(tail,new RegExp('^(?:"?\\s*)?(?:as a plain message )?'+marker.source));
  const changed=line.slice(0,-1)+'!';
  assert.throws(()=>compareJourneyCopy(journey,bank.replace(line,changed),openingTaps));
  assert.throws(()=>compareJourneyCopy(journey.replace(line,changed),bank,openingTaps));
+});
+
+test('RF5 reasons: no draft marker remains, and the sitting names its cause lines',()=>{
+ assert.doesNotMatch(journey,/\(draft, 2026-11-05, for the operator's approval\)/);
+ assert.match(sitting,/line for the cause shown, R1 to R5 there, or its plain failure line where no listed cause is shown/);
+ assert.match(sitting,/reconnect-to-fix line for looks or boards/);
+ assert.match(sitting,/could-not-open line for looks or boards; where assembly, the design check or a script failed, its on-our-side line/);
+ assert.match(bank,/never guess a cause/);
 });

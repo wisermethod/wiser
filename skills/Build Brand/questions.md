@@ -281,6 +281,28 @@ A failed lettering install or check stops this sitting:
 
 > I couldn't get your looks ready just now. Say "build my brand" any time and we'll pick up from here.
 
+Say the line for the cause the failure shows, and the line above only where none of these is shown; never guess a cause.
+
+On a network error, `ENOTFOUND`, `EAI_AGAIN`, `ECONNREFUSED`, `ENETUNREACH` or `ECONNRESET`:
+
+> I couldn't get your looks ready: this computer couldn't reach the internet to fetch the lettering. Check you're online, then say "build my brand" and we'll pick up from here.
+
+On `HTTPS 403`:
+
+> I couldn't get your looks ready: your network blocked the lettering download. If you're on a work or school network, try another one, then say "build my brand" and we'll pick up from here.
+
+On `HTTPS 404` or any `HTTPS 5xx`:
+
+> I couldn't get your looks ready: the lettering download isn't answering right now. That's on our side, not yours. Say "build my brand" in a little while and we'll pick up from here.
+
+When the five-minute limit ends a font command:
+
+> I couldn't get your looks ready: the lettering download was taking too long. A steadier connection helps. Say "build my brand" any time and we'll pick up from here.
+
+On `ENOSPC` while saving the lettering:
+
+> I couldn't get your looks ready: there wasn't room on this computer to save the lettering. Free up some space, then say "build my brand" and we'll pick up from here.
+
 > Which of these feel like you? Pick up to three.
 
 Twelve tiles from `select.mjs looks`, its options unchanged, at least two on a plain ground and all five marks. The three actions, in order, have the following exact labels and lines. Conditions and `needs` are engine data, never shown as explanation.
@@ -351,6 +373,32 @@ Use those two lines only where this session can open a page the member sees: a c
 Where the app has `show_form` but this card still cannot show, or the page cannot open, say the looks failure line above, or for boards:
 
 > I couldn't get your boards ready just now. Say "build my brand" any time and we'll pick up from here.
+
+Say the line for what happened, and the plain failure line only where none of these is shown:
+
+Where the app has `show_form` but the looks card failed or showed nothing:
+
+> Your looks didn't show in this card. Reconnecting Wiser in the app's settings usually fixes it. Then say "build my brand" and we'll pick up from here.
+
+Where the app has `show_form` but the boards card failed or showed nothing:
+
+> Your boards didn't show in this card. Reconnecting Wiser in the app's settings usually fixes it. Then say "build my brand" and we'll pick up from here.
+
+Where Form's window or Browser Control could not open the looks page:
+
+> Your looks couldn't open in a browser window on this computer. Say "build my brand" to try again, and we'll pick up from here.
+
+Where it could not open the boards page:
+
+> Your boards couldn't open in a browser window on this computer. Say "build my brand" to try again, and we'll pick up from here.
+
+Where assembly, the design check or a script failed while making the looks:
+
+> I couldn't get your looks ready: something went wrong on our side while making them. Say "build my brand" any time and we'll pick up from here.
+
+Or the boards:
+
+> I couldn't get your boards ready: something went wrong on our side while making them. Say "build my brand" any time and we'll pick up from here.
 
 On a page of their own, the pictures are numbered, and their picks on the question tool are "Look 1" to "Look 12" and "Board 1" onward, matching those numbers.
 
