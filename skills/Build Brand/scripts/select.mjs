@@ -4,15 +4,14 @@ import { readFileSync, writeFileSync, realpathSync, statSync, lstatSync, mkdtemp
 import { dirname, basename, resolve, join, isAbsolute, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
-import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { assemble, canonical, LIBRARY, AXES, partPositions } from './assemble.mjs';
 import { boardRefusal } from './refusals.mjs';
 import { checkForm } from '../../../tools/Form/scripts/format.js';
+import { runContactSheet } from '../../../tools/Contact Sheet/scripts/contact-sheet.js';
 
 const SKILL = realpathSync(resolve(dirname(fileURLToPath(import.meta.url)), '..'));
 const TAPS = join(SKILL, 'parts/taps.json');
-const CONTACT = resolve(SKILL, '../../tools/Contact Sheet/scripts/contact-sheet.js');
 export const ENERGIES = ['quiet','white-and-one','bright','colour-ground','dark-first'];
 const CONTAINERS = { drawn:'drawn-ring', drafting:'drafting-box', marker:'marker-swash', riso:'double-ring', geometric:'filled-square', editorial:'rule-box', stitch:'oval', stamp:'double-ring' };
 const GROUPS = [{id:'close',label:'Close to the answers'},{id:'further',label:'Further'},{id:'angle',label:'From another angle'}];
@@ -23,7 +22,7 @@ Usage: node select.mjs <looks|round1|variations> --answers <absolute.json> [opti
 Options:
   --answers <file>  Required answers JSON; see parts/parts.md. Asset paths resolve here.
   --output <file>   Optional new selection JSON outside this skill (existing parent).
-                    The file is exactly assemble.mjs --selection input.
+                    The file omits selector value/steps for assemble.mjs --selection.
   --check           Assemble each choice and build it with Contact Sheet's board
                     layout in a temporary directory; replace refusals from ranked
                     spares and report them. Fixed assets are never relaxed.
@@ -33,14 +32,18 @@ Options:
 Built-ins only. No network, configuration or installs; --env/--install refused.
 Success: one JSON object with selection, ranked spares, positions, replacements,
 checks, ready-to-use boards form (round1/variations), and whole-look options
-(looks). Disk-only kept fonts or boards outside Form's contract report
-form: null and formUnavailable; selection is preserved for local assembly.
+(looks). Looks always returns options, never options: null. Disk-only kept fonts
+or boards outside Form's contract report form: null and formUnavailable;
+selection is preserved for local assembly with selectionForAssembly() or the
+--output file.
 Failure: JSON on stderr only, exit 1. No existing output is overwritten.
+The answers file carries the returned page switch position as optional mode,
+light or dark.
 looks answers: optional shown (all looks records or Form options already shown
 in this sitting), steer and off. Empty/absent shown keeps the first page;
 otherwise return twelve unshown looks, preferring less-shown parts.
-variations answers: picks (0 to 3 full board records), shown (all boards already
-shown in this sitting), steer (warmCool, quietBold, softStrong,
+variations answers: picks (0 to 3 complete step records the member sent), shown
+(all boards as first shown in this sitting), steer (warmCool, quietBold, softStrong,
 classicContemporary: -1, 0 or 1), and off as for round1.
 round1/variations: looksShown is required: all displayed whole-look records
 or Form options, separate from board shown; empty only if none was displayed.
@@ -52,8 +55,9 @@ false: exclude every avoid key and build one fresh page with avoid empty.
 For a displayed page, save pageDisplayed: true and its complete selection.boards
 as displayedBoards in the answers file before waiting; resume retains both.
 Only avoided keys on that saved page select slots for ranked replacements;
-unblocked displayed boards retain every other byte. Close recommendation flags
-are reset in page order after replacement. Accumulate older blocked
+unblocked displayed boards retain every byte except the page mode, board and
+step captions, steps beyond a refused middle step, and Close recommendation
+flags reset in page order after replacement. Accumulate older blocked
 records in avoid, never in shown. An exhausted displayed slot or an unfillable
 unseen rebuild reports its own failure. Board zero keeps its fixed assets. Four new boards per
 pick, together in pick order. picks: [] requests a fresh Round 1 page with
@@ -93,9 +97,10 @@ function part(library, kind, id) {
   return found[0];
 }
 export function validateAnswers(a, data, library, command) {
-  object(a,['type','name','sentence','words','taps','off','looks','kept','body','photoRules','heroPhrase','picks','steer','shown','avoid','looksShown','pageDisplayed','displayedBoards'],'answers');
+  object(a,['type','name','sentence','words','taps','off','looks','kept','body','photoRules','heroPhrase','picks','steer','shown','avoid','looksShown','pageDisplayed','displayedBoards','mode'],'answers');
   if(own(a,'type')&&!['personal','org','client','department'].includes(a.type)) fail('type','use personal, org, client or department');
   text(a.name,'name'); text(a.sentence,'sentence');
+  if(own(a,'mode')&&!['light','dark'].includes(a.mode)) fail('mode','use light or dark');
   array(a.words,'words');
   if(!a.words.length) fail('words','supply at least one chosen word/boundary pair');
   for(const w of a.words) { object(w,['word','not'],'words'); text(w.word,'words.word');text(w.not,'words.not'); }
@@ -139,7 +144,7 @@ export function validateAnswers(a, data, library, command) {
     if(command==='looks') fail('looksShown','use shown for whole-look pages');
     array(a.looksShown,'looksShown');
     for(const look of a.looksShown) shownLook(look,library,a.kept);
-    for(const id of a.looks??[]) if(!a.looksShown.some(look=>look.value===id)) fail('looksShown','must include every picked look');
+    for(const id of a.looks??[]) if(!a.looksShown.some(look=>lookValues(look).includes(id))) fail('looksShown','must include every picked look');
   }
   if(own(a,'pageDisplayed')&&typeof a.pageDisplayed!=='boolean') fail('pageDisplayed','use true or false');
   if(a.pageDisplayed||own(a,'displayedBoards')) {
@@ -217,14 +222,11 @@ function info(library,palette,pairing,graphicSet,dials,order=0) {
   const parts=partPositions(library,{palette:{id:palette.id},pairing:{id:pairing.id},graphicSet:{id:graphicSet.id}});
   return {palette,pairing,graphicSet,order,positions:positions(parts),partPositions:parts,score:Object.values(parts).reduce((sum,t)=>sum+score(t,dials),0)};
 }
-function candidates(library,state,a,refused,headingFrom) {
+function candidates(library,state,a,refused) {
   const result=[],reasons=new Set(); let order=0;
-  const donor=typeof headingFrom==='string'?part(library,'pairings',headingFrom):null;
   for(const pairing of library.pairings) for(const palette of library.palettes) for(const graphicSet of library.graphics) {
     const n=order++;
     if(pairing.selectable===false) continue;
-    const heading=donor??pairing;
-    if(Math.abs(heading.tags.typeLoudness-palette.paletteLoudness)>1 || (palette.paletteLoudness===3&&(heading.tags.typeCut!=='contemporary'||heading.tags.typeLoudness<2))) continue;
     const c=info(library,palette,pairing,graphicSet,state.dials,n);
     const reason=refused(makeBoard(library,a,c,1,'probe'));
     if(reason) { reasons.add(reason); continue; }
@@ -236,54 +238,129 @@ function candidates(library,state,a,refused,headingFrom) {
 }
 const key=c=>`${c.pairing.id}/${c.palette.id}/${c.graphicSet.id}`;
 const lookId=c=>'look-'+createHash('sha256').update(key(c)).digest('hex').slice(0,32);
+// A palette belongs to exactly one colour family and one of its three steps.
+export function paletteFamily(id) {
+  const match=typeof id==='string'&&id.match(/^(.+)-(muted|balanced|bold)$/);
+  if(!match) fail('palette.id','must end in -muted, -balanced or -bold');
+  return {family:match[1],step:match[2]};
+}
+// Form moves by adjacent family positions. Keep the passing run around the
+// own card, so no listed step is stranded beyond a refused middle position.
+// The defaults of the depth fields a card-mode may carry beyond its style (cardDepth): ink and allowHueShift.
+const STEP_DEPTH_DEFAULTS=Object.freeze({allowHueShift:false,ink:'pop'});
+function contiguousSteps(steps,value) {
+  const position=s=>['muted','balanced','bold'].indexOf(paletteFamily(s.palette.id).step);
+  steps=[...steps].sort((x,y)=>position(x)-position(y));
+  let first=steps.findIndex(s=>s.value===value),last=first;
+  while(first>0&&position(steps[first-1])===position(steps[first])-1) first--;
+  while(last+1<steps.length&&position(steps[last+1])===position(steps[last])+1) last++;
+  return steps.slice(first,last+1);
+}
+function cardDepth(library,palette,style,mode) {
+  const overlay=library.cardDepth.find(d=>d.palette===palette.id&&d.style===style.id&&d.mode===mode);
+  return copy({...style.depth,...overlay?.depth});
+}
+function lookCandidates(library,state,a,refused) {
+  const result=[],reasons=new Set(),withheld=new Set(library.withheld.map(w=>`${w.palette}/${w.style}`));
+  const off=new Set(a.off??[]),answer=a.taps?.mode;
+  const mode=a.mode??a.kept?.primaryMode??(off.has('darkLed')?'light':
+    answer==='dark'&&!off.has('dark')?'dark':
+    answer==='light'&&!off.has('light')?'light':state.darkLed>0?'dark':'light');
+  let order=0;
+  for(const style of library.styles) for(const palette of library.palettes) {
+    const n=order++,family=paletteFamily(palette.id).family;
+    if(withheld.has(`${palette.id}/${style.id}`)) continue;
+    const pairing=part(library,'pairings',style.id),graphicSet=part(library,'graphics',style.graphicSet);
+    if(pairing.selectable===false) continue;
+    const c={...info(library,palette,pairing,graphicSet,state.dials,n),style,family,mode,
+      container:style.container,depth:cardDepth(library,palette,style,mode),plain:style.depth.background==='plain'};
+    const reason=refused(makeBoard(library,a,c,1,'looks'));
+    if(reason) {reasons.add(reason);continue;}
+    c.score+=palette.energy==='bright'?state.brightColour:0;
+    result.push(c);
+  }
+  if(!result.length&&reasons.size) fail('candidates',`rule refusal prevents a complete page: ${[...reasons].join('; ')}`);
+  return result.sort((a,b)=>b.score-a.score||a.order-b.order);
+}
 function shownLook(look,library,kept={}) {
   const option=own(look??{},'board');
-  object(look,option?['value','label','board']:['value','label','kind','pairing','palette','graphicSet','positions','partPositions','score','libraryOrder','primaryMode','ground','plainGround','container','parent','changedParts','changedDial'],'shown');
-  if(option) object(look.board,['pairing','palette','graphicSet','primaryMode','container','handwriting','buttonRadius'],'shown.board');
+  object(look,option?['value','label','board','steps']:['value','label','steps','kind','style','pairing','palette','graphicSet','positions','partPositions','score','libraryOrder','primaryMode','ground','plainGround','container','parent','changedParts','changedDial','changedDials'],'shown');
+  if(option) object(look.board,['pairing','palette','graphicSet','primaryMode','container','depth','handwriting','buttonRadius'],'shown.board');
   const refs=option?look.board:look;
   const c=Object.fromEntries([['pairing','pairings'],['palette','palettes'],['graphicSet','graphics']].map(([field,kind])=>[field,part(library,kind,option?refs[field]?.id:refs[field])]));
-  // Option boards carry fixed assets; their values still identify the backing
-  // library triple. Recover it when a kept pairing or palette replaced an id.
+  if(own(look,'steps')) {
+    array(look.steps,'shown.steps');
+    if(!look.steps.length||look.steps.length>3) fail('shown.steps','supply one to three steps');
+    for(const step of look.steps) {
+      object(step,['value','label','palette','depth'],'shown.steps');
+      text(step.value,'shown.steps.value');
+      if(!own(step,'palette')&&option&&step.value===look.value) continue;
+      object(step.palette,['id','overrides'],'shown.steps.palette');
+      text(step.palette.id,'shown.steps.palette.id');
+    }
+  }
+  // Rebuild from library references, never saved depth or ranking fields.
+  // Keep older triple histories valid for Round 1. New pages themselves come
+  // only from the approved-card pool. Kept assets can hide the backing ids.
+  const rebuild=backing=>{
+    const style=part(library,'styles',backing.pairing.id);
+    if(look.style!==undefined&&(look.style!==style.id||style.graphicSet!==backing.graphicSet.id)) fail('shown.style','must match the library card');
+    return {...backing,style,family:paletteFamily(backing.palette.id).family};
+  };
   if(option&&look.value!==lookId(c)&&(!kept.pairing||c.pairing.id===kept.pairing)&&(!kept.palette?.id||c.palette.id===kept.palette.id)) {
     for(const pairing of kept.pairing?library.pairings:[c.pairing]) for(const palette of kept.palette?.id?library.palettes:[c.palette]) {
       const backing={...c,pairing,palette};
-      if(look.value===lookId(backing)) return backing;
+      if(look.value===lookId(backing)) return rebuild(backing);
     }
   }
   if(look.value!==lookId(c)) fail('shown.value','must match the three library ids from the looks output');
-  return c;
+  return rebuild(c);
 }
 function freshLooks(pool,shown,library,kept) {
   const history=new Map(shown.map(look=>{const c=shownLook(look,library,kept);return [key(c),c];})),seen=new Set(history.keys());
-  const fields=['palette','pairing','graphicSet'];
+  const fields=['family','palette','style'],id=(c,field)=>field==='family'?c.family:c[field].id;
   const uses=Object.fromEntries(fields.map(field=>[field,new Map()]));
-  for(const c of history.values()) for(const field of fields) uses[field].set(c[field].id,(uses[field].get(c[field].id)??0)+1);
+  for(const c of history.values()) for(const field of fields) uses[field].set(id(c,field),(uses[field].get(id(c,field))??0)+1);
   return pool.filter(c=>!seen.has(key(c))).map(c=>{
-    const counts=fields.map(field=>uses[field].get(c[field].id)??0);
+    const counts=fields.map(field=>uses[field].get(id(c,field))??0);
     return {c,used:counts.filter(Boolean).length,uses:counts.reduce((a,b)=>a+b,0)};
   }).sort((a,b)=>a.used-b.used||a.uses-b.uses).map(({c})=>c);
-  // Stable sort retains the steered score, dark promotion and library order.
+  // Stable sort retains the steered score and library order.
+}
+const LOOK_MARKS=['seal','badge','letter','stack','initials'];
+const markBits=c=>1<<LOOK_MARKS.indexOf(c.depth.mark);
+const lookCoverage=chosen=>chosen.filter(c=>c.plain).length>=2&&LOOK_MARKS.every(mark=>chosen.some(c=>c.depth.mark===mark));
+// Every page cap applies to leaders and contrasts, including search prefixes.
+function fitsLook(chosen,c) {
+  return !chosen.some(p=>p.palette.id===c.palette.id||p.family===c.family&&p.style.id===c.style.id)&&
+    chosen.filter(p=>p.style.id===c.style.id).length<2&&chosen.filter(p=>p.family===c.family).length<2;
+}
+const contrastsFrom=(pool,first)=>pool.map(c=>({...c,changed:Object.keys(AXES).filter(k=>c.positions[k]!==first.positions[k])})).filter(c=>c.changed.length>=1&&c.changed.length<=2);
+function rankContrasts(pool,palettes,families,axes,targets) {
+  return pool.filter(c=>!palettes.has(c.palette.id)).sort((a,b)=>
+    a.changed.length-b.changed.length||
+    Number(axes.has(a.changed[0]))-Number(axes.has(b.changed[0]))||
+    Number(targets.has(a.changed[0]+'/'+a.positions[a.changed[0]]))-Number(targets.has(b.changed[0]+'/'+b.positions[b.changed[0]]))||
+    Number(families.has(a.family))-Number(families.has(b.family)));
 }
 function chooseLooks(pool, accept=()=>true, onChoose=()=>{}) {
-  const chosen=[],palettes=new Set(),pairings=new Set(),graphics=new Set(),axes=new Set(),targets=new Set(),spares=[];
+  const chosen=[],palettes=new Set(),families=new Set(),styles=new Set(),axes=new Set(),targets=new Set(),spares=[];
   for(let i=0;i<6;i++) {
-    const ranked=pool.filter(c=>!palettes.has(c.palette.id)&&!pairings.has(c.pairing.id)&&!graphics.has(c.graphicSet.id)).map(c=>({...c,plain:(i+1)%3===2}));
+    const ranked=pool.filter(c=>!families.has(c.family)&&!styles.has(c.style.id));
     const next=ranked.find(c=>accept(c,i+1)); if(!next) fail('looks','no passing distinct leader remains');
     onChoose(next,i+1);
     chosen.push({...next,kind:'top'});spares.push(ranked.slice(ranked.indexOf(next)+1,ranked.indexOf(next)+17));
-    palettes.add(next.palette.id);pairings.add(next.pairing.id);graphics.add(next.graphicSet.id);
+    palettes.add(next.palette.id);families.add(next.family);styles.add(next.style.id);
   }
-  const first=chosen[0];
+  const contrasts=contrastsFrom(pool,chosen[0]);
   for(let i=6;i<12;i++) {
-    const ranked=pool.map(c=>({...c,plain:(i+1)%3===2,changed:Object.keys(AXES).filter(k=>c.positions[k]!==first.positions[k])}))
-      .filter(c=>c.changed.length===1&&!palettes.has(c.palette.id))
-      .sort((a,b)=>Number(axes.has(a.changed[0]))-Number(axes.has(b.changed[0])) || Number(targets.has(a.changed[0]+'/'+a.positions[a.changed[0]]))-Number(targets.has(b.changed[0]+'/'+b.positions[b.changed[0]])));
-    // Stable sort preserves the original score/library order when spread ties.
-    const next=ranked.find(c=>accept(c,i+1));if(!next) fail('looks','no passing one-dial contrast remains');
+    const ranked=rankContrasts(contrasts,palettes,families,axes,targets).filter(c=>fitsLook(chosen,c));
+    const next=ranked.find(c=>accept(c,i+1));if(!next) fail('looks','no passing one- or two-dial contrast remains');
     onChoose(next,i+1);
-    chosen.push({...next,kind:'contrast',changedDial:next.changed[0]});spares.push(ranked.slice(ranked.indexOf(next)+1,ranked.indexOf(next)+17));
-    palettes.add(next.palette.id);axes.add(next.changed[0]);targets.add(next.changed[0]+'/'+next.positions[next.changed[0]]);
+    chosen.push({...next,kind:'contrast',changedDial:next.changed[0],changedDials:next.changed.length});spares.push(ranked.slice(ranked.indexOf(next)+1,ranked.indexOf(next)+17));
+    palettes.add(next.palette.id);families.add(next.family);axes.add(next.changed[0]);targets.add(next.changed[0]+'/'+next.positions[next.changed[0]]);
   }
+  if(!lookCoverage(chosen)) fail('looks','no passing page covers two plain grounds and all five marks');
   return {chosen,spares};
 }
 function chooseFreshLooks(pool,accept,replacements) {
@@ -292,24 +369,17 @@ function chooseFreshLooks(pool,accept,replacements) {
   if(paletteCount<12) fail('looks',`library exhausted for a twelve-look page: only ${paletteCount} unshown palette recipes remain; twelve distinct palettes are required`);
   const failed=new Set(),contrastCache=new Map(),checked=new Map();
   const positionKey=c=>JSON.stringify(c.positions);
-  const possible=(c,plain)=>checked.get(key(c)+'/'+plain)!==false;
+  const possible=c=>checked.get(key(c))!==false;
   function passes(c,slot) {
-    const id=key(c)+'/'+c.plain;
-    if(!checked.has(id)) checked.set(id,accept(c,slot));
-    return checked.get(id);
-  }
-  const plainSlots=(start,end)=>Array.from({length:end-start},(_,i)=>(start+i+1)%3===2).filter(Boolean).length;
-  function contrastsFit(contrasts,patterns,plains) {
-    const patterned=new Set(contrasts.filter(c=>possible(c,false)).map(c=>c.palette.id));
-    const plain=new Set(contrasts.filter(c=>possible(c,true)).map(c=>c.palette.id));
-    return patterned.size>=patterns&&plain.size>=plains&&new Set([...patterned,...plain]).size>=patterns+plains;
+    if(!checked.has(key(c))) checked.set(key(c),accept(c,slot));
+    return checked.get(key(c));
   }
   function canMatch(candidates,left,right,needed) {
     const edges=new Map(),matched=new Map();
     for(const c of candidates) {
-      const id=c[left].id;
+      const id=left(c);
       if(!edges.has(id)) edges.set(id,new Set());
-      edges.get(id).add(c[right].id);
+      edges.get(id).add(right(c));
     }
     function augment(id,seen) {
       for(const to of edges.get(id)) if(!seen.has(to)) {
@@ -320,93 +390,140 @@ function chooseFreshLooks(pool,accept,replacements) {
     }
     let count=0;
     for(const id of edges.keys()) if(augment(id,new Set())&&++count>=needed) return true;
-    return false;
+    return needed===0;
   }
-  function leadersFit(candidates,needed,contrastPalettes,patterns,plains) {
+  function coverageFits(chosen,available,slots) {
+    for(const field of ['family','style']) {
+      const id=c=>field==='family'?c.family:c.style.id,uses=new Map(),remaining=new Map();
+      for(const c of chosen) uses.set(id(c),(uses.get(id(c))??0)+1);
+      for(const c of available) {
+        if(!remaining.has(id(c))) remaining.set(id(c),new Set());
+        remaining.get(id(c)).add(c.palette.id);
+      }
+      if([...remaining].reduce((n,[key,palettes])=>n+Math.min(2-(uses.get(key)??0),palettes.size),0)<slots) return false;
+    }
+    const missing=LOOK_MARKS.filter(mark=>!chosen.some(c=>c.depth.mark===mark));
+    const plain=Math.max(0,2-chosen.filter(c=>c.plain).length);
+    return missing.length<=slots&&plain<=slots&&
+      new Set(available.filter(c=>c.plain).map(c=>c.palette.id)).size>=plain&&
+      canMatch(available.filter(c=>missing.includes(c.depth.mark)),c=>c.depth.mark,c=>c.palette.id,missing.length);
+  }
+  // A small capacity network rules out impossible spreads before enumerating
+  // leader orders. Each path reserves a mark, style, family/style pair,
+  // palette and family. Rewards cover missing marks first, then plain grounds.
+  function spreadFits(chosen,candidates,slots,coverage=true) {
+    const available=candidates.filter(c=>fitsLook(chosen,c)&&possible(c));
+    const graph=new Map(),edge=(a,b,capacity,cost=0)=>{
+      if(!graph.has(a)) graph.set(a,[]);
+      if(!graph.has(b)) graph.set(b,[]);
+      const forward={to:b,capacity,cost},back={to:a,capacity:0,cost:-cost};
+      forward.reverse=back;back.reverse=forward;
+      graph.get(a).push(forward);graph.get(b).push(back);
+    };
+    const styles=new Map(),palettes=new Map(),pairs=new Set(),families=new Set();
+    for(const c of available) {
+      styles.set(c.style.id,c);palettes.set(c.palette.id,c.family);
+      const pair=c.style.id+'/'+c.family;
+      if(!pairs.has(pair)) {edge('s/'+c.style.id,'p/'+pair,1);pairs.add(pair);}
+      edge('p/'+pair,'c/'+c.palette.id,1);families.add(c.family);
+    }
+    const missing=coverage?LOOK_MARKS.filter(mark=>!chosen.some(c=>c.depth.mark===mark)):[];
+    const reward=13;
+    for(const mark of LOOK_MARKS) {
+      if(missing.includes(mark)) edge('source','m/'+mark,1,-reward);
+      edge('source','m/'+mark,slots);
+    }
+    for(const [id,c] of styles) edge('m/'+c.depth.mark,'s/'+id,2-chosen.filter(p=>p.style.id===id).length,c.plain?-1:0);
+    for(const [id,family] of palettes) edge('c/'+id,'f/'+family,1);
+    for(const family of families) edge('f/'+family,'sink',2-chosen.filter(c=>c.family===family).length);
+    let cost=0;
+    for(let flow=0;flow<slots;flow++) {
+      const distances=new Map([['source',0]]),previous=new Map(),queue=['source'],queued=new Set(queue);
+      for(let i=0;i<queue.length;i++) {
+        const from=queue[i];queued.delete(from);
+        for(const e of graph.get(from)??[]) if(e.capacity>0&&(!distances.has(e.to)||distances.get(e.to)>distances.get(from)+e.cost)) {
+          distances.set(e.to,distances.get(from)+e.cost);previous.set(e.to,{from,edge:e});
+          if(!queued.has(e.to)) {queue.push(e.to);queued.add(e.to);}
+        }
+      }
+      if(!previous.has('sink')) return false;
+      cost+=distances.get('sink');
+      for(let to='sink';to!=='source';) {
+        const p=previous.get(to);p.edge.capacity--;p.edge.reverse.capacity++;to=p.from;
+      }
+    }
+    const plain=coverage?Math.max(0,2-chosen.filter(c=>c.plain).length):0;
+    return cost<=-reward*missing.length-plain;
+  }
+  function leadersFit(candidates,needed,contrastPalettes) {
     if(!needed) return true;
-    const groups=new Map();
-    for(const c of candidates) {
-      if(contrastPalettes.size-Number(contrastPalettes.has(c.palette.id))<6) continue;
-      if(!(patterns&&possible(c,false))&&!(plains&&possible(c,true))) continue;
-      if(!groups.has(c.graphicSet.id)) groups.set(c.graphicSet.id,[]);
-      groups.get(c.graphicSet.id).push(c);
-    }
-    if(groups.size<needed) return false;
-    const eligible=[...groups.values()].flat();
+    const eligible=candidates.filter(c=>possible(c)&&contrastPalettes.size-Number(contrastPalettes.has(c.palette.id))>=6);
     if(new Set([...contrastPalettes,...eligible.map(c=>c.palette.id)]).size<6+needed||
-      !canMatch(eligible,'graphicSet','pairing',needed)||!canMatch(eligible,'graphicSet','palette',needed)||!canMatch(eligible,'pairing','palette',needed)) return false;
-    // Feasibility need not follow display order. Try the most constrained
-    // graphic first to avoid enumerating permutations of impossible leaders.
-    const [id,choices]=[...groups].sort((a,b)=>a[1].length-b[1].length)[0];
-    const rest=eligible.filter(c=>c.graphicSet.id!==id);
-    for(const c of choices) {
-      const available=rest.filter(p=>p.pairing.id!==c.pairing.id&&p.palette.id!==c.palette.id);
-      const reserved=new Set(contrastPalettes);reserved.delete(c.palette.id);
-      for(const plain of [false,true]) if((plain?plains:patterns)&&possible(c,plain)&&leadersFit(available,needed-1,reserved,patterns-Number(!plain),plains-Number(plain))) return true;
+      !canMatch(eligible,c=>c.style.id,c=>c.family,needed)) return false;
+    // Feasibility can try the most constrained style before display order.
+    const groups=new Map();
+    for(const c of eligible) {
+      if(!groups.has(c.style.id)) groups.set(c.style.id,[]);
+      groups.get(c.style.id).push(c);
     }
-    return groups.size>needed&&leadersFit(rest,needed,contrastPalettes,patterns,plains);
+    const [id,choices]=[...groups].sort((a,b)=>a[1].length-b[1].length)[0];
+    const rest=eligible.filter(c=>c.style.id!==id);
+    for(const c of choices) {
+      const reserved=new Set(contrastPalettes);reserved.delete(c.palette.id);
+      if(leadersFit(rest.filter(p=>p.family!==c.family),needed-1,reserved)) return true;
+    }
+    return groups.size>needed&&leadersFit(rest,needed,contrastPalettes);
   }
-  function search(chosen,palettes,pairings,graphics,axes,targets,spares,contrasts=[]) {
+  function search(chosen,palettes,families,leaderFamilies,styles,axes,targets,spares,contrasts=[]) {
     const slot=chosen.length,refusalStart=replacements.length;
-    if(slot===12) return {chosen,spares};
-    // Failed states depend on feasibility, not on the order of the prefix.
-    const state=JSON.stringify([slot,chosen.length?positionKey(chosen[0]):null,...[palettes,pairings,graphics].map(set=>[...set].sort())]);
+    if(slot===12) return lookCoverage(chosen)?{chosen,spares}:null;
+    const marks=chosen.reduce((n,c)=>n|markBits(c),0),plains=Math.min(2,chosen.filter(c=>c.plain).length);
+    // Dial/destination history changes ranking, never feasibility.
+    const state=JSON.stringify([slot,slot?positionKey(chosen[0]):null,[...palettes].sort(),chosen.map(c=>c.family+'/'+c.style.id).sort(),marks,plains]);
     if(failed.has(state)) return null;
     let ranked;
     if(slot<6) {
-      ranked=pool.filter(c=>!palettes.has(c.palette.id)&&!pairings.has(c.pairing.id)&&!graphics.has(c.graphicSet.id));
-      const remaining=6-slot;
-      const contrastPalettes=new Set(contrasts.filter(c=>!palettes.has(c.palette.id)).map(c=>c.palette.id));
-      if(slot) ranked=ranked.filter(c=>contrastPalettes.size-Number(contrastPalettes.has(c.palette.id))>=6);
-      if(['palette','pairing','graphicSet'].some(field=>new Set(ranked.map(c=>c[field].id)).size<remaining)) {failed.add(state);return null;}
-    } else {
-      ranked=contrasts.filter(c=>!palettes.has(c.palette.id)).sort((a,b)=>Number(axes.has(a.changed[0]))-Number(axes.has(b.changed[0])) || Number(targets.has(a.changed[0]+'/'+a.positions[a.changed[0]]))-Number(targets.has(b.changed[0]+'/'+b.positions[b.changed[0]])));
-      if(new Set(ranked.map(c=>c.palette.id)).size<12-slot) {failed.add(state);return null;}
-    }
-    ranked=ranked.map(c=>({...c,plain:(slot+1)%3===2}));
-    for(const [index,c] of ranked.entries()) {
-      // Checks learned while exploring a prefix also constrain every remaining
-      // slot. Pattern refusals may still pass in one of the four plain slots.
-      if(slot&&slot<6) {
-        const remaining=6-slot,plains=plainSlots(slot,6);
-        const available=contrasts.filter(p=>!palettes.has(p.palette.id));
-        if(!contrastsFit(available,4,2)||!leadersFit(ranked,remaining,new Set(available.map(p=>p.palette.id)),remaining-plains,plains)) break;
-      } else if(slot>=6) {
-        const plains=plainSlots(slot,12);
-        if(!contrastsFit(ranked,12-slot-plains,plains)) break;
+      ranked=pool.filter(c=>!leaderFamilies.has(c.family)&&!styles.has(c.style.id)&&possible(c));
+      if(slot) {
+        const available=contrasts.filter(c=>fitsLook(chosen,c)&&possible(c));
+        const reserved=new Set(available.map(c=>c.palette.id));
+        if(!spreadFits(chosen,available,6,false)||!leadersFit(ranked,6-slot,reserved)||!coverageFits(chosen,[...ranked,...available],12-slot)||!spreadFits(chosen,[...ranked,...available],12-slot)) {failed.add(state);return null;}
       }
-      if(!possible(c,c.plain)) continue;
+    } else {
+      // Try every one-dial completion before allowing a two-dial card.
+      ranked=rankContrasts(contrasts,palettes,families,axes,targets).filter(c=>fitsLook(chosen,c)&&possible(c));
+      if(new Set(ranked.map(c=>c.palette.id)).size<12-slot||!coverageFits(chosen,ranked,12-slot)||!spreadFits(chosen,ranked,12-slot)) {failed.add(state);return null;}
+    }
+    for(const [index,c] of ranked.entries()) {
+      if(!possible(c)) continue;
       const nextPalettes=new Set([...palettes,c.palette.id]);
       let nextContrasts=contrasts;
       if(slot===0) {
         const first=positionKey(c);
-        if(!contrastCache.has(first)) contrastCache.set(first,pool.map(p=>({...p,changed:Object.keys(AXES).filter(axis=>p.positions[axis]!==c.positions[axis])})).filter(p=>p.changed.length===1));
+        if(!contrastCache.has(first)) contrastCache.set(first,contrastsFrom(pool,c));
         nextContrasts=contrastCache.get(first);
       }
-      // Reserve six contrast palettes before the leaders can consume them.
-      if(slot<6&&!contrastsFit(nextContrasts.filter(p=>!nextPalettes.has(p.palette.id)),4,2)) continue;
+      if(slot<6&&new Set(nextContrasts.filter(p=>!nextPalettes.has(p.palette.id)&&possible(p)).map(p=>p.palette.id)).size<6) continue;
       if(!passes(c,slot+1)) continue;
       const contrast=slot>=6;
-      const next=search([...chosen,{...c,kind:contrast?'contrast':'top',...(contrast?{changedDial:c.changed[0]}:{})}],nextPalettes,
-        contrast?pairings:new Set([...pairings,c.pairing.id]),contrast?graphics:new Set([...graphics,c.graphicSet.id]),
+      const next=search([...chosen,{...c,kind:contrast?'contrast':'top',...(contrast?{changedDial:c.changed[0],changedDials:c.changed.length}:{})}],nextPalettes,new Set([...families,c.family]),
+        contrast?leaderFamilies:new Set([...leaderFamilies,c.family]),contrast?styles:new Set([...styles,c.style.id]),
         contrast?new Set([...axes,c.changed[0]]):axes,contrast?new Set([...targets,c.changed[0]+'/'+c.positions[c.changed[0]]]):targets,
         [...spares,ranked.slice(index+1,index+17)],nextContrasts);
       if(next) return next;
     }
-    // Keep learned check results, but omit refusals from an abandoned prefix.
-    // Only the winning prefix can name its slot's actual passing replacement.
     replacements.length=refusalStart;
     failed.add(state);return null;
   }
-  const found=search([],new Set(),new Set(),new Set(),new Set(),new Set(),[]);
-  if(!found) fail('looks',`library exhausted for a twelve-look page: ${pool.length} unshown looks cannot supply six passing distinct leaders and six one-dial contrasts`);
+  const found=search([],new Set(),new Set(),new Set(),new Set(),new Set(),new Set(),[]);
+  if(!found) fail('looks',`library exhausted for a twelve-look page: ${pool.length} unshown looks cannot supply six passing distinct leaders and six one- or two-dial contrasts with page caps, two plain grounds and all five marks`);
   return found;
 }
 function page(a,boards,groups) {
   return { person:a.name,intro:[`Brands made for ${a.name}. Each one is a whole look: colours, lettering and shapes together.`,'Look for the ones that feel like you.'],groups:copy(groups),footnote:'These initials hold the place of a logo. Ask for a logo any time after you lock a board.',boards };
 }
 function makeBoard(library,a,c,number,group,base) {
-  const b=base?copy(base):{
+  const b=base?assemblyBoard(base):{
     content:{brandName:a.name,sentence:a.sentence,body:a.body??a.sentence,smallPrint:'Sample: A first look for discussion.',...(a.photoRules?{photoRules:a.photoRules}:{}),never:a.words.map(w=>w.not)},
     words:copy(a.words),heroPhrase:a.heroPhrase??a.sentence.split(/\s+/).slice(-2).join(' '),
     note:{text:'Sample: Start here.',direction:'left'},
@@ -415,14 +532,14 @@ function makeBoard(library,a,c,number,group,base) {
     closingExamples:['Keep the colours and try different lettering.','Keep the shapes and try a softer ground.']
   };
   delete b.recommendation; delete b.zero;
-  Object.assign(b,{number,name:`${c.pairing.name} / ${(c.actualPalette??c.palette).name} / ${c.graphicSet.name}`,group,energy:(c.actualPalette??c.palette).energy,why:'A whole look from your chosen direction.',primaryMode:c.mode??(c.palette.energy==='dark-first'?'dark':'light'),buttonRadius:base?.buttonRadius??4,palette:base?.palette.id===c.palette.id?copy(base.palette):{id:c.palette.id},pairing:base?.pairing.id===c.pairing.id?copy(base.pairing):{id:c.pairing.id},handwriting:base?.pairing.id===c.pairing.id?base.handwriting??null:null,graphicSet:base?.graphicSet.id===c.graphicSet.id?copy(base.graphicSet):{id:c.graphicSet.id}});
-  if(c.plain) b.graphicSet.pattern={...b.graphicSet.pattern,strength:{light:0,dark:0}};
+  Object.assign(b,{number,name:`${c.pairing.name} / ${(c.actualPalette??c.palette).name} / ${c.graphicSet.name}`,group,energy:(c.actualPalette??c.palette).energy,why:'A whole look from your chosen direction.',primaryMode:a.mode??c.mode??(c.palette.energy==='dark-first'?'dark':'light'),buttonRadius:base?.buttonRadius??4,palette:base?.palette.id===c.palette.id?copy(base.palette):{id:c.palette.id},pairing:base?.pairing.id===c.pairing.id?copy(base.pairing):{id:c.pairing.id},handwriting:base?.pairing.id===c.pairing.id?base.handwriting??null:null,graphicSet:base?.graphicSet.id===c.graphicSet.id?copy(base.graphicSet):{id:c.graphicSet.id}});
+  if(group==='looks') b.depth=copy(c.depth);
   if(number===0)b.zero=true;
   const kept=a.kept??{};
   if(kept.palette) b.palette={...b.palette,...copy(kept.palette)};
   if(kept.pairing) b.pairing.id=kept.pairing;
   for(const role of ['headingFrom','bodyFrom']) if(own(kept,role)) b.pairing[role]=copy(kept[role]);
-  if(kept.primaryMode) b.primaryMode=kept.primaryMode;
+  if(kept.primaryMode&&!a.mode) b.primaryMode=kept.primaryMode;
   if(own(kept,'buttonRadius')) b.buttonRadius=kept.buttonRadius;
   if(kept.markFile||base?.markFile) { b.markFile=kept.markFile??base.markFile;delete b.initials;delete b.container; }
   else { delete b.markFile;b.container=c.container??base?.container??CONTAINERS[c.graphicSet.id]??'drafting-box';b.initials=a.name.split(/\s+/).slice(0,2).map(w=>Array.from(w)[0]).join('').toUpperCase(); }
@@ -436,11 +553,11 @@ function makeBoard(library,a,c,number,group,base) {
 }
 function effective(c,a,library) {
   const kept=a.kept??{};
-  const mode=kept.primaryMode??c.mode??(c.palette.energy==='dark-first'?'dark':'light');
+  const mode=a.mode??kept.primaryMode??c.mode??(c.palette.energy==='dark-first'?'dark':'light');
   const palette=kept.palette?.id?part(library,'palettes',kept.palette.id):c.palette;
   return {...c,actualPalette:palette,mode,ground:ground(kept.palette?.overrides?.[mode]?.ground??palette[mode].ground)};
 }
-function summary(c) { return {pairing:c.pairing.id,palette:c.palette.id,graphicSet:c.graphicSet.id,positions:c.positions,partPositions:c.partPositions,score:c.score,libraryOrder:c.order,...(c.mode?{primaryMode:c.mode,ground:c.ground}:{}),...(own(c,'plain')?{plainGround:c.plain}:{}),...(c.container?{container:c.container}:{}),...(c.parent!==undefined?{parent:c.parent,changedParts:c.changedParts}:{}),...(c.changedDial?{changedDial:c.changedDial}:{})}; }
+function summary(c) { return {...(c.style?{style:c.style.id}:{}),pairing:c.pairing.id,palette:c.palette.id,graphicSet:c.graphicSet.id,positions:c.positions,partPositions:c.partPositions,score:c.score,libraryOrder:c.order,...(c.mode?{primaryMode:c.mode,ground:c.ground}:{}),...(own(c,'plain')?{plainGround:c.plain}:{}),...(c.container?{container:c.container}:{}),...(c.parent!==undefined?{parent:c.parent,changedParts:c.changedParts}:{}),...(c.changedDial?{changedDial:c.changedDial,changedDials:c.changedDials}:{})}; }
 function alignedWhy(c,a,data) {
   const off=new Set(a.off??[]),labels=[];
   for(const q of data.questions) {
@@ -458,7 +575,28 @@ function alignedWhy(c,a,data) {
   return labels.length?`Your ${labels.slice(0,3).map(s=>'“'+s+'”').join(', ')} ${labels.length===1?'tap points':'taps point'} toward this look.`:null;
 }
 const BOARD_PARTS=['pairing','palette','graphicSet','container','primaryMode'];
-const FORM_COPY=['handwriting','buttonRadius','heroPhrase','content','note','sample','items','closingExamples'];
+const VARIED_PARTS=BOARD_PARTS.filter(field=>field!=='primaryMode');
+function assemblyBoard({value,steps,...board}) { return copy(board); }
+export function selectionForAssembly(selection) {
+  return {...copy(selection),boards:selection.boards.map(assemblyBoard)};
+}
+const lookValues=look=>[look.value,...(look.steps??[]).map(step=>step.value)];
+function pickedLook(look,value,library,kept) {
+  const c=shownLook(look,library,kept);
+  if(value===look.value) return c;
+  const step=look.steps?.find(step=>step.value===value);
+  if(!step) fail('looks','pick a step of a shown option');
+  const palette=part(library,'palettes',step.palette.id);
+  if(paletteFamily(palette.id).family!==c.family||library.withheld.some(w=>w.palette===palette.id&&w.style===c.style.id)) fail('looks','step is not an approved card in this family and style');
+  const picked={...c,palette};
+  if(value!==lookId(picked)) fail('looks','step value must match its own three library ids');
+  return picked;
+}
+function boardLabel(library,b) {
+  return [part(library,'pairings',b.pairing.id).name,part(library,'palettes',b.palette.id).name,part(library,'graphics',b.graphicSet.id).name,...(b.container?[part(library,'containers',b.container).name]:[]),b.primaryMode].join(' / ');
+}
+const boardValue=(owner,b)=>'board-'+createHash('sha256').update(JSON.stringify(stable([owner.number,boardKey(owner),b.palette]))).digest('hex').slice(0,32);
+const FORM_COPY=['depth','handwriting','buttonRadius','heroPhrase','content','note','sample','items','closingExamples'];
 // SVG text made single-line by the rules a renderer applies, so the card's
 // mark draws as the file does. Inside a tag, XML turns each newline (a CRLF
 // counting once) or tab in an attribute value into one space. In text under
@@ -471,6 +609,7 @@ export function formLogo(svg) {
     ? tag.replace(/\r\n/g,' ').replace(/[\r\n\t]/g,' ')
     : text.replace(/\r\n|\r|\n/g,'').replace(/\t/g,' '));
 }
+const pageControls=a=>({mode:a.mode,...(a.kept?.palette?{}:{strength:true})});
 function boardsForm(a,selection,selectionDir,command) {
   const boards=selection.boards;
   // A disk font has no public reference in Form. Preserve the selection for
@@ -485,16 +624,16 @@ function boardsForm(a,selection,selectionDir,command) {
     if(logo===null) return {form:null,formUnavailable:'Form cannot show a kept mark that sets xml:space="preserve"; use the unchanged selection with assemble.mjs.'};
     brand.logo=logo;
   }
-  const options=boards.map(b=>({value:`board-${b.number}`,label:b.name,...(b.recommendation?{recommendation:b.recommendation}:{}),
+  const options=boards.map(b=>({value:b.value,label:b.name,...(a.kept?.palette?{}:{steps:b.steps.map(step=>({value:step.value,label:step.name,palette:copy(step.palette)}))}),...(b.recommendation?{recommendation:b.recommendation}:{}),
     board:Object.fromEntries([...BOARD_PARTS,...FORM_COPY].filter(k=>own(b,k)).map(k=>[k,k==='content'?Object.fromEntries(Object.entries(b.content).filter(([key])=>!['brandName','sentence','body'].includes(key))):copy(b[k])]))}));
   const boardDefaults={};
-  for(const k of FORM_COPY) if(own(options[0].board,k)&&options.every(o=>own(o.board,k)&&partKey(o.board,k)===partKey(options[0].board,k))) {
+  for(const k of FORM_COPY) if(k!=='depth'&&own(options[0].board,k)&&options.every(o=>own(o.board,k)&&partKey(o.board,k)===partKey(options[0].board,k))) {
     boardDefaults[k]=options[0].board[k];
     for(const o of options) delete o.board[k];
   }
   const variation=command==='variations',extra=['org','client','department'].includes(a.type)?1:0;
   const form={title:`Step ${(variation?5:4)+extra} of ${6+extra}: ${variation?'blend and tune':'your boards'}`,brand,boardDefaults,
-    questions:[{id:'boards',type:'boards',label:'Select the board(s) that feel most like you',pick:3,options}],
+    questions:[{id:'boards',type:'boards',label:'Select the board(s) that feel most like you',pick:3,controls:pageControls(a),options}],
     actions:[{value:'more',label:'Show me more',needs:'any',notes:{none:'None of these work',one:'Show me variations of this board',several:'Show me variations of these boards'}},{value:'lock',label:'Lock this board in',note:'and finish my brand',needs:'one'}]};
   const checked=checkForm(form);
   if(!checked.ok) {
@@ -509,7 +648,7 @@ function stable(value) {
   return value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(k=>[k,stable(value[k])])):value;
 }
 const partKey=(b,field)=>JSON.stringify(stable(b[field]??null));
-const boardKey=b=>JSON.stringify(BOARD_PARTS.map(field=>partKey(b,field)));
+const boardKey=b=>JSON.stringify(VARIED_PARTS.map(field=>partKey(b,field)));
 function typeLoudness(board,library) {
   const donor=board.pairing.headingFrom;
   return part(library,'pairings',typeof donor==='string'?donor:board.pairing.id).tags.typeLoudness;
@@ -531,21 +670,32 @@ function variationRank(c,seed,steer) {
 }
 function checkFactory(a,library,selectionDir,replacements) {
   const directory=mkdtempSync(join(tmpdir(),'build-brand-select-')),cache=new Map();let attempt=0;
+  function checkBoard(b) {
+    const cacheKey=JSON.stringify({...b,number:1,group:'probe'});
+    if(cache.has(cacheKey)) return cache.get(cacheKey);
+    // Board zero needs a numbered neighbour in its Contact Sheet probe.
+    const probe=b.number===0?[b,{...copy(b),number:1,zero:false}]:[b];
+    const stem=join(directory,String(++attempt)),spec=assemble(page(a,probe,[{id:b.group,label:b.group}]),library,{selectionDir});
+    writeFileSync(stem+'.json',JSON.stringify(spec),{flag:'wx'});
+    // Use the tool's own build entry point for every probe, including file,
+    // font, SVG, contrast and complete-page byte checks, without a new Node
+    // process per strength step. The temporary spec and page are unchanged.
+    let reason=null;
+    try { runContactSheet(['build','--spec',stem+'.json','--output',stem+'.html']); }
+    catch(error) { reason=error.message; }
+    cache.set(cacheKey,reason);return reason;
+  }
   return {
     accept(c,group,number,base) {
-      const b=makeBoard(library,a,c,number,group,base),cacheKey=JSON.stringify({...b,number:1,group:'probe'});
-      if(cache.has(cacheKey)) return cache.get(cacheKey);
-      // Board zero lives beside alternatives in a populated group. Contact
-      // Sheet deliberately refuses a group populated only by a zero board.
-      const probe=number===0?[b,{...copy(b),number:1,zero:false}]:[b];
-      const stem=join(directory,String(++attempt)),spec=assemble(page(a,probe,[{id:group,label:group}]),library,{selectionDir});
-      writeFileSync(stem+'.json',JSON.stringify(spec),{flag:'wx'});
-      const child=spawnSync(process.execPath,[CONTACT,'build','--spec',stem+'.json','--output',stem+'.html'],{encoding:'utf8',maxBuffer:2_000_000});
-      if(child.error || child.signal || (child.status!==0 && child.status!==1)) fail('--check','Contact Sheet could not run; repair the local Node/tool installation');
-      if(child.status===0) { cache.set(cacheKey,true);return true; }
-      let reason;try { reason=JSON.parse(child.stderr).error; } catch { fail('--check','Contact Sheet returned no structured refusal'); }
-      replacements.push({slot:number,group,refused:summary(c),reason,replacement:null});cache.set(cacheKey,false);return false;
+      const b=makeBoard(library,a,c,number,group,base);
+      for(const mode of ['light','dark']) {
+        const board={...b,primaryMode:mode,...(group==='looks'?{depth:cardDepth(library,c.palette,c.style,mode)}:{})};
+        const reason=checkBoard(board);
+        if(reason) {replacements.push({slot:number,group,refused:summary(c),reason,replacement:null});return false;}
+      }
+      return true;
     },
+    acceptBoard(b) { return !checkBoard(b); },
     close() { rmSync(directory,{recursive:true,force:true}); },
     get attempts() { return attempt; }
   };
@@ -562,22 +712,34 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
   if(!['looks','round1','variations'].includes(command)) fail(command,'unknown command');
   if(unsteered&&command!=='round1') fail('--unsteered','only applies to round1');
   const state=tapDials(a,data),replacements=[],notes=[];
+  const off=new Set(a.off??[]);
+  a.mode=a.mode??a.kept?.primaryMode??(off.has('darkLed')?'light':a.taps.mode==='dark'&&!off.has('dark')?'dark':a.taps.mode==='light'&&!off.has('light')?'light':state.darkLed>0?'dark':'light');
+  // A resumed displayed page keeps its parts while the last returned switch
+  // position supplies its new initial mode. History remains in answers' copy.
+  if(a.pageDisplayed) for(const b of a.displayedBoards) if(b.primaryMode!==a.mode) {
+    b.primaryMode=a.mode;
+    if(!b.zero) b.name=boardLabel(library,b);
+  }
+  const energies=ENERGIES.filter(energy=>library.palettes.some(p=>p.energy===energy));
   if(unsteered) Object.assign(state,{dials:blank(),darkLed:0,brightColour:0,labels:[]});
   // Picks are full records: validate all fields through the existing assembler,
   // before any ranking or check. Kept assets remain fixed in later rounds.
-  if(command==='variations') for(const b of [...a.picks,...a.shown]) assemble(page(a,[b],[{id:b.group,label:b.group}]),library,{selectionDir});
-  if(a.pageDisplayed) assemble(page(a,a.displayedBoards,command==='round1'||!a.picks.length?GROUPS:a.picks.map((b,i)=>({id:`pick-${i+1}`,label:`Variations of board ${b.number}`}))),library,{selectionDir});
-  let pool=candidates(library,state,a,refused);
+  if(command==='variations') for(const b of [...a.picks,...a.shown]) assemble(selectionForAssembly(page(a,[b],[{id:b.group,label:b.group}])),library,{selectionDir});
+  if(a.pageDisplayed) assemble(selectionForAssembly(page(a,a.displayedBoards,command==='round1'||!a.picks.length?GROUPS:a.picks.map((b,i)=>({id:`pick-${i+1}`,label:`Variations of board ${b.number}`})))),library,{selectionDir});
+  const candidatePool=()=>command==='looks'?lookCandidates(library,state,a,refused):candidates(library,state,a,refused);
+  let pool=candidatePool();
   const boosts=blank(),pickedLooks=[];
   for(const id of a.looks??[]) {
-    const look=pool.find(c=>lookId(c)===id); if(!look) fail('looks',`unknown whole look ${id}; use a value from the looks output`);
+    const shown=a.looksShown?.find(look=>lookValues(look).includes(id));
+    const resolved=shown?pickedLook(shown,id,library,a.kept):null;
+    const look=pool.find(c=>lookId(c)===id&&(!resolved||key(c)===key(resolved))); if(!look) fail('looks',`unknown whole look ${id}; use a value from the looks output`);
     pickedLooks.push(look);
     if(!unsteered) for(const [axis,[neg,pos]] of Object.entries(AXES)) boosts[axis]+=look.positions[axis]===pos?1:look.positions[axis]===neg?-1:0;
   }
   if(command==='looks'&&(a.looks??[]).length) fail('looks','picks belong to round1, not the initial looks command');
   if(command!=='looks') for(const axis of Object.keys(AXES)) state.dials[axis]+=boosts[axis];
   if(command==='variations'||(command==='looks'&&a.shown?.length)) for(const [axis,value] of Object.entries(a.steer??{})) state.dials[axis]+=value*3;
-  pool=candidates(library,state,a,refused);
+  pool=candidatePool();
   const triple=b=>[b.pairing.id,b.palette.id,b.graphicSet.id].join('/');
   const pickedParts=new Set(pickedLooks.map(c=>triple(makeBoard(library,a,c,1,'close'))));
   // A Close board is near a picked look when it shares at least two of its three parts; only those are recommended.
@@ -588,7 +750,7 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
   const displayedKeys=new Set((a.displayedBoards??[]).map(boardKey));
   const chosen=[],spares=[],seen=new Set([...(a.shown??[]),...(a.picks??[])].map(boardKey).filter(key=>!a.pageDisplayed||!displayedKeys.has(key)));
   const roundPage=command==='round1'||(command==='variations'&&!a.picks.length);
-  let groups=copy(GROUPS);
+  let groups=copy(GROUPS),feasibilitySearch=false;
   const accept=(c,group,number,base)=>!excluded.has(boardKey(makeBoard(library,a,c,number,group,base)))&&!refused(makeBoard(library,a,c,number,group,base))&&(!checker||checker.accept(c,group,number,base));
   const finishReplacement=(start,c)=>{ for(const r of replacements.slice(start)) r.replacement=summary(c); };
   const rankedSpares=(eligible,next)=>{
@@ -606,7 +768,7 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
     c.ground=ground(b.palette.overrides?.[b.primaryMode]?.ground??c.actualPalette[b.primaryMode].ground);
     if(!roundPage) {
       const parent=a.picks[Number(b.group.slice(5))-1];
-      c.parent=parent.number;c.changedParts=BOARD_PARTS.filter(field=>partKey(b,field)!==partKey(parent,field));
+      c.parent=parent.number;c.changedParts=VARIED_PARTS.filter(field=>partKey(b,field)!==partKey(parent,field));
     }
     return c;
   };
@@ -615,8 +777,22 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
       groups=[{id:'looks',label:'Whole looks'}];
       const fresh=!!a.shown?.length,lookPool=fresh?freshLooks(pool,a.shown,library,a.kept):pool;
       const checkLook=(c,slot)=>accept(effective(c,a,library),'looks',slot);
-      const found=fresh?chooseFreshLooks(lookPool,checkLook,replacements):chooseLooks(lookPool,checkLook,(c,slot)=>{for(const r of replacements.filter(r=>r.slot===slot))r.replacement=summary(c);});
-      if(fresh) for(const r of replacements) r.replacement=summary(found.chosen[r.slot-1]);
+      // Keep the checked greedy page and its replacements when it succeeds.
+      // Incomplete leaders, contrasts or coverage trigger the feasibility
+      // search; discard refusals from the abandoned greedy attempt first.
+      let search=fresh,found;
+      if(!search) {
+        const start=replacements.length;
+        try { found=chooseLooks(lookPool,checkLook,(c,slot)=>{for(const r of replacements.filter(r=>r.slot===slot))r.replacement=summary(effective(c,a,library));}); }
+        catch(error) {
+          if(error.message!=='looks: no passing distinct leader remains. Correct the answers; see select.mjs help.'&&error.message!=='looks: no passing one- or two-dial contrast remains. Correct the answers; see select.mjs help.'&&error.message!=='looks: no passing page covers two plain grounds and all five marks. Correct the answers; see select.mjs help.') throw error;
+          replacements.length=start;
+          search=true;
+        }
+      }
+      feasibilitySearch=search;
+      if(search) found=chooseFreshLooks(lookPool,checkLook,replacements);
+      if(search) for(const r of replacements) r.replacement=summary(effective(found.chosen[r.slot-1],a,library));
       chosen.push(...found.chosen.map(c=>effective(c,a,library)));spares.push(...found.spares);
     } else if(roundPage) {
       if(unsteered) groups.forEach((g,i)=>g.label=['First set','Second set','Third set'][i]);
@@ -624,21 +800,21 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
       const total=Object.keys(a.kept??{}).length?11:12;
       const fixedGround=!!a.kept?.palette?.id || ['light','dark'].some(mode=>own(a.kept?.palette?.overrides?.[mode]??{},'ground'));
       const strongest=Object.keys(AXES).filter(k=>Math.abs(state.dials[k])>=2);
-      const pagePool=mode=>pool.map(c=>{
-        const candidate=effective({...c,mode:mode??(c.palette.energy==='dark-first'?'dark':'light')},a,library);
+      const pagePool=()=>pool.map(c=>{
+        const candidate=effective({...c,mode:a.mode},a,library);
         candidate.identity=boardKey(makeBoard(library,a,candidate,1,'angle'));
         return candidate;
       });
-      const nativePool=pagePool(),darkPool=state.darkLed?pagePool('dark'):nativePool;
+      const nativePool=pagePool();
       for(const group of groups) {
         const graphics=new Set();
         for(let slot=0;slot<(group.id==='angle'?total-8:4);slot++) {
-          const missing=ENERGIES.filter(e=>!chosen.some(c=>c.palette.energy===e)), remaining=total-chosen.length;
+          const missing=energies.filter(e=>!chosen.some(c=>c.palette.energy===e)), remaining=total-chosen.length;
           // Cover energies that cannot occur on the opposite strong dial
           // before reaching the angle group (for example bright/classic).
           const beforeAngle=8-chosen.length;
           const freshNative=nativePool.filter(c=>!seen.has(c.identity)&&!excluded.has(c.identity));
-          const available=(state.darkLed&&group.id==='close'&&slot<2?darkPool:nativePool).filter(c=>!seen.has(c.identity)&&!excluded.has(c.identity)&&(group.id!=='close'||!passedOver.has(triple(makeBoard(library,a,c,1,'close')))));
+          const available=nativePool.filter(c=>!seen.has(c.identity)&&!excluded.has(c.identity)&&(group.id!=='close'||!passedOver.has(triple(makeBoard(library,a,c,1,'close')))));
           const remainingEnergies=new Set([...freshNative,...available].map(c=>c.palette.energy));
           const exhausted=missing.filter(e=>!remainingEnergies.has(e));
           if(exhausted.length&&!a.pageDisplayed) fail('round1',`energy ${exhausted.join(', ')} is exhausted: no unshown board remains`);
@@ -648,7 +824,7 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
             if(palettes.has(c.palette.id)||graphics.has(c.graphicSet.id)) return false;
             if(group.id!=='angle'&&early.length>=beforeAngle&&!early.includes(c.palette.energy)) return false;
             if((missing.length>=remaining||(group.id==='angle'&&missing.length))&&!missing.includes(c.palette.energy))return false;
-            if(group.id==='close'&&!fixedGround&& (groundFamilies.has(c.ground.family)||darks+Number(c.ground.dark)>2))return false;
+            if(group.id==='close'&&!fixedGround&& (groundFamilies.has(c.ground.family)||a.mode==='light'&&darks+Number(c.ground.dark)>2))return false;
             if(group.id==='angle'&&!unsteered&&strongest.length && strongest.filter(k=>c.positions[k]!=='either'&&chosen[0].positions[k]!=='either'&&c.positions[k]!==chosen[0].positions[k]).length!==1)return false;
             return true;
           });
@@ -665,21 +841,21 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
           if(group.id==='close') {groundFamilies.add(next.ground.family);darks+=Number(next.ground.dark);}
         }
       }
-      if(a.kept?.palette?.id) notes.push('A fixed complete palette takes precedence over five-energy coverage and ground-family variety; every board names its actual fixed palette energy.');
-      else if(fixedGround) notes.push('Kept ground roles take precedence over ground-family variety; the page still covers five recipe energies.');
+      if(a.kept?.palette?.id) notes.push('A fixed complete palette takes precedence over available-energy coverage and ground-family variety; every board names its actual fixed palette energy.');
+      else if(fixedGround) notes.push('Kept ground roles take precedence over ground-family variety; the page still covers the available recipe energies.');
     } else {
       groups=a.picks.map((b,i)=>({id:`pick-${i+1}`,label:`Variations of board ${b.number}`}));
-      for(const [pickIndex,base] of a.picks.entries()) {
+      for(const [pickIndex,saved] of a.picks.entries()) {
+        const base={...assemblyBoard(saved),primaryMode:a.mode};
         const seed=info(library,part(library,'palettes',base.palette.id),part(library,'pairings',base.pairing.id),part(library,'graphics',base.graphicSet.id),state.dials);
         seed.typeLoudness=typeLoudness(base,library);
         const headingFrom=a.kept?.headingFrom??base.pairing.headingFrom;
         // A fixed heading is not a new type choice just because the backing
         // pairing id changes. Keep its pairing, body and donor reference intact.
         const fixedPairing=a.kept?.pairing??(headingFrom?base.pairing.id:null);
-        const variationPool=headingFrom?candidates(library,state,a,refused,headingFrom):pool;
-        const ranked=[],modes=a.kept?.primaryMode?[a.kept.primaryMode]:['light','dark'];
+        const ranked=[],modes=[a.mode];
         const containers=base.markFile||a.kept?.markFile?[undefined]:library.containers.map(c=>c.id);
-        for(const c of variationPool) {
+        for(const c of pool) {
           if((fixedPairing&&c.pairing.id!==fixedPairing)||(a.kept?.palette?.id&&c.palette.id!==a.kept.palette.id)) continue;
           // Prune before cloning full board records. Kept parts cannot move.
           const partChanges=Number((a.kept?.pairing??c.pairing.id)!==base.pairing.id)+Number((a.kept?.palette?.id??c.palette.id)!==base.palette.id)+Number(c.graphicSet.id!==base.graphicSet.id);
@@ -689,7 +865,7 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
             const candidate=effective({...c,mode,container,base,parent:base.number},a,library);
             const board=makeBoard(library,a,candidate,1,groups[pickIndex].id,base);
             if(refused(board)) continue;
-            candidate.changedParts=BOARD_PARTS.filter(field=>partKey(board,field)!==partKey(base,field));
+            candidate.changedParts=VARIED_PARTS.filter(field=>partKey(board,field)!==partKey(base,field));
             if(!candidate.changedParts.length||candidate.changedParts.length>2) continue;
             candidate.identity=boardKey(board);
             if(seen.has(candidate.identity)) continue;
@@ -750,10 +926,10 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
           const members=proposed.filter(x=>x.group===g.id);
           if(new Set(members.map(x=>x.graphicSet.id)).size!==members.length||(!kept.pairing&&new Set(members.map(x=>x.pairing.id)).size!==members.length)) return false;
         }
-        if(!kept.palette?.id&&ENERGIES.some(e=>!proposed.some(x=>x.palette.energy===e))) return false;
+        if(!kept.palette?.id&&energies.some(e=>!proposed.some(x=>x.palette.energy===e))) return false;
         const fixedGround=!!kept.palette?.id||['light','dark'].some(mode=>own(kept.palette?.overrides?.[mode]??{},'ground'));
         const close=proposed.filter(x=>x.group==='close');
-        if(!fixedGround&&(new Set(close.map(x=>x.ground.family)).size!==close.length||close.filter(x=>x.ground.dark).length>2)) return false;
+        if(!fixedGround&&(new Set(close.map(x=>x.ground.family)).size!==close.length||a.mode==='light'&&close.filter(x=>x.ground.dark).length>2)) return false;
         const strong=Object.keys(AXES).filter(k=>Math.abs(state.dials[k])>=2);
         return unsteered||!strong.length||proposed.filter(x=>x.group==='angle').every(x=>strong.filter(k=>x.positions[k]!=='either'&&proposed[0].positions[k]!=='either'&&x.positions[k]!==proposed[0].positions[k]).length===1);
       };
@@ -793,15 +969,53 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
     const selection=page(a,boards,groups);
     const result={command,selection,dials:state.dials,wholeLookBoosts:boosts,darkLed:state.darkLed,brightColour:state.brightColour,ignoredNudges:state.ignored,positions:chosen.map(summary),spares:spares.map((list,i)=>({slot:i+1,ranked:list.map(summary)})),replacements,checks:{enabled:check,attempts:checker?.attempts??0},notes};
     if(command==='looks') {
+      result.checks.feasibilitySearch=feasibilitySearch;
       result.looks=chosen.map((c,i)=>({value:lookId(c),label:`${c.pairing.name} / ${c.palette.name} / ${c.graphicSet.name}`,kind:c.kind,...summary(c)}));
+      result.controls=pageControls(a);
       result.options=result.looks.map((look,i)=>{
         const b=boards[i];
         const names=[part(library,'pairings',b.pairing.id).name,part(library,'palettes',b.palette.id).name,part(library,'graphics',b.graphicSet.id).name];
-        return {value:look.value,label:names.join(', '),board:{pairing:copy(b.pairing),palette:copy(b.palette),graphicSet:copy(b.graphicSet),primaryMode:b.primaryMode,...(b.container?{container:b.container}:{}),handwriting:b.handwriting,buttonRadius:b.buttonRadius}};
+        let steps=(a.kept?.palette?[chosen[i]]:pool.filter(step=>step.style.id===chosen[i].style.id&&step.family===chosen[i].family)).sort((x,y)=>['muted','balanced','bold'].indexOf(paletteFamily(x.palette.id).step)-['muted','balanced','bold'].indexOf(paletteFamily(y.palette.id).step)).flatMap(step=>{
+          const candidate=effective(step,a,library),board=makeBoard(library,a,candidate,i+1,'looks');
+          const depth=Object.fromEntries(['light','dark'].map(mode=>[mode,cardDepth(library,step.palette,step.style,mode)]));
+          if(['light','dark'].some(mode=>refused({...board,primaryMode:mode,depth:depth[mode]})||checker&&!checker.acceptBoard({...board,primaryMode:mode,depth:depth[mode]}))) return [];
+          const label=[part(library,'pairings',board.pairing.id).name,part(library,'palettes',board.palette.id).name,part(library,'graphics',board.graphicSet.id).name].join(', ');
+          // An overlay can only replace fields, so a field the option's own depth carries and this
+          // step's lacks is stated at its default (Form's depth table); omit a step without one.
+          if(Object.values(depth).some(fields=>Object.keys(b.depth??{}).some(key=>!Object.hasOwn(fields,key)&&!Object.hasOwn(STEP_DEPTH_DEFAULTS,key)))) return [];
+          const overlay=Object.fromEntries(Object.entries(depth).map(([mode,fields])=>{
+            const own=Object.fromEntries(Object.entries(fields).filter(([key,value])=>JSON.stringify(stable(value))!==JSON.stringify(stable(b.depth?.[key]))));
+            for(const key of Object.keys(b.depth??{})) if(!Object.hasOwn(fields,key)) {
+              if(JSON.stringify(b.depth[key])!==JSON.stringify(STEP_DEPTH_DEFAULTS[key])) own[key]=STEP_DEPTH_DEFAULTS[key];
+            }
+            return [mode,own];
+          }).filter(([,fields])=>Object.keys(fields).length));
+          return [{value:lookId(step),label,palette:copy(board.palette),...(Object.keys(overlay).length?{depth:overlay}:{})}];
+        });
+        if(!steps.some(step=>step.value===look.value)) fail('steps','look has no passing own step in both modes');
+        steps=contiguousSteps(steps,look.value);
+        look.steps=copy(steps);
+        if(a.kept?.palette)steps=steps.map(({palette,...step})=>step);
+        return {value:look.value,label:names.join(', '),steps,board:{pairing:copy(b.pairing),palette:copy(b.palette),graphicSet:copy(b.graphicSet),primaryMode:b.primaryMode,...(b.container?{container:b.container}:{}),depth:copy(b.depth),handwriting:b.handwriting,buttonRadius:b.buttonRadius}};
       });
       // Associate every rejected look with the actual passing choice for its slot.
     }
-    if(command!=='looks') Object.assign(result,boardsForm(a,selection,selectionDir,command));
+    if(command!=='looks') {
+      for(const b of boards) {
+        const owner=assemblyBoard(b);
+        b.value=boardValue(owner,owner);
+        b.steps=library.palettes.filter(p=>a.kept?.palette?p.id===owner.palette.id:paletteFamily(p.id).family===paletteFamily(owner.palette.id).family).flatMap(p=>{
+          const step={...copy(owner),palette:{...copy(owner.palette),id:p.id},energy:p.energy};
+          step.name=p.id===owner.palette.id?owner.name:boardLabel(library,step);
+          if(['light','dark'].some(mode=>refused({...step,primaryMode:mode})||checker&&!checker.acceptBoard({...step,primaryMode:mode}))) return [];
+          return [{value:boardValue(owner,step),...step}];
+        });
+        if(!b.steps.some(step=>step.value===b.value)) fail('steps',`board ${b.number} has no passing own step in both modes`);
+        b.steps=contiguousSteps(b.steps,b.value);
+      }
+      Object.assign(result,boardsForm(a,selection,selectionDir,command));
+    }
+    result.checks.attempts=checker?.attempts??0;
     return result;
   } catch(error) {
     if(unseenRetry) throw Error(`avoid: unseen page rebuilt, but cannot fill a complete page: ${error.message}`);
@@ -857,8 +1071,9 @@ export function run(argv) {
   if(answers.kept?.markFile)answers.kept.markFile=file(resolve(dirname(answersPath),answers.kept.markFile));
   const result=select(command,answers,{check:!!options['--check'],selectionDir:dirname(answersPath),unsteered:!!options['--unsteered']});
   // Even without --check, malformed fixed assets and selections cannot succeed.
-  assemble(result.selection,load(LIBRARY),{selectionDir:dirname(answersPath)});
-  if(output) { writeFileSync(output,JSON.stringify(result.selection,null,2)+'\n',{flag:'wx'});result.output=output; }
+  const assembly=selectionForAssembly(result.selection);
+  assemble(assembly,load(LIBRARY),{selectionDir:dirname(answersPath)});
+  if(output) { writeFileSync(output,JSON.stringify(assembly,null,2)+'\n',{flag:'wx'});result.output=output; }
   return result;
 }
 export function main(argv=process.argv.slice(2)) {

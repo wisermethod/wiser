@@ -1,5 +1,6 @@
 // Portable form contract: no DOM, Node globals or package runtime.
-import { BOARD_LIMITS as B, BOARD_KEYS, BOARD_DEFAULT_KEYS, resolveBoards, checkLogo, displayOnly } from "./boards.js";
+import { BOARD_LIMITS as B, BOARD_KEYS, BOARD_DEFAULT_KEYS, resolveBoards, stepBoard, palettePosition, checkLogo, displayOnly } from "./boards.js";
+import { depthSchema } from "../engine/boards-lib.js";
 export const FORM_LIMITS = Object.freeze({
   idMax: 40, titleMin: 1, titleMax: 80, introMax: 300,
   fontsMin: 1, fontsMax: 6, familyMax: 40, fontSrcMax: 300,
@@ -54,6 +55,8 @@ const FAMILY = /^[A-Za-z][A-Za-z0-9]*(?: [A-Za-z0-9]+)*$/;
 const SLOT = /^[a-z][a-z0-9-]{0,29}$/;
 // Line and paragraph separators break a line as a newline does, so they are refused with the controls.
 const CONTROL = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/;
+// In Unicode mode a valid surrogate pair is one code point outside this range.
+const LONE_SURROGATE = /[\uD800-\uDFFF]/u;
 const HEX = /^#(?:[a-f0-9]{3}|[a-f0-9]{6})$/i;
 const GENERICS = ["serif", "sans-serif", "monospace", "system-ui"];
 // Names CSS reads as a keyword rather than a family, refused as declared families whatever their case.
@@ -66,7 +69,8 @@ const record = o => o !== null && typeof o === "object" && !Array.isArray(o) &&
 const pathKey = (p, k) => p ? `${p}.${k}` : k;
 const length = s => [...s].length;
 const tokens = s => [...s.matchAll(/\{\{([^{}]*)\}\}/g)];
-const tokenField = p => /^(title|intro|questions\[\d+\]\.(label|short|help|placeholder|minLabel|maxLabel)|questions\[\d+\]\.options\[\d+\]\.(label|note|picture|sample)|fonts\[\d+\]\.(family|src))$/.test(p);
+const tokenField = p => /^(title|intro|questions\[\d+\]\.(label|short|help|placeholder|minLabel|maxLabel)|questions\[\d+\]\.options\[\d+\]\.(label|note|picture|sample|steps\[\d+\]\.label)|fonts\[\d+\]\.(family|src))$/.test(p);
+const deepEqual = (a,b) => a===b || record(a)&&record(b)&&Object.keys(a).length===Object.keys(b).length&&Object.keys(a).every(k=>own(b,k)&&deepEqual(a[k],b[k]));
 const nearInteger = n => Number.isFinite(n) && Math.abs(n - Math.round(n)) <= Number.EPSILON * Math.max(1, Math.abs(n)) * 8;
 
 function validate(value, template = false) {
@@ -77,6 +81,7 @@ function validate(value, template = false) {
   function scan(v, p) {
     if (typeof v === "string") {
       if (CONTROL.test(v)) add(p, "Control characters are refused.");
+      if (LONE_SURROGATE.test(v)) add(p, "Lone surrogates are refused.");
       if (template && (v.includes("{{") || v.includes("}}"))) {
         const found = tokens(v);
         if (!tokenField(p)) add(p, "Tokens are not allowed here.");
@@ -96,6 +101,7 @@ function validate(value, template = false) {
       for (const k of Object.keys(v)) {
         const next = Array.isArray(v) ? `${p}[${k}]` : pathKey(p, k);
         if (CONTROL.test(k)) add(next, "Control character in key.");
+        if (LONE_SURROGATE.test(k)) add(next, "Lone surrogate in key.");
         if (template && (k.includes("{{") || k.includes("}}"))) add(next, "Tokens are not allowed in keys.");
         scan(v[k], next);
       }
@@ -185,7 +191,7 @@ function validate(value, template = false) {
     if (!record(q)) { add(p,"Expected an object."); return; }
     const choice = ["radio","checkbox","image-radio","image-checkbox"].includes(q.type), image = ["image-radio","image-checkbox"].includes(q.type);
     const boards = q.type === "boards";
-    const extra = boards ? ["options","pick","view","min"] : choice ? ["options"] : q.type === "slider" ? ["min","max","step","value","minLabel","maxLabel"] : q.type === "text" ? ["placeholder"] : [];
+    const extra = boards ? ["options","pick","view","min","controls"] : choice ? ["options"] : q.type === "slider" ? ["min","max","step","value","minLabel","maxLabel"] : q.type === "text" ? ["placeholder"] : [];
     object(q,p,["id","type","label","short","help",...extra],["id","type","label",...(boards ? ["options","pick"] : choice ? ["options"] : q.type === "slider" ? ["min","max"] : [])]);
     strings(q,p,[["id",1,L.idMax,ID],["label",1,L.questionLabelMax],["short",0,L.shortMax],["help",0,L.helpMax]]);
     if (typeof q.id === "string") { if (ids.has(q.id)) add(`${p}.id`,"Question id must be unique."); ids.add(q.id); }
@@ -207,21 +213,67 @@ function validate(value, template = false) {
       if(own(q,"view") && !["board","look"].includes(q.view)) add(`${p}.view`,"Expected board or look.");
       if(own(q,"min") && (!Number.isInteger(q.min)||q.min<1||q.min>q.pick)) add(`${p}.min`,"Expected a whole number from 1 to pick.");
       else if(own(q,"min") && Array.isArray(q.options) && q.min>q.options.length) add(`${p}.min`,"Expected no more than the number of boards.");
+      if(own(q,"controls")) {
+        if(object(q.controls,`${p}.controls`,["mode","strength"])) {
+          if(!Object.keys(q.controls).length)add(`${p}.controls`,"Supply mode or strength.");
+          if(own(q.controls,"mode")&&!["light","dark"].includes(q.controls.mode))add(`${p}.controls.mode`,"Expected light or dark.");
+          if(own(q.controls,"strength")&&q.controls.strength!==true)add(`${p}.controls.strength`,"Expected true.");
+        }
+        if(!(q.pick>=1))add(`${p}.controls`,"Controls need pick of at least one.");
+      }
       if(!own(value,"brand")) add("brand","Boards require the shared brand.");
       if(array(q.options,`${p}.options`,1,12)) {
-        const values=new Set();let recommended=0;
+        const values=new Map();let recommended=0;
         q.options.forEach((o,j)=>{
           const op=`${p}.options[${j}]`;
-          if(!object(o,op,["value","label","note","recommendation","board"],["value",...(q.view==="look"?[]:["label"]),"board"]))return;
+          if(!object(o,op,["value","label","note","recommendation","board","steps"],["value",...(q.view==="look"?[]:["label"]),"board"]))return;
           strings(o,op,[["value",1,L.optionValueMax,VALUE],["label",1,B.label],["note",0,B.note],["recommendation",1,B.recommendation]]);
-          if(values.has(o.value))add(`${op}.value`,"Option value must be unique.");values.add(o.value);
+          if(values.has(o.value))add(`${op}.value`,"Option value must be unique.");else values.set(o.value,j);
           if(own(o,"recommendation") && ++recommended>2)add(`${op}.recommendation`,"At most two recommendations.");
           if(q.view==="look" && own(o,"recommendation"))add(`${op}.recommendation`,"Looks carry no recommendation.");
           if(!record(o.board)) { add(`${op}.board`,"Expected an object."); return; }
           const merged={...(record(value.boardDefaults)?value.boardDefaults:{}),...o.board};
           if(!object(merged,`${op}.board`,BOARD_KEYS,["pairing","palette","graphicSet","primaryMode"]))return;
+          if(record(q.controls)&&own(q.controls,"mode")&&o.board.primaryMode!==q.controls.mode)add(`${op}.board.primaryMode`,"Expected the controls mode.");
+          if(!own(o,"steps")&&(q.controls?.strength===true||q.view==="look"&&own(q.controls??{},"mode")))add(`${op}.steps`,"These controls need steps on every option.");
           // Validate each option to locate independent failures; then validate the page too.
           try { resolveBoards(value.brand,[o],value.boardDefaults); } catch(e) { add(`${op}.board`,e.message); }
+        });
+        q.options.forEach((o,j)=>{
+          if(!record(o)||!own(o,"steps"))return;
+          const op=`${p}.options[${j}]`,sp=`${op}.steps`;
+          if(!array(o.steps,sp,1,3))return;
+          let matching=0,previous=-1;
+          const family=palettePosition(o.board?.palette?.id)?.family;
+          o.steps.forEach((step,k)=>{
+            const at=`${sp}[${k}]`;
+            if(!object(step,at,["value","label","palette",...(q.view==="look"?["depth"]:[])],["value",...(step?.value===o.value?[]:["palette"])]))return;
+            strings(step,at,[["value",1,L.optionValueMax,VALUE],["label",1,B.label]]);
+            if(typeof step.label==='string'&&!deferred.has(`${at}.label`)&&!step.label.trim())add(`${at}.label`,"Step label must not be blank.");
+            if(values.has(step.value)&&(step.value!==o.value||values.get(step.value)!==j))add(`${at}.value`,"Step value must be unique across the question.");
+            // The one matching step may share its own option's value, exactly once.
+            const palette=own(step,"palette")?step.palette:o.board?.palette;
+            if(step.value===o.value&&palette?.id===o.board?.palette?.id)matching++;
+            if(step.value!==o.value&&!values.has(step.value))values.set(step.value,j);
+            if(o.steps.slice(0,k).some(s=>s?.value===step.value))add(`${at}.value`,"Step value must be unique.");
+            if(own(step,"palette")&&object(step.palette,`${at}.palette`,["id","overrides"],["id"]))strings(step.palette,`${at}.palette`,[["id",1,60]]);
+            const position=palettePosition(palette?.id);
+            if(!position||position.family!==family||position.index<=previous)add(`${at}.palette`,"Expected this colour family's steps in muted, balanced, bold order.");
+            if(position)previous=position.index;
+            if(q.view==="look"&&own(step,"depth")&&object(step.depth,`${at}.depth`,["light","dark"])) {
+              for(const mode of ['light','dark'])if(own(step.depth,mode))object(step.depth[mode],`${at}.depth.${mode}`,Object.keys(depthSchema.properties));
+            }
+            if(!record(o.board))return;
+            for(const mode of q.view==="look"?["light","dark"]:[o.board.primaryMode]) {
+              try {
+                const board=stepBoard(o,step,q.view,mode);
+                if(q.view==="look"&&mode===o.board.primaryMode&&step.value===o.value&&palette?.id===o.board.palette?.id&&!deepEqual(board.depth??{},o.board.depth??{}))add(`${at}.depth`,"The matching step's merged primary-mode depth must equal board.depth.");
+                resolveBoards(value.brand,[{...o,label:step.label??o.label??`Look ${j+1}`,board}],value.boardDefaults);
+              }
+              catch(e) { add(at,e.message); }
+            }
+          });
+          if(matching!==1)add(sp,"Exactly one step must match the option value and palette id.");
         });
         if(problems.length===0) try { resolveBoards(value.brand,q.options,value.boardDefaults); } catch(e) { add(`${p}.options`,e.message); }
       }
@@ -304,7 +356,7 @@ export function formJsonSchema() {
   const str = (max, description, min = 0, pattern) => ({ type: "string", minLength: min,
     // Zod's conversion counts UTF-16 units. The pattern keeps code-point limits and
     // the broad maxLength also admits astral characters in that consumer.
-    maxLength: max * 2, pattern: pattern || `^(?:[\\uD800-\\uDBFF][\\uDC00-\\uDFFF]|[^\\u0000-\\u001f\\u007f-\\u009f]){${min},${max}}$`, description });
+    maxLength: max * 2, pattern: pattern || `^(?:[\\uD800-\\uDBFF][\\uDC00-\\uDFFF]|[^\\u0000-\\u001f\\u007f-\\u009f\\uD800-\\uDFFF\\u2028\\u2029]){${min},${max}}$`, description });
   const obj = (properties, required, description) => ({ type: "object", properties, required, additionalProperties: false, description });
   const arr = (items,minItems,maxItems,description) => ({ type: "array",items,minItems,maxItems,description });
   const line = (max=L.formBytesMax) => str(max,"Plain single-line text.",1);
@@ -320,11 +372,13 @@ export function formJsonSchema() {
     note:obj({text:line(),direction:{type:"string",enum:["left","right","up","down"]}},["text","direction"],"Margin note."),
     sample:obj(Object.fromEntries(['kicker','title','phrase','body','note','meta'].map(k=>[k,line()]).concat([["steps",arr(line(),1,L.formBytesMax)]])),['kicker','title','phrase','body','note','meta','steps'],"Supplied sample copy, as select.mjs names it."),
     items:obj(Object.fromEntries(['cardLine','cardBack','bannerHeadline','bannerLine','contact','primaryAction','secondaryAction','cardBackShort','tileBannerHeadline'].map(k=>[k,line()])),['cardLine','cardBack','bannerHeadline','bannerLine','contact','primaryAction','secondaryAction'],"Card and banner copy, as select.mjs names it."),
-    closingExamples:arr(line(),2,3)
-  },["pairing","palette","graphicSet","primaryMode"],"Board library references exactly as select.mjs names them. All ids must exist. Container required without brand.logo, refused with it. Contact Sheet checks both modes, SVG, type matching and font weight coverage. Supplied font files are not transmissible.");
+    closingExamples:arr(line(),2,3),
+    depth:{...JSON.parse(JSON.stringify(depthSchema)),description:"Optional per-option look drawing. Contact Sheet's closed depth schema checks the colour, gradient and contrast rules; see the depth table under the look view in tools/Form/TOOL.md. Refused in boardDefaults."}
+  },["pairing","palette","graphicSet","primaryMode"],"Board library references exactly as select.mjs names them. All ids must exist. Container required without brand.logo, refused with it. Contact Sheet checks contrast in both modes, SVG and font weight coverage. Supplied font files are not transmissible.");
   const option = obj({
     value: str(L.optionValueMax,"Unique option value: 1 to 40 lowercase letters, digits or hyphens, starting with a letter or digit.",1,VALUE.source),
     label: str(B.label,"Option label: boards up to 120 code points, other types up to 60.",1), note: str(B.note,"Optional note: boards up to 300 code points, others up to 80. In board view, absent note draws brand.words as {word}, not {not}, joined with semicolon and space; an explicit note, including empty, wins."),
+    steps:arr(obj({label:str(B.label,"Optional showing step label, 1 to 120 code points, under the option label rules. Used for the caption, full-size heading, shown and answer summary; absent falls back to the option label or default look label.",1),value:str(L.optionValueMax,"Unique across the whole question, except the one step matching its own option value and palette id.",1,VALUE.source),palette:{...board.properties.palette,description:"Same palette reference as board.palette, including role overrides, ordered muted to balanced to bold. May be omitted only when this step value equals its option value; then inherit board.palette whole."},depth:obj({light:JSON.parse(JSON.stringify(depthSchema)),dark:JSON.parse(JSON.stringify(depthSchema))},[],"Optional in look view only. Each optional mode lists only fields differing from board.depth; equal fields are refused. Merge as {...board.depth, ...step.depth?.[mode]}, replacing each listed field whole. Absent depth or mode means no difference. The merged depth passes every whole-depth check in both modes; the matching step's merged primary-mode depth deep-equals board.depth.")},["value"],"Boards only. Only the own-value step may omit palette and inherit board.palette whole. Board view refuses step depth. Exactly one entry matches the option's value and board.palette.id."),1,3,"Boards only. Required on every option with controls.strength or look-view controls.mode. Each step replaces only palette and, in look view, overlays depth fields for the showing mode. Values are unique across steps and all options, except the own matching step."),
     board, recommendation:str(B.recommendation,"Boards only; at most two recommended options, one line each.",1),
     picture: str(L.fontSrcMax,"Optional on image types; at least two options in an image question must have a picture. An option without one is a word choice drawn after the tiles. Other question types refuse it. palette:#hex,#hex,... has 1 to 8 colours, each #rgb or #rrggbb. motif:<name>[:#fg,#bg] uses dots, grid, waves, arcs, stripes, rings, triangles or blob and either no colours or exactly two. type:<family>[+<family>][:#fg,#bg] uses one or two declared font families or serif, sans-serif, monospace, system-ui, and either no colours or exactly two. Nothing is fetched for pictures.",1),
     sample: str(L.sampleMax,"Only with a type: picture, refused without a picture; at most 24 code points. Both type families draw this sample when supplied; otherwise the first draws Aa and the second Abc 123.")
@@ -333,6 +387,7 @@ export function formJsonSchema() {
     id: str(L.idMax,"Unique question id: lowercase letter then up to 39 lowercase letters, digits or hyphens.",1,ID.source),
     type: { type:"string",enum:[...TYPES],description:"Supported question type; only that type's keys are accepted by checkForm." },
     label: str(L.questionLabelMax,"Question label, 1 to 200 code points.",1), short: str(L.shortMax,"Optional answer heading, at most 40 code points."),help:str(L.helpMax,"Optional help, at most 300 code points."),
+    controls:obj({mode:{type:"string",enum:["light","dark"],description:"Starting page mode; every option's board.primaryMode must equal it. Sent as top-level mode."},strength:{type:"boolean",enum:[true],description:"Enable More muted and More bold, one supplied adjacent colour-family step per press."}},[],"Boards only, with pick at least 1. Supply mode or strength or both. One bar above all tiles redraws their pictures in place, retaining picks and notes; captions follow any showing step label. Buttons grey when no card can move; gaps are not skipped. Without controls no bar is shown."),
     pick:{type:"integer",enum:[0,1,2,3],description:"Boards only, required: the most picks that may be sent (1, 2 or 3); ticking is unlimited. A sole option with 1 is selected. 0 is display-only with no actions or send."},
     view:{type:"string",enum:["board","look"],description:"Boards only: board (default) draws whole boards; look draws 600 by 360 whole-look tiles, four across from 734px, two below, without full-size controls or recommendations."},
     options:arr(option,1,L.optionsMax,"Boards need 1 to 12 options. Required for choices: 2 to 12 options for radio/checkbox, 2 to 8 for image-radio/image-checkbox, with at least two options carrying a picture. Remaining image options may omit picture and draw as word choices after the tiles, in the same input group. Other types refuse options."),
@@ -348,7 +403,7 @@ export function formJsonSchema() {
     fonts:arr(obj({family:str(L.familyMax,"Font family name, 1 to 40 characters: ASCII letters and digits, starting with a letter, words separated by single spaces; unique ignoring case; never a CSS keyword: serif, sans-serif, monospace, system-ui, cursive, fantasy, emoji, math, fangsong, inherit, initial, unset, revert, default.",1,FAMILY.source),
       src:str(L.fontSrcMax,"HTTPS font URL, at most 300 code points, origin https://fonts.gstatic.com or https://cdn.jsdelivr.net, no query, fragment or credentials, path ending .woff2, .woff, .ttf or .otf.",1)},["family","src"],"Declared font; no generic family names."),L.fontsMin,L.fontsMax,"Optional 1 to 6 declared fonts."),
     brand:obj({name:line(B.name),initials:line(B.initials),sentence:line(B.sentence),body:line(B.body),words:arr(obj({word:line(B.word),not:line(B.word)},["word","not"]),0,B.words),logo:str(B.logoBytes,"Optional kept SVG text, at most 8192 UTF-8 bytes, checked by Contact Sheet's standalone static SVG rules.",1)},["name","initials","sentence","body","words"],"Shared once by every board. Required for boards, otherwise refused."),
-    boardDefaults:obj(Object.fromEntries(BOARD_DEFAULT_KEYS.map(k=>[k,{description:`Shared ${k}, with the same shape as options[].board.${k}. Each option replaces this entire field before validation; unused defaults need not pass board checks. ${board.properties[k].description??""}`} ])),[],"Optional shared board fields, shallowly overlaid by each option board before validation and drawing. Library references pairing, palette, graphicSet, container and primaryMode are refused. Requires a boards question in board view; refused on look view because these fields are not drawn there."),
+    boardDefaults:obj(Object.fromEntries(BOARD_DEFAULT_KEYS.map(k=>[k,{description:`Shared ${k}, with the same shape as options[].board.${k}. Each option replaces this entire field before validation; unused defaults need not pass board checks. ${board.properties[k].description??""}`} ])),[],"Optional shared board fields, shallowly overlaid by each option board before validation and drawing. Library references pairing, palette, graphicSet, container and primaryMode, and per-option depth, are refused. Requires a boards question in board view; refused on look view because these fields are not drawn there."),
     actions:arr(obj({value:str(L.optionValueMax,"Unique action value.",1,VALUE.source),label:line(60),note:str(120,"Optional line beneath the label whenever the action shows."),notes:obj(Object.fromEntries(["none","one","several"].map(k=>[k,str(120,"Optional line replacing note for this count: none 0, one 1, several 2 or more picks. Above pick the engine replaces this line with its limit warning.")])),[],"Count-specific action lines; missing keys fall back to note."),needs:{type:"string",enum:["one","some","any","none"],description:"one exactly 1 pick; some at least the boards min (default 1); any any count; none zero picks. Unmet actions are hidden, take no space and cannot receive focus. Above pick, matching actions stay visible but grey and disabled with an engine-owned warning."}},["value","label","needs"]),2,3,"Boards only. Replaces Send in array order; chosen action is payload.action. Refused on a pick 0 display-only form."),
     questions:arr(question,L.questionsMin,L.questionsMax,"Required 1 to 12 questions; ids must be unique.")
   },["title","questions"],"Wiser form, JSON Schema draft 2020-12 vocabulary. At most 65536 UTF-8 bytes as JSON.stringify writes it. Lengths count code points; no control characters anywhere. Unknown keys, including submitLabel, are refused. checkForm enforces the conditional and cross-field rules described here.");

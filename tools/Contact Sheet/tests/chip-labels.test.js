@@ -10,6 +10,7 @@ import { loadPlaywright } from '../../lib/browser-runtime/browser-runtime.js';
 
 const library = JSON.parse(readFileSync(new URL('../../../skills/Build Brand/parts/parts.json', import.meta.url)));
 test('all library palette labels and hex values fit their chips with 4.5:1 contrast in both modes', async t => {
+  assert.equal(library.palettes.length,30);
   const runtime = await loadPlaywright(), browser = await (runtime.chromium || runtime.default.chromium).launch({ headless: true });
   t.after(() => browser.close());
   const page = await browser.newPage();
@@ -22,6 +23,7 @@ test('all library palette labels and hex values fit their chips with 4.5:1 contr
     const spec = assembleCore(input, library); spec.layout = 'board'; spec.showChecks = false;
     const valid = validateBrandBoards(spec, { add(path) { return { extension: extname(path), uri: 'data:font/' + extname(path).slice(1) + ';base64,' + readFileSync(new URL('../../../skills/Build Brand/parts/' + path, import.meta.url)).toString('base64') }; } }, () => {});
     await page.setContent(renderBrandBoards(valid));
+    await page.evaluate(()=>document.fonts.ready);
     for (const width of [390, 734, 1280]) {
       await page.setViewportSize({ width, height: 900 });
       for (const mode of ['light', 'dark']) {

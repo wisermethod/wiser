@@ -15,7 +15,7 @@ test('M6 item 2: a typed answer or edited-message disagreement keeps the read-ba
   assert.match(step, /ask which is right first/);
 });
 test('M6 item 2: boards and actions retain the direct handoff', () => {
-  assert.match(step, /boards and actions receives the picks and the chosen action straight away at step 7/);
+  assert.match(step, /boards and actions receives the picks, the chosen action and, with page mode controls, `mode` straight away at step 7/);
 });
 test('M6 review: the description and the catalog no longer say every form is read back', () => {
   const catalog = readFileSync(new URL('../../AGENTS.md', import.meta.url), 'utf8');
@@ -24,4 +24,14 @@ test('M6 review: the description and the catalog no longer say every form is rea
     assert.match(text, /handed to the calling skill, read back only where the member typed one/);
     assert.doesNotMatch(text, /with the answers read back and handed/);
   }
+});
+
+test('boards handoff includes the page mode when supplied', () => {
+ assert.match(skill, /Include the chosen action value when the form has actions, and the switch's `mode` when a boards question has `controls.mode`/);
+});
+
+test('missed-wait recovery scrapes controlled board mode before handing answers on',()=>{
+ const gone=skill.split('`gone`:')[1].split('5. Clean up:')[0];
+ assert.match(gone,/controls.mode/);assert.match(gone,/fieldset\[data-type="boards"\]/);
+ assert.match(gone,/`data-mode`/);assert.match(gone,/hand it on as `mode`/);
 });

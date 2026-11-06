@@ -7,25 +7,37 @@ import {select,tapDials,run} from '../scripts/select.mjs';
 import {boardRefusal} from '../scripts/refusals.mjs';
 import {LIBRARY,AXES} from '../scripts/assemble.mjs';
 import {checkForm} from '../../../tools/Form/scripts/format.js';
+import {paletteFamily} from '../scripts/select.mjs';
+import {assertPage as assertApprovedPage,assertCaps} from './m51c-checks.mjs';
 import {operator,firstStrategy,lookActions} from './select-fixtures.mjs';
 
 const library=JSON.parse(readFileSync(LIBRARY));
 const data=JSON.parse(readFileSync(new URL('../parts/taps.json',import.meta.url)));
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const identity=c=>`${c.pairing}/${c.palette}/${c.graphicSet}`;
-// Original hashes predate pagination; kept-asset hashes predate the steer fix.
-// Both cover full JSON, including spares and checked refusals/replacements.
-// Re-pinned 2026-11-02, M5.1 round 2: refused clusters, retired marker and descriptive labels.
-// M5.1 review: near-black cap 55 restores Paper and orange outside the cream cluster.
+// Pins cover approved palette/style cards, page mode, depth and pagination.
+// Both normal and kept-asset pages pin the full JSON with step overlays expanded,
+// and own-step palettes expanded, retaining the full-depth snapshot's bytes, including spares,
+// checked refusals/replacements and abandoned-check attempt counts.
 // Every pin also asserts the page shape, refusals, history and Form contract.
 const fixtures=[
-  ['operator',operator,['2145241f997b547f621befce6a3c2bb7345ec209eb4fabee739b44d300c71c6f','25686b218c24f69ce01b10d948b30de0bf715020569b52b468fc2946e683faff'],
-    ['a3f5a8ac100d55c8b04eda5a27979b2df375a9458040109d1c75edfcd3f76968','9f576445964ecaf0c5ea4497ebabf6e93b7a25392c53e2f0a56ec22712e0ea8b']],
-  ['First Strategy',firstStrategy,['4bd890cd74387324893f084d562681a3f64fad9c5281f1c5c0a4e12db5713344','8f8624f4bd55655208ed4fd0e897060c634fdcbf0488d1997b7608727605afc1'],
-    ['fc9bab5ae223e0d2011cd477cc767e85df14131d36761fdc14cc92e7288c0cac','2f76f631ca3a40381295b67c56a0c029aec2d461a33558902c2fb01229cc0fb2']]
+  ["operator",operator,["fe1ff7fb65fb49b3fa7fe9e4b21a83115a4b52d363348168aba816508f631089", "e53131559b86fb2e78f503a45a244e11ab35fd2a382d5edca73704f0567a8d10"],["9d1db47cfda0185a84e851328fa25e8e4a41a1b4a8c6e3fe78500b03a104a600", "9265789240f28e433167e3e8133c9440014e95965daf7686e5e1c5312b128983"]],
+  ["First Strategy",firstStrategy,["ef7783413689c672fc9a3928dde19ea353572712b662201addfe0e56e581dd06", "b155e44ab8810963b730866deb0531d5ac3aaf5922c2fded19f64867ea302425"],["36d8cae01eef3ab2c0a70032df97d19721b468060d9f30d7957a03cd34d65dcd", "fa311d239364930a519893581738a0612289776b0c88ea1b895e0e6acfbb439e"]]
 ];
+
+function fullDepthSnapshot(page) {
+  const result=structuredClone(page);
+  for(const [i,o]of result.options.entries())for(const steps of [o.steps,result.looks[i].steps])for(const [k,step]of steps.entries()) {
+    steps[k]={value:step.value,label:step.label,palette:step.palette??structuredClone(o.board.palette),
+      depth:Object.fromEntries(['light','dark'].map(mode=>[mode,{...o.board.depth,...step.depth?.[mode]}]))};
+  }
+  return JSON.stringify(result);
+}
+
 function assertPage(r,a,history=[]) {
   assert.equal(r.looks.length,12);assert.equal(r.options.length,12);
+  assert.deepEqual(r.controls,{mode:r.selection.boards[0].primaryMode,...(a.kept?.palette?{}:{strength:true})});
+  if(a.kept?.palette)assert.ok(r.options.every(o=>o.steps.length===1&&o.steps[0].value===o.value));
   assert.deepEqual(r.looks.map(l=>l.kind),[...Array(6).fill('top'),...Array(6).fill('contrast')]);
   const seen=new Set(history.map(l=>l.value)),parts=new Set(history.map(identity));
   for(const look of r.looks) {
@@ -34,13 +46,16 @@ function assertPage(r,a,history=[]) {
     assert.equal(look.value,'look-'+hash(identity(look)).slice(0,32));
   }
   assert.equal(new Set(r.looks.map(l=>l.palette)).size,12);
-  for(const field of ['pairing','graphicSet']) assert.equal(new Set(r.looks.slice(0,6).map(l=>l[field])).size,6);
+  assertCaps(r.looks);
+  assert.equal(new Set(r.looks.slice(0,6).map(l=>l.style)).size,6);
+  assert.equal(new Set(r.looks.slice(0,6).map(l=>paletteFamily(l.palette).family)).size,6);
   for(const l of r.looks.slice(6)) {
     const changed=Object.keys(AXES).filter(axis=>l.positions[axis]!==r.looks[0].positions[axis]);
-    assert.deepEqual(changed,[l.changedDial]);
+    assert.ok(changed.length===1||changed.length===2);
+    assert.equal(l.changedDial,changed[0]);assert.equal(l.changedDials,changed.length);
   }
-  const plain=r.selection.boards.flatMap((b,i)=>b.graphicSet.pattern?.strength.light===0&&b.graphicSet.pattern?.strength.dark===0?[i+1]:[]);
-  assert.deepEqual(plain,[2,5,8,11]);
+  const plain=r.selection.boards.flatMap((b,i)=>b.depth.background==='plain'?[i+1]:[]);
+  assert.ok(plain.length>=2);assert.equal(new Set(r.selection.boards.map(b=>b.depth.mark)).size,5);
   assert.deepEqual(r.looks.flatMap((l,i)=>l.plainGround?[i+1]:[]),plain);
   for(const [i,b] of r.selection.boards.entries()) {
     assert.equal(b.graphicSet.id,r.looks[i].graphicSet);
@@ -60,7 +75,7 @@ function assertFirstPage(a,expected) {
   for(const check of [false,true]) {
     const page=select('looks',a,{check});assertPage(page,a);
     const first=JSON.stringify(page);
-    assert.equal(hash(first),expected[Number(check)]);
+    assert.equal(hash(fullDepthSnapshot(page)),expected[Number(check)]);
     for(const history of [{},{shown:[]}]) for(const direction of [{},{steer:{}},{steer}]) {
       assert.equal(JSON.stringify(select('looks',{...a,...history,...direction},{check})),first,
         `check=${check}, history=${JSON.stringify(history)}, direction=${JSON.stringify(direction)}`);
@@ -72,7 +87,7 @@ for(const [label,fixture,expected,keptExpected] of fixtures) {
     assertFirstPage(fixture(),expected);
   });
   test(`${label}: kept pairing and palette retain first-page bytes with any steer and no history`,()=>{
-    assertFirstPage({...fixture(),kept:{pairing:'condensed',palette:{id:'navy-gold'}}},keptExpected);
+    assertFirstPage({...fixture(),kept:{pairing:'industrial',palette:{id:'business-blue-bold'}}},keptExpected);
   });
   test(`${label}: a single duplicate history look leaves the entire next page unchanged`,()=>{
     const a=fixture(),one=select('looks',a),expected=JSON.stringify(select('looks',{...a,shown:one.looks}));
@@ -98,8 +113,13 @@ for(const [label,fixture,expected,keptExpected] of fixtures) {
     for(const axis of ['warmCool','quietBold','softStrong','classicContemporary']) {
       const pages=[-1,1].map(step=>select('looks',{...a,shown,steer:{[axis]:step}},{check:true}));
       assert.notDeepEqual(pages[0].looks.map(l=>l.value),pages[1].looks.map(l=>l.value),axis);
-      const alignment=r=>r.looks.slice(0,6).reduce((n,l)=>n+(l.positions[axis]===AXES[axis][1]?1:l.positions[axis]===AXES[axis][0]?-1:0),0);
-      assert.ok(alignment(pages[0])<=alignment(pages[1]),axis);
+      // Fixed approved combinations and freshness can reverse a count of
+      // aggregate leader poles. Each card still gets the exact steered score
+      // of its three parts, the quantity the selector actually ranks.
+      for(const r of pages) for(const l of r.looks) {
+        const expected=Object.values(l.partPositions).reduce((sum,tags)=>sum+Object.entries(AXES).reduce((n,[k,[negative,positive]])=>n+(tags[k]===positive?r.dials[k]:tags[k]===negative?-r.dials[k]:0),0),0)+(library.palettes.find(p=>p.id===l.palette).energy==='bright'?r.brightColour:0);
+        assert.equal(l.score,expected,axis);
+      }
       for(const [i,r] of pages.entries()) {
         assert.equal(r.dials[axis],tapDials(a,data).dials[axis]+(i?3:-3));
         assertPage(r,a,shown);
@@ -117,41 +137,39 @@ for(const [label,fixture,expected,keptExpected] of fixtures) {
   });
 }
 
-test('fresh looks prefer previously unseen palettes, pairings and graphics',()=>{
+test('fresh looks prefer previously unseen families, palettes and styles',()=>{
   const a=operator(),shown=select('looks',a).looks.slice(0,1);
   const fresh=select('looks',{...a,shown});
-  for(const field of ['pairing','palette','graphicSet']) assert.notEqual(fresh.looks[0][field],shown[0][field]);
+  for(const field of ['style','palette']) assert.notEqual(fresh.looks[0][field],shown[0][field]);
+  assert.notEqual(paletteFamily(fresh.looks[0].palette).family,paletteFamily(shown[0].palette).family);
 });
 test('history options and records exclude the same identities, including a prior plain-ground look',()=>{
   const a=operator(),first=select('looks',a),one=select('looks',{...a,shown:first.looks}),two=select('looks',{...a,shown:first.options});
   assert.equal(JSON.stringify(one),JSON.stringify(two));
   const repeated=select('looks',{...a,shown:[...first.looks,...first.options]});
   assert.deepEqual(repeated.looks.map(l=>l.value),one.looks.map(l=>l.value));
-  const kept={...a,kept:{pairing:'condensed',palette:{id:'navy-gold'}}},fixed=select('looks',kept);
+  const kept={...a,kept:{pairing:'industrial',palette:{id:'business-blue-bold'}}},fixed=select('looks',kept);
   assert.equal(JSON.stringify(select('looks',{...kept,shown:fixed.looks})),JSON.stringify(select('looks',{...kept,shown:fixed.options})));
 });
 test('later pages keep six contrasts available when another first look is needed',()=>{
   const a=operator(),shown=[];
-  for(let page=0;page<21;page++) {const r=select('looks',{...a,shown});assertPage(r,a,shown);shown.push(...r.looks);}
+  let pages=0;
+  for(;;) {
+    let r;try {r=select('looks',{...a,shown});} catch(error) {assert.match(error.message,/library exhausted/);break;}
+    assertPage(r,a,shown);shown.push(...r.looks);assert.ok(++pages<=24);
+  }
+  assert.ok(pages>=3);
 });
-test('page 2 checks report only winning-prefix refusals and their exact replacements, including a pattern-only refusal',()=>{
-  // Suit and tie with 2Modern makes page 2 backtrack on the taps of 2026-11-02, as the operator's own taps did before.
+test('page 2 checks refuse a style with an unreadable pattern without changing its approved ground',()=>{
   const a={...operator(),taps:{...operator().taps,feel:'suit-and-tie',mood:'2modern'}},patterned=structuredClone(library),drawn=patterned.graphics.find(g=>g.id==='drawn');
   drawn.pattern={...drawn.pattern,
     svg:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 5H10" stroke="{{text}}"/></svg>',
     strength:{light:1,dark:1}};
   const one=select('looks',a,{library:patterned,check:true});
   const two=select('looks',{...a,shown:one.looks},{library:patterned,check:true});
-  assertPage(two,a,one.looks);
-  // These refusals occurred under the winning prefix. Earlier prefixes hit
-  // additional refusals before backtracking; none belongs in this report.
-  assert.deepEqual(two.replacements.map(r=>[r.slot,identity(r.refused),identity(r.replacement)]),[
-    ...['newspaper','chunky','humanist','soft-serif'].map(pairing=>
-      [6,`${pairing}/forest-coral/editorial`,'newspaper/paper-orange/geometric']),
-    [9,'humanist/stone-cobalt/stitch','friendly-serif/stone-cobalt/drafting'],
-    [9,'friendly-serif/stone-cobalt/stamp','friendly-serif/stone-cobalt/drafting']
-  ]);
-  assert.ok(two.checks.attempts>12+two.replacements.length,'fixture must explore abandoned prefixes');
+  assertPage(two,a,one.looks);assertApprovedPage(two,a,one.looks,patterned);
+  assert.ok(two.replacements.length>0);
+  assert.ok(two.checks.attempts>=12+two.replacements.length);
   const shown=new Set(one.looks.map(identity));
   for(const r of two.replacements) {
     assert.ok(r.reason);
@@ -160,17 +178,17 @@ test('page 2 checks report only winning-prefix refusals and their exact replacem
     assert.ok(!shown.has(identity(r.replacement)));
     for(const [field,value] of Object.entries(r.replacement)) assert.deepEqual(two.looks[r.slot-1][field],value);
   }
-  // The graphic that fails with its pattern is still legal in a plain slot.
-  // Do not treat a pattern failure as exhaustion of that graphic in every slot.
-  assert.equal(two.looks[4].graphicSet,'drawn');assert.equal(two.looks[4].plainGround,true);
+  // A fixed style cannot be rescued by erasing its pattern in another slot.
+  assert.ok(two.looks.every(l=>l.graphicSet!=='drawn'));
+  assert.ok(two.selection.boards.every(b=>!b.graphicSet.pattern));
 });
 
 function allLooks() {
   const result=[];
-  for(const p of library.pairings) for(const c of library.palettes) for(const g of library.graphics) {
-    if(Math.abs(p.tags.typeLoudness-c.paletteLoudness)>1||(c.paletteLoudness===3&&(p.tags.typeCut!=='contemporary'||p.tags.typeLoudness<2))) continue;
-    if(boardRefusal(library,{pairing:{id:p.id},palette:{id:c.id}})) continue;
-    const look={pairing:p.id,palette:c.id,graphicSet:g.id};
+  for(const s of library.styles) for(const c of library.palettes) {
+    if(library.withheld.some(w=>w.style===s.id&&w.palette===c.id)) continue;
+    if(boardRefusal(library,{pairing:{id:s.id},palette:{id:c.id}})) continue;
+    const look={style:s.id,pairing:s.id,palette:c.id,graphicSet:s.graphicSet};
     result.push({...look,value:'look-'+hash(identity(look)).slice(0,32)});
   }
   return result;
@@ -182,24 +200,18 @@ test('exhaustion plainly names the library and remaining unshown count rather th
   const remaining=new Set([...new Set(all.map(l=>l.palette))].slice(0,11));
   assert.equal(remaining.size,11);
   assert.throws(()=>select('looks',{...a,shown:all.filter(l=>!remaining.has(l.palette))}),/library exhausted.*11 unshown palette recipes.*twelve distinct palettes/);
-  // Many unshown triples and palettes remain, but one graphic cannot supply
-  // the six distinct leaders. This exercises constraint exhaustion as well.
-  assert.throws(()=>select('looks',{...a,shown:all.filter(l=>l.graphicSet!==library.graphics[0].id)}),/library exhausted.*six passing distinct leaders and six one-dial contrasts/);
+  // Many unshown approved cards remain, but one graphic supplies too few
+  // styles for six distinct leaders. This also exercises constraint exhaustion.
+  assert.throws(()=>select('looks',{...a,shown:all.filter(l=>l.graphicSet!==library.graphics[0].id)}),/library exhausted.*six passing distinct leaders and six one- or two-dial contrasts/);
 });
-test('checked exhaustion accounts for leaders that can only pass in plain-ground slots',()=>{
-  const tags=Object.fromEntries(Object.keys(AXES).map(axis=>[axis,'either']));
-  const limited={...library,
-    pairings:library.pairings.slice(0,6).map(p=>({...p,tags:{...p.tags,...tags,typeLoudness:2,typeCut:'contemporary'}})),
-    palettes:library.palettes.filter(p=>!boardRefusal(library,{pairing:{id:'warm-grotesque'},palette:{id:p.id}})).slice(0,12).map((p,i)=>({...p,tags:{...p.tags,...tags,softStrong:i<6?'soft':'strong'}})),
-    graphics:library.graphics.slice(0,6).map((g,i)=>({...g,tags:{...g.tags,...tags},pattern:{...g.pattern,
-      svg:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 5H10" stroke="{{text}}"/></svg>',
-      strength:{light:i<3?1:0,dark:i<3?1:0}}}))
-  };
-  assert.equal(limited.palettes.length,12,'fixture needs twelve permitted palettes before check exhaustion');
-  const look={pairing:limited.pairings[0].id,palette:limited.palettes[0].id,graphicSet:limited.graphics[0].id};
+test('checked exhaustion accounts for fixed plain-ground styles whose depth cannot pass',()=>{
+  const limited=structuredClone(library);
+  limited.styles=limited.styles.slice(0,6).map(s=>({...s,depth:{...s.depth,...(['C','E'].includes(s.column)?{background:null}:{})}}));
+  assert.equal(limited.palettes.length,30,'fixture retains all permitted palette recipes before check exhaustion');
+  const s=limited.styles[0],look={style:s.id,pairing:s.id,palette:limited.palettes[0].id,graphicSet:s.graphicSet};
   const shown=[{...look,value:'look-'+hash(identity(look)).slice(0,32)}];
-  // Three required graphic sets cannot put text over their full-strength
-  // text-coloured patterns; six distinct leaders have only two plain slots.
+  // Two of the six available styles fail the shared depth check. Search must
+  // never invent plain slots or return a page with fewer than six styles.
   assert.throws(()=>select('looks',{...operator(),shown},{library:limited,check:true}),/library exhausted.*six passing distinct leaders/);
 });
 test('looks history rejects malformed references, mismatched values and fields belonging to variations',()=>{

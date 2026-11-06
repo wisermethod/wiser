@@ -11,6 +11,20 @@ export const firstStrategy = () => ({...operator(),name:'Sample Organisation',
   taps:{mode:'dark',feel:'suit-and-tie',history:'established-current',strength:'balanced',technology:'apple',style:'lululemon',posture:'tesla',mood:'restoration-hardware',place:'design-workshop'}
 });
 
+// Reconstructed from the words reported of the operator's bakery run; not a recorded answer set.
+export const bakery = () => ({...operator(),name:"Rowan's Fancy Bakery",
+  sentence:"I run Rowan's Fancy Bakery, where I start at 3:00 a.m. so your bread is ready when you are.",heroPhrase:'your bread',
+  words:[{word:'Fancy',not:'snooty'},{word:'Friendly',not:'fussy'},{word:'Cheerful',not:'tired'}],
+  taps:{mode:'light',feel:'playful-creative',history:'established-current',strength:'soft-graceful',technology:'kitchenaid',style:'j-crew',posture:'toyota',mood:'anthropologie',place:'coffee-shop'}
+});
+
+// Invented law-firm sample; not a recorded answer set.
+export const lawFirm = () => ({...operator(),type:'org',name:'Hale Brandt Law',
+  sentence:'We run Hale Brandt Law, a small practice that answers your call the same day and explains every step in plain words.',heroPhrase:'plain words',
+  words:[{word:'Trusted',not:'stuffy'},{word:'Clear',not:'cold'},{word:'Steady',not:'slow'}],
+  taps:{mode:'light',feel:'suit-and-tie',history:'rooted',strength:'strong-solid',technology:'craftsman',style:'brooks-brothers',posture:'ford',mood:'restoration-hardware',place:'hotel-lobby'}
+});
+
 // The one-pick action is allowed below min: 2; the other actions cover zero
 // and two/three picks, exactly as the sitting's looks card does.
 export const lookActions = () => [

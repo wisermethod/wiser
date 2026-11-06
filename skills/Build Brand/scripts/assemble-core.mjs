@@ -40,7 +40,7 @@ function keptColourName(value, library) {
   return nearest;
 }
 // Ranking provenance travels in the command's report, outside the deliberately
-// closed Contact Sheet spec (which accepts only its three match-check tags).
+// closed Contact Sheet spec (which accepts only its three descriptive tags).
 export function partPositions(library, board) {
   return Object.fromEntries([['pairing','pairings',board.pairing.headingFrom && typeof board.pairing.headingFrom === 'string' ? board.pairing.headingFrom : board.pairing.id],['palette','palettes',board.palette.id],['graphicSet','graphics',board.graphicSet.id]].map(([role,kind,id]) => [role, Object.fromEntries(Object.keys(AXES).map(axis => [axis,lookup(library,kind,id,role).tags[axis]]))]));
 }
@@ -56,7 +56,7 @@ export function assembleCore(selection, library, { resolveFont = (face) => copy(
   list(selection.boards, 'boards'); const numbers = new Set(); let recommendations = 0;
   const boards = selection.boards.map((b, index) => {
     const at = `Board ${b?.number ?? index + 1} (${b?.name ?? 'unnamed'})`;
-    object(b, ['number', 'name', 'group', 'energy', 'why', 'recommendation', 'zero', 'primaryMode', 'buttonRadius', 'palette', 'pairing', 'handwriting', 'graphicSet', 'container', 'markFile', 'content', 'initials', 'heroPhrase', 'note', 'words', 'sample', 'items', 'closingExamples'], at);
+    object(b, ['number', 'name', 'group', 'energy', 'why', 'recommendation', 'zero', 'primaryMode', 'depth', 'buttonRadius', 'palette', 'pairing', 'handwriting', 'graphicSet', 'container', 'markFile', 'content', 'initials', 'heroPhrase', 'note', 'words', 'sample', 'items', 'closingExamples'], at);
     for (const k of ['name', 'group', 'energy', 'why', 'primaryMode']) text(b[k], `${at}.${k}`);
     num(b.number, 0, Number.MAX_SAFE_INTEGER, `${at}.number`);
     if (!Number.isSafeInteger(b.number) || numbers.has(b.number)) fail(`${at}.number`, 'expected a unique safe integer'); numbers.add(b.number);
@@ -162,7 +162,7 @@ export function assembleCore(selection, library, { resolveFont = (face) => copy(
     list(b.closingExamples, `${at}.closingExamples`);
     if (![2,3].includes(b.closingExamples.length)) fail(`${at}.closingExamples`, 'supply two or three examples');
     b.closingExamples.forEach((s) => text(s, `${at}.closingExamples`));
-    return { ...Object.fromEntries(['number','name','group','energy','why','recommendation','zero','primaryMode','buttonRadius'].filter((k) => has(b,k)).map((k) => [k,b[k]])), palette, type, tags: { paletteLoudness: recipe.paletteLoudness, typeLoudness: heading.tags.typeLoudness, typeCut: heading.tags.typeCut }, graphics, monogram, content: copy(b.content), ...(has(b, 'words') ? { words: copy(b.words) } : {}), note: {...b.note, svg: set.noteArrow}, sample: {...copy(b.sample), ...copy(set.sample), rule: set.bannerRule}, items: copy(b.items), closingExamples: copy(b.closingExamples) };
+    return { ...Object.fromEntries(['number','name','group','energy','why','recommendation','zero','primaryMode','buttonRadius'].filter((k) => has(b,k)).map((k) => [k,b[k]])), ...(has(b, 'depth') ? { depth: copy(b.depth) } : {}), palette, type, tags: { paletteLoudness: recipe.paletteLoudness, typeLoudness: heading.tags.typeLoudness, typeCut: heading.tags.typeCut }, graphics, monogram, content: copy(b.content), ...(has(b, 'words') ? { words: copy(b.words) } : {}), note: {...b.note, svg: set.noteArrow}, sample: {...copy(b.sample), ...copy(set.sample), rule: set.bannerRule}, items: copy(b.items), closingExamples: copy(b.closingExamples) };
   });
   // A lock keeps one board from a page and may retain that page's group list.
   // Validate every group above, then omit only unused groups for that one pick.

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { LIBRARY } from '../scripts/assemble.mjs';
 import { assembleCore } from '../scripts/assemble-core.mjs';
-import { select } from '../scripts/select.mjs';
+import { select, selectionForAssembly } from '../scripts/select.mjs';
 import { boardOperator } from './select-fixtures.mjs';
 const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
@@ -19,7 +19,7 @@ test('every graphic sample has three labels and matching discrete stages after a
   const seed = result.selection.boards[0];
   for (const graphic of library.graphics) {
     const b = structuredClone(seed); b.graphicSet.id = graphic.id;
-    const spec = assembleCore({ ...result.selection, boards: [b] }, library), sample = spec.boards[0].sample;
+    const spec = assembleCore(selectionForAssembly({ ...result.selection, boards: [b] }), library), sample = spec.boards[0].sample;
     assert.equal(sample.steps.length, 3, graphic.id);
     // Continuous drawn/stitch lines do not enumerate stages. Discrete marks
     // must count exactly: riso uses one pair of dots per stage; drafting and

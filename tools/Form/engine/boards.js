@@ -2,7 +2,7 @@
 (() => {
 const lib=globalThis.WiserBoards;
 const el=(tag,cls,text,...children)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined&&text!==null)n.textContent=text;n.append(...children.filter(Boolean));return n;};
-const serif=new Set(['Fraunces','Newsreader','Young Serif','Instrument Serif','Libre Caslon Text','Alegreya','Gloock','Source Serif 4','Literata','Alfa Slab One']);
+const serif=new Set(['Fraunces','Newsreader','Young Serif','Instrument Serif','Libre Caslon Text','Alegreya','Gloock','Source Serif 4','Literata','Alfa Slab One','Bodoni Moda','Zilla Slab','EB Garamond','Marcellus']);
 const fallback=family=>serif.has(family)?'serif':'sans-serif';
 function type(node,v) {
   Object.assign(node.style,{fontFamily:`${JSON.stringify(v.family)}, ${fallback(v.family)}`,fontWeight:v.weight,fontStyle:v.style,fontSize:`${v.size}px`,lineHeight:v.lineHeight,letterSpacing:`${v.letterSpacing}em`,fontVariationSettings:v.variations?Object.entries(v.variations).map(([k,v])=>`"${k}" ${v}`).join(','):'normal'});return node;
@@ -114,9 +114,9 @@ function board(model,b,mode,compact,logo) {
   };
   n.append(...b.modes[mode][compact?'tile':'blocks'].map(block).filter(Boolean));return n;
 }
-function draw(model,b,{compact=false,logo}={}) {
+function draw(model,b,{compact=false,logo,mode:showMode}={}) {
   const n=el('div','board-art');
-  for(const mode of compact?[b.primaryMode]:[b.primaryMode,b.primaryMode==='light'?'dark':'light']) {
+  for(const mode of showMode?[showMode]:compact?[b.primaryMode]:[b.primaryMode,b.primaryMode==='light'?'dark':'light']) {
     const start=n.children.length;
     if(!compact)n.append(el('h2','board-mode',globalThis.WiserForm.WORDS[mode]));
     n.append(board(model,b,mode,compact,logo));
@@ -129,6 +129,7 @@ const ns='http://www.w3.org/2000/svg';
 function shape(tag,attrs={}) {
   const n=document.createElementNS(ns,tag);for(const [k,v]of Object.entries(attrs))n.setAttribute(k,v);return n;
 }
+const stackPositions=new WeakMap();
 function fitLooks() {
   for(const n of document.querySelectorAll('svg.look-art')) {
     // A look on a hidden page is fitted when its page is shown; measuring it undrawn can throw.
@@ -150,9 +151,159 @@ function fitLooks() {
     const box=name.getBBox();name.setAttribute('transform',`translate(42 ${57+(210-box.height)/2-box.y})`);
     const initials=n.querySelector('.look-initials');
     if(initials){initials.style.fontSize=`${Math.min(36,size*.6)}px`;const width=initials.getComputedTextLength();if(width>100)initials.style.fontSize=`${parseFloat(initials.style.fontSize)*100/width}px`;}
+    for(const [selector,above] of [['.look-stack-1',true],['.look-stack-2',false]]) {
+      const line=n.querySelector(selector);if(!line)continue;
+      const style=getComputedStyle(line),canvas=document.createElement('canvas');
+      // An attached canvas carries the face's variation axes into TextMetrics.
+      canvas.hidden=true;canvas.style.fontVariationSettings=style.fontVariationSettings;document.body.append(canvas);
+      const context=canvas.getContext('2d');
+      context.font=`${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      const ink=context.measureText(line.textContent);canvas.remove();
+      const current=Number(line.getAttribute('y')),original=stackPositions.get(line)??current;
+      stackPositions.set(line,original);
+      // SVG's central baseline centres its em box, not the visible letter.
+      // Refit from the drawn position when a loaded face replaces the fallback.
+      const baseline=line.getBBox().y+ink.fontBoundingBoxAscent+original-current,rule=n.querySelector('.look-stack-rule').getBBox().y;
+      const overlap=above?baseline+ink.actualBoundingBoxDescent-(rule-6):(rule+6)-(baseline-ink.actualBoundingBoxAscent);
+      const fitted=original+(above?-1:1)*Math.max(0,overlap);
+      if(fitted!==current)line.setAttribute('y',fitted);
+    }
+    const whole=n.querySelector('.look-large-initials');
+    if(whole) {
+      // TextMetrics measures glyph ink in the loaded face, rather than SVG's
+      // em-height box. Font size is the only scale; keep natural proportions.
+      // Half a unit of raster clearance keeps antialias fringes inside the field.
+      const bottom=Number(whole.dataset.bottom),context=document.createElement('canvas').getContext('2d');
+      const measure=fontSize=>{
+        whole.style.fontSize=`${fontSize}px`;
+        const style=getComputedStyle(whole);
+        context.font=`${style.fontStyle} ${style.fontWeight} ${fontSize}px ${style.fontFamily}`;
+        context.fontKerning=style.fontKerning;
+        return context.measureText(whole.textContent);
+      };
+      let fontSize=100,ink=measure(fontSize);
+      fontSize*=Math.min(211/(ink.actualBoundingBoxLeft+ink.actualBoundingBoxRight),(bottom-29)/(ink.actualBoundingBoxAscent+ink.actualBoundingBoxDescent));
+      // Browser hinting can round the ink at each size. Remeasure after fitting.
+      for(let pass=0;pass<4;pass++) {
+        ink=measure(fontSize);
+        const scale=Math.min(1,211/(ink.actualBoundingBoxLeft+ink.actualBoundingBoxRight),(bottom-29)/(ink.actualBoundingBoxAscent+ink.actualBoundingBoxDescent));
+        if(scale===1)break;
+        fontSize*=scale;
+      }
+      ink=measure(fontSize);
+      whole.setAttribute('x',571.5-ink.actualBoundingBoxRight);
+      whole.setAttribute('y',bottom-.5-ink.actualBoundingBoxDescent);
+    }
   }
 }
+// Depth cards use a closed set of drawing effects.
+// The closed schema keeps depth from adding effects the taxonomy refuses.
+const {depthOptions,depthColour,depthInset}=globalThis.WiserBoardDepth;
+function depthGradient(defs,stops,kind,angle,box) {
+  const id=`depth-gradient-${++drawingId}`;
+  let gradient;
+  if(kind==='radial')gradient=shape('radialGradient',{id,gradientUnits:'userSpaceOnUse',cx:box.x+box.width*.3,cy:box.y+box.height*.25,r:Math.hypot(box.width*.7,box.height*.75)});
+  else {
+    // CSS-like angle: 0 is up, 90 is right. User-space endpoints keep the
+    // requested angle on rectangular cards rather than stretching a unit box.
+    const radians=angle*Math.PI/180,dx=Math.sin(radians),dy=-Math.cos(radians),half=(Math.abs(box.width*dx)+Math.abs(box.height*dy))/2;
+    const cx=box.x+box.width/2,cy=box.y+box.height/2;
+    gradient=shape('linearGradient',{id,gradientUnits:'userSpaceOnUse',x1:cx-dx*half,y1:cy-dy*half,x2:cx+dx*half,y2:cy+dy*half});
+  }
+  gradient.setAttribute('color-interpolation','sRGB');
+  stops.forEach((colour,i)=>gradient.append(shape('stop',{offset:stops.length===3?[0,.65,1][i]:i,'stop-color':colour})));
+  defs.append(gradient);return `url(#${id})`;
+}
+function lookDepth(model,b,{logo}={}) {
+  const d=depthOptions(b),mode=b.primaryMode,c=b.palette[mode];
+  const n=shape('svg',{viewBox:'0 0 600 360',class:'look-art','aria-hidden':'true','data-mode':mode,'data-depth':d.background,'data-mark':d.mark}),defs=shape('defs'),surface=shape('g',{class:'look-surface'});
+  n.append(defs,surface);
+  if(d.cardCorner) {
+    const id=`depth-clip-${++drawingId}`,clip=shape('clipPath',{id,clipPathUnits:'userSpaceOnUse'});
+    clip.append(shape('rect',{width:600,height:360,rx:d.cardCorner}));defs.append(clip);surface.setAttribute('clip-path',`url(#${id})`);
+  }
+  const groundFill=d.background==='gradient'?depthGradient(defs,d.groundStops,d.kind,d.angle,{x:0,y:0,width:600,height:360}):c.ground;
+  surface.append(shape('rect',{class:'look-ground',width:600,height:360,fill:groundFill}));
+  if(d.background==='texture'&&d.texture==='pattern') {
+    const pattern=repeatArt(b.modes[mode].drawings.pattern);
+    for(const [k,v]of Object.entries({class:'look-pattern',width:600,height:360,opacity:b.graphics.pattern.strength[mode],transform:`rotate(${b.graphics.pattern.angle||0} 300 180)`}))pattern.setAttribute(k,v);
+    surface.append(pattern);
+  }else if(d.background==='texture') {
+    const id=`depth-grain-${++drawingId}`,filter=shape('filter',{id,x:0,y:0,width:'100%',height:'100%','color-interpolation-filters':'sRGB'});
+    filter.append(shape('feTurbulence',{type:'fractalNoise',baseFrequency:.75,numOctaves:3,seed:17,stitchTiles:'stitch'}),shape('feColorMatrix',{type:'saturate',values:0}));defs.append(filter);
+    surface.append(shape('rect',{class:'look-grain',width:600,height:360,filter:`url(#${id})`,opacity:.07}));
+  }
+  const name=type(shape('g',{class:'look-name',fill:c.headline}),b.textStyles.headline);
+  name.dataset.lineHeight=Math.max(1,b.textStyles.headline.lineHeight);
+  for(const word of model.person.split(/\s+/).filter(Boolean)){const line=shape('text',{x:0,y:0});line.textContent=word;name.append(line);}
+  // Bands sit behind marks; oversized initials stop at the band's top edge.
+  if(d.band==='three')for(const [x,width,role]of [[0,300,'panel'],[300,200,'pop'],[500,100,'deep']])surface.append(shape('rect',{class:'look-band',x,y:302,width,height:58,fill:c[role]}));
+  else if(d.band==='six') {
+    ['ground','panel','text','pop','deep','mark'].forEach((role,i)=>surface.append(shape('rect',{class:'look-band','data-role':role,x:i*100,y:302,width:100,height:58,fill:c[role]})));
+    surface.append(shape('rect',{class:'look-band-rule',x:0,y:302,width:600,height:1,fill:c.hairline}));
+  }
+  else if(d.band==='strip')surface.append(shape('rect',{class:'look-band',x:0,y:352,width:600,height:8,fill:c.pop}));
+  surface.append(name);
+  const hasBlock=!!logo||d.mark==='badge'||d.mark==='letter'||(d.mark==='seal'&&d.sealOn==='block')||(d.mark==='stack'&&d.stackOn==='block');
+  const rx=d.corner==='pill'?84:d.corner,block=shape('rect',{class:'look-block',x:390,y:61,width:168,height:200,rx});
+  if(hasBlock) {
+    block.setAttribute('fill',d.popStops.length>1?depthGradient(defs,d.popStops,'linear',d.angle,{x:390,y:61,width:168,height:200}):c.pop);
+    surface.append(block);
+    // Opaque shapes overlap throughout: block under inset, inset under plate.
+    if(d.inset)surface.append(shape('rect',{class:'look-inset',x:402,y:77,width:144,height:168,rx:d.corner==='pill'?72:Math.max(0,rx-8),fill:depthInset(depthColour('pop',c,'pop'),d.inset)}));
+  }
+  const heading={...b.textStyles.headline,letterSpacing:0};
+  const text=(target,value,attrs,size,style=heading)=>{
+    const node=type(shape('text',{class:`look-mark-text look-${target}`,fill:hasBlock?c.onPop:c[d.ink],...attrs}),{...style,size});
+    node.dataset.target=target;node.textContent=value;return node;
+  };
+  const clipToBlock=()=>{
+    const id=`depth-block-clip-${++drawingId}`,clip=shape('clipPath',{id,clipPathUnits:'userSpaceOnUse'}),outline=block.cloneNode();
+    outline.removeAttribute('class');outline.removeAttribute('fill');clip.append(outline);defs.append(clip);
+    const group=shape('g',{'clip-path':`url(#${id})`,class:'look-mark-clip'});surface.append(group);return group;
+  };
+  if(logo){const drawing=art(logo,'look-mark');for(const [k,v]of Object.entries({x:414,y:101,width:120,height:120}))drawing.setAttribute(k,v);surface.append(drawing);}
+  else if(d.mark==='badge') {
+    const plate=b.monogram.surfaces?.ground,ink=plate?c.pop:c.onPop;
+    // The old 120px plate shared the frame's outer edge. Its antialiasing
+    // leaked a pale hairline. A 2-unit inset leaves >=1 unit of opaque overlap
+    // under the frame's inner edge without exposing the plate at its outside.
+    if(plate)surface.append(shape('rect',{class:'look-plate',x:416,y:103,width:116,height:116,rx:116*plate.radius/100,fill:c.onPop}));
+    const drawing=art(b.monogram.container.replace(/currentColor/g,ink).replace(/\{\{([A-Za-z]+)\}\}/g,(_,role)=>c[role]),'look-mark');
+    for(const [k,v]of Object.entries({x:414,y:101,width:120,height:120}))drawing.setAttribute(k,v);surface.append(drawing);
+    const initials=type(shape('text',{class:'look-initials look-mark-text',x:474,y:161,'text-anchor':'middle','dominant-baseline':'central',fill:ink}),{...b.textStyles.person,weight:b.type.heading.sizes.small.weight,letterSpacing:0});
+    initials.dataset.target='initials';initials.textContent=b.monogram.initials;surface.append(initials);
+  }else if(d.mark==='initials') {
+    // Fitted after attachment and font loading, like the name. The whole mark
+    // stays on the ground, between x360 and x572, standing on the band.
+    const bottom=d.band==='six'||d.band==='three'?302:d.band==='strip'?352:332;
+    surface.append(text('large-initials',b.monogram.initials,{x:360,y:bottom,'data-bottom':bottom},100));
+  }else if(d.mark==='letter') {
+    clipToBlock().append(text('letter',[...b.monogram.initials][0],{x:377,y:284,textLength:195,lengthAdjust:'spacingAndGlyphs'},290));
+  }else if(d.mark==='stack') {
+    const group=hasBlock?clipToBlock():surface,letters=[...b.monogram.initials];
+    // Single-letter initials remain single; longer initials share the second line.
+    const lines=letters.length>1?[letters[0],letters.slice(1).join('')]:letters;
+    lines.forEach((value,i)=>group.append(text(`stack-${i+1}`,value,{x:474,y:lines.length===1?161:116+i*91,'text-anchor':'middle','dominant-baseline':'central',textLength:value.length>1?100:64,lengthAdjust:'spacingAndGlyphs'},88)));
+    group.append(shape('path',{class:'look-stack-rule',d:'M430 161 H518',fill:'none',stroke:hasBlock?c.onPop:c[d.ink],'stroke-width':1}));
+  }else if(d.mark==='seal') {
+    const ink=hasBlock?c.onPop:c[d.ink],container=new DOMParser().parseFromString(b.monogram.container,'image/svg+xml');
+    // Stroke containers carry their line weight literally. Filled containers
+    // use a 7/100 silhouette weight instead.
+    const weights=[...container.querySelectorAll('[stroke-width]')].map(n=>Number(n.getAttribute('stroke-width'))).filter(Number.isFinite),weight=(weights.length?Math.max(...weights):7)*1.2;
+    const seal=shape('g',{class:'look-seal'});surface.append(seal);
+    seal.append(shape('circle',{class:'look-seal-ring',cx:474,cy:161,r:76,fill:'none',stroke:ink,'stroke-width':weight}));
+    const id=`depth-seal-path-${++drawingId}`,radius=59;
+    defs.append(shape('path',{id,d:`M474 102 A${radius} ${radius} 0 1 1 473.99 102`}));
+    const ring=text('seal-text','',{fill:ink},12,{...b.textStyles.body,weight:b.type.body.sizes.small.weight,letterSpacing:.12});
+    const path=shape('textPath',{href:`#${id}`,startOffset:'2%',textLength:2*Math.PI*radius*.96,lengthAdjust:'spacingAndGlyphs'});
+    path.textContent=`${b.content.brandName.toUpperCase()} · ${b.content.brandName.toUpperCase()} · `;ring.append(path);seal.append(ring);
+    seal.append(text('seal-initials',b.monogram.initials,{x:474,y:161,'text-anchor':'middle','dominant-baseline':'central',fill:ink,textLength:90,lengthAdjust:'spacingAndGlyphs'},58));
+  }
+  return n;
+}
 function look(model,b,{logo}={}) {
+  if(b.depth!==undefined)return lookDepth(model,b,{logo});
   const mode=b.primaryMode,c=b.palette[mode],n=shape('svg',{viewBox:'0 0 600 360',class:'look-art','aria-hidden':'true','data-mode':mode});
   n.append(shape('rect',{width:600,height:360,fill:c.ground}));
   const pattern=repeatArt(b.modes[mode].drawings.pattern);

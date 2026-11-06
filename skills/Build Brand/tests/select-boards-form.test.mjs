@@ -11,7 +11,7 @@ import {BOARD_KEYS,resolveBoards} from '../../../tools/Form/scripts/boards.js';
 const refs=['pairing','palette','graphicSet','container','primaryMode'];
 function legacy(answers,result){
  const r=result.form,f=structuredClone(r);delete f.boardDefaults;
- f.questions[0].options=result.selection.boards.map(b=>({value:`board-${b.number}`,label:b.name,note:answers.words.map(w=>`${w.word}, not ${w.not}`).join('; '),...(b.recommendation?{recommendation:b.recommendation}:{}),board:Object.fromEntries(BOARD_KEYS.filter(k=>Object.hasOwn(b,k)).map(k=>[k,k==='content'?Object.fromEntries(Object.entries(b.content).filter(([key])=>!['brandName','sentence','body'].includes(key))):b[k]]))}));
+ f.questions[0].options=result.selection.boards.map(b=>({value:b.value,label:b.name,steps:b.steps.map(s=>({value:s.value,label:s.name,palette:{id:s.palette.id}})),note:answers.words.map(w=>`${w.word}, not ${w.not}`).join('; '),...(b.recommendation?{recommendation:b.recommendation}:{}),board:Object.fromEntries(BOARD_KEYS.filter(k=>Object.hasOwn(b,k)).map(k=>[k,k==='content'?Object.fromEntries(Object.entries(b.content).filter(([key])=>!['brandName','sentence','body'].includes(key))):b[k]]))}));
  return f;
 }
 function assertForm(a,result,t){
@@ -19,7 +19,7 @@ function assertForm(a,result,t){
  assert.deepEqual(checkForm(f),{ok:true,problems:[]});assert.deepEqual(result,before);
  assert.equal(f.questions[0].options.length,12);assert.equal(f.questions[0].pick,3);
  for(const option of f.questions[0].options){
-  assert.deepEqual(Object.keys(option).sort(),['value','label','board',...(option.recommendation?['recommendation']:[])].sort());
+  assert.deepEqual(Object.keys(option).sort(),['value','label','steps','board',...(option.recommendation?['recommendation']:[])].sort());
   assert.deepEqual(Object.keys(option.board).sort(),refs.sort());
  }
  const full=legacy(a,result);
@@ -28,7 +28,11 @@ function assertForm(a,result,t){
  assert.deepEqual(resolveBoards(f.brand,f.questions[0].options,f.boardDefaults),resolveBoards(expanded.brand,expanded.questions[0].options));
  const bytes={before:Buffer.byteLength(JSON.stringify(full)),after:Buffer.byteLength(JSON.stringify(f))};
  t.diagnostic(JSON.stringify({form:result.command,name:a.name,compactJsonBytes:bytes}));
- assert.ok(bytes.after<bytes.before*.3,JSON.stringify(bytes));
+ // Controls, captions and strength steps add required option data. Keep the
+ // original compression target on board copy and references, the payload
+ // that boardDefaults actually factors, independent of those additions.
+ const boardBytes=form=>Buffer.byteLength(JSON.stringify({defaults:form.boardDefaults??{},boards:form.questions[0].options.map(o=>o.board)}));
+ assert.ok(boardBytes(f)<boardBytes(full)*.3,JSON.stringify({bytes,boardBytes:{before:boardBytes(full),after:boardBytes(f)}}));
 }
 for(const [name,get] of Object.entries({operator,firstStrategy})){
  let round;
@@ -54,7 +58,7 @@ test('variation parents keep differing copy on their own options and factor only
 test('a fresh variations page and unsteered round preserve slim forms; kept settings stay shared',()=>{
  const a={...operator(),kept:{buttonRadius:7}};
  for(const r of [select('round1',a,{check:true,unsteered:true}),select('variations',{...a,picks:[],shown:[],steer:{}},{check:true})]){
-  assert.deepEqual(checkForm(r.form),{ok:true,problems:[]});assert.equal(r.form.questions[0].options[0].value,'board-0');
+  assert.deepEqual(checkForm(r.form),{ok:true,problems:[]});assert.equal(r.form.questions[0].options[0].value,r.selection.boards[0].value);
   assert.equal(r.form.boardDefaults.buttonRadius,7);
   assert.ok(r.selection.boards.every(b=>b.buttonRadius===7));
  }

@@ -16,7 +16,7 @@ const WORDS = Object.freeze({
   tooManyBoards:"You picked {n} boards. Pick up to {pick} to go on.", tooManyLooks:"You picked {n} looks. Pick up to {pick} to go on.",
   pickOne:"one", pickTwo:"two", pickThree:"three", recommended:"Recommended",
   look:"Look {n}", pickAtLeastOne:"Pick at least one.", pickAtLeastTwo:"Pick at least two.", pickAtLeastThree:"Pick at least three.",
-  whatNext:"What next",
+  whatNext:"What next", moreMuted:"More muted", moreBold:"More bold", boardStrength:"More muted or more bold",
   boardNot:"not {word}", light:"Light", dark:"Dark", licence:"Licence"
 });
 const boardLib=globalThis.WiserBoards;
@@ -146,16 +146,16 @@ function choice(o, type, id, index) {
 // Whether the card passes the height the host says it can hold, where it says one.
 const overCap=()=>state.maxHeight>0&&Math.ceil(document.getElementById("root").getBoundingClientRect().bottom+window.scrollY)>state.maxHeight;
 // One mode at a time, primary first, for full views and whole boards that pass a host's cap.
-function modeSwitch(art,initial=art.firstElementChild?.dataset.mode||"light") {
-  const show=mode=>{for(const part of art.children)part.hidden=part.dataset.mode!==mode;buttons.forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.mode===mode)));};
-  const buttons=["light","dark"].map(mode=>{const b=el("button",{type:"button",class:"board-mode-switch","data-mode":mode,"aria-pressed":"false",text:WORDS[mode]});b.addEventListener("click",()=>show(mode));return b;});
+function modeSwitch(art,initial=art?.firstElementChild?.dataset.mode||"light",onChange) {
+  const show=mode=>{for(const part of art?.children??[])part.hidden=part.dataset.mode!==mode;buttons.forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.mode===mode)));};
+  const buttons=["light","dark"].map(mode=>{const b=el("button",{type:"button",class:"board-mode-switch","data-mode":mode,"aria-pressed":"false",text:WORDS[mode]});b.addEventListener("click",()=>{show(mode);onChange?.(mode);});return b;});
   show(initial);
   return el("div",{class:"board-mode-switches",role:"group","aria-label":WORDS.boardModes},...buttons);
 }
 
 function boardQuestion(fieldset,q,id) {
   const look=q.view==="look",single=!look&&q.pick===1&&q.options.length===1;
-  const model=boardLib.resolveBoards(state.form.brand,q.options,state.form.boardDefaults);
+  const model=boardLib.resolveBoards(state.form.brand,q.options,state.form.boardDefaults,q.view??"board");
   globalThis.WiserBoardView.loadFonts(model,boardLib.FONT_HOSTS);
   const grid=el("div",{class:`boards-tiles${look?' looks-tiles':''}`});
   const picks=new Map();
@@ -170,7 +170,55 @@ function boardQuestion(fieldset,q,id) {
     input.checked=wanted;
     sync();
   }
-  let returnFocus,activeInput;
+  let pageMode=q.controls?.mode;
+  if(pageMode)fieldset.dataset.mode=pageMode;
+  const rows=q.options.map((o,i)=>({option:o,steps:model.steps?.[i]??[{value:o.value,boards:{light:model.boards[i],dark:model.boards[i]}}],index:o.steps?.findIndex(s=>s.value===o.value)??0}));
+  // resolveBoards has merged each optional step overlay onto its option depth.
+  const showing=row=>row.steps[row.index].boards[pageMode??row.option.board.primaryMode];
+  // An own-value step may omit its palette and take the option's board palette whole.
+  const position=(row,index)=>['muted','balanced','bold'].indexOf((row.option.steps?.[index]?.palette??row.option.board.palette)?.id?.match(/-(muted|balanced|bold)$/)?.[1]);
+  const nextStep=(row,delta)=>{
+    const next=row.index+delta;
+    return next>=0&&next<row.steps.length&&position(row,next)===position(row,row.index)+delta?next:row.index;
+  };
+  let returnFocus,activeInput,activeRow,viewerArt;
+  const strengthButtons=[];
+  function syncStrength(){strengthButtons.forEach((b,i)=>b.disabled=!rows.some(row=>nextStep(row,i?1:-1)!==row.index));}
+  function redrawViewer(){
+    if(!activeRow||!viewerArt)return;
+    const oldMode=[...viewerArt.children].find(n=>!n.hidden)?.dataset.mode;
+    const art=globalThis.WiserBoardView.draw(model,showing(activeRow),{logo:state.form.brand.logo,...(pageMode?{mode:pageMode}:{})});
+    viewerArt.replaceWith(art);viewerArt=art;
+    scroll.querySelector(".locked-name").textContent=showing(activeRow).name;
+    if(!pageMode)viewerBar.querySelector('.board-mode-switches').replaceWith(modeSwitch(art,oldMode));
+  }
+  function redraw(){
+    for(const row of rows){
+      const b=showing(row);
+      if(row.input)row.input.value=row.steps[row.index].value;
+      if(row.caption)row.caption.textContent=b.name;
+      if(row.preview){
+        const art=look?globalThis.WiserBoardView.look(model,b,{logo:state.form.brand.logo}):globalThis.WiserBoardView.draw(model,b,{compact:!single,logo:state.form.brand.logo,...(pageMode?{mode:pageMode}:{})});
+        const capSwitch=row.preview.parentElement===fieldset&&row.preview.previousElementSibling?.classList.contains("board-mode-switches")?row.preview.previousElementSibling:null;
+        const capMode=capSwitch?.querySelector('[aria-pressed="true"]')?.dataset.mode;
+        row.preview.replaceWith(art);row.preview=art;
+        if(capSwitch)capSwitch.replaceWith(modeSwitch(art,capMode));
+      }
+    }
+    redrawViewer();syncStrength();globalThis.WiserBoardView.fitLooks();
+  }
+  if(q.controls){
+    const bar=el("div",{class:"board-controls"});
+    if(pageMode)bar.append(modeSwitch(null,pageMode,mode=>{pageMode=mode;fieldset.dataset.mode=mode;redraw();}));
+    if(q.controls.strength){
+      for(const [i,word]of ['moreMuted','moreBold'].entries()){
+        const button=el("button",{type:"button",text:WORDS[word]});
+        button.addEventListener("click",()=>{rows.forEach(row=>row.index=nextStep(row,i?1:-1));redraw();});strengthButtons.push(button);
+      }
+      bar.append(el("div",{class:"board-strength",role:"group","aria-label":WORDS.boardStrength},...strengthButtons));
+    }
+    fieldset.append(bar);syncStrength();
+  }
   let viewerInputs=[];
   const syncViewer=()=>viewerInputs.forEach(n=>n.checked=activeInput.checked);
   // The whole board always replaces every tile, at the start of the grid.
@@ -200,34 +248,38 @@ function boardQuestion(fieldset,q,id) {
     if(viewer.hidden)return;
     for(const tile of grid.querySelectorAll(":scope>.board-option"))tile.hidden=false;
     viewer.hidden=true;viewer.remove();returnFocus?.setAttribute("aria-expanded","false");
-    scroll.replaceChildren();activeInput=undefined;viewerInputs=[];
+    scroll.replaceChildren();activeInput=undefined;activeRow=undefined;viewerArt=undefined;viewerInputs=[];
     if(restore){returnFocus.focus({preventScroll:true});bringIntoView(returnFocus.closest(".board-option"),"nearest");}
   };
   back.addEventListener("click",()=>close());backBottom.addEventListener("click",()=>close());
   viewer.append(viewerBar,scroll,viewerEnd);
   for(const [i,o]of q.options.entries()){
-    const b=model.boards[i],label=o.label??WORDS.look.replace("{n}",i+1);
+    const row=rows[i],b=showing(row),label=b.name;
     const note=Object.hasOwn(o,"note")?o.note:look?"":state.form.brand.words.map(w=>`${w.word}, not ${w.not}`).join("; ");
     if(!look&&(q.pick===0||single)){
-      if(single){const input=el("input",{type:"checkbox",name:id,value:o.value,hidden:true});input.checked=true;fieldset.append(input);picks.set(o.value,input);}
-      fieldset.append(el("h2",{class:"locked-name",text:o.label}),globalThis.WiserBoardView.draw(model,b,{logo:state.form.brand.logo}));
+      if(single){const input=el("input",{type:"checkbox",name:id,value:o.value,hidden:true});input.checked=true;fieldset.append(input);picks.set(o.value,input);row.input=input;}
+      row.preview=globalThis.WiserBoardView.draw(model,b,{logo:state.form.brand.logo,...(pageMode?{mode:pageMode}:{})});
+      row.caption=el("h2",{class:"locked-name",text:label});
+      fieldset.append(row.caption,row.preview);
       continue;
     }
     if(look&&q.pick===0){grid.append(el("div",{class:"tile looks-tile"},globalThis.WiserBoardView.look(model,b,{logo:state.form.brand.logo}),el("span",{class:"tile-label",text:label})));continue;}
     const input=el("input",{type:"checkbox",class:"tile-input",id:`${id}-${i}`,name:id,value:o.value,"aria-describedby":note?`${id}-${i}-note`:undefined});
     if(q.pick===1&&q.options.length===1)input.checked=true;
-    picks.set(o.value,input);
+    picks.set(o.value,input);row.input=input;
     input.addEventListener("change",()=>{pick(input,input.checked);if(activeInput===input)syncViewer();});
     input.addEventListener("keydown",event=>{if(event.key==='Enter'){event.preventDefault();if(!event.repeat){pick(input,!input.checked);if(activeInput===input)syncViewer();}}});
     const caption=el("span",{class:"tile-label"},el("span",{text:label}),el("span",{class:"mark check","aria-hidden":true}),note?el("small",{id:`${id}-${i}-note`,text:note}):null,
       !look&&o.recommendation?el("small",{class:"board-recommendation"},el("b",{text:WORDS.recommended}),document.createTextNode(" · "+o.recommendation)):null);
-    const preview=look?globalThis.WiserBoardView.look(model,b,{logo:state.form.brand.logo}):el("div",{class:"board-crop","aria-hidden":true},globalThis.WiserBoardView.draw(model,b,{compact:true,logo:state.form.brand.logo}));
+    row.caption=caption.firstElementChild;
+    const preview=look?globalThis.WiserBoardView.look(model,b,{logo:state.form.brand.logo}):el("div",{class:"board-crop","aria-hidden":true},globalThis.WiserBoardView.draw(model,b,{compact:true,logo:state.form.brand.logo,...(pageMode?{mode:pageMode}:{})}));
+    row.preview=look?preview:preview.firstElementChild;
     const tile=el("label",{class:`tile boards-tile${look?' looks-tile':''}`,for:input.id},input,preview,caption);
     if(look){grid.append(tile);continue;}
     const full=el("button",{class:"see-board",type:"button",text:WORDS.seeBoard,"aria-expanded":"false"});
     full.addEventListener("click",()=>{
       if(!viewer.hidden&&returnFocus===full){close();return;}
-      close(false);returnFocus=full;activeInput=input;
+      close(false);returnFocus=full;activeInput=input;activeRow=row;
       // Neither mirror carries a name or value; only named tile inputs supply answers.
       const mirrors=[viewerBar,viewerEnd].map(()=>{
         const mirror=el("input",{type:"checkbox","aria-label":WORDS.pickBoard});
@@ -237,10 +289,10 @@ function boardQuestion(fieldset,q,id) {
         return el("label",{class:"choice"},mirror,el("span",{text:WORDS.pickBoard}));
       });
       syncViewer();
-      const art=globalThis.WiserBoardView.draw(model,b,{logo:state.form.brand.logo});
-      viewerBar.replaceChildren(back,modeSwitch(art),mirrors[0]);
+      const art=globalThis.WiserBoardView.draw(model,showing(row),{logo:state.form.brand.logo,...(pageMode?{mode:pageMode}:{})});viewerArt=art;
+      viewerBar.replaceChildren(back,...(pageMode?[]:[modeSwitch(art)]),mirrors[0]);
       viewerEnd.replaceChildren(backBottom,mirrors[1]);
-      scroll.replaceChildren(el("h2",{class:"locked-name",text:o.label}),art);
+      scroll.replaceChildren(el("h2",{class:"locked-name",text:showing(row).name}),art);
       for(const tile of grid.querySelectorAll(":scope>.board-option"))tile.hidden=true;
       grid.prepend(viewer);viewer.hidden=false;full.setAttribute("aria-expanded","true");
       back.focus({preventScroll:true});
@@ -311,14 +363,14 @@ function readAnswers() {
   for (const [i, q] of state.form.questions.entries()) {
     const box = document.querySelectorAll("#form fieldset")[i];
     const opts = Array.isArray(q.options) ? q.options : [];
-    const label = (v) => {const i=opts.findIndex(o=>o.value===v);return opts[i]?.label??(q.type==="boards"&&q.view==="look"?WORDS.look.replace("{n}",i+1):v);};
+    const label = (v) => {const i=opts.findIndex(o=>o.value===v||q.type==="boards"&&o.steps?.some(s=>s.value===v));return (q.type==="boards"?opts[i]?.steps?.find(s=>s.value===v)?.label:undefined)??opts[i]?.label??(q.type==="boards"&&q.view==="look"?WORDS.look.replace("{n}",i+1):v);};
     let value;
     if (q.type === "slider") value = Number(box.querySelector("input[type=range]").value);
     else if (q.type === "text") value = [...box.querySelector("textarea").value].slice(0, 1000).join("").trim();
     else {
       const checked = new Set([...box.querySelectorAll("input[name]:checked")].map(n => n.value));
       // Drawing puts words after pictures; answers keep the format's original option order.
-      const picked = opts.filter(o => checked.has(o.value)).map(o => o.value);
+      const picked = q.type==="boards"?[...box.querySelectorAll("input[name]:checked")].map(n=>n.value):opts.filter(o => checked.has(o.value)).map(o => o.value);
       value = q.type === "radio" || q.type === "image-radio" ? (picked[0] ?? null) : picked;
     }
     const shown = Array.isArray(value) ? value.map(label).join(", ") || WORDS.none : value === null || value === "" ? WORDS.none : q.type === "slider" || q.type === "text" ? String(value) : label(value);
@@ -478,8 +530,9 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
     const answers = readAnswers();
     // One line per question: a line break typed into an answer becomes a space here, and stays in the data.
     const oneLine = text => String(text).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, " ");
-    const summary = [WORDS.answersHeading,...answers.map(a => `- ${oneLine(a.question)}: ${oneLine(a.shown)}`),...(action?[`- ${WORDS.whatNext}: ${action.label}`]:[])].join("\n");
-    const payload = { form: form.title, ...(form.id === undefined ? {} : {id:form.id}), answers:Object.fromEntries(answers.map(a => [a.id,a.value])),...(action?{action:action.value}:{}) };
+    const mode=boardQuestion?.controls?.mode?f.querySelector('fieldset[data-type="boards"]').dataset.mode:undefined;
+    const summary = [WORDS.answersHeading,...(mode?[`- ${WORDS.boardModes}: ${WORDS[mode]}`]:[]),...answers.map(a => `- ${oneLine(a.question)}: ${oneLine(a.shown)}`),...(action?[`- ${WORDS.whatNext}: ${action.label}`]:[])].join("\n");
+    const payload = { form: form.title, ...(form.id === undefined ? {} : {id:form.id}), answers:Object.fromEntries(answers.map(a => [a.id,a.value])),...(hasBoards?{shown:answers.map(({id,question,shown})=>({id,question,shown}))}:{}),...(mode?{mode}:{}),...(action?{action:action.value}:{}) };
     let sent = false, delivery = "failed", status, disabled = false;
     // A transport can supply its final status and lock the controls; chat keeps its retry behavior.
     try { const result = await onSubmit({payload,summary}); ({sent,delivery,status,disabled = false} = result); } catch { /* Keep a copy for retry. */ }
@@ -497,7 +550,7 @@ function render(form,{onSubmit,host = "unknown",source = "",sends = false} = {})
   if (form.paged) move(0,{focus:false});
   fitSamples();
   if(hasBoards)globalThis.WiserBoardView.fitLooks();
-  if(hasBoards&&overCap())for(const art of root.querySelectorAll("fieldset>.board-art"))art.before(modeSwitch(art));
+  if(hasBoards&&overCap())for(const art of root.querySelectorAll("fieldset>.board-art"))if(!boardQuestion.controls?.mode)art.before(modeSwitch(art));
   metadata({host:state.host,source,delivery:"idle"});
 }
 globalThis.WiserForm = Object.freeze({WORDS,render,readAnswers,setStatus,setHost,setTheme,showEmpty,metadata});

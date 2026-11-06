@@ -86,7 +86,7 @@ for (const [tool,script,purpose] of rows) test(`${tool} refusal opens with the e
     'pages-functions': ["Cloudflare's Wrangler tool",'210 MB'],
     data: ['a spreadsheet-file reader','1.5 MB'],
     'Build Brand': ["Wiser's brand font pack"],
-    'Build Brand family': ['the Fraunces typeface'],
+    'Build Brand family': ['the Bodoni Moda typeface'],
   }[tool];
   const [what,size] = whatAndSize;
   assert.equal(first,tool.startsWith('Build Brand')
@@ -111,7 +111,7 @@ test('Build Brand one-family and two-family refusals use the exact typeface word
   for (const [families,what,size] of [
     [['Fraunces'],'the Fraunces typeface','0.2 MB'],
     [['Fraunces','Instrument Sans'],'the Fraunces and Instrument Sans typefaces','0.3 MB'],
-    [['Fraunces','Instrument Sans','Newsreader'],'the Fraunces, Instrument Sans and Newsreader typefaces','0.5 MB'],
+    [['Fraunces','Instrument Sans','Bodoni Moda'],'the Fraunces, Instrument Sans and Bodoni Moda typefaces','0.5 MB'],
   ]) {
     const result=spawnSync(process.execPath,[join(dest,'fonts.mjs'),'check','--library',join(source,'skills/Build Brand/parts/parts.json'),'--directory',join(f.root,'fonts'),'--from',assets,...families.flatMap(family=>['--family',family])],{env:process.env,encoding:'utf8'});
     assert.equal(result.status,1,result.stderr);assert.equal(result.stdout,'');
@@ -234,9 +234,9 @@ test('Build Brand local family question covers only these typefaces without down
   const f=fixture(t),dest=join(f.copy,'skills/Build Brand/scripts');
   cpSync(join(source,'skills/Build Brand/scripts'),dest,{recursive:true});
   const assets=join(f.root,'assets');mkdirSync(assets);
-  const result=spawnSync(process.execPath,[join(dest,'fonts.mjs'),'check','--library',join(source,'skills/Build Brand/parts/parts.json'),'--directory',join(f.root,'fonts'),'--from',assets,'--family','Architects Daughter'],{env:process.env,encoding:'utf8'});
+  const result=spawnSync(process.execPath,[join(dest,'fonts.mjs'),'check','--library',join(source,'skills/Build Brand/parts/parts.json'),'--directory',join(f.root,'fonts'),'--from',assets,'--family','Caveat'],{env:process.env,encoding:'utf8'});
   assert.equal(result.status,1,result.stderr);assert.equal(result.stdout,'');
-  assert.equal(result.stderr.split('\n')[0],"This Wiser skill needs to install the Architects Daughter typeface on your machine from a copy you already have, in order to set your brand's type. This yes covers only these typefaces.");
+  assert.equal(result.stderr.split('\n')[0],"This Wiser skill needs to install the Caveat typeface on your machine from a copy you already have, in order to set your brand's type. This yes covers only these typefaces.");
   assert.ok(!result.stderr.includes(once), result.stderr);
   assert.ok(!/download|\b[KMGT]B\b/.test(result.stderr),result.stderr);
 });

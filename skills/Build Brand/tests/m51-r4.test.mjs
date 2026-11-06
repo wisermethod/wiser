@@ -56,11 +56,11 @@ for (const palette of library.palettes.filter(p => p.selectable !== false)) test
   }
 });
 test('kept colours are named from their resolved colours, including short hex and dark mode', () => {
-  const s = selection([board(library, { palette: 'paper-orange' })], library);
-  s.boards[0].palette.overrides = { light: { pop: '#0000ff', mark: '#00F' }, dark: { pop: '#ffff00', mark: '#ff0', onPop: '#000' } };
+  const s = selection([board(library, { palette: 'tangerine-and-sky-muted' })], library);
+  s.boards[0].palette.overrides = { light: { pop: '#0000ff', mark: '#00F', onPop:'#fff' }, dark: { pop: '#ffff00', mark: '#ff0', onPop: '#000' } };
   s.boards[0].graphicSet.pattern = { strength: { light: 0, dark: 0 } };
   const before = structuredClone(s), b = model(s).boards[0];
-  for (const [mode, colour] of [['light', 'blue'], ['dark', 'yellow']]) {
+  for (const [mode, colour] of [['light', 'blue'], ['dark', 'sunflower']]) {
     for (const list of [b.modes[mode].swatches, b.modes[mode].chips]) {
       named(list, mode);
       for (const key of ['pop', 'mark']) assert.match(list.find(s => s.key === key).name.toLowerCase(), new RegExp(colour));

@@ -18,7 +18,9 @@ const keys = (value,wanted) => record(value) && Object.keys(value).length === wa
 
 function validAnswers(payload,form) {
   if (displayOnly(form)) return false;
-  if (!keys(payload,['form','answers','shown',...(form.actions ? ['action'] : []),...(form.id === undefined ? [] : ['id'])]) || payload.form !== form.title || payload.id !== form.id) return false;
+  const hasMode=form.questions.some(q=>q.type==='boards'&&q.controls?.mode);
+  if(hasMode&&!['light','dark'].includes(payload?.mode))return false;
+  if (!keys(payload,['form','answers','shown',...(hasMode?['mode']:[]),...(form.actions ? ['action'] : []),...(form.id === undefined ? [] : ['id'])]) || payload.form !== form.title || payload.id !== form.id) return false;
   const ids = form.questions.map(q => q.id);
   if (!keys(payload.answers,ids) || !Array.isArray(payload.shown) || payload.shown.length !== ids.length) return false;
   if (!payload.shown.every((entry,i) => keys(entry,['id','question','shown']) && entry.id === ids[i] && typeof entry.question === 'string' && typeof entry.shown === 'string')) return false;
@@ -34,7 +36,11 @@ function validAnswers(payload,form) {
     if (q.type === 'slider') return typeof value === 'number' && Number.isFinite(value) && value >= q.min && value <= q.max && onStep((value-q.min)/(q.step ?? 1));
     const allowed = v => typeof v === 'string' && q.options.some(option => option.value === v);
     if (q.type === 'radio' || q.type === 'image-radio') return value === null || allowed(value);
-    if(q.type==='boards' && (!Array.isArray(value)||value.length>q.pick||(!form.actions&&value.length<minimumPicks(q))))return false;
+    if(q.type==='boards') {
+      if(!Array.isArray(value)||value.length>q.pick||(!form.actions&&value.length<minimumPicks(q)))return false;
+      const owners=value.map(v=>typeof v==='string'?q.options.findIndex(o=>o.value===v||o.steps?.some(s=>s.value===v)):-1);
+      return owners.every(i=>i>=0)&&new Set(owners).size===owners.length;
+    }
     return Array.isArray(value) && new Set(value).size === value.length && value.every(allowed);
   });
 }
