@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.06.7, November 6, 2026
+
+- Setting up Wiser now warns you about the request to reach your Desktop before it appears, and the voice coach asks each question once. (6cf02598, b3cbc9bf)
+
 ## v2026.11.06.6, November 6, 2026
 
 - Each board on a page of your boards is now the whole board in small, its parts in two columns, so you can see its colours, lettering, mark and pieces before you open it. Every card is the same size, with the board's colours in its corner and "Recommended" at the top right of a recommended one. Tapping the picture opens the board full size, and only the tick box picks it. Before, a card showed only the top of its board, so the cards looked alike. (72755041, 10369a27, 691f7fac, 8f3ae341)
