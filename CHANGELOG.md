@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.06.3, November 6, 2026
+
+- Saying "wrap up" now ends a session with its hand-over message wherever Wiser runs, in Claude Cowork and in a chat working in your own folder too, whether or not the session worked a Playbook. Before, only a session that had read Wiser's own instructions knew the phrase. (202d053a)
+
 ## v2026.11.06.2, November 6, 2026
 
 - Setting up Wiser is dramatically easier. One chat now takes you from a new folder, through how you write and a look for your work, to a project where every chat already knows you, and handles the complicated parts behind the scenes. (d09e43e7, 06cc54c0, 234ff5a2)
