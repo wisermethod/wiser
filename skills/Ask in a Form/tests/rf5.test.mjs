@@ -21,3 +21,8 @@ test('RF5 B4: local display-only board never enters an answer wait',()=>{
  assert.match(skill,/Use `serve` for this display, since `ask` waits/);
  assert.match(skill,/without step 4.4's wait/);
 });
+
+test('RF5 review: a display-only boards form never runs ask on the no-listen branch',()=>{
+ const skill=readFileSync(new URL('../SKILL.md',import.meta.url),'utf8');
+ assert.match(skill,/A display-only boards form, with `pick: 0` and no actions, never runs `ask`, which waits for a Send it does not have/);
+});

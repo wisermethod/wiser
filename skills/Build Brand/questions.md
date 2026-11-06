@@ -342,6 +342,18 @@ For any other card limitation, including a missing card display, use the looks o
 
 > Your boards can't show in this card, so I'll open them on their own page instead.
 
+Use those two lines only where this session can open a page the member sees: a command-line tool on their own computer, through Form's window or Browser Control. In the Claude app, Cowork or ChatGPT with no `show_form`, say this instead, then save and return `stopped`:
+
+> Your looks can't show in this app until Wiser is reconnected. Reconnect it in the app's settings, then say "build my brand" and we'll pick up from here.
+
+> Your boards can't show in this app until Wiser is reconnected. Reconnect it in the app's settings, then say "build my brand" and we'll pick up from here.
+
+Where the app has `show_form` but this card still cannot show, or the page cannot open, say the looks failure line above, or for boards:
+
+> I couldn't get your boards ready just now. Say "build my brand" any time and we'll pick up from here.
+
+On a page of their own, the pictures are numbered, and their picks on the question tool are "Look 1" to "Look 12" and "Board 1" onward, matching those numbers.
+
 Ask that page's actions with their existing labels, lines and pick conditions on the question tool; never ask for unseen pictures by their labels alone.
 
 ### Board copy
@@ -441,7 +453,7 @@ Where it changes the kept sentence, before the direct run's Done or the caller r
 
 > I tightened your sentence: [new sentence]
 
-Where it changes a kept word or what that word isn't, one line for each changed pair, after any sentence line and before Done, [not] being the word's boundary:
+Where it changes a kept word or what that word isn't, one line for each changed pair, after any sentence line and before the direct run's Done or the caller return, [not] being the word's boundary:
 
 > I tightened one of your words: [word], not [not].
 

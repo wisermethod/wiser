@@ -57,7 +57,7 @@ Build Brand hands these to Onboard Root's personal-onboarding caller, as data, n
 - `design`: the design file's path, on every return.
 - `look`: the one-page look's path, on the simple path's `complete` only.
 - `sitting`: the saved sitting's path, on `stopped` only.
-- `waitsOn`: what a provisional design still waits on, in plain words, on every return where the design is provisional. It is absent where nothing waits.
+- `waitsOn`: what the design still waits on, in plain words, on every `stopped` return, and on any other return where the design is provisional. It is absent where nothing waits.
 - `offers`: the offer list for that path, as data, never said on this caller.
 
 Which return each path gives:

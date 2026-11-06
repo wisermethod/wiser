@@ -22,7 +22,7 @@ test('RF5 B1: exact caller field contract and per-path outcomes are data',()=>{
   "`design`: the design file's path, on every return.",
   "`look`: the one-page look's path, on the simple path's `complete` only.",
   "`sitting`: the saved sitting's path, on `stopped` only.",
-  '`waitsOn`: what a provisional design still waits on, in plain words, on every return where the design is provisional.',
+  '`waitsOn`: what the design still waits on, in plain words, on every `stopped` return, and on any other return where the design is provisional.',
   '`offers`: the offer list for that path, as data, never said on this caller.'
  ])assert.ok(router.includes(line),line);
  assert.match(router,/full sitting gives `locked` or `stopped`/);
@@ -45,7 +45,8 @@ test('RF5 B1: simple returns actual design and look paths without a caller close
  assert.match(simple,/return `complete` with `design` and `look`/);
  assert.match(simple,/say no close line of its own/);
  assert.match(simple,/direct run.*show the page/i);
- assert.match(simple,/caller.*intro.*first line only/s);
+ assert.match(simple,/two intro lines .* on every run, a caller's included, since the board layout requires both/s);
+ assert.doesNotMatch(simple,/first line only/);
 });
 test('RF5 B5: leaving early saves then returns stopped instead of ending the caller',()=>{
  const leaving=section(sitting,'## Leaving early');
@@ -112,4 +113,23 @@ test('RF5 B7: caller full and brand-files switch omit only the existing-brand op
  assert.match(sitting,/caller.*`full`.*omit.*I have a brand I'm happy with/s);
  assert.match(sitting,/other three options in order/);
  assert.match(sitting,/direct run keeps all four/);
+});
+
+test('RF5 review: no own-page line where no page can open; reconnect or failure, then a stopped return',()=>{
+ assert.match(bank,/only where this session can open a page the member sees/);
+ assert.match(bank,/Your looks can't show in this app until Wiser is reconnected\./);
+ assert.match(bank,/Your boards can't show in this app until Wiser is reconnected\./);
+ assert.match(bank,/I couldn't get your boards ready just now\./);
+ assert.match(bank,/"Look 1" to "Look 12" and "Board 1" onward/);
+ assert.match(sitting,/Never say an own-page line where no page can open/);
+ assert.match(sitting,/with no `show_form`, say the bank's reconnect line/);
+});
+test('RF5 review: a lock that fails twice returns stopped with its fields',()=>{
+ assert.match(lock,/rerun once;.*Does the rerun fail too\? Say the bank's Leaving early line.*return `stopped` to a caller with `design`, `sitting`, `waitsOn` naming the lock and its cause, and `offers`/s);
+ assert.match(lock,/Retry no further\./);
+});
+test('RF5 review: every stopped return names what waits, and the one-word line points at the caller return',()=>{
+ assert.match(router,/`waitsOn`: what the design still waits on, in plain words, on every `stopped` return/);
+ assert.match(brief,/`waitsOn` naming the brand files left for later/);
+ assert.doesNotMatch(bank,/after any sentence line and before Done,/);
 });
