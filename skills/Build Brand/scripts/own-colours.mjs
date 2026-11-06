@@ -254,7 +254,10 @@ export function buildOwnColours(said) {
     // A role collision is an assignment choice, not a shade move. Try the
     // remaining member colours, then the other ink, without filing a C4.
     const alternatives=[...unique.map(v=>v.value),text,deep,light.value];
-    const modePop=visible(pop)?pop:alternatives.find(v=>visible(v)&&(readable(light.value,v,60)||readable(deep,v,60)));
+    // A single near-white belongs on the panel or mark in either mode.
+    // Keep white's allowed ink inversion; other near-whites cannot be buttons.
+    const popAlternatives=lightAccent?alternatives.filter(v=>colourKey(v)!==colourKey(accent.value)||colourKey(v)==='#FFFFFF'):alternatives;
+    const modePop=visible(pop)?pop:popAlternatives.find(v=>visible(v)&&(readable(light.value,v,60)||readable(deep,v,60)));
     const modeInk=modePop===pop?onPop:readable(light.value,modePop,60)?light.value:deep;
     const mark=extra?.value??pop;
     let c=full({ground,panel:lightAccent&&mode==='light'&&colourKey(accent.value)!=='#FFFFFF'?accent.value:mix(ground,extra?.value??text,.04),text,headline:text,deep,pop:modePop,onPop:modeInk,mark:visible(mark)?mark:alternatives.find(visible)},mode);
@@ -295,15 +298,16 @@ export function buildOwnColours(said) {
   }).map(m=>`I ${m.direction} your ${m.colour} a little, so words on it stay easy to read.`);
   return {status:'ready',said,values,moves,checks,strength:'one',kept:{palette:{overrides:palette}},lines:[`These use your colours: ${said}.`,...disclosures]};
 }
-// An entire known colour phrase, or an explicit use request, answers C2.
+// An entire known colour phrase, optionally after a use request, answers C2.
 // Colour words under less, more, too, not or without stay steer and off.
 // The sitting passes the whole comment so extracting a word cannot lose intent.
 export function coloursFromComment(comment) {
-  const parsed=readColours(comment);
-  if(/\b(?:less|more|too|not|without)\b/i.test(comment))return {status:'steer',said:comment};
-  if(!parsed.unknown.length)return buildOwnColours(comment);
-  const request=comment.match(/^(?:(?:please\s+)?use|(?:I|we)\s+(?:want|would like)(?:\s+to use)?)\s+(.+?)[.!]?$/i);
-  return request?buildOwnColours(request[1]):{status:'steer',said:comment};
+  const phrase=typeof comment==='string'?comment.replace(/\r\n?|\n|\u2028|\u2029/g,' ').trim().replace(/[.!?]+$/,'').trim():comment;
+  const parsed=readColours(phrase);
+  if(/\b(?:less|more|too|not|without)\b/i.test(phrase))return {status:'steer',said:comment};
+  if(!parsed.unknown.length)return buildOwnColours(phrase);
+  const request=phrase.match(/^(?:(?:please\s+)?use|(?:I|we)\s+(?:want|would\s+like)(?:\s+to\s+use)?)\s+(.+)$/i);
+  return request&&!readColours(request[1]).unknown.length?buildOwnColours(request[1]):{status:'steer',said:comment};
 }
 export function validateOwnColours(record) {
   const built=buildOwnColours(record?.said);

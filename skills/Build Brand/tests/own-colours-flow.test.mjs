@@ -70,8 +70,7 @@ test('a new colour answer retains old history without treating old-colour looks 
   const comment=select('looks',{...a,ownColours,shown:old.options});
   assert.deepEqual(comment.options,fresh.options);
   assert.equal(old.options.length,12);
-  const next=select('looks',{...a,ownColours,shown:comment.options});
-  assert.ok(next.options.every(o=>!comment.options.some(old=>old.value===o.value)));
+  assert.throws(()=>select('looks',{...a,ownColours,shown:comment.options}),/looks: library exhausted/);
 });
 test('bank, sitting, records, lock and journey carry C1-C5 and J1c', () => {
   const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');

@@ -42,7 +42,8 @@ The answers file carries the returned page switch position as optional mode,
 light or dark.
 looks answers: optional shown (all looks records or Form options already shown
 in this sitting), steer and off. Empty/absent shown keeps the first page;
-otherwise return twelve unshown looks, preferring less-shown parts.
+otherwise return twelve unshown looks, preferring less-shown parts. Own colours
+return up to twelve distinct styles; no unshown style reports library exhausted.
 variations answers: picks (0 to 3 complete step records the member sent), shown
 (all boards as first shown in this sitting), steer (warmCool, quietBold, softStrong,
 classicContemporary: -1, 0 or 1), and off as for round1.
@@ -301,7 +302,7 @@ function shownLook(look,library,kept={}) {
       object(step,['value','label','palette','depth'],'shown.steps');
       text(step.value,'shown.steps.value');
       if(!own(step,'palette')&&option&&step.value===look.value) continue;
-      object(step.palette,['id','overrides'],'shown.steps.palette');
+      object(step.palette,['id','overrides','names','energy'],'shown.steps.palette');
       text(step.palette.id,'shown.steps.palette.id');
     }
   }
@@ -811,6 +812,7 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
           finishReplacement(start,candidate);
           seenLooks.add(visibleKey(c));found.chosen.push({...candidate,kind:'top'});found.spares.push([]);
         }
+        if(!found.chosen.length) fail('looks','library exhausted: no passing unshown own-colour looks remain');
       } else if(!search) {
         const start=replacements.length;
         try { found=chooseLooks(lookPool,checkLook,(c,slot)=>{for(const r of replacements.filter(r=>r.slot===slot))r.replacement=summary(effective(c,a,library));}); }

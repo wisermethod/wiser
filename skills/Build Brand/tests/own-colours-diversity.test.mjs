@@ -25,8 +25,9 @@ for(const [said,get] of samples){
   const library=JSON.parse(readFileSync(LIBRARY));
   assert.equal(first.options.length,Math.min(12,library.styles.length));
   distinct(first.selection.boards,lookKey);
-  const next=select('looks',{...a,shown:first.options},{check:true});
-  distinct([...first.selection.boards,...next.selection.boards],lookKey);
+  const shown=first.options.slice(0,2),next=select('looks',{...a,shown},{check:true});
+  distinct([...first.selection.boards.slice(0,2),...next.selection.boards],lookKey);
+  assert.throws(()=>select('looks',{...a,shown:[...shown,...next.options]},{check:true}),/looks: library exhausted/);
   assertFormBudget(looksForm(a,first),1000);
  });
  test(`${said}: Round 1 has distinct visible pairing, graphic set and container`,()=>{

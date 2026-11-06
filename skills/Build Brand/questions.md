@@ -51,7 +51,7 @@ Done while empty:
 
 > The folder's still empty. Put them in, or tap Skip.
 
-Keep the same three options. Logo replaces initials everywhere; supplied values hold every board; board zero first. Feeds Source Assets and Templates, Color, Typography and Mark.
+Keep the same three options. Logo replaces initials everywhere; supplied values hold every board; board zero first for retained assets. A typed colour set adds no board zero, since every board already wears it. Feeds Source Assets and Templates, Color, Typography and Mark.
 
 ## Own colours
 
@@ -290,7 +290,7 @@ C3 before the first looks or boards page in this set, filling the bracket verbat
 
 > These use your colours: [colours as they said them].
 
-C4 once per moved shade, only where it moved for reading:
+C4 once per moved colour of the member's own, only when its from value equals a member input value and it moved for reading; derived shades move silently and are filed:
 
 > I deepened your [colour] a little, so words on it stay easy to read.
 
@@ -328,7 +328,7 @@ On `ENOSPC` while saving the lettering:
 
 > Which of these feel like you? Pick up to three.
 
-Twelve tiles from `select.mjs looks`, its options unchanged, at least two on a plain ground and all five marks. The three actions, in order, have the following exact labels and lines. Conditions and `needs` are engine data, never shown as explanation.
+Up to twelve tiles from `select.mjs looks`, its options unchanged. Own-colour pages show the available distinct pairing and graphic-set combinations, even when fewer than twelve; say nothing extra. Library-colour pages keep twelve, at least two on a plain ground and all five marks. The three actions, in order, have the following exact labels and lines. Conditions and `needs` are engine data, never shown as explanation.
 
 | Picks | Label | Line | Needs |
 |-------|-------|------|-------|
@@ -338,9 +338,9 @@ Twelve tiles from `select.mjs looks`, its options unchanged, at least two on a p
 
 `pick: 3`, `min: 2`: one picked is allowed by its own action. Any number may be ticked. Above three the Use these button stays grey with "You picked [n] looks. Pick up to three to go on." Other unmet actions hide.
 
-None of these work uses Steering a round below with "What's missing from these?", on one screen of the question tool under step 3's progress line, then twelve unshown looks with the same buttons. Append every shown look unchanged to history. No wrong-look question.
+None of these work uses Steering a round below with "What's missing from these?", on one screen of the question tool under step 3's progress line, then up to twelve distinct unshown looks for own colours, or twelve unshown looks for library colours, with the same buttons. Append every shown look unchanged to history. No wrong-look question.
 
-When no new page of twelve can be made from looks not yet shown, the last page of looks comes back, not appended to history again, on the same card with the same buttons, after one message:
+When no unshown own-colour look remains, or no new page of twelve library-colour looks can be made from looks not yet shown, the last page of looks comes back, not appended to history again, on the same card with the same buttons, after one message:
 
 > That's every look I have. Pick the closest one, and I'll build your boards from there.
 
