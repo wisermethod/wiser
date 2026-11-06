@@ -117,8 +117,9 @@ function board(model,b,mode,compact,logo) {
       default:throw Error('Unknown board block '+v.kind);
     }
   };
-  n.append(...b.modes[mode][thumbnail?'tile':'blocks'].map(block).filter(Boolean));
-  if(thumbnail)n.append(footer(b));
+  const rows=b.modes[mode][thumbnail?'tile':'blocks'].map(block).filter(Boolean);
+  if(thumbnail)n.append(el('div','thumbnail-column',null,...rows,footer(b)),el('div','thumbnail-column'));
+  else n.append(...rows);
   return n;
 }
 function footer(b) {
@@ -132,7 +133,12 @@ function draw(model,b,{compact=false,logo,mode:showMode}={}) {
   for(const mode of showMode?[showMode]:compact?[b.primaryMode]:[b.primaryMode,b.primaryMode==='light'?'dark':'light']) {
     const start=n.children.length;
     if(!compact)n.append(el('h2','board-mode',globalThis.WiserForm.WORDS[mode]));
-    n.append(board(model,b,mode,compact,logo));
+    const drawing=board(model,b,mode,compact,logo);
+    if(compact){
+      const strip=el('div','thumbnail-swatches');
+      for(const key of model.layout.thumbnail.swatches){const s=el('span','thumbnail-swatch');s.dataset.swatch=key;s.dataset.colour=b.palette[mode][key];s.style.background=b.palette[mode][key];strip.append(s);}
+      n.append(el('div','thumbnail-surface',null,drawing,el('div','thumbnail-patch',null,strip)));
+    }else n.append(drawing);
     if(!compact)n.append(footer(b));
     for(const part of [...n.children].slice(start))part.dataset.mode=mode;
   }
@@ -144,6 +150,7 @@ function shape(tag,attrs={}) {
 }
 const stackPositions=new WeakMap();
 function fitLooks() {
+  lib.fitBoardThumbnails();
   for(const n of document.querySelectorAll('svg.look-art')) {
     // A look on a hidden page is fitted when its page is shown; measuring it undrawn can throw.
     if(!n.getClientRects().length)continue;

@@ -40,13 +40,14 @@ export const BRAND_BOARD_CSS = `
 .brand-board:not(.tile) .content-card{padding:20px 16px}.brand-board:not(.tile) .banner-copy>b{font-size:max(18px,4.4cqw)!important}
 .brand-board:not(.tile) .banner-copy{padding-bottom:14px}.brand-board:not(.tile) .size-row{gap:12px}
 }
-/* One full-board section stack flows down the left column, then the right.
-   Zoom scales layout and ink together, including after font loads. These fixed
-   drawing rows keep viewport media queries from producing a phone miniature. */
+/* Intact drawing rows flow down the left column, then the right. Only the board
+   is zoomed; the patch sits over it at actual CSS-pixel sizes. */
 .board-thumbnail{display:block;min-width:0;container-type:inline-size;text-decoration:none;color:inherit}
 .board-thumbnail:focus-visible{outline:3px solid currentColor;outline-offset:4px}
-.brand-board.tile{display:block;width:${thumbnail.width}px;max-width:none;margin:0;padding:${thumbnail.padding}px;columns:${thumbnail.columns};column-gap:${thumbnail.gap}px;column-fill:balance;zoom:calc(100cqw / ${thumbnail.width}px)}
-.tile>.board-row{position:relative;z-index:1;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px;break-inside:avoid;margin-bottom:24px}
+.thumbnail-surface{position:relative;container-type:inline-size}
+.brand-board.tile{display:grid;width:${thumbnail.width}px;max-width:none;margin:0;padding:${thumbnail.padding}px;grid-template-columns:repeat(${thumbnail.columns},minmax(0,1fr));gap:${thumbnail.gap}px;zoom:calc(100cqw / ${thumbnail.width}px)}
+.thumbnail-column{position:relative;z-index:1;min-width:0;display:flex;flex-direction:column;gap:24px;align-self:start}
+.tile .board-row{position:relative;z-index:1;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}
 .tile .board-row>section{position:relative;z-index:1;min-width:0}
 .tile .brand-hero{grid-column:1/9;min-height:600px;padding-right:32px;display:flex;flex-direction:column}
 .tile .brand-headline{font-size:var(--display-size)!important;margin:104px 0 30px}
@@ -61,6 +62,13 @@ export const BRAND_BOARD_CSS = `
 .tile .rules{grid-template-columns:1fr 1fr}
 .tile .margin-note{white-space:nowrap;margin:.34em 0 0 18px;font-size:var(--thumbnail-note-size)!important}
 .tile .note-arrow{width:84px;height:40px}
-.tile>.whole-foot{position:relative;z-index:1;break-inside:avoid;padding:0;margin:0;max-width:none}
+.tile .whole-foot{position:relative;z-index:1;padding:0;margin:0;max-width:none}
+.thumbnail-patch{position:absolute;display:flex;flex-direction:column;align-items:flex-start;gap:6px;overflow:hidden;pointer-events:none}
+.thumbnail-badge{flex:none;display:inline-block;width:max-content;max-width:none;white-space:nowrap;background:var(--fg,#242832);color:var(--card,#fffdfa);border-radius:4px;padding:2px 6px;font:700 13px/19px system-ui,sans-serif}
+.thumbnail-swatches{display:flex;flex:none;gap:4px;height:20px}
+.thumbnail-swatch{display:block;flex:none;width:24px;height:20px;border:1px solid #80808080;border-radius:3px}
+.thumbnail-patch [hidden]{display:none!important}
+.recommendation-reason::before{content:''}
+.thumbnail-badge+.recommendation-reason::before{content:' · '}
 
 `;

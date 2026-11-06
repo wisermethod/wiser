@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { closeSync, copyFileSync, existsSync, ftruncateSync, linkSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync, writeSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -409,7 +410,7 @@ test('28. Brand boards render names before tiles, ordered groups, whole links an
   assert.match(html, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
   assert.match(html, /@media\(max-width:900px\)\{\.boards-grid\{grid-template-columns:minmax\(0,1fr\)/);
   assert.equal((html.match(/<footer class="page-foot">/g) || []).length, 1);
-  assert.equal((html.match(/<b>Recommended<\/b>/g) || []).length, 2); // tile and its whole-view metadata
+  assert.equal((html.match(/<b(?: class="thumbnail-badge")?>Recommended<\/b>/g) || []).length, 2); // one movable tile badge and whole-view metadata
   const openLinks = [...html.matchAll(/class="board-thumbnail" href="#(whole-\d+)"/g)];
   assert.equal(openLinks.length, 3);
   for (const [i, b] of spec.boards.entries()) {
@@ -450,11 +451,16 @@ test('29. Brand boards are byte-identical at another destination and working dir
   assert.deepEqual(first.embedded, second.embedded);
 });
 
-test('30. Brand output embeds fonts and SVGs with no scripts, handlers or outward references', (t) => {
+test('30. Brand output permits only the exact local thumbnail fitter, with no handlers or outward references', (t) => {
   const dir = temp(t), spec = brandFixture();
   spec.boards[0].content.body = '<script onload="evil()"> https://example.invalid @import';
   const reply = success(build(dir, spec).result), html = readFileSync(reply.output, 'utf8');
-  assert.doesNotMatch(html, /<script|<link|@import|https?:\/\//i);
+  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
+  assert.equal(scripts.length, 1);
+  const hash = createHash('sha256').update(scripts[0][1]).digest('base64');
+  assert.ok(html.includes(`script-src 'sha256-${hash}';`));
+  assert.doesNotMatch(html.replace(scripts[0][0], ''), /<script|<link|@import|https?:\/\//i);
+  assert.doesNotMatch(scripts[0][1], /fetch\(|XMLHttpRequest|eval\(|innerHTML|document\.write|import\(/);
   assert.doesNotMatch(html, /<[a-z][^>]*\son[a-z]+\s*=/i);
   for (const m of html.matchAll(/\b(?:src|href)="([^"]+)"/g)) assert.match(m[1], /^(?:data:|#)/);
   assert.doesNotMatch(html.replace(/url\(["']data:[^"']+["']\)/g, ''), /url\(/i);

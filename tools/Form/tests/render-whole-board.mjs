@@ -26,6 +26,8 @@ try{
     await h.f.locator('#root').screenshot({path:resolve(output,name+'.png')});
     if(business==='bakery'&&!kept&&page==='round1'&&theme==='light'&&width===390){
      await h.f.locator('.boards-tile').first().screenshot({path:resolve(output,'bakery-thumbnail.png')});
+     await h.f.locator('.board-thumbnail:has(.thumbnail-patch .thumbnail-badge)').first().screenshot({path:resolve(output,'bakery-recommended-thumbnail.png')});
+     await h.f.locator('.boards-tile:not(:has(.thumbnail-badge)) .board-thumbnail').first().screenshot({path:resolve(output,'bakery-other-thumbnail.png')});
      await h.f.locator('.board-thumbnail').first().click();
      const height=await h.f.locator('#root').evaluate(n=>Math.ceil(n.getBoundingClientRect().height));
      await h.page.locator('iframe').evaluate((n,height)=>n.style.height=height+'px',height+2);
@@ -39,5 +41,5 @@ try{
  const json=JSON.stringify({heightLimit:5000,inputElementLimit:1000,measurements},null,2)+'\n';
  writeFileSync(resolve(output,'measurements.json'),json);
  writeFileSync(new URL('whole-board-measurements.json',import.meta.url),json);
- console.log(JSON.stringify({pages:measurements.length,pngs:measurements.length+2,maxHeight:Math.max(...measurements.map(m=>m.height)),output}));
+ console.log(JSON.stringify({pages:measurements.length,pngs:measurements.length+4,maxHeight:Math.max(...measurements.map(m=>m.height)),output}));
 }finally{await kit.browser.close();}

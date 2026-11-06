@@ -9,6 +9,7 @@ import { wcag, validateBrandBoards } from '../scripts/brand-boards.js';
 import { BRAND_BOARD_CSS } from '../scripts/brand-board-style.js';
 import { renderBrandBoards } from '../scripts/brand-board-view.js';
 import { BOARD_LAYOUT, createBoardModel, DEFAULT_MARK_CAPTION, PUBLIC_FONT_FILES } from '../scripts/board-model.js';
+import { fitBoardThumbnails } from '../scripts/board-thumbnail.js';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const fixture = () => JSON.parse(readFileSync(new URL('fixtures/brand-boards.json', import.meta.url)));
@@ -183,12 +184,12 @@ test('Own-page thumbnails contain every full section once in two balanced column
         const range=document.createRange();range.selectNode(text);
         if([...range.getClientRects()].some(box=>box.left<r.left-.5||box.right>r.right+.5||box.top<r.top-.5||box.bottom>r.bottom+.5))clipped.push(text.textContent.slice(0,60));
       }
-      return {columns:getComputedStyle(b).columnCount,mode:b.dataset.mode,boards:n.querySelectorAll('.brand-board').length,
+      return {columns:b.querySelectorAll('.thumbnail-column').length,mode:b.dataset.mode,boards:n.querySelectorAll('.brand-board').length,
         sections:[...b.querySelectorAll('section')].map(n=>n.className),rows,clipped,width:r.width,height:r.height,href:n.getAttribute('href'),name:n.getAttribute('aria-label')};
     }));
     assert.equal(thumbs.length,spec.boards.length);
     for(const b of thumbs){
-      assert.equal(b.columns,'2');assert.equal(b.mode,mode);assert.equal(b.boards,1);
+      assert.equal(b.columns,2);assert.equal(b.mode,mode);assert.equal(b.boards,1);
       for(const name of ['brand-hero','palette','face-sample heading-face','face-sample body-face','graphic-language','items','banner-section','other-mode','rules'])assert.equal(b.sections.filter(s=>s===name).length,1,name);
       assert.ok(b.rows.some(r=>r.x>b.width/2),JSON.stringify(b));
       assert.ok(b.rows.every(r=>r.x>=0&&r.y>=0&&r.right<=b.width+1&&r.bottom<=b.height+1),JSON.stringify(b));
@@ -197,6 +198,65 @@ test('Own-page thumbnails contain every full section once in two balanced column
     }
     await page.locator('.board-thumbnail').first().click();
     assert.equal(await page.locator('.whole-view:visible').count(),1);
+  }
+});
+
+test('Own-page patches share optimal section splits, badge priority and ordered real-size colours in both modes',async t=>{
+  const {launch}=await import('../../lib/browser-runtime/browser-runtime.js');
+  const browser=await launch({headless:true});t.after(()=>browser.close());
+  const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.route('**/*',route=>route.abort());
+  for(const width of [734,390])for(const mode of ['light','dark']){
+    const spec=fixture();for(const b of spec.boards)b.primaryMode=mode;
+    await page.setViewportSize({width,height:900});await page.setContent(renderBrandBoards(validate(spec)));
+    await page.evaluate(()=>document.fonts.ready);
+    const boards=await page.locator('.board-option').evaluateAll(nodes=>nodes.map(n=>{
+      const surface=n.querySelector('.thumbnail-surface');if(!surface)return null;
+      const board=surface.querySelector('.brand-board'),columns=[...board.querySelectorAll('.thumbnail-column')],rows=columns.flatMap(c=>[...c.children]);
+      const scale=board.getBoundingClientRect().width/board.offsetWidth,gap=parseFloat(getComputedStyle(columns[0]).gap)*scale;
+      const patch=surface.querySelector('.thumbnail-patch'),badge=n.querySelector('.thumbnail-badge'),box=patch.getBoundingClientRect();
+      return {heights:rows.map(n=>n.getBoundingClientRect().height),gap,split:columns[0].children.length,
+        height:surface.getBoundingClientRect().height,boardHeight:board.getBoundingClientRect().height,
+        swatches:[...patch.querySelectorAll('.thumbnail-swatch')].map(s=>({key:s.dataset.swatch,value:s.dataset.colour,shown:!s.hidden,width:s.getBoundingClientRect().width,height:s.getBoundingClientRect().height})),
+        badge:badge?{inPatch:patch.contains(badge),inCaption:!!n.querySelector('.board-meta .recommendation b'),width:badge.getBoundingClientRect().width,height:badge.getBoundingClientRect().height}:null,
+        patch:{width:box.width,height:box.height},reason:n.querySelector('.recommendation-reason')?.textContent};
+    }));
+    for(const [i,b]of boards.entries()){
+      assert.ok(b,'own-page has the same patch');assert.equal(b.height,b.boardHeight);
+      const height=(from,to)=>b.heights.slice(from,to).reduce((s,h)=>s+h,0)+b.gap*Math.max(0,to-from-1);
+      const differences=b.heights.slice(1).map((_,i)=>Math.abs(height(0,i+1)-height(i+1,b.heights.length)));
+      assert.ok(Math.abs(height(0,b.split)-height(b.split,b.heights.length))<=Math.min(...differences)+.5);
+      assert.deepEqual(b.swatches.map(s=>s.key),['panel','pop','deep']);
+      assert.deepEqual(b.swatches.map(s=>s.value),['panel','pop','deep'].map(k=>spec.boards[i].palette[mode][k]));
+      const shown=b.swatches.filter(s=>s.shown);assert.deepEqual(shown,b.swatches.slice(0,shown.length));
+      assert.ok(shown.every(s=>s.width===24&&s.height===20));
+      if(b.badge){assert.equal(b.reason,spec.boards[i].recommendation);assert.equal(b.badge.inCaption,!b.badge.inPatch);
+        if(b.patch.width>=b.badge.width&&b.patch.height>=b.badge.height)assert.ok(b.badge.inPatch);
+      }
+    }
+  }
+  assert.deepEqual(errors,[]);
+});
+
+test('Own-page small patches return the badge to metadata and retain only the swatch prefix that fits',async t=>{
+  const {launch}=await import('../../lib/browser-runtime/browser-runtime.js');
+  const browser=await launch({headless:true});t.after(()=>browser.close());
+  const page=await browser.newPage();await page.route('**/*',route=>route.abort());
+  const spec=fixture();spec.boards[0].recommendation='Existing recommendation reason.';
+  await page.setContent(renderBrandBoards(validate(spec)));await page.evaluate(()=>document.fonts.ready);
+  for(const [pixels,width,badge,swatches]of [[100,350,true,3],[40,350,true,0],[10,350,false,0],[100,120,false,1],[100,180,false,2],[100,350,true,3]]){
+    await page.locator('.board-option').first().evaluate((n,{pixels,width})=>{
+      const surface=n.querySelector('.thumbnail-surface'),board=surface.querySelector('.brand-board'),cols=[...board.querySelectorAll('.thumbnail-column')],rows=cols.flatMap(c=>[...c.children]);
+      rows.slice(3).forEach(n=>n.remove());rows.slice(0,3).forEach(n=>{n.replaceChildren();n.style.height='100px';});
+      surface.style.width=width+'px';const scale=board.getBoundingClientRect().width/board.offsetWidth;
+      rows[2].style.height=(224+pixels/scale)+'px';
+    },{pixels,width});
+    await page.evaluate(fitBoardThumbnails);
+    const tile=page.locator('.board-option').first();
+    assert.equal(await tile.locator('.thumbnail-patch .thumbnail-badge').count(),Number(badge));
+    assert.equal(await tile.locator('.board-meta .recommendation b').count(),Number(!badge));
+    assert.equal(await tile.locator('.recommendation-reason').textContent(),spec.boards[0].recommendation);
+    assert.deepEqual(await tile.locator('.thumbnail-swatch:not([hidden])').evaluateAll(ns=>ns.map(n=>n.dataset.swatch)),['panel','pop','deep'].slice(0,swatches));
   }
 });
 

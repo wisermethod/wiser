@@ -16,6 +16,7 @@ for(const business of ['bakery','politician'])for(const kept of [false,true]){
    assert.equal(m.thumbnails,12);assert.ok(m.height<5000,JSON.stringify(m));
    assert.ok(m.unchanged);assert.equal(m.elementsBefore,m.inputElements);assert.equal(m.elementsAfter,m.inputElements);assert.ok(m.inputElements<1000);
    assert.equal(m.domInputs,12);assert.equal(m.overflow,false);assert.deepEqual(h.errors,[]);
+   assert.ok(m.patches.every(p=>p.overlayOnly),'patch adds no height to the drawing');
    assert.deepEqual(m.clippedText,[]);
   }finally{await h.context.close();}
  });

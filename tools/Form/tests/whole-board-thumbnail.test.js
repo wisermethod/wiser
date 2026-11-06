@@ -9,11 +9,11 @@ test('whole-board thumbnail: one copy of all sections, balanced two-column flow,
  try{
   const result=await h.f.locator('.board-thumbnail').first().evaluate(n=>{
    const board=n.querySelector('.brand-board'),r=n.getBoundingClientRect();
-   return {columns:getComputedStyle(board).columnCount,sections:[...board.querySelectorAll('section')].map(n=>n.className),
+   return {columns:board.querySelectorAll('.thumbnail-column').length,sections:[...board.querySelectorAll('section')].map(n=>n.className),
     rows:[...board.querySelectorAll('.board-row')].map(n=>{const b=n.getBoundingClientRect();return {x:b.x-r.x,y:b.y-r.y,right:b.right-r.x,bottom:b.bottom-r.y};}),width:r.width,height:r.height,
     sample:board.querySelector('.hero-body').textContent,boards:n.querySelectorAll('.brand-board').length};
   });
-  assert.equal(result.boards,1);assert.equal(result.columns,'2');
+  assert.equal(result.boards,1);assert.equal(result.columns,2);
   for(const section of ['brand-hero','palette','face-sample heading-face','face-sample body-face','words','graphic-language','items','banner-section','other-mode','rules'])assert.equal(result.sections.filter(s=>s===section).length,1,section);
   assert.match(result.sample,/Sample:/);
   assert.ok(result.rows.some(r=>r.x>result.width/2));
