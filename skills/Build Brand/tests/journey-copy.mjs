@@ -45,9 +45,10 @@ export function compareJourneyCopy(source, bank, openingTaps) {
   const keep = j('Step 1: What to keep'), bankKeep = b('Step 1: What to keep');
   const keepBlocks = blocks(keep);
   expectedJourneyBlockquotes.push(...keepBlocks);
-  bankScreen('What to keep', blocks(bankKeep), [keepBlocks[0], capture(keep, /For an organisation, "(.*)"/), keepBlocks[1], capture(keep, /Where the app cannot open one: "(.*)" with the same second sentence/), capture(keep, /Done with nothing placed or dropped: "(.*)" and the same two options/)]);
+  bankScreen('What to keep', blocks(bankKeep), [keepBlocks[0], capture(keep, /For an organisation, "(.*)"/), keepBlocks[1], capture(keep, /Where the app cannot open one: "(.*)" with the same second sentence/), capture(keep, /Done with nothing placed or dropped: "(.*)" and the same (?:two|three) options/)]);
   eq(options(bankKeep), options(keep), 'What to keep: options in order');
   checked.push(...options(keep));
+  quotedScreen('Own colours: typed reply and unknown word', b('Own colours'), j('Own colours'));
 
   const org = j("Step 2, organisation only: Who it's for"), bankOrg = b("Organisation: Who it's for");
   quotedScreen('Organisation', bankOrg, org);

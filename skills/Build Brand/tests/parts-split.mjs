@@ -12,6 +12,12 @@ const CONTRACT_PINS={
   "Assembly": "4287bc83f4ec6b0eb7c1189bc666baea1c5173af6a6b253c511a2faad0a80f62",
   "Selection from answers": "46a780d4dd7b2bb86575b650372c56867a3a5995cc29cafe432070865c2cb125"
 };
+// Approved own-colour source and single-strength selection contract, 2026-11-06.
+export const CONTRACT_EDITS = [{date: '2026-11-06', reason: 'M7.4: member colours, reading derivation, fixed controls and J1c lock evidence', contract: {
+  "Locking a board": "f988424a3e1663c11f839e466e1358642f24fc9f7a9233d640e45894d9bc6de9",
+  "Selection from answers": "0c600ffa04df0edcc3eedc421e2ff169c66ddc46b412d795a9e62d56869e0168",
+  "Own colours": "b16a79c91016a428ea4548ea9658601b63e875ab70516a670815cd33202a3fbf"
+}}];
 const CATALOGUE_PINS={
   'Settings and use': '15853880b2650344881e894c98c00cd796493dc1a6f3d390f91bc088287f4dca',
   'Extension seam': 'c67cea0a32be88d06cc00ff1bbacc17ab45028f4c648cf37f3fc3c8881b5843c'
@@ -42,8 +48,8 @@ export function comparePartsSplit(archive, contract, catalogue) {
   assert.match(licences,/Every licence is SIL Open Font License 1\.1/,'catalogue: font licences');
   assert.deepEqual(rows('Font licences and provenance').slice(1),Object.entries(library.fonts).map(([name,f])=>[name,f.licence,f.reservedFontNames.length?f.reservedFontNames.join(', '):'None declared',String(f.files.reduce((n,v)=>n+v.bytes,0))]),'catalogue: font licences');
   compared.push('catalogue: font licences');
-  for(const heading of ['Locking a board','Opening taps as data','Assembly','Selection from answers']) {
-    assert.equal(hash(section(contract,heading)),CONTRACT_PINS[heading],`script contract: ${heading}`);
+  for(const [heading,expected] of Object.entries({...CONTRACT_PINS,...Object.assign({},...CONTRACT_EDITS.map(edit=>edit.contract))})) {
+    assert.equal(hash(section(contract,heading)),expected,`script contract: ${heading}`);
     compared.push('script contract: '+heading);
   }
   const archivedFonts=section(archive,'Font files'),licenceStart=archivedFonts.indexOf('All families are');

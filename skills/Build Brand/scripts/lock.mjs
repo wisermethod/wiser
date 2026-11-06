@@ -5,6 +5,7 @@ import { dirname, basename, resolve, relative, isAbsolute, join, sep } from 'nod
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
+import { validateOwnColours } from './own-colours.mjs';
 
 const SKILL = realpathSync(resolve(dirname(fileURLToPath(import.meta.url)), '..'));
 const TAPS = join(SKILL, 'parts/taps.json');
@@ -213,6 +214,12 @@ function validate(spec, a, bytes, tapData) {
     for (const role of Object.keys(b.palette[mode])) if (!own(ROLES, role)) fail(`palette.${mode}.${role}`, 'unknown colour role');
   }
   arr(b.palette.swatches, 'palette.swatches').forEach((s) => { str(s.name, 'swatch.name'); str(s.role, 'swatch.role'); if (!own(ROLES, s.key)) fail('swatch.key', 'unknown role'); num(s.share, 'swatch.share', 0, 100); });
+  if(own(a,'ownColours')) {
+    const built=validateOwnColours(a.ownColours);
+    for(const mode of ['light','dark']) for(const role of Object.keys(ROLES)) {
+      if(b.palette[mode][role]!==built.kept.palette.overrides[mode][role])fail('ownColours',`locked ${mode}.${role} differs from the filed set`);
+    }
+  }
   for (const mode of ['light', 'dark']) if (b.palette.modeSwatches?.[mode]) arr(b.palette.modeSwatches[mode], `modeSwatches.${mode}`).forEach((s) => { str(s.name, 'swatch.name'); str(s.role, 'swatch.role'); if (!own(ROLES, s.key)) fail('swatch.key', 'unknown role'); num(s.share, 'swatch.share', 0, 100); });
   closed(b.type, ['heading', 'body', 'handwriting'], 'type');
   for (const role of ['heading', 'body', ...(own(b.type, 'handwriting') ? ['handwriting'] : [])]) {
@@ -281,11 +288,12 @@ function makeDocuments(spec, a, index, paths, tapData) {
     const numbers = a.answerNumbers;
     if (!numbers || r.source === 'script') return [];
     const record = `memory/answers/${numbers.file}`, cite = (id) => [id, record];
-    if (r.source === 'spec') return [numbers.board, 'K1', record];
+    if (r.source === 'spec') return [...(a.ownColours&&r.field.startsWith(`${prefix}.palette`)?['J1c']:[]),numbers.board, 'K1', record];
     const [field, index] = r.field.split('.');
     if (field === 'carried' || (field === 'taps' && index === 'place' && a.carried)) return ['P12', `memory/answers/${a.carried.place.file}`];
     if (field === 'looks' || field === 'rounds') return cite(numbers[field][Number(index)]);
     if (field === 'taps') return cite(`T${tapData.questions.findIndex(q => q.id === index) + 1}`);
+    if (field === 'ownColours') return cite('J1c');
     const id = { sentence: 'J2b', words: 'J2b', audience: a.type === 'personal' ? numbers.audience : 'O1', promise: a.type === 'personal' ? numbers.promise : 'O2', finalSay: 'O3', readBack: 'J3a', off: 'J3b', assets: 'J1', lock: 'K1' }[field];
     return id ? cite(id) : [];
   };
@@ -304,8 +312,12 @@ function makeDocuments(spec, a, index, paths, tapData) {
   const status = { heading: 'Lock', text: `Complete at the lock. Colour and lettering are settled. Lock: ${a.lock.question}.`, refs: [A('lock.question')], citation: citation([A('lock.question')]) };
   claims.push(status);
   for (const mode of ['light', 'dark']) for (const [role, description] of Object.entries(ROLES)) add('Color', `${mode} ${role}: ${b.palette[mode][role]}. ${description}.`, [S(`palette.${mode}.${role}`)]);
-  add('Color', `Use ${b.primaryMode} first; both modes are settled. Colour settings: ${paths.palette}.`, [S('primaryMode')]);
-  for (const [i, sw] of b.palette.swatches.entries()) add('Color', `${sw.name}: ${sw.role}, ${sw.share}% of page weight.`, [S(`palette.swatches.${i}.name`), S(`palette.swatches.${i}.role`), S(`palette.swatches.${i}.share`)]);
+  add('Color', `Use ${b.primaryMode} first; both modes are settled. Colour settings: ${paths.palette}.${a.ownColours?` Colours as said: ${a.ownColours.said}.`:''}`, [S('primaryMode'),...(a.ownColours?[A('ownColours.said')]:[])]);
+  if(a.ownColours) {
+    add('Color', `Colours as said: ${a.ownColours.said}.`, [A('ownColours.said')]);
+    for(const [i,v] of a.ownColours.values.entries())add('Color', `${v.name}: ${v.value}.`, [A(`ownColours.values.${i}.name`),A(`ownColours.values.${i}.value`)]);
+    for(const [i,m] of a.ownColours.moves.entries())add('Color', `${m.colour} ${m.direction}: ${m.from} to ${m.to} (${m.mode} ${m.role}).`, ['colour','direction','from','to','mode','role'].map(k=>A(`ownColours.moves.${i}.${k}`)));
+  } else for (const [i, sw] of b.palette.swatches.entries()) add('Color', `${sw.name}: ${sw.role}, ${sw.share}% of page weight.`, [S(`palette.swatches.${i}.name`), S(`palette.swatches.${i}.role`), S(`palette.swatches.${i}.share`)]);
   for (const role of ['heading', 'body', ...(b.type.handwriting ? ['handwriting'] : [])]) {
     const f = b.type[role]; add('Typography', `${role}: ${f.family}. ${f.description} Licence: ${f.licence}.`, [S(`type.${role}.family`), S(`type.${role}.description`), S(`type.${role}.licence`)]);
     for (const [size, settings] of Object.entries({ default: f, ...f.sizes })) {
@@ -549,7 +561,7 @@ export function run(argv) {
       ? relocateClaims(entry.bytes,oldDesign,relative(root,design).split(sep).join('/'),relative(root,saved.archive).split(sep).join('/'))
       : entry.bytes;
   });
-  return { state: 'complete', files: entries.map((e) => ({ path: e.path, bytes: Buffer.byteLength(e.bytes) })), headings: headingReport, archives, readBack: { claims: doc.claims.length, outcome: 'passed' }, unusedAnswerFields: Object.keys(a).filter((k) => !['name', 'sentence', 'words', 'taps', 'off', 'readBack', 'looks', 'rounds', 'type', 'assets', 'audience', 'promise', 'finalSay', 'lock', 'unavailable', 'provenance', 'paths', 'carried', 'answerNumbers'].includes(k)), elapsedMs: Number((performance.now() - started).toFixed(3)) };
+  return { state: 'complete', files: entries.map((e) => ({ path: e.path, bytes: Buffer.byteLength(e.bytes) })), headings: headingReport, archives, readBack: { claims: doc.claims.length, outcome: 'passed' }, unusedAnswerFields: Object.keys(a).filter((k) => !['name', 'sentence', 'words', 'taps', 'off', 'readBack', 'looks', 'rounds', 'type', 'assets', 'audience', 'promise', 'finalSay', 'lock', 'unavailable', 'provenance', 'paths', 'carried', 'ownColours', 'answerNumbers'].includes(k)), elapsedMs: Number((performance.now() - started).toFixed(3)) };
 }
 export function main(argv = process.argv.slice(2)) {
   try { const result = run(argv); process.stdout.write((typeof result === 'string' ? result : JSON.stringify(result)) + '\n'); }

@@ -4,7 +4,7 @@ Read by section. Member copy below is fixed: preserve every word, option order, 
 
 ## Answer numbers
 
-B0 records a path choice only where one is actually needed; the sitting and the brand-folder entry do not ask it. R0 is the original ask; R1 onward are unasked comments, kept verbatim. For the sitting: J1 what to keep; J1a folder; O1 audience, O2 promise, O3 final say; J2a thin-record sentence, J2b drafted sentence and pairs, J2c each redraft with its pass; T1 to T9 the nine taste taps, with no T9 row where the place is carried from a voice answers file's P12; J3a taste description as shown, J3b off parts, J3c pull; L1 onward each page of whole looks and action; L<n>-S1 to S4 its steer and comment where none works; C1 onward each boards page, picks and action, C<n>-S1 to S4 its steer and comment; K1 the lock; K2 the optional voice note; K3 any checked wording correction. Within each S1 to S4 set, S1 is warmth, S2 quiet/bold with soft/strong, S3 classic/current and S4 the comment. That legend is bank Build Brand 0.4.0's. A row of bank Build Brand 0.3.0 keeps that bank's legend: S1 warmth, S2 quiet/bold, S3 soft/strong, S4 classic/current and S5 the comment. Read each row by its own bank version. Keep earlier answers on correction. Each page and each pick have their own numbered row within their round; save their unchanged full records with the work for selection and resume. Feed citations identify the question, page and pick, never just the current screen.
+B0 records a path choice only where one is actually needed; the sitting and the brand-folder entry do not ask it. R0 is the original ask; R1 onward are unasked comments, kept verbatim. For the sitting: J1 what to keep; J1a folder; J1c the member's own colours, verbatim, including colours named in a page comment; O1 audience, O2 promise, O3 final say; J2a thin-record sentence, J2b drafted sentence and pairs, J2c each redraft with its pass; T1 to T9 the nine taste taps, with no T9 row where the place is carried from a voice answers file's P12; J3a taste description as shown, J3b off parts, J3c pull; L1 onward each page of whole looks and action; L<n>-S1 to S4 its steer and comment where none works; C1 onward each boards page, picks and action, C<n>-S1 to S4 its steer and comment; K1 the lock; K2 the optional voice note; K3 any checked wording correction. Within each S1 to S4 set, S1 is warmth, S2 quiet/bold with soft/strong, S3 classic/current and S4 the comment. That legend is bank Build Brand 0.4.0's. A row of bank Build Brand 0.3.0 keeps that bank's legend: S1 warmth, S2 quiet/bold, S3 soft/strong, S4 classic/current and S5 the comment. Read each row by its own bank version. Keep earlier answers on correction. Each page and each pick have their own numbered row within their round; save their unchanged full records with the work for selection and resume. Feed citations identify the question, page and pick, never just the current screen.
 
 ## Opening
 
@@ -45,12 +45,25 @@ Use the same second sentence: "Put them there, or drop them here in the chat, th
 
 - Done
 - Skip this: build without them
+- Type my colours instead
 
 Done while empty:
 
 > The folder's still empty. Put them in, or tap Skip.
 
-Keep the same two options. Logo replaces initials everywhere; supplied values hold every board; board zero first. Feeds Source Assets and Templates, Color, Typography and Mark.
+Keep the same three options. Logo replaces initials everywhere; supplied values hold every board; board zero first. Feeds Source Assets and Templates, Color, Typography and Mark.
+
+## Own colours
+
+C1 is the folder's third option above. After C1, C2 is typed:
+
+> Which colours? Name them, like "red, white and blue", or type their codes.
+
+C5 for an unknown word, filling that word exactly:
+
+> I don't know the colour "[word]". Could you say it another way, or type its code?
+
+Colours named in either page comment are already the answer: ask no C2, use C3 to C5. Save J1c verbatim and file the built set with the work. These C labels identify approved copy, not boards-page answer numbers.
 
 ## Organisation: Who it's for
 
@@ -272,6 +285,16 @@ Not quite brings one question, "Which part is off?", with their tapped option wo
 No real source rule, no pull question. Feeds the selection, Visual Personality and the optional note at lock.
 
 ## Step 3: Whole looks
+
+C3 before the first looks or boards page in this set, filling the bracket verbatim:
+
+> These use your colours: [colours as they said them].
+
+C4 once per moved shade, only where it moved for reading:
+
+> I deepened your [colour] a little, so words on it stay easy to read.
+
+Where it moved lighter, replace only "deepened" with "lightened". These lines also apply to a first boards page in a newly named set.
 
 Only when the lettering is not installed, before installing it:
 

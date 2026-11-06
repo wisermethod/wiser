@@ -13,7 +13,7 @@ function hsl(hex) {
 }
 const between=(value,[min,max])=>value>=min&&value<=max;
 const inBand=(color,band)=>Object.entries(band).every(([key,range])=>between(hsl(color)[key],range));
-export function boardRefusal(library,board) {
+export function boardRefusal(library,board,{ownColours=false}={}) {
   const pairing=library.pairings.find(p=>p.id===board.pairing.id);
   if(pairing.selectable===false) return `pairing ${pairing.id} is retired from selection`;
   const noteFaces=new Set(library.pairings.flatMap(p=>p.handwriting.map(f=>f.family)));
@@ -24,6 +24,9 @@ export function boardRefusal(library,board) {
     faces[role]=donor&&typeof donor==='object'?donor.family:source.type[role].family;
     if(library.fonts[faces[role]]?.role==='handwriting'||noteFaces.has(faces[role])) return `handwriting ${faces[role]} cannot set ${role}`;
   }
+  // A member's own colours bypass dated colour/display fashions only.
+  // The heading/body handwriting policy above still applies (2026-11-06).
+  if(ownColours) return null;
   const displayStyle=library.pairings.find(p=>p.type.heading.family===faces.heading)?.displayStyle;
   const palette=library.palettes.find(p=>p.id===board.palette.id);
   // Both modes appear on a board, including the alternate-mode specimen.
