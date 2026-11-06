@@ -363,4 +363,4 @@ Asked with the third version, after two returns, in place of A4, and carrying th
 
 Run by `skills/Onboard Root/`, say this in its place, since its close says what the folder holds and how to tune the voice:
 
-> Your voice ({OvO} Wiser's description of your writing style) is saved.
+> Your voice (Wiser's description of your writing style) is saved.
