@@ -68,13 +68,17 @@ test('neutral codes retain input ordering, and lighter reading repairs use C4 li
   assert.ok(r.moves.some(m=>m.direction==='lightened'));
   assert.ok(r.lines.includes('I lightened your white a little, so words on it stay easy to read.'));
 });
-test('bright colours can use the existing dark words; impossible fixed-chroma sRGB repairs fail explicitly', async () => {
+test('bright colours can use the existing dark words; a code no lightness move can fix is toned a touch, hue kept', async () => {
   const {buildOwnColours}=await load();
   const r=buildOwnColours('yellow');
   assert.equal(r.kept.palette.overrides.light.pop,r.values[0].value);
   assert.equal(r.kept.palette.overrides.light.onPop,'#181A1B');
   assert.deepEqual(r.checks.problems,[]);
-  assert.throws(()=>buildOwnColours('#FF0000'),/No readable sRGB lightness move keeps hue and chroma/);
+  const red=buildOwnColours('#FF0000');
+  assert.deepEqual(red.checks.problems,[]);
+  const moved=JSON.stringify(red);
+  assert.match(moved,/chromaDelta/);
+  assert.match(red.lines.join(' '),/I deepened your #FF0000 a little, so words on it stay easy to read\.|I deepened your red a little/);
 });
 test('the table has everyday colours and measured modifiers, longest names before modifiers', async () => {
   const { buildOwnColours, oklch } = await load();

@@ -15,7 +15,8 @@ checks, lines (C3/C4 or C5), and kept.palette.overrides (all 19 roles).
 Unknown names: status unknown, unknown names and C5; no palette, exit 0.
 Failure: one JSON error on stderr, empty stdout, exit 1.
 Lightness moves keep OKLCH hue/chroma, searched at 0.0001 L then refined;
-an impossible sRGB reading repair fails explicitly, never loses chroma silently.
+where none passes, chroma softens by the smallest 1% step that lets one pass,
+hue kept (the operator's choice of 2026-11-06), recorded with the move.
 No files are written. Save the result with the brand work; see parts/parts.md.
 Unknown/duplicate flags, --env and --install are refused.`;
 const table = () => JSON.parse(readFileSync(new URL('../parts/colour-names.json', import.meta.url), 'utf8'));
@@ -107,29 +108,43 @@ export function checkPalette(palette) {
   }
   return result;
 }
-export function minimumLightnessMove(value,passes) {
+export function minimumLightnessMove(value,passes,{soften=false}={}) {
   const original=oklch(value);
   if(passes(value)) return {value,L:original.L,delta:0};
   // Search both directions in increasing distance: no presumption that a
   // darker shade is the nearer one. Refine the first passing quantized colour.
-  for(let n=1;n<=10000;n++) {
-    const found=[];
-    for(const sign of [-1,1]) {
-      const distance=n/10000,L=original.L+sign*distance;
-      if(L<0||L>1)continue;
-      const v=fromOklch({...original,L});
-      if(!v||!passes(v))continue;
-      let lo=(n-1)/10000,hi=distance;
-      for(let j=0;j<30;j++) {
-        const mid=(lo+hi)/2,h=fromOklch({...original,L:original.L+sign*mid});
-        if(h&&passes(h))hi=mid;else lo=mid;
+  const atChroma=C=>{
+    const base={...original,C};
+    for(let n=1;n<=10000;n++) {
+      const found=[];
+      for(const sign of [-1,1]) {
+        const distance=n/10000,L=original.L+sign*distance;
+        if(L<0||L>1)continue;
+        const v=fromOklch({...base,L});
+        if(!v||!passes(v))continue;
+        let lo=(n-1)/10000,hi=distance;
+        for(let j=0;j<30;j++) {
+          const mid=(lo+hi)/2,h=fromOklch({...base,L:original.L+sign*mid});
+          if(h&&passes(h))hi=mid;else lo=mid;
+        }
+        const next=original.L+sign*hi;
+        found.push({value:fromOklch({...base,L:next}),L:next,delta:sign*hi});
       }
-      const next=original.L+sign*hi;
-      found.push({value:fromOklch({...original,L:next}),L:next,delta:sign*hi});
+      if(found.length) return found.sort((a,b)=>Math.abs(a.delta)-Math.abs(b.delta))[0];
     }
-    if(found.length) return found.sort((a,b)=>Math.abs(a.delta)-Math.abs(b.delta))[0];
+    return null;
+  };
+  const kept=atChroma(original.C);
+  if(kept) return kept;
+  if(!soften) throw Error(`No readable sRGB lightness move keeps hue and chroma for ${value}`);
+  // The operator's choice of 2026-11-06, "Tone it a touch": where no lightness
+  // move keeps hue and chroma, as for pure screen red, soften chroma by the
+  // smallest 1% step that lets a lightness move pass. Hue is always kept.
+  for(let k=1;k<=100;k++) {
+    const C=original.C*(1-k/100),found=atChroma(C);
+    if(found) return {...found,C,chromaDelta:C-original.C};
   }
-  throw Error(`No readable sRGB lightness move keeps hue and chroma for ${value}`);
+  throw Error(`No readable sRGB colour keeps the hue of ${value}`);
 }
 function readColours(said) {
   if(typeof said!=='string'||!said.trim()||said.length>2000||/[\x00-\x1f\u2028\u2029]/.test(said))throw Error('colours: supply non-empty single-line text up to 2000 characters');
@@ -169,9 +184,9 @@ export function buildOwnColours(said) {
   const dark=values.length===1?{name:'near-black',value:'#181A1B'}:ordered[0];
   const accent=[...values].sort((a,b)=>oklch(b.value).C-oklch(a.value).C)[0];
   const moves=[];
-  const move=(value,passes,colour,role,mode)=>{
-    const next=minimumLightnessMove(value,passes);
-    if(next.value!==value)moves.push({colour,role,mode,from:value,to:next.value,direction:next.delta<0?'deepened':'lightened',fromL:oklch(value).L,toL:next.L,deltaL:next.delta});
+  const move=(value,passes,colour,role,mode,soften=false)=>{
+    const next=minimumLightnessMove(value,passes,{soften});
+    if(next.value!==value)moves.push({colour,role,mode,from:value,to:next.value,direction:next.delta<0?'deepened':'lightened',fromL:oklch(value).L,toL:next.L,deltaL:next.delta,...(next.chromaDelta?{fromC:oklch(value).C,toC:next.C,chromaDelta:next.chromaDelta}:{})});
     return next.value;
   };
   const readable=(fg,bg,lc=0)=>wcag(fg,bg)>=4.5&&Math.abs(apca(fg,bg))>=lc;
@@ -181,7 +196,11 @@ export function buildOwnColours(said) {
   // example) before declaring a physically impossible reading repair.
   let pop,onPop=light.value;
   try {pop=move(accent.value,v=>readable(onPop,v,60),accent.name,'pop','both');}
-  catch {onPop=deep;pop=move(accent.value,v=>readable(onPop,v,60),accent.name,'pop','both');}
+  catch {
+    try {onPop=deep;pop=move(accent.value,v=>readable(onPop,v,60),accent.name,'pop','both');}
+    // Last, the operator's "Tone it a touch": light words again, chroma softened.
+    catch {onPop=light.value;pop=move(accent.value,v=>readable(onPop,v,60),accent.name,'pop','both',true);}
+  }
   const palette={};
   for(const mode of ['light','dark']) {
     const ground=mode==='light'?light.value:deep,text=mode==='light'?deep:light.value;
@@ -204,7 +223,7 @@ export function buildOwnColours(said) {
           const onSurface=v=>requirements.every(([, , ,need,lc])=>wcag(c[fg],v)>=need&&(!lc||Math.abs(apca(c[fg],v))>=lc));
           c[bg]=move(c[bg],onSurface,mode==='dark'?dark.name:light.name,bg,mode);
         }
-        if(!passes(c[fg]))throw error;
+        if(!passes(c[fg]))c[fg]=move(c[fg],passes,colour,fg,mode,true);
       }
     }
     palette[mode]=c;
