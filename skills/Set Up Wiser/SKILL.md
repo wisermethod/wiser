@@ -3,7 +3,7 @@ name: Set Up Wiser
 type: skill
 category: onboarding
 description: Take a new member, in one chat, from no folder open to their own Wiser folder on their Desktop, set up and with their voice and look recorded, and then to a project in their app with that folder attached, checking their Wiser connection first, on the ask set up wiser (also setup wiser)
-version: 0.4.1
+version: 0.4.2
 ---
 
 # Set Up Wiser
@@ -52,11 +52,11 @@ Is `whoami` missing from this session? Yes: give them the step `skills/Set Up Co
 
 ### 4. Their first name and their folder
 
-Say: "Wiser keeps everything it writes for you in one folder on your computer, so it's always yours and you can open it any time. I'll make it on your Desktop, in a folder called Wiser." Then ask: "What's your first name? Spell it the way you like it, and I'll name your folder with it."
+Say: "Wiser keeps everything it writes for you in one folder on your computer, so it's always yours and you can open it any time. I'll make it on your Desktop, in a folder called Wiser." Then ask: "What's your first name? Spell it the way you like it, and I'll name your folder with it. When you answer, you may see a request to let me reach your Desktop. Please choose Allow."
 
 Take the name as they spell it, with each character the Names rules in `standards/conventions.md` do not allow dropped. Does what is left pass those rules' characters, edges and reserved names? Yes: that is the folder's name; where you dropped anything, tell them the name the folder will have. No, or nothing is left: ask for the name they'd like on the folder, and take the answer through this paragraph again, not the question before it.
 
-Find their Desktop as their computer reports it, never by assuming where it is: on Windows it is often inside OneDrive. Can this session reach it? Where the app shows the person a request to allow that, tell them to allow it.
+Find their Desktop as their computer reports it, never by assuming where it is: on Windows it is often inside OneDrive. Can this session reach it? The question above has already told them about any request the app shows to allow that, since a line said in the same turn can appear after the request does, so say nothing more about it before reaching the Desktop.
 
 - **Yes, and Wiser on the Desktop already holds a folder with that name, compared ignoring case.** Use the folder's own spelling from here on. Is it empty? Yes: use it. Is it a Wiser folder whose `AGENTS.md` `## Onboarding` section does not open "Not onboarded"? Yes: use it, say "You already have a Wiser folder, so we'll use that one.", and step 5 does not run. No, because it holds other things or an earlier setup that stopped before its close: say a folder with that name is already there with other things in it, and ask for another name to use, such as their first name and last initial; take the answer through the paragraph on the Names rules above, not the question before it, and then through this paragraph and these bullets again with that name.
 - **Yes, and there is no such folder.** Make the folder Wiser on the Desktop where it is missing, and their folder inside it under the folder's name, and put nothing in either. Read it back. It exists and is empty: say "Done. Your folder is on your Desktop, in Wiser, called <the folder's name>." It is missing or holds anything: take the next bullet's route.
