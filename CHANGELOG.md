@@ -4,6 +4,15 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.06.5, November 6, 2026
+
+- When you tell the voice coach a kind of writing you'd hate to sound like, its follow-up now says so in your words: "You said you'd hate to sound [like that]. Here are three lines about your work written that way, on purpose. Which one sounds the worst?" Before, it asked which would make you wince most, which was easy to read as which line you liked. The last choice is now "None of these bother me". (16f35adf)
+- After you pick a line, the coach says "Got it. Nothing like that goes in your writing." If you meant a line you like, say so at any point before your voice is saved, and it is taken off the list. (16f35adf)
+
+## v2026.11.06.4, November 6, 2026
+
+- Typing "set up wiser", "onboard project", "set up connectors" or "update root" now works wherever Wiser runs, in Claude Cowork and in a chat working in your own folder too, as "wrap up" already does. Before, only a session that had read Wiser's own instructions knew these phrases. (d89f8177)
+
 ## v2026.11.06.3, November 6, 2026
 
 - Saying "wrap up" now ends a session with its hand-over message wherever Wiser runs, in Claude Cowork and in a chat working in your own folder too, whether or not the session worked a Playbook. Before, only a session that had read Wiser's own instructions knew the phrase. (202d053a)
