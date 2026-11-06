@@ -422,7 +422,7 @@ test('checked Review retries keep zero and numbered replacements distinct with f
     assert.equal(r.checks.enabled,true);assert.ok(r.form,r.formUnavailable);assert.equal(r.formUnavailable,undefined);
     assert.deepEqual(checkForm(r.form),{ok:true,problems:[]});
     const q=r.form.questions[0];assert.deepEqual(q.controls,{mode:r.selection.boards[0].primaryMode});
-    for(const o of q.options){assert.equal(o.steps.length,1);assert.deepEqual(o.steps[0].palette,o.board.palette);}
+    for(const [i,o]of q.options.entries()){assert.equal(Object.hasOwn(o,'steps'),false);assert.deepEqual(o.board.palette,r.selection.boards[i].steps[0].palette);}
   };
   const retry=(avoid,page=original)=>{writeFileSync(input,JSON.stringify({...a,avoid,pageDisplayed:true,displayedBoards:page.selection.boards}));return run(['round1','--answers',input,'--check']);};
   verify(retry(original.selection.boards.slice(0,2)),[0,1]);

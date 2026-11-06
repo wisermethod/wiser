@@ -7,7 +7,7 @@ import {operator,firstStrategy,lookActions} from '../../../skills/Build Brand/te
 import {checkForm} from '../scripts/format.js';
 after(cleanupAndScan);
 function payload(form,values,mode,action) {
- const q=form.questions[0];return {form:form.title,answers:{[q.id]:values},mode,action,shown:[{id:q.id,question:q.label,shown:values.map(value=>q.options.flatMap(o=>o.steps).find(s=>s.value===value).label).join(', ')}]};
+ const q=form.questions[0];return {form:form.title,answers:{[q.id]:values},mode,action,shown:[{id:q.id,question:q.label,shown:values.map(value=>q.options.flatMap(o=>o.steps??[{value:o.value,label:o.label}]).find(s=>s.value===value).label).join(', ')}]};
 }
 async function answer(form,values,mode,action) {
  assert.deepEqual(checkForm(form),{ok:true,problems:[]});const server=await serve(form);
@@ -47,7 +47,7 @@ for(const id of [undefined,'business-blue-bold'])test(`kept palette ${id??'roles
  const received=await answer(form,[looks.options[0].steps[0].value],'dark','one');
  const round=select('round1',{...a,looks:received.answers.looks,looksShown:looks.options,mode:received.mode},{check:true});
  assert.ok(round.form,round.formUnavailable);assert.deepEqual(round.form.questions[0].controls,{mode:'dark'});
- const own=round.form.questions[0].options[0].steps[0];
+ const own=round.form.questions[0].options[0];assert.equal(Object.hasOwn(own,'steps'),false);
  const picked=await answer(round.form,[own.value],'light','more');
  assert.deepEqual(picked.answers.boards,[own.value]);assert.equal(picked.mode,'light');
  assert.ok(round.selection.boards.every(b=>b.steps.length===1&&b.steps[0].palette.overrides.light.hairline==='#bbbbbb'));

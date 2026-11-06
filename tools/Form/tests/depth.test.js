@@ -4,6 +4,9 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {build} from 'esbuild';
+import {resolveBoards} from '../scripts/boards.js';
+import {checkForm} from '../scripts/format.js';
+import {lookForm} from './board-fixtures.js';
 import {composePage} from '../scripts/page.js';
 import {launch} from '../../lib/browser-runtime/browser-runtime.js';
 import {validateBrandBoards,createBoardModel} from '../engine/boards-lib.js';
@@ -183,4 +186,23 @@ test('exact 180-degree hue tie checks both arcs in direct ground and block drawi
   assert.deepEqual(result.measured.map(c=>c.H),[70,250]);assert.equal(result.measured[1].H-result.measured[0].H,180);assert.ok(result.measured.every(c=>c.C>=.025));
   for(const r of result.results)assert.match(r.message,/purple-to-blue.*60.0 degrees/,JSON.stringify(r));
  }finally{await boundary.close();}
+});
+
+test('look steps without board depth or step depth keep the option legacy drawing in both modes',async()=>{
+ for(const depth of [undefined,{}, {dark:{}}]) {
+  const form=lookForm(),q=form.questions[0];q.options=q.options.slice(0,1);q.pick=1;delete q.min;q.controls={mode:q.options[0].board.primaryMode};
+  const o=q.options[0];delete o.board.depth;o.steps=[{value:o.value,palette:structuredClone(o.board.palette),...(depth===undefined?{}:{depth})}];
+  assert.deepEqual(checkForm(form),{ok:true,problems:[]});
+  const model=resolveBoards(form.brand,[o],{},'look');
+  for(const mode of ['light','dark']) {
+   const step=model.steps[0][0].boards[mode];assert.equal(Object.hasOwn(step,'depth'),false);
+   const legacy=resolveBoards(form.brand,[{...o,board:{...o.board,primaryMode:mode}}]).boards[0];
+   const drawings=await page.evaluate(({model,step,legacy})=>{
+    // Instance ids vary with each draw; normalize only those generated ids.
+    const draw=b=>WiserBoardView.look(model,b).outerHTML.replace(/repeat-\d+/g,'repeat-ID').replace(/drawing-\d+-/g,'drawing-ID-');
+    return [draw(step),draw(legacy)];
+   },{model,step,legacy});
+   assert.equal(drawings[0],drawings[1]);
+  }
+ }
 });

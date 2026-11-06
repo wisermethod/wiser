@@ -4,8 +4,18 @@ import {resolveBoards,stepBoard} from '../scripts/boards.js';
 import {lookForm} from './board-fixtures.js';
 const copy=structuredClone;
 const equal=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+const defaults={allowHueShift:false,ink:'pop'};
+export const approvedDepth=(palette,style,mode)=>copy({...library.styles.find(s=>s.id===style).depth,...library.cardDepth.find(d=>d.palette===palette&&d.style===style&&d.mode===mode)?.depth});
 function overlayStep(step,depths,base) {
-  const depth=Object.fromEntries(Object.entries(depths).map(([mode,fields])=>[mode,Object.fromEntries(Object.entries(fields).filter(([key,value])=>!equal(value,base?.[key])))]).filter(([,fields])=>Object.keys(fields).length));
+  const depth={};
+  for(const [mode,fields]of Object.entries(depths)) {
+    const overlay=Object.fromEntries(Object.entries(fields).filter(([key,value])=>!equal(value,base?.[key])));
+    for(const key of Object.keys(base??{}))if(!Object.hasOwn(fields,key)) {
+      if(!Object.hasOwn(defaults,key))throw Error(`No stated default for ${key}`);
+      if(!equal(base[key],defaults[key]))overlay[key]=defaults[key];
+    }
+    if(Object.keys(overlay).length)depth[mode]=overlay;
+  }
   if(Object.keys(depth).length)step.depth=depth;else delete step.depth;
 }
 export function setOwnStep(o,step,mode) {
@@ -17,9 +27,9 @@ export function setOwnStep(o,step,mode) {
 export const modes=['light','dark'];
 export const strengths=['muted','balanced','bold'];
 let cached;
-export function controlsForm(view='look',mode='light') {
-  if(!cached)cached=lookForm();
-  const form=copy(cached),q=form.questions[0];
+export function controlsForm(view='look',mode='light',source) {
+  if(!cached&&!source)cached=lookForm();
+  const form=copy(source??cached),q=form.questions[0];
   q.view=view;q.controls={mode,strength:true};
   for(const [i,o]of q.options.entries()) {
     const style=library.styles.find(s=>s.id===o.board.pairing.id);

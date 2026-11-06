@@ -247,16 +247,17 @@ function validate(value, template = false) {
           const family=palettePosition(o.board?.palette?.id)?.family;
           o.steps.forEach((step,k)=>{
             const at=`${sp}[${k}]`;
-            if(!object(step,at,["value","label","palette",...(q.view==="look"?["depth"]:[])],["value","palette"]))return;
+            if(!object(step,at,["value","label","palette",...(q.view==="look"?["depth"]:[])],["value",...(step?.value===o.value?[]:["palette"])]))return;
             strings(step,at,[["value",1,L.optionValueMax,VALUE],["label",1,B.label]]);
             if(typeof step.label==='string'&&!deferred.has(`${at}.label`)&&!step.label.trim())add(`${at}.label`,"Step label must not be blank.");
             if(values.has(step.value)&&(step.value!==o.value||values.get(step.value)!==j))add(`${at}.value`,"Step value must be unique across the question.");
             // The one matching step may share its own option's value, exactly once.
-            if(step.value===o.value&&step.palette?.id===o.board?.palette?.id)matching++;
+            const palette=own(step,"palette")?step.palette:o.board?.palette;
+            if(step.value===o.value&&palette?.id===o.board?.palette?.id)matching++;
             if(step.value!==o.value&&!values.has(step.value))values.set(step.value,j);
             if(o.steps.slice(0,k).some(s=>s?.value===step.value))add(`${at}.value`,"Step value must be unique.");
-            if(object(step.palette,`${at}.palette`,["id","overrides"],["id"]))strings(step.palette,`${at}.palette`,[["id",1,60]]);
-            const position=palettePosition(step.palette?.id);
+            if(own(step,"palette")&&object(step.palette,`${at}.palette`,["id","overrides"],["id"]))strings(step.palette,`${at}.palette`,[["id",1,60]]);
+            const position=palettePosition(palette?.id);
             if(!position||position.family!==family||position.index<=previous)add(`${at}.palette`,"Expected this colour family's steps in muted, balanced, bold order.");
             if(position)previous=position.index;
             if(q.view==="look"&&own(step,"depth")&&object(step.depth,`${at}.depth`,["light","dark"])) {
@@ -266,7 +267,7 @@ function validate(value, template = false) {
             for(const mode of q.view==="look"?["light","dark"]:[o.board.primaryMode]) {
               try {
                 const board=stepBoard(o,step,q.view,mode);
-                if(q.view==="look"&&mode===o.board.primaryMode&&step.value===o.value&&step.palette?.id===o.board.palette?.id&&!deepEqual(board.depth,o.board.depth??{}))add(`${at}.depth`,"The matching step's merged primary-mode depth must equal board.depth.");
+                if(q.view==="look"&&mode===o.board.primaryMode&&step.value===o.value&&palette?.id===o.board.palette?.id&&!deepEqual(board.depth??{},o.board.depth??{}))add(`${at}.depth`,"The matching step's merged primary-mode depth must equal board.depth.");
                 resolveBoards(value.brand,[{...o,label:step.label??o.label??`Look ${j+1}`,board}],value.boardDefaults);
               }
               catch(e) { add(at,e.message); }
@@ -377,7 +378,7 @@ export function formJsonSchema() {
   const option = obj({
     value: str(L.optionValueMax,"Unique option value: 1 to 40 lowercase letters, digits or hyphens, starting with a letter or digit.",1,VALUE.source),
     label: str(B.label,"Option label: boards up to 120 code points, other types up to 60.",1), note: str(B.note,"Optional note: boards up to 300 code points, others up to 80. In board view, absent note draws brand.words as {word}, not {not}, joined with semicolon and space; an explicit note, including empty, wins."),
-    steps:arr(obj({label:str(B.label,"Optional showing step label, 1 to 120 code points, under the option label rules. Used for the caption, full-size heading, shown and answer summary; absent falls back to the option label or default look label.",1),value:str(L.optionValueMax,"Unique across the whole question, except the one step matching its own option value and palette id.",1,VALUE.source),palette:{...board.properties.palette,description:"Same palette reference as board.palette, including role overrides, ordered muted to balanced to bold."},depth:obj({light:JSON.parse(JSON.stringify(depthSchema)),dark:JSON.parse(JSON.stringify(depthSchema))},[],"Optional in look view only. Each optional mode lists only fields differing from board.depth; equal fields are refused. Merge as {...board.depth, ...step.depth?.[mode]}, replacing each listed field whole. Absent depth or mode means no difference. The merged depth passes every whole-depth check in both modes; the matching step's merged primary-mode depth deep-equals board.depth.")},["value","palette"],"Boards only. Board view refuses step depth. Exactly one entry matches the option's value and board.palette.id."),1,3,"Boards only. Required on every option with controls.strength or look-view controls.mode. Each step replaces only palette and, in look view, overlays depth fields for the showing mode. Values are unique across steps and all options, except the own matching step."),
+    steps:arr(obj({label:str(B.label,"Optional showing step label, 1 to 120 code points, under the option label rules. Used for the caption, full-size heading, shown and answer summary; absent falls back to the option label or default look label.",1),value:str(L.optionValueMax,"Unique across the whole question, except the one step matching its own option value and palette id.",1,VALUE.source),palette:{...board.properties.palette,description:"Same palette reference as board.palette, including role overrides, ordered muted to balanced to bold. May be omitted only when this step value equals its option value; then inherit board.palette whole."},depth:obj({light:JSON.parse(JSON.stringify(depthSchema)),dark:JSON.parse(JSON.stringify(depthSchema))},[],"Optional in look view only. Each optional mode lists only fields differing from board.depth; equal fields are refused. Merge as {...board.depth, ...step.depth?.[mode]}, replacing each listed field whole. Absent depth or mode means no difference. The merged depth passes every whole-depth check in both modes; the matching step's merged primary-mode depth deep-equals board.depth.")},["value"],"Boards only. Only the own-value step may omit palette and inherit board.palette whole. Board view refuses step depth. Exactly one entry matches the option's value and board.palette.id."),1,3,"Boards only. Required on every option with controls.strength or look-view controls.mode. Each step replaces only palette and, in look view, overlays depth fields for the showing mode. Values are unique across steps and all options, except the own matching step."),
     board, recommendation:str(B.recommendation,"Boards only; at most two recommended options, one line each.",1),
     picture: str(L.fontSrcMax,"Optional on image types; at least two options in an image question must have a picture. An option without one is a word choice drawn after the tiles. Other question types refuse it. palette:#hex,#hex,... has 1 to 8 colours, each #rgb or #rrggbb. motif:<name>[:#fg,#bg] uses dots, grid, waves, arcs, stripes, rings, triangles or blob and either no colours or exactly two. type:<family>[+<family>][:#fg,#bg] uses one or two declared font families or serif, sans-serif, monospace, system-ui, and either no colours or exactly two. Nothing is fetched for pictures.",1),
     sample: str(L.sampleMax,"Only with a type: picture, refused without a picture; at most 24 code points. Both type families draw this sample when supplied; otherwise the first draws Aa and the second Abc 123.")

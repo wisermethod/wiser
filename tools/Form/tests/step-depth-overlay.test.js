@@ -31,7 +31,7 @@ test('look steps inherit absent depth and modes, overlay partial fields and repl
     assert.deepEqual(f,before);
   }
   const f=fixture();delete option(f).board.depth;
-  assert.equal(checkForm(f).ok,true);assert.deepEqual(resolved(f).steps[0][0].boards.dark.depth,{});
+  assert.equal(checkForm(f).ok,true);assert.equal(Object.hasOwn(resolved(f).steps[0][0].boards.dark,'depth'),false);
 });
 test('overlay fields equal to board.depth are refused, including reordered nested objects',()=>{
   for(const [field,value]of Object.entries(option(fixture()).board.depth)) {

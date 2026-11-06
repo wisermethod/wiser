@@ -17,7 +17,7 @@ const hash=value=>createHash('sha256').update(value).digest('hex');
 const identity=c=>`${c.pairing}/${c.palette}/${c.graphicSet}`;
 // Pins cover approved palette/style cards, page mode, depth and pagination.
 // Both normal and kept-asset pages pin the full JSON with step overlays expanded,
-// retaining the full-depth snapshot's bytes, including spares,
+// and own-step palettes expanded, retaining the full-depth snapshot's bytes, including spares,
 // checked refusals/replacements and abandoned-check attempt counts.
 // Every pin also asserts the page shape, refusals, history and Form contract.
 const fixtures=[
@@ -27,8 +27,9 @@ const fixtures=[
 
 function fullDepthSnapshot(page) {
   const result=structuredClone(page);
-  for(const [i,o]of result.options.entries())for(const steps of [o.steps,result.looks[i].steps])for(const step of steps) {
-    step.depth=Object.fromEntries(['light','dark'].map(mode=>[mode,{...o.board.depth,...step.depth?.[mode]}]));
+  for(const [i,o]of result.options.entries())for(const steps of [o.steps,result.looks[i].steps])for(const [k,step]of steps.entries()) {
+    steps[k]={value:step.value,label:step.label,palette:step.palette??structuredClone(o.board.palette),
+      depth:Object.fromEntries(['light','dark'].map(mode=>[mode,{...o.board.depth,...step.depth?.[mode]}]))};
   }
   return JSON.stringify(result);
 }

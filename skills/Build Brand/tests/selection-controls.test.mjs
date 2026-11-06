@@ -184,13 +184,14 @@ for(const id of [undefined,'business-blue-bold'])test(`kept palette ${id??'roles
  const form=lookForm(a,looks);assert.deepEqual(checkForm(form),{ok:true,problems:[]});
  for(const [i,o] of looks.options.entries()){
   assert.equal(o.steps.length,1);const step=o.steps[0];
-  assert.equal(step.value,o.value);assert.equal(step.label,o.label);assert.deepEqual(step.palette,o.board.palette);
-  assert.deepEqual(step.palette.overrides,overrides);
-  if(id)assert.equal(step.palette.id,id);
+  assert.equal(step.value,o.value);assert.equal(step.label,o.label);assert.equal(Object.hasOwn(step,'palette'),false);
+  assert.deepEqual(o.board.palette.overrides,overrides);
+  assert.deepEqual(looks.looks[i].steps[0].palette,o.board.palette);
+  if(id)assert.equal(o.board.palette.id,id);
   for(const mode of modes){
    const style=p('styles',looks.looks[i].style),palette=p('palettes',looks.looks[i].palette);
    assert.deepEqual({...o.board.depth,...step.depth?.[mode]},{...style.depth,...library.cardDepth.find(d=>d.palette===palette.id&&d.style===style.id&&d.mode===mode)?.depth});
-   passes(looks.selection,{...looks.selection.boards[i],palette:step.palette,primaryMode:mode,depth:{...o.board.depth,...step.depth?.[mode]}});
+   passes(looks.selection,{...looks.selection.boards[i],palette:o.board.palette,primaryMode:mode,depth:{...o.board.depth,...step.depth?.[mode]}});
   }
  }
  const round=select('round1',{...a,looks:[looks.options[0].steps[0].value],looksShown:looks.options,mode:'light'},{check:true});
@@ -199,14 +200,14 @@ for(const id of [undefined,'business-blue-bold'])test(`kept palette ${id??'roles
  assert.deepEqual(checkForm(round.form),{ok:true,problems:[]});
  for(const [i,b] of round.selection.boards.entries()){
   const option=round.form.questions[0].options[i];
-  assert.equal(b.steps.length,1);assert.equal(option.steps.length,1);
-  assert.equal(option.steps[0].value,b.value);assert.deepEqual(option.steps[0].palette,b.palette);
+  assert.equal(b.steps.length,1);assert.equal(Object.hasOwn(option,'steps'),false);
   assert.deepEqual(b.palette.overrides,overrides);assert.deepEqual(b.steps[0].palette,b.palette);
   for(const primaryMode of modes)passes(round.selection,{...b.steps[0],primaryMode});
  }
  const variations=select('variations',{...a,looksShown:looks.options,picks:[round.selection.boards[1].steps[0]],shown:round.selection.boards,mode:'dark'},{check:true});
  assert.ok(variations.form,variations.formUnavailable);assert.deepEqual(variations.form.questions[0].controls,{mode:'dark'});
- assert.ok(variations.form.questions[0].options.every(o=>o.steps.length===1&&o.steps[0].palette.overrides.light.hairline==='#bbbbbb'));
+ assert.ok(variations.form.questions[0].options.every(o=>!Object.hasOwn(o,'steps')&&o.board.palette.overrides.light.hairline==='#bbbbbb'));
+ assert.ok(variations.selection.boards.every(b=>b.steps.length===1&&b.steps[0].palette.overrides.light.hairline==='#bbbbbb'));
  assert.deepEqual(a,before);
 });
 

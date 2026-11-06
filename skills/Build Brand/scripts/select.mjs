@@ -294,6 +294,7 @@ function shownLook(look,library,kept={}) {
     for(const step of look.steps) {
       object(step,['value','label','palette','depth'],'shown.steps');
       text(step.value,'shown.steps.value');
+      if(!own(step,'palette')&&option&&step.value===look.value) continue;
       object(step.palette,['id','overrides'],'shown.steps.palette');
       text(step.palette.id,'shown.steps.palette.id');
     }
@@ -623,7 +624,7 @@ function boardsForm(a,selection,selectionDir,command) {
     if(logo===null) return {form:null,formUnavailable:'Form cannot show a kept mark that sets xml:space="preserve"; use the unchanged selection with assemble.mjs.'};
     brand.logo=logo;
   }
-  const options=boards.map(b=>({value:b.value,label:b.name,steps:b.steps.map(step=>({value:step.value,label:step.name,palette:copy(step.palette)})),...(b.recommendation?{recommendation:b.recommendation}:{}),
+  const options=boards.map(b=>({value:b.value,label:b.name,...(a.kept?.palette?{}:{steps:b.steps.map(step=>({value:step.value,label:step.name,palette:copy(step.palette)}))}),...(b.recommendation?{recommendation:b.recommendation}:{}),
     board:Object.fromEntries([...BOARD_PARTS,...FORM_COPY].filter(k=>own(b,k)).map(k=>[k,k==='content'?Object.fromEntries(Object.entries(b.content).filter(([key])=>!['brandName','sentence','body'].includes(key))):copy(b[k])]))}));
   const boardDefaults={};
   for(const k of FORM_COPY) if(k!=='depth'&&own(options[0].board,k)&&options.every(o=>own(o.board,k)&&partKey(o.board,k)===partKey(options[0].board,k))) {
@@ -980,11 +981,11 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
           if(['light','dark'].some(mode=>refused({...board,primaryMode:mode,depth:depth[mode]})||checker&&!checker.acceptBoard({...board,primaryMode:mode,depth:depth[mode]}))) return [];
           const label=[part(library,'pairings',board.pairing.id).name,part(library,'palettes',board.palette.id).name,part(library,'graphics',board.graphicSet.id).name].join(', ');
           // An overlay can only replace fields, so a field the option's own depth carries and this
-          // step's lacks is stated at its default (Form's depth table); any other such field refuses.
+          // step's lacks is stated at its default (Form's depth table); omit a step without one.
+          if(Object.values(depth).some(fields=>Object.keys(b.depth??{}).some(key=>!Object.hasOwn(fields,key)&&!Object.hasOwn(STEP_DEPTH_DEFAULTS,key)))) return [];
           const overlay=Object.fromEntries(Object.entries(depth).map(([mode,fields])=>{
             const own=Object.fromEntries(Object.entries(fields).filter(([key,value])=>JSON.stringify(stable(value))!==JSON.stringify(stable(b.depth?.[key]))));
             for(const key of Object.keys(b.depth??{})) if(!Object.hasOwn(fields,key)) {
-              if(!Object.hasOwn(STEP_DEPTH_DEFAULTS,key)) fail('steps',`step ${step.palette.id} ${mode} lacks depth.${key}, which has no default to state`);
               if(JSON.stringify(b.depth[key])!==JSON.stringify(STEP_DEPTH_DEFAULTS[key])) own[key]=STEP_DEPTH_DEFAULTS[key];
             }
             return [mode,own];
@@ -994,6 +995,7 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
         if(!steps.some(step=>step.value===look.value)) fail('steps','look has no passing own step in both modes');
         steps=contiguousSteps(steps,look.value);
         look.steps=copy(steps);
+        if(a.kept?.palette)steps=steps.map(({palette,...step})=>step);
         return {value:look.value,label:names.join(', '),steps,board:{pairing:copy(b.pairing),palette:copy(b.palette),graphicSet:copy(b.graphicSet),primaryMode:b.primaryMode,...(b.container?{container:b.container}:{}),depth:copy(b.depth),handwriting:b.handwriting,buttonRadius:b.buttonRadius}};
       });
       // Associate every rejected look with the actual passing choice for its slot.

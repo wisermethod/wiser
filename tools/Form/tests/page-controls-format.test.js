@@ -2,8 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {z} from 'zod';
 import {checkForm,checkTemplate,fillTemplate,formJsonSchema} from '../scripts/format.js';
+import {lookForm} from './board-fixtures.js';
+import {readFileSync} from 'node:fs';
 import {resolveBoards,stepBoard} from '../scripts/boards.js';
-import {controlsForm,startAt,withStepLabels} from './page-controls-fixtures.js';
+import {controlsForm,startAt,withStepLabels,approvedDepth} from './page-controls-fixtures.js';
 const copy=structuredClone;
 for(const view of ['look','board'])for(const mode of ['light','dark'])test(`page controls ${view} ${mode}: current selection, schema, resolved steps and unchanged input`,()=>{
  const form=controlsForm(view,mode),before=copy(form),q=form.questions[0];
@@ -13,7 +15,9 @@ for(const view of ['look','board'])for(const mode of ['light','dark'])test(`page
  for(const [i,o]of q.options.entries())for(const [k,s]of o.steps.entries())for(const m of ['light','dark']){
   const b=model.steps[i][k].boards[m];
   assert.equal(b.number,i+1);assert.deepEqual(b.palette.light,resolveBoards(form.brand,[{...o,board:stepBoard(o,s,view,m)}]).boards[0].palette.light);
-  if(view==='look'){assert.deepEqual(b.depth,{...o.board.depth,...s.depth?.[m]});assert.equal(b.primaryMode,m);}
+  if(view==='look'){const expected=approvedDepth(s.palette.id,o.board.pairing.id,m);
+   const normal=d=>Object.fromEntries(Object.entries(d).filter(([k,v])=>!(k==='allowHueShift'&&v===false)));
+   assert.deepEqual(normal(b.depth),normal(expected));assert.equal(b.primaryMode,m);}
  }
  assert.deepEqual(form,before);
 });
@@ -75,7 +79,7 @@ test('schema publishes closed controls, steps, palette and per-mode depths',()=>
  const schema=formJsonSchema(),q=schema.properties.questions.items.properties,step=q.options.items.properties.steps;
  for(const obj of [q.controls,step.items,step.items.properties.palette,step.items.properties.depth,...Object.values(step.items.properties.depth.properties)])assert.equal(obj.additionalProperties,false);
  assert.deepEqual(q.controls.properties.mode.enum,['light','dark']);assert.deepEqual(q.controls.properties.strength.enum,[true]);assert.deepEqual(q.controls.required,[]);
- assert.equal(step.minItems,1);assert.equal(step.maxItems,3);assert.deepEqual(step.items.required,['value','palette']);assert.deepEqual(step.items.properties.depth.required,[]);
+ assert.equal(step.minItems,1);assert.equal(step.maxItems,3);assert.deepEqual(step.items.required,['value']);assert.deepEqual(step.items.properties.depth.required,[]);
  assert.match(q.controls.description,/mode or strength/);assert.match(step.description,/look-view controls.mode/);
  const validator=z.fromJSONSchema(schema);
  for(const mutate of [q=>q.controls.extra=1,q=>q.controls.strength=false,q=>q.options[0].steps[0].extra=1,q=>q.options[0].steps[0].palette.extra=1,q=>q.options[0].steps[0].depth={extra:{}},q=>q.options[0].steps[0].depth={dark:{extra:1}},q=>q.options[0].steps[0].value='BAD',q=>q.options[0].steps=[]]){
@@ -154,4 +158,54 @@ test('plain string schema and checker agree on astral characters, lone surrogate
   const form={title,questions:[{id:'text',label:'Your words',type:'text'}]};
   assert.equal(checkForm(form).ok,accepted);assert.equal(schema.safeParse(form).success,accepted);
  }
+});
+
+for(const view of ['look','board'])test(`own-value step without palette ${view}: inherits the complete reference in both modes; other values need palette`,()=>{
+ const form=controlsForm(view),q=form.questions[0];
+ const overrides={light:{hairline:'#bbbbbb'},dark:{hairline:'#777777'}};
+ for(const o of q.options) {
+  o.board.palette.overrides=copy(overrides);
+  for(const s of o.steps)if(s.value===o.value)delete s.palette;
+ }
+ const before=copy(form);
+ assert.deepEqual(checkForm(form),{ok:true,problems:[]});
+ assert.equal(z.fromJSONSchema(formJsonSchema()).safeParse(form).success,true);
+ const inherited=resolveBoards(form.brand,q.options,{},view);
+ const explicit=copy(form);
+ for(const o of explicit.questions[0].options)for(const s of o.steps)if(s.value===o.value)s.palette=copy(o.board.palette);
+ assert.deepEqual(inherited,resolveBoards(form.brand,explicit.questions[0].options,{},view));
+ for(const [i,o]of q.options.entries()) {
+  const k=o.steps.findIndex(s=>s.value===o.value);
+  for(const mode of ['light','dark']) {
+   assert.equal(inherited.steps[i][k].boards[mode].palette.light.hairline,'#bbbbbb');
+   assert.equal(inherited.steps[i][k].boards[mode].palette.dark.hairline,'#777777');
+  }
+ }
+ assert.deepEqual(form,before);
+ const bad=copy(form),o=bad.questions[0].options.find(o=>o.steps.length>1),s=o.steps.find(s=>s.value!==o.value);
+ delete s.palette;
+ assert.equal(checkForm(bad).ok,false);
+ assert.throws(()=>resolveBoards(bad.brand,bad.questions[0].options,{},view),/own-value/);
+ for(const palette of [null,{},undefined]) {
+  const bad=copy(form),o=bad.questions[0].options[0];o.steps.find(s=>s.value===o.value).palette=palette;
+  assert.equal(checkForm(bad).ok,false,'an explicitly supplied invalid palette is not inheritance');
+ }
+});
+
+test('page-control fixture pastel-sorbet-bold siblings match approved depth without leaking allowHueShift',()=>{
+ const library=JSON.parse(readFileSync(new URL('../../../skills/Build Brand/parts/parts.json',import.meta.url)));
+ const source=lookForm(),o=source.questions[0].options[0],style=library.styles.find(s=>s.id==='friendly-rounded');
+ source.questions[0].options=[o];source.questions[0].pick=1;delete source.questions[0].min;
+ Object.assign(o.board,{pairing:{id:style.id},palette:{id:'pastel-sorbet-bold'},graphicSet:{id:style.graphicSet},container:style.container});
+ const form=controlsForm('look','light',source),option=form.questions[0].options[0];
+ assert.equal(option.board.depth.allowHueShift,true,'the bold card carries the allowance');
+ assert.deepEqual(checkForm(form),{ok:true,problems:[]});
+ const model=resolveBoards(form.brand,[option],{},'look');
+ let siblings=0;
+ for(const [k,step]of option.steps.entries())if(step.value!==option.value) {
+  assert.notEqual(model.steps[0][k].boards.light.depth.allowHueShift,true);
+  const expected=approvedDepth(step.palette.id,style.id,'light');
+  assert.notEqual(expected.allowHueShift,true);assert.equal(step.depth.light.allowHueShift,false);siblings++;
+ }
+ assert.equal(siblings,2);
 });

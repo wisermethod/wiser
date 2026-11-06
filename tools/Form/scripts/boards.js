@@ -32,8 +32,14 @@ export function stepBoard(option,step,view,mode=option.board.primaryMode) {
       }
     }
   }
+  if(!Object.hasOwn(step,'palette')&&step.value!==option.value)throw Error('Only the own-value step may omit palette.');
+  const board={...option.board,palette:Object.hasOwn(step,'palette')?step.palette:option.board.palette,primaryMode:mode};
   // A listed depth field replaces the entire field, including nested objects.
-  return {...option.board,palette:step.palette,primaryMode:mode,...(view==='look'?{depth:{...option.board.depth,...step.depth?.[mode]}}:{})};
+  if(view==='look') {
+    const depth={...option.board.depth,...step.depth?.[mode]};
+    if(Object.keys(depth).length)board.depth=depth;else delete board.depth;
+  }
+  return board;
 }
 export function resolveBoards(brand,options,boardDefaults={},view) {
   // Resolve each supplied step once at load, with the same single-board checks

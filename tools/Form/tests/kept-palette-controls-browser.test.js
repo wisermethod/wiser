@@ -14,7 +14,8 @@ for(const id of [undefined,'business-blue-bold'])for(const view of ['look','boar
  if(view==='look'){form.questions[0].controls=result.controls;form.actions=lookActions();}
  assert.ok(form,result.formUnavailable);assert.deepEqual(checkForm(form),{ok:true,problems:[]});
  const q=form.questions[0];assert.deepEqual(q.controls,{mode:'light'});
- assert.ok(q.options.every(o=>o.steps.length===1&&o.steps[0].value===o.value));
+ if(view==='look')assert.ok(q.options.every(o=>o.steps.length===1&&o.steps[0].value===o.value&&!Object.hasOwn(o.steps[0],'palette')));
+ else assert.ok(q.options.every(o=>!Object.hasOwn(o,'steps')));
  const h=await kit.open(form,width,'light');
  try {
   const art=view==='look'?'.look-art':'.board-preview';
@@ -24,7 +25,7 @@ for(const id of [undefined,'business-blue-bold'])for(const view of ['look','boar
   assert.equal(await h.f.getByRole('button',{name:'More bold',exact:true}).count(),0);
   await h.f.locator('.boards-tile').first().click();
   const input=h.f.locator('.tile-input').first(),value=await input.inputValue();
-  assert.equal(value,q.options[0].steps[0].value);
+  assert.equal(value,q.options[0].value);
   await h.frame.evaluate(view=>{
    window.drawn=[];const method=view==='look'?'look':'draw',original=WiserBoardView[method];
    WiserBoardView[method]=(model,board,options)=>{drawn.push({light:board.palette.light.hairline,dark:board.palette.dark.hairline});return original(model,board,options);};
@@ -45,7 +46,7 @@ for(const id of [undefined,'business-blue-bold'])for(const view of ['look','boar
   assert.deepEqual(sent.map(e=>e.kind),['context','message']);
   const payload=sent[0].params.structuredContent;
   assert.equal(payload.mode,'dark');assert.deepEqual(payload.answers[q.id],[value]);
-  assert.equal(payload.shown[0].shown,q.options[0].steps[0].label);
+  assert.equal(payload.shown[0].shown,q.options[0].label);
   assert.ok(onlyFonts(h.requests));assert.deepEqual(h.errors,[]);
  }finally{await h.context.close();}
 });
