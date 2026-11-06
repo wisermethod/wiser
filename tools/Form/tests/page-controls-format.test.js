@@ -13,7 +13,7 @@ for(const view of ['look','board'])for(const mode of ['light','dark'])test(`page
  for(const [i,o]of q.options.entries())for(const [k,s]of o.steps.entries())for(const m of ['light','dark']){
   const b=model.steps[i][k].boards[m];
   assert.equal(b.number,i+1);assert.deepEqual(b.palette.light,resolveBoards(form.brand,[{...o,board:stepBoard(o,s,view,m)}]).boards[0].palette.light);
-  if(view==='look'){assert.deepEqual(b.depth,s.depth[m]);assert.equal(b.primaryMode,m);}
+  if(view==='look'){assert.deepEqual(b.depth,{...o.board.depth,...s.depth?.[m]});assert.equal(b.primaryMode,m);}
  }
  assert.deepEqual(form,before);
 });
@@ -29,7 +29,7 @@ test('page controls accept either control alone, optional steps, partial ranges 
   assert.equal(checkForm(f).ok,true,JSON.stringify(checkForm(f)));
  }
  const f=controlsForm(),o=f.questions[0].options[0],own=o.steps.find(s=>s.value===o.value);
- own.depth.light=Object.fromEntries(Object.entries(own.depth.light).reverse());
+ o.board.depth=Object.fromEntries(Object.entries(o.board.depth).reverse());
  assert.equal(checkForm(f).ok,true,'deep equality ignores object key order');
 });
 const refusals=[
@@ -51,11 +51,11 @@ const refusals=[
  ['palette unknown',q=>q.options[0].steps[0].palette.id='absent-muted','options[0].steps[0]'],
  ['palette family changed',q=>q.options[0].steps[0].palette.id=q.options[1].steps[0].palette.id,'options[0].steps[0].palette'],
  ['steps reversed',q=>q.options[0].steps.reverse(),'options[0].steps[1].palette'],
- ['depth missing',q=>delete q.options[0].steps[0].depth,'options[0].steps[0].depth'],['depth mode missing',q=>delete q.options[0].steps[0].depth.dark,'options[0].steps[0].depth.dark'],
- ['depth unknown mode',q=>q.options[0].steps[0].depth.extra={},'options[0].steps[0].depth.extra'],
- ['bad step depth at step path',q=>q.options[0].steps[0].depth.dark.extra=true,'options[0].steps[0]'],
- ['null step depth at step path',q=>q.options[0].steps[0].depth.dark.block=null,'options[0].steps[0]'],
- ['matching depth differs',q=>q.options[0].steps[2].depth.light.band='none','options[0].steps[2].depth'],
+ ['depth null',q=>q.options[0].steps[0].depth=null,'options[0].steps[0].depth'],['depth mode null',q=>q.options[0].steps[0].depth={dark:null},'options[0].steps[0].depth.dark'],
+ ['depth unknown mode',q=>q.options[0].steps[0].depth={extra:{}},'options[0].steps[0].depth.extra'],
+ ['bad step depth at step path',q=>q.options[0].steps[0].depth={dark:{extra:true}},'options[0].steps[0]'],
+ ['null step depth at step path',q=>q.options[0].steps[0].depth={dark:{block:null}},'options[0].steps[0]'],
+ ['matching depth differs',q=>q.options[0].steps[2].depth={light:{band:'none'}},'options[0].steps[2].depth'],
 ];
 for(const [name,change,path]of refusals)test(`page controls refusal: ${name}`,()=>{
  const f=controlsForm();change(f.questions[0]);const result=checkForm(f);
@@ -75,10 +75,10 @@ test('schema publishes closed controls, steps, palette and per-mode depths',()=>
  const schema=formJsonSchema(),q=schema.properties.questions.items.properties,step=q.options.items.properties.steps;
  for(const obj of [q.controls,step.items,step.items.properties.palette,step.items.properties.depth,...Object.values(step.items.properties.depth.properties)])assert.equal(obj.additionalProperties,false);
  assert.deepEqual(q.controls.properties.mode.enum,['light','dark']);assert.deepEqual(q.controls.properties.strength.enum,[true]);assert.deepEqual(q.controls.required,[]);
- assert.equal(step.minItems,1);assert.equal(step.maxItems,3);assert.deepEqual(step.items.required,['value','palette']);assert.deepEqual(step.items.properties.depth.required,['light','dark']);
+ assert.equal(step.minItems,1);assert.equal(step.maxItems,3);assert.deepEqual(step.items.required,['value','palette']);assert.deepEqual(step.items.properties.depth.required,[]);
  assert.match(q.controls.description,/mode or strength/);assert.match(step.description,/look-view controls.mode/);
  const validator=z.fromJSONSchema(schema);
- for(const mutate of [q=>q.controls.extra=1,q=>q.controls.strength=false,q=>q.options[0].steps[0].extra=1,q=>q.options[0].steps[0].palette.extra=1,q=>q.options[0].steps[0].depth.extra={},q=>q.options[0].steps[0].depth.dark.extra=1,q=>q.options[0].steps[0].value='BAD',q=>q.options[0].steps=[]]){
+ for(const mutate of [q=>q.controls.extra=1,q=>q.controls.strength=false,q=>q.options[0].steps[0].extra=1,q=>q.options[0].steps[0].palette.extra=1,q=>q.options[0].steps[0].depth={extra:{}},q=>q.options[0].steps[0].depth={dark:{extra:1}},q=>q.options[0].steps[0].value='BAD',q=>q.options[0].steps=[]]){
   const f=controlsForm();mutate(f.questions[0]);assert.equal(validator.safeParse(f).success,false);
  }
 });

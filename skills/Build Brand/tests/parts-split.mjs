@@ -10,7 +10,7 @@ const CONTRACT_PINS={
   "Locking a board": "87d071c73d79ca8daef0cbab119012396c2cf217b86c449c3c97a0786ea51650",
   "Opening taps as data": "6bee532422333e3937b3067ac9f795d2d346fcb39e42c8718627dc200ad941af",
   "Assembly": "4287bc83f4ec6b0eb7c1189bc666baea1c5173af6a6b253c511a2faad0a80f62",
-  "Selection from answers": "d782838ce3d725a5d839d914ce1f473c8d6953ffaa4b0135cc40d82c3ce95360"
+  "Selection from answers": "baafe0ce01b66b574fb619c9db5dfb148b7ad16bfe08c01411d5b3079e8791cd"
 };
 const CATALOGUE_PINS={
   'Settings and use': '15853880b2650344881e894c98c00cd796493dc1a6f3d390f91bc088287f4dca',

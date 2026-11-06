@@ -173,6 +173,7 @@ function boardQuestion(fieldset,q,id) {
   let pageMode=q.controls?.mode;
   if(pageMode)fieldset.dataset.mode=pageMode;
   const rows=q.options.map((o,i)=>({option:o,steps:model.steps?.[i]??[{value:o.value,boards:{light:model.boards[i],dark:model.boards[i]}}],index:o.steps?.findIndex(s=>s.value===o.value)??0}));
+  // resolveBoards has merged each optional step overlay onto its option depth.
   const showing=row=>row.steps[row.index].boards[pageMode??row.option.board.primaryMode];
   const position=(row,index)=>['muted','balanced','bold'].indexOf(row.option.steps?.[index]?.palette.id.match(/-(muted|balanced|bold)$/)?.[1]);
   const nextStep=(row,delta)=>{

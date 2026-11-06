@@ -16,13 +16,22 @@ const data=JSON.parse(readFileSync(new URL('../parts/taps.json',import.meta.url)
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const identity=c=>`${c.pairing}/${c.palette}/${c.graphicSet}`;
 // Pins cover approved palette/style cards, page mode, depth and pagination.
-// Both normal and kept-asset pages pin the full JSON, including spares,
+// Both normal and kept-asset pages pin the full JSON with step overlays expanded,
+// retaining the full-depth snapshot's bytes, including spares,
 // checked refusals/replacements and abandoned-check attempt counts.
 // Every pin also asserts the page shape, refusals, history and Form contract.
 const fixtures=[
   ["operator",operator,["fe1ff7fb65fb49b3fa7fe9e4b21a83115a4b52d363348168aba816508f631089", "e53131559b86fb2e78f503a45a244e11ab35fd2a382d5edca73704f0567a8d10"],["9d1db47cfda0185a84e851328fa25e8e4a41a1b4a8c6e3fe78500b03a104a600", "9265789240f28e433167e3e8133c9440014e95965daf7686e5e1c5312b128983"]],
   ["First Strategy",firstStrategy,["ef7783413689c672fc9a3928dde19ea353572712b662201addfe0e56e581dd06", "b155e44ab8810963b730866deb0531d5ac3aaf5922c2fded19f64867ea302425"],["36d8cae01eef3ab2c0a70032df97d19721b468060d9f30d7957a03cd34d65dcd", "fa311d239364930a519893581738a0612289776b0c88ea1b895e0e6acfbb439e"]]
 ];
+
+function fullDepthSnapshot(page) {
+  const result=structuredClone(page);
+  for(const [i,o]of result.options.entries())for(const steps of [o.steps,result.looks[i].steps])for(const step of steps) {
+    step.depth=Object.fromEntries(['light','dark'].map(mode=>[mode,{...o.board.depth,...step.depth?.[mode]}]));
+  }
+  return JSON.stringify(result);
+}
 
 function assertPage(r,a,history=[]) {
   assert.equal(r.looks.length,12);assert.equal(r.options.length,12);
@@ -65,7 +74,7 @@ function assertFirstPage(a,expected) {
   for(const check of [false,true]) {
     const page=select('looks',a,{check});assertPage(page,a);
     const first=JSON.stringify(page);
-    assert.equal(hash(first),expected[Number(check)]);
+    assert.equal(hash(fullDepthSnapshot(page)),expected[Number(check)]);
     for(const history of [{},{shown:[]}]) for(const direction of [{},{steer:{}},{steer}]) {
       assert.equal(JSON.stringify(select('looks',{...a,...history,...direction},{check})),first,
         `check=${check}, history=${JSON.stringify(history)}, direction=${JSON.stringify(direction)}`);

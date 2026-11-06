@@ -46,8 +46,8 @@ function assertLooks(a,r) {
    assert.equal(step.label,[p('pairings',o.board.pairing.id).name,p('palettes',step.palette.id).name,p('graphics',o.board.graphicSet.id).name].join(', '));
    for(const mode of modes) {
     const expected={...style.depth,...library.cardDepth.find(d=>d.palette===step.palette.id&&d.style===style.id&&d.mode===mode)?.depth};
-    assert.deepEqual(step.depth[mode],expected);
-    if(r.checks.enabled)passes(r.selection,{...r.selection.boards[i],palette:step.palette,primaryMode:mode,depth:step.depth[mode]});
+    assert.deepEqual({...o.board.depth,...step.depth?.[mode]},expected);
+    if(r.checks.enabled)passes(r.selection,{...r.selection.boards[i],palette:step.palette,primaryMode:mode,depth:{...o.board.depth,...step.depth?.[mode]}});
    }
   }
  }
@@ -156,7 +156,7 @@ test('a withheld sibling or a Contact Sheet refusal omits that step without movi
 test('planted output controls catch missing controls, wrong mode, wrong step depth, captions and picked records',()=>{
  const a=operator(),r=select('looks',a),plant=edit=>{const bad=copy(r);edit(bad);assert.throws(()=>assertLooks(a,bad));};
  plant(r=>delete r.controls);plant(r=>r.controls.mode='light');plant(r=>delete r.options[0].steps);
- plant(r=>r.options[0].steps[0].depth.dark={background:'plain'});
+ plant(r=>r.options[0].steps[0].depth={dark:{ink:'wrong'}});
  plant(r=>r.options[0].steps[0].label='Wrong palette');
  plant(r=>r.options[0].steps[0].palette.id='absent-bold');
  const boardAnswers={...a,looksShown:[]},b=select('round1',boardAnswers),boardPlant=edit=>{const bad=copy(b);edit(bad);assert.throws(()=>assertBoards(boardAnswers,bad));};
@@ -189,8 +189,8 @@ for(const id of [undefined,'business-blue-bold'])test(`kept palette ${id??'roles
   if(id)assert.equal(step.palette.id,id);
   for(const mode of modes){
    const style=p('styles',looks.looks[i].style),palette=p('palettes',looks.looks[i].palette);
-   assert.deepEqual(step.depth[mode],{...style.depth,...library.cardDepth.find(d=>d.palette===palette.id&&d.style===style.id&&d.mode===mode)?.depth});
-   passes(looks.selection,{...looks.selection.boards[i],palette:step.palette,primaryMode:mode,depth:step.depth[mode]});
+   assert.deepEqual({...o.board.depth,...step.depth?.[mode]},{...style.depth,...library.cardDepth.find(d=>d.palette===palette.id&&d.style===style.id&&d.mode===mode)?.depth});
+   passes(looks.selection,{...looks.selection.boards[i],palette:step.palette,primaryMode:mode,depth:{...o.board.depth,...step.depth?.[mode]}});
   }
  }
  const round=select('round1',{...a,looks:[looks.options[0].steps[0].value],looksShown:looks.options,mode:'light'},{check:true});

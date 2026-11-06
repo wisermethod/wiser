@@ -6,7 +6,7 @@ import {mkdir} from 'node:fs/promises';
 import {join} from 'node:path';
 import {browserKit,onlyFonts} from './boards-harness.js';
 import {lookForm} from './board-fixtures.js';
-import {controlsForm,startAt,withStepLabels} from './page-controls-fixtures.js';
+import {controlsForm,startAt,withStepLabels,setOwnStep} from './page-controls-fixtures.js';
 let kit;before(async()=>{kit=await browserKit();});after(async()=>{await kit?.browser.close();});
 const buttons=h=>({light:h.f.getByRole('group',{name:'Light or dark',exact:true}).getByRole('button',{name:'Light',exact:true}),dark:h.f.getByRole('group',{name:'Light or dark',exact:true}).getByRole('button',{name:'Dark',exact:true}),muted:h.f.getByRole('button',{name:'More muted',exact:true}),bold:h.f.getByRole('button',{name:'More bold',exact:true})});
 async function pictures(h,view){return h.frame.evaluate(view=>[...document.querySelectorAll(view==='look'?'.boards-tiles .look-art':'.boards-tiles .board-preview')].map(n=>({mode:n.dataset.mode,colours:view==='look'?[...n.querySelectorAll('[fill],[stop-color]')].map(n=>n.getAttribute('stop-color')??n.getAttribute('fill')).filter(v=>!v.startsWith('url(')):['ground','panel','pop','deep','mark'].map(k=>n.style.getPropertyValue(`--${k}`))})),view);}
@@ -93,7 +93,7 @@ test('strength only retains the full-size board mode switch and its chosen mode'
 test('missing adjacent steps and endpoints stay put; strength greys when the whole page cannot move',async()=>{
  const form=startAt(controlsForm()),q=form.questions[0];q.options=q.options.slice(0,3);
  q.options[0].steps=q.options[0].steps.slice(1);q.options[1].steps=q.options[1].steps.slice(0,2);
- const o=q.options[2];o.value=o.steps[0].value;o.board.palette=o.steps[0].palette;o.board.depth=o.steps[0].depth.light;o.steps=[o.steps[0],o.steps[2]];
+ const o=q.options[2];setOwnStep(o,o.steps[0],'light');o.steps=[o.steps[0],o.steps[2]];
  const h=await kit.open(form);try{
   const b=buttons(h),inputs=h.f.locator('.tile-input'),before=await inputs.evaluateAll(ns=>ns.map(n=>n.value));
   await b.bold.click();const after=await inputs.evaluateAll(ns=>ns.map(n=>n.value));

@@ -246,6 +246,8 @@ export function paletteFamily(id) {
 }
 // Form moves by adjacent family positions. Keep the passing run around the
 // own card, so no listed step is stranded beyond a refused middle position.
+// The defaults of the depth fields a card-mode may carry beyond its style (cardDepth): ink and allowHueShift.
+const STEP_DEPTH_DEFAULTS=Object.freeze({allowHueShift:false,ink:'pop'});
 function contiguousSteps(steps,value) {
   const position=s=>['muted','balanced','bold'].indexOf(paletteFamily(s.palette.id).step);
   steps=[...steps].sort((x,y)=>position(x)-position(y));
@@ -977,7 +979,17 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
           const depth=Object.fromEntries(['light','dark'].map(mode=>[mode,cardDepth(library,step.palette,step.style,mode)]));
           if(['light','dark'].some(mode=>refused({...board,primaryMode:mode,depth:depth[mode]})||checker&&!checker.acceptBoard({...board,primaryMode:mode,depth:depth[mode]}))) return [];
           const label=[part(library,'pairings',board.pairing.id).name,part(library,'palettes',board.palette.id).name,part(library,'graphics',board.graphicSet.id).name].join(', ');
-          return [{value:lookId(step),label,palette:copy(board.palette),depth}];
+          // An overlay can only replace fields, so a field the option's own depth carries and this
+          // step's lacks is stated at its default (Form's depth table); any other such field refuses.
+          const overlay=Object.fromEntries(Object.entries(depth).map(([mode,fields])=>{
+            const own=Object.fromEntries(Object.entries(fields).filter(([key,value])=>JSON.stringify(stable(value))!==JSON.stringify(stable(b.depth?.[key]))));
+            for(const key of Object.keys(b.depth??{})) if(!Object.hasOwn(fields,key)) {
+              if(!Object.hasOwn(STEP_DEPTH_DEFAULTS,key)) fail('steps',`step ${step.palette.id} ${mode} lacks depth.${key}, which has no default to state`);
+              if(JSON.stringify(b.depth[key])!==JSON.stringify(STEP_DEPTH_DEFAULTS[key])) own[key]=STEP_DEPTH_DEFAULTS[key];
+            }
+            return [mode,own];
+          }).filter(([,fields])=>Object.keys(fields).length));
+          return [{value:lookId(step),label,palette:copy(board.palette),...(Object.keys(overlay).length?{depth:overlay}:{})}];
         });
         if(!steps.some(step=>step.value===look.value)) fail('steps','look has no passing own step in both modes');
         steps=contiguousSteps(steps,look.value);

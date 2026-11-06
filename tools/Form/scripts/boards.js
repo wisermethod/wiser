@@ -1,5 +1,5 @@
 // Portable board adapter. The generated sources own assembly and validation.
-import { BOARD_PARTS, PUBLIC_FONT_FILES, assembleCore, validateBrandBoards, createBoardModel, checkSvg, DEFAULT_MARK_CAPTION } from '../engine/boards-lib.js';
+import { BOARD_PARTS, PUBLIC_FONT_FILES, assembleCore, validateBrandBoards, createBoardModel, checkSvg, DEFAULT_MARK_CAPTION, depthSchema } from '../engine/boards-lib.js';
 export const BOARD_LIMITS = Object.freeze({logoBytes:8192,name:80,initials:12,sentence:300,body:500,words:5,word:60,label:120,note:300,recommendation:200});
 export function minimumPicks(question) { return question.min ?? (question.pick === 1 ? 1 : 0); }
 export function actionAllowed(needs,count,min=1) {
@@ -18,7 +18,22 @@ export function palettePosition(id) {
   return match?{family:match[1],index:['muted','balanced','bold'].indexOf(match[2])}:null;
 }
 export function stepBoard(option,step,view,mode=option.board.primaryMode) {
-  return {...option.board,palette:step.palette,primaryMode:mode,...(view==='look'?{depth:step.depth[mode]}:{})};
+  const object=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
+  const equal=(a,b)=>a===b||object(a)&&object(b)&&Object.keys(a).length===Object.keys(b).length&&Object.keys(a).every(k=>Object.hasOwn(b,k)&&equal(a[k],b[k]));
+  if(Object.hasOwn(step,'depth')) {
+    if(view!=='look')throw Error('Step depth is allowed only in look view.');
+    if(!object(step.depth))throw Error('Step depth must be an object.');
+    for(const [key,overlay]of Object.entries(step.depth)) {
+      if(!['light','dark'].includes(key))throw Error(`Unknown step depth mode ${key}.`);
+      if(!object(overlay))throw Error(`Step depth.${key} must be an object.`);
+      for(const [field,value]of Object.entries(overlay)) {
+        if(!Object.hasOwn(depthSchema.properties,field))throw Error(`Unknown step depth field ${field}.`);
+        if(equal(value,option.board.depth?.[field]))throw Error(`Step depth.${key}.${field} equals board.depth; omit the redundant field.`);
+      }
+    }
+  }
+  // A listed depth field replaces the entire field, including nested objects.
+  return {...option.board,palette:step.palette,primaryMode:mode,...(view==='look'?{depth:{...option.board.depth,...step.depth?.[mode]}}:{})};
 }
 export function resolveBoards(brand,options,boardDefaults={},view) {
   // Resolve each supplied step once at load, with the same single-board checks
