@@ -603,7 +603,7 @@ function pickedLook(look,value,library,kept) {
 function boardLabel(library,b) {
   return [part(library,'pairings',b.pairing.id).name,...(b.palette.names?[]:[part(library,'palettes',b.palette.id).name]),part(library,'graphics',b.graphicSet.id).name,...(b.container?[part(library,'containers',b.container).name]:[]),b.primaryMode].join(' / ');
 }
-const boardValue=(owner,b)=>'board-'+createHash('sha256').update(JSON.stringify(stable([owner.number,boardKey(owner),b.palette]))).digest('hex').slice(0,32);
+const boardValue=(owner,b)=>'board-'+createHash('sha256').update(JSON.stringify(stable([owner.number,boardIdentity(owner),b.palette]))).digest('hex').slice(0,32);
 const FORM_COPY=['depth','handwriting','buttonRadius','heroPhrase','content','note','sample','items','closingExamples'];
 // SVG text made single-line by the rules a renderer applies, so the card's
 // mark draws as the file does. Inside a tag, XML turns each newline (a CRLF
@@ -656,7 +656,9 @@ function stable(value) {
   return value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(k=>[k,stable(value[k])])):value;
 }
 const partKey=(b,field)=>JSON.stringify(stable(b[field]??null));
-const boardKey=b=>JSON.stringify(VARIED_PARTS.map(field=>partKey(b,field)));
+// Recipe ids cannot distinguish boards wearing the same member palette.
+// Mode is never a new board; own-colour identity is its visible parts only.
+const boardIdentity=(b,ownColours=false)=>JSON.stringify(VARIED_PARTS.filter(field=>!ownColours||field!=='palette').map(field=>partKey(b,field)));
 function typeLoudness(board,library) {
   const donor=board.pairing.headingFrom;
   return part(library,'pairings',typeof donor==='string'?donor:board.pairing.id).tags.typeLoudness;
@@ -712,6 +714,7 @@ function checkFactory(a,library,selectionDir,replacements) {
 // reserve a palette or consume an energy. Subsequent slots see the replacement.
 function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),check=false,selectionDir=process.cwd(),unsteered=false}={},refusal=boardRefusal) {
   const a=validateAnswers(copy(answers),data,library,command);
+  const boardKey=b=>boardIdentity(b,!!a.ownColours);
   const unseenRetry=!a.pageDisplayed&&!!a.avoid?.length;
   const excluded=new Set(unseenRetry?a.avoid.map(boardKey):[]);
   const blockedRecords=a.avoid??[];
@@ -795,7 +798,20 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
       // Incomplete leaders, contrasts or coverage trigger the feasibility
       // search; discard refusals from the abandoned greedy attempt first.
       let search=fresh,found;
-      if(!search) {
+      if(a.ownColours) {
+        const visibleKey=c=>`${a.kept?.pairing??c.pairing.id}/${c.graphicSet.id}`;
+        const seenLooks=new Set(history.map(look=>visibleKey(shownLook(look,library,a.kept))));
+        found={chosen:[],spares:[]};search=false;
+        for(const c of lookPool) {
+          if(found.chosen.length===12) break;
+          if(seenLooks.has(visibleKey(c))) continue;
+          const slot=found.chosen.length+1,start=replacements.length;
+          const candidate=effective(c,a,library);
+          if(!checkLook(candidate,slot)) continue;
+          finishReplacement(start,candidate);
+          seenLooks.add(visibleKey(c));found.chosen.push({...candidate,kind:'top'});found.spares.push([]);
+        }
+      } else if(!search) {
         const start=replacements.length;
         try { found=chooseLooks(lookPool,checkLook,(c,slot)=>{for(const r of replacements.filter(r=>r.slot===slot))r.replacement=summary(effective(c,a,library));}); }
         catch(error) {

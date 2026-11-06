@@ -37,13 +37,13 @@ test('own colours lock refuses a changed palette or fabricated derivation before
     f.save();assert.throws(f.result,/ownColours/);assert.equal(existsSync(f.design),false);
   }
 });
-test('own colours end to end: checked twelve looks and Round 1 assemble into a J1c-cited design', async () => {
+test('own colours end to end: distinct checked looks and Round 1 assemble into a J1c-cited design', async () => {
   const {buildOwnColours}=await import('../scripts/own-colours.mjs');
   const {select,selectionForAssembly}=await import('../scripts/select.mjs');
   const {assemble}=await import('../scripts/assemble.mjs');
   const f=fixture(),ownColours=buildOwnColours('red, white and blue');
   const a={...Object.fromEntries(['type','name','sentence','words','taps','off'].map(k=>[k,f.answers[k]])),looks:[],ownColours,photoRules:f.spec.boards[0].content.photoRules};
-  const looks=select('looks',a,{check:true,selectionDir:f.root});assert.equal(looks.options.length,12);
+  const looks=select('looks',a,{check:true,selectionDir:f.root});assert.equal(looks.options.length,Math.min(12,library.styles.length));
   const picks=looks.options.slice(0,3).map(o=>o.value);
   const round=select('round1',{...a,looks:picks,looksShown:looks.options},{check:true,selectionDir:f.root});
   Object.assign(f.spec,assemble(selectionForAssembly(round.selection),library,{selectionDir:f.root}));

@@ -16,7 +16,11 @@ test('existing Form rule greys both strength buttons on own-colour looks and boa
       assert.deepEqual(checkForm(form),{ok:true,problems:[]});
       const h=await kit.open(form,390,'light');
       try {
-        assert.equal(await h.f.locator('.boards-tile').count(),12);
+        assert.equal(await h.f.locator('.boards-tile').count(),form.questions[0].options.length);
+        if(view==='look') {
+          const initial=await h.f.locator('.look-art').evaluateAll(nodes=>nodes.map(n=>n.dataset.mode));
+          assert.deepEqual(initial,form.questions[0].options.map(o=>o.board.primaryMode));
+        }
         // Select through the native checkbox: thumbnail and caption click
         // semantics belong to the board-card design, not this colour test.
         await h.f.locator('.tile-input').first().focus();
@@ -30,6 +34,7 @@ test('existing Form rule greys both strength buttons on own-colour looks and boa
             assert.ok(await button.evaluate(n=>parseFloat(getComputedStyle(n).opacity)<1));
           }
           assert.equal(await h.f.locator('fieldset').getAttribute('data-mode'),mode);
+          if(view==='look')assert.ok((await h.f.locator('.look-art').evaluateAll(nodes=>nodes.map(n=>n.dataset.mode))).every(value=>value===mode));
           assert.equal(await h.f.locator('.tile-input').first().isChecked(),true);
           assert.equal(await h.f.locator('.tile-input').first().inputValue(),value);
         }

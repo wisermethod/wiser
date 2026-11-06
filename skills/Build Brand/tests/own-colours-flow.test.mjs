@@ -25,10 +25,10 @@ test('ported PAIRS and reading formulae agree with the renderer', async () => {
     assert.ok(Math.abs(apca(a,b)-renderer.apca(a,b))<1e-12);
   }
 });
-test('a comment naming colours gives twelve checked looks, then Round 1 and variations in those colours within budget', () => {
+test('a comment naming colours gives distinct checked looks, then Round 1 and variations in those colours within budget', () => {
   const ownColours=coloursFromComment('red, white and blue'),a={...bakery(),ownColours};
   const looks=select('looks',a,{check:true});
-  assert.equal(looks.options.length,12);
+  assert.equal(looks.options.length,Math.min(12,JSON.parse(readFileSync(LIBRARY)).styles.length));
   assert.ok(new Set(looks.looks.map(l=>l.style)).size>=6);
   assert.equal(looks.controls.strength,true);
   assertFormBudget(looksForm(a,looks),1000);
