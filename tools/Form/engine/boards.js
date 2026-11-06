@@ -89,10 +89,15 @@ function other(model,b,mode,logo) {
     el('div','other-right',null,el('div','content-card',null,el('p','sample-kicker',b.sample.kicker),type(el('b',null,null,phrase(b.sample.title,b.sample.phrase,b.modes[m].drawings.sample.circle,'ring')),v.contentCard),el('span','label',b.sample.meta)),swatches(b,m,false,true))),b,m);
 }
 function board(model,b,mode,compact,logo) {
-  const n=vars(el('div',`brand-board${compact?' board-preview':''}`),b,mode);n.dataset.mode=mode;n.dataset.board=b.number;
+  const thumbnail=compact;
+  // Thumbnail rows contain the complete board, with its full type and sections.
+  compact=false;
+  const n=vars(el('div',`brand-board${thumbnail?' board-preview':''}`),b,mode);n.dataset.mode=mode;n.dataset.board=b.number;
+  if(thumbnail)n.style.setProperty('--thumbnail-note-size',`${b.textStyles.note.size}px`);
   const pattern=el('div','page-pattern',null,repeatArt(b.modes[mode].drawings.pattern));pattern.style.opacity=b.graphics.pattern.strength[mode];pattern.style.transform=`rotate(${b.graphics.pattern.angle||0}deg)`;n.append(pattern);
   const block=v=>{
     switch(v.kind){
+      case 'row':return el('div','board-row',null,...v.blocks.map(block));
       case 'hero':{const h=type(el('h2','brand-headline'),compact?b.textStyles.tileHeadline:b.textStyles.headline);
         h.style.maxWidth=`min(${b.type.heading.sizes.display.maxWidth||12}em,100%)`;
         h.append(b.graphics.hero.placement==='monogram'?document.createTextNode(b.content.sentence):phrase(b.content.sentence,b.graphics.hero.phrase||b.content.sentence,b.modes[mode].drawings.hero,`hero-phrase ${b.graphics.hero.shape||'underline'}`));
@@ -112,7 +117,15 @@ function board(model,b,mode,compact,logo) {
       default:throw Error('Unknown board block '+v.kind);
     }
   };
-  n.append(...b.modes[mode][compact?'tile':'blocks'].map(block).filter(Boolean));return n;
+  n.append(...b.modes[mode][thumbnail?'tile':'blocks'].map(block).filter(Boolean));
+  if(thumbnail)n.append(footer(b));
+  return n;
+}
+function footer(b) {
+  const foot=el('footer','whole-foot');
+  if(b.footer.closing)foot.append(el('p','last-line',b.footer.closing),el('p','example-answers',b.footer.examples.join('; ')));
+  foot.append(el('p','licences',b.footer.licences.map(f=>`${f.family} (${f.role}) · ${globalThis.WiserForm.WORDS.licence}: ${f.licence}`).join('; ')));
+  return foot;
 }
 function draw(model,b,{compact=false,logo,mode:showMode}={}) {
   const n=el('div','board-art');
@@ -120,7 +133,7 @@ function draw(model,b,{compact=false,logo,mode:showMode}={}) {
     const start=n.children.length;
     if(!compact)n.append(el('h2','board-mode',globalThis.WiserForm.WORDS[mode]));
     n.append(board(model,b,mode,compact,logo));
-    if(!compact){const foot=el('footer','whole-foot');if(b.footer.closing)foot.append(el('p','last-line',b.footer.closing),el('p','example-answers',b.footer.examples.join('; ')));foot.append(el('p','licences',b.footer.licences.map(f=>`${f.family} (${f.role}) · ${globalThis.WiserForm.WORDS.licence}: ${f.licence}`).join('; ')));n.append(foot);}
+    if(!compact)n.append(footer(b));
     for(const part of [...n.children].slice(start))part.dataset.mode=mode;
   }
   return n;

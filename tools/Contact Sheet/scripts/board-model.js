@@ -9,6 +9,7 @@ export const BOARD_LABELS = {
   markSizes: 'profile picture to browser tab', open: 'Open the whole board'
 };
 export const BOARD_LAYOUT = {
+  thumbnail: { width: 3000, columns: 2, gap: 40, padding: 32 },
   card: { maxWidth: 900, width: 734, margin: 16, padding: 24, gap: 16,
     heroColumns: 1, typeColumns: 2, graphicColumns: 2, cardColumns: 2,
     headlineScale: .58, headlineMin: 32, bodySize: 20, otherHeadlineScale: .42,
@@ -148,7 +149,11 @@ export function createBoardModel(spec) {
       swatches: swatches(b, mode), chips: swatches(b, mode, true) }]));
     for (const mode of ['light', 'dark']) {
       b.modes[mode].blocks = blocks(b, mode, model.person, false);
-      b.modes[mode].tile = blocks(b, mode, model.person, true);
+      // Keep each full-board row intact. CSS balances this single section stack
+      // down the left column, then the right; no duplicated/clipped board art.
+      const full = b.modes[mode].blocks;
+      b.modes[mode].tile = [full.slice(0,2),full.slice(2,3),full.slice(3,5),...full.slice(5).map(v=>[v])]
+        .map(blocks=>({kind:'row',blocks}));
     }
     return b;
   });

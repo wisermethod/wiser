@@ -13,7 +13,7 @@ async function resizeFrame(h,width){
 for(const theme of ['light','dark'])test(`viewer picks update action lines, boxes and submission guards immediately, ${theme}`,async()=>{
  const h=await kit.open(boardForm(),734,theme,{autoSize:true});
  try{
-  await h.f.locator('.boards-tile').nth(5).click();await h.f.locator('.see-board').nth(5).click();
+  await h.f.locator('.tile-input').nth(5).click();await h.f.locator('.board-thumbnail').nth(5).click();
   const more=h.f.locator('[data-action=more]'),lock=h.f.locator('[data-action=lock]'),pick=h.f.locator('.board-viewer input').first();
   for(const wanted of [false,true]){
    // Check requestSubmit in the same event turn as unpicking, before a stale action could submit.
@@ -42,7 +42,7 @@ for(const name of ['chatgpt','Claude'])test(`full viewer keeps its mode, picks a
  const form=boardForm();form.paged=true;form.questions.push({id:'notes',type:'text',label:'Anything else?'});
  const h=await kit.open(form,734,'light',{name,deferFonts:true,autoSize:true});
  try{
-  await h.f.locator('.boards-tile').nth(5).click();await h.f.locator('.see-board').nth(5).click();
+  await h.f.locator('.tile-input').nth(5).click();await h.f.locator('.board-thumbnail').nth(5).click();
   await h.f.locator('.board-mode-switch[data-mode=dark]').click();
   const stable=async()=>{
    assert.equal(await h.f.locator('.board-option:visible').count(),0);
@@ -62,7 +62,7 @@ for(const name of ['chatgpt','Claude'])test(`full viewer keeps its mode, picks a
   assert.equal(await h.f.locator('.board-viewer .locked-name').innerText(),form.questions[0].options[5].label);
   await h.f.getByText('Close this board',{exact:true}).first().click();
   assert.equal(await h.f.locator('.board-option:visible').count(),12);
-  assert.equal(await h.f.locator('.see-board').nth(5).evaluate(n=>n===document.activeElement),true);
+  assert.equal(await h.f.locator('.board-thumbnail').nth(5).evaluate(n=>n===document.activeElement),true);
   assert.deepEqual(h.errors,[]);
  }finally{await h.releaseFonts();await h.context.close();}
 });

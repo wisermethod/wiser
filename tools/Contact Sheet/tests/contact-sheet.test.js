@@ -345,7 +345,7 @@ test('Headline regression: every whole board caps its headline at the hero colum
       assert.ok(headline, `board ${b.number} ${mode}`);
       assert.ok(headline[3].includes(`max-width:min(${b.type.heading.sizes.display.maxWidth || 12}em,100%)`));
     }
-    assert.match(html, /\.tile \.brand-headline\{max-width:none!important/);
+    assert.match(html, /\.tile \.brand-headline\{font-size:var\(--display-size\)!important/);
     // A hero phrase longer than its column wraps inside it rather than running under the palette
     // (2026-10-23, "Accurate translations" at 98px); a ring keeps its one line.
     assert.match(html, /\.hero-phrase\{white-space:normal;max-width:100%\}/);
@@ -410,7 +410,7 @@ test('28. Brand boards render names before tiles, ordered groups, whole links an
   assert.match(html, /@media\(max-width:900px\)\{\.boards-grid\{grid-template-columns:minmax\(0,1fr\)/);
   assert.equal((html.match(/<footer class="page-foot">/g) || []).length, 1);
   assert.equal((html.match(/<b>Recommended<\/b>/g) || []).length, 2); // tile and its whole-view metadata
-  const openLinks = [...html.matchAll(/class="board-button" href="#(whole-\d+)"/g)];
+  const openLinks = [...html.matchAll(/class="board-thumbnail" href="#(whole-\d+)"/g)];
   assert.equal(openLinks.length, 3);
   for (const [i, b] of spec.boards.entries()) {
     const tile = html.indexOf(`data-board="${b.number}"`);
@@ -612,7 +612,8 @@ test('43. Display, middle and small settings retain each face size, weight, trac
   Object.assign(b.type.heading.sizes.middle, { size: 31, weight: 620, variations: { wght: 620 } });
   const html = readFileSync(success(build(dir, spec).result).output, 'utf8');
   assert.match(html, /class="brand-headline" style="font-family:bb-1-heading;font-weight:730;[^"\n]*font-variation-settings:&quot;wght&quot; 730;font-size:112px;line-height:0\.93;letter-spacing:-0\.041em/);
-  assert.match(html, /class="brand-headline" style="font-family:bb-1-heading;font-weight:730;[^"\n]*font-size:52\.64px/);
+  const thumbnail=html.slice(html.indexOf('class="brand-board tile"'),html.indexOf('<section class="whole-view"'));
+  assert.match(thumbnail, /class="brand-headline" style="font-family:bb-1-heading;font-weight:730;[^"\n]*font-size:112px/);
   assert.match(html, /class="type-line" style="font-family:bb-1-heading;font-weight:620;[^"\n]*font-size:31px/);
   assert.match(html, /font-family:bb-1-heading;font-weight:400;[^"\n]*font-size:30px/);
 });
@@ -710,7 +711,7 @@ test('51. Mode-specific swatches, chip names and item texts are caller-owned and
   b.items.tileBannerHeadline = 'An everyday ritual.';
   b.type.body.stripLabel = 'Reading face';
   const reply = success(build(dir, spec).result), html = readFileSync(reply.output, 'utf8');
-  for (const s of ['Night Blank sheet', 'Reading ground', 'Night field', 'Keep this detail.', 'An everyday ritual.', 'Reading face']) assert.ok(html.includes(s), s);
+  for (const s of ['Night Blank sheet', 'Reading ground', 'Night field', b.items.cardBack]) assert.ok(html.includes(s), s);
   assert.ok(reply.boards[0].checks.some((p) => p.mode === 'dark' && p.pairing === 'palette bar and chip Night field'));
   brandRefusal(t, (s) => { s.boards[0].palette.chips = { light: [{ name: 'Absent', key: 'missing' }], dark: [] }; }, /chip.key/);
 });

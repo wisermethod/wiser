@@ -15,7 +15,7 @@ for(const width of [390,734])for(const theme of ['light','dark'])test(`boards ${
  try{
   assert.equal(await h.f.locator('button[data-action=lock]').isHidden(),true);
   assert.match(await h.f.locator('button[data-action=more]').innerText(),/None of these work/);
-  const tiles=h.f.locator('.boards-tile');await tiles.nth(0).tap();assert.deepEqual(await picks(h),['board-1']);
+  const tiles=h.f.locator('.tile-input');await tiles.nth(0).tap();assert.deepEqual(await picks(h),['board-1']);
   assert.equal(await h.f.locator('button[data-action=lock]').isDisabled(),false);
   await tiles.nth(1).tap();await tiles.nth(2).tap();await tiles.nth(3).tap();assert.deepEqual(await picks(h),['board-1','board-2','board-3','board-4']);
   assert.equal(await h.f.locator('.board-limit').count(),0);assert.equal(await h.f.locator('[data-action=more] small').innerText(),'You picked 4 boards. Pick up to three to go on.');assert.equal(await h.f.locator('button[data-action=lock]').isHidden(),true);
@@ -23,9 +23,9 @@ for(const width of [390,734])for(const theme of ['light','dark'])test(`boards ${
   assert.equal(await ownScroll(h),0,'twelve boards and the actions sit in the card with no scroll of their own');
   assert.ok(height>1500,'the card is as tall as its twelve boards');
   await h.page.waitForFunction(min=>window.__log.some(e=>e.kind==='size'&&e.params.height>=min),Math.floor(height));
-  await h.f.locator('.see-board').nth(1).tap();
+  await h.f.locator('.board-thumbnail').nth(1).tap();
   assert.equal(await h.f.locator('.board-viewer').isVisible(),true);
-  assert.equal(await h.f.locator('.see-board').nth(1).getAttribute('aria-expanded'),'true');
+  assert.equal(await h.f.locator('.board-thumbnail').nth(1).getAttribute('aria-expanded'),'true');
   assert.equal(await h.f.locator('.boards-tile').nth(1).isHidden(),true,'every tile steps aside');
   const open=await rootHeight(h);assert.ok(open>500,'the open board determines card height');
   assert.equal(await ownScroll(h),0,'the open board has no scroll of its own');
@@ -34,7 +34,7 @@ for(const width of [390,734])for(const theme of ['light','dark'])test(`boards ${
   await h.f.locator('.board-viewer input').first().uncheck();
   await h.f.locator('.board-viewer-end').getByText('Close this board',{exact:true}).tap();assert.deepEqual(await picks(h),['board-1','board-3','board-4']);await tiles.nth(3).tap();
   assert.equal(await h.f.locator('.board-viewer').count(),0);
-  assert.equal(await h.f.locator('.see-board').nth(1).getAttribute('aria-expanded'),'false');
+  assert.equal(await h.f.locator('.board-thumbnail').nth(1).getAttribute('aria-expanded'),'false');
   assert.equal(await gridHeight(),closed,'closing gives the grid back its own height');
   await tiles.nth(2).tap();assert.equal(await h.f.locator('button[data-action=lock]').isDisabled(),false);
   await h.f.locator('button[data-action=lock]').tap();await h.f.locator('#status.ok').waitFor();
@@ -66,7 +66,7 @@ test('the open board\'s mirrored pick is never read as an answer, even beside an
  const form=boardForm();form.questions[0].options[2].value='on';
  const h=await kit.open(form,734,'light',{touch:true});
  try{
-  await h.f.locator('.boards-tile').nth(0).tap();await h.f.locator('.see-board').nth(0).tap();
+  await h.f.locator('.tile-input').nth(0).tap();await h.f.locator('.board-thumbnail').nth(0).tap();
   assert.equal(await h.f.locator('.board-viewer input').first().isChecked(),true);
   assert.deepEqual(await picks(h),['board-1']);
   assert.equal(await h.f.locator('button[data-action=lock]').isDisabled(),false,'one real pick: Lock it is open');
@@ -74,7 +74,7 @@ test('the open board\'s mirrored pick is never read as an answer, even beside an
 });
 test('one-pick round takes extra ticks but holds submission; sole tuned board starts picked',async()=>{
  const form=boardForm();form.questions[0].pick=1;form.questions[0].options.length=3;
- const h=await kit.open(form);try{await h.f.locator('.boards-tile').nth(0).click();await h.f.locator('.boards-tile').nth(1).click();assert.deepEqual(await picks(h),['board-1','board-2']);assert.equal(await h.f.locator('[data-action=more]').isDisabled(),true);assert.equal(await h.f.locator('[data-action=more] small').innerText(),'You picked 2 boards. Pick up to one to go on.');}finally{await h.context.close();}
+ const h=await kit.open(form);try{await h.f.locator('.tile-input').nth(0).click();await h.f.locator('.tile-input').nth(1).click();assert.deepEqual(await picks(h),['board-1','board-2']);assert.equal(await h.f.locator('[data-action=more]').isDisabled(),true);assert.equal(await h.f.locator('[data-action=more] small').innerText(),'You picked 2 boards. Pick up to one to go on.');}finally{await h.context.close();}
  form.questions[0].options.length=1;const single=await kit.open(form);try{assert.deepEqual(await picks(single),['board-1']);assert.equal(await single.f.locator('legend').isVisible(),false);assert.equal(await single.f.locator('.brand-board').count(),2);assert.equal(await single.f.locator('button[data-action=lock]').isDisabled(),false);}finally{await single.context.close();}
 });
 test('pick 0 is whole and display-only; it sends nothing, including implicit form submit',async()=>{
@@ -96,7 +96,7 @@ test('board controls have 44px targets, caption marks, focus and 4.5:1 chrome in
   const r=await h.frame.evaluate(()=>{
    const lum=s=>s.match(/[\d.]+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0);
    const bg=e=>{for(let p=e;p;p=p.parentElement){const c=getComputedStyle(p).backgroundColor;if(c!=='rgba(0, 0, 0, 0)'&&c!=='transparent')return c;}return getComputedStyle(document.body).backgroundColor;};
-   return {overflow:document.documentElement.scrollWidth-document.documentElement.clientWidth,heights:[...document.querySelectorAll('button,.boards-tile')].filter(n=>n.getClientRects().length).map(n=>n.getBoundingClientRect().height),contrast:[...document.querySelectorAll('h1,legend,.tile-label *,.board-actions *,.see-board')].filter(n=>n.getClientRects().length&&n.textContent.trim()).map(n=>{const a=lum(getComputedStyle(n).color),b=lum(bg(n));return (Math.max(a,b)+.05)/(Math.min(a,b)+.05);}),marks:[...document.querySelectorAll('.boards-tile')].map(n=>({picture:n.querySelector('.board-crop').getBoundingClientRect().bottom,mark:n.querySelector('.mark').getBoundingClientRect().top}))};
+   return {overflow:document.documentElement.scrollWidth-document.documentElement.clientWidth,heights:[...document.querySelectorAll('button,.boards-tile')].filter(n=>n.getClientRects().length).map(n=>n.getBoundingClientRect().height),contrast:[...document.querySelectorAll('h1,legend,.tile-label *,.board-actions *,.board-thumbnail')].filter(n=>n.getClientRects().length&&n.textContent.trim()).map(n=>{const a=lum(getComputedStyle(n).color),b=lum(bg(n));return (Math.max(a,b)+.05)/(Math.min(a,b)+.05);}),marks:[...document.querySelectorAll('.boards-tile')].map(n=>({picture:n.querySelector('.board-thumbnail').getBoundingClientRect().bottom,mark:n.querySelector('.mark').getBoundingClientRect().top}))};
   });assert.equal(r.overflow,0);assert.ok(r.heights.every(h=>h>=44));assert.ok(r.contrast.every(c=>c>=4.5),JSON.stringify(r));assert.ok(r.marks.every(m=>m.mark>=m.picture+2));
   await h.f.locator('.tile-input').first().focus();await h.page.keyboard.press('Space');assert.deepEqual(await picks(h),['board-1']);
   assert.equal(await h.f.locator('.boards-tile').first().evaluate(n=>getComputedStyle(n).outlineStyle),'solid');

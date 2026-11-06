@@ -11,7 +11,7 @@ for(const name of ['chatgpt','Claude'])for(const width of [734,390])for(const th
  try{
   const more=h.f.locator('[data-action=more]'),lock=h.f.locator('[data-action=lock]');
   for(let count=0;count<=3;count++){
-   if(count)await h.f.locator('.boards-tile').nth(count-1).click();
+   if(count)await h.f.locator('.tile-input').nth(count-1).click();
    assert.equal(await more.isVisible(),true);assert.equal(await more.locator('small').innerText(),countLines[count]);
    assert.equal(await lock.isVisible(),count===1);assert.equal(await lock.isDisabled(),false,'unmet actions are hidden, never greyed');
    if(count===1){
@@ -45,8 +45,8 @@ for(const name of ['chatgpt','Claude'])for(const width of [734,390])for(const ca
    window.__scrolls=[];const original=Element.prototype.scrollIntoView;
    Element.prototype.scrollIntoView=function(options){__scrolls.push({bar:this.classList.contains('board-viewer-bar'),tile:[...document.querySelectorAll('.board-option')].indexOf(this),options});return original.call(this,options);};
   });
-  const index=row*(width>=560?2:1),full=h.f.locator('.see-board').nth(index),options=h.f.locator('.board-option');
-  await h.f.locator('.boards-tile').nth(index).click();await full.click();
+  const index=row*(width>=560?2:1),full=h.f.locator('.board-thumbnail').nth(index),options=h.f.locator('.board-option');
+  await h.f.locator('.tile-input').nth(index).click();await full.click();
   assert.equal(await h.f.locator('.boards-tiles').evaluate(n=>n.firstElementChild.classList.contains('board-viewer')),true);
   assert.equal(await options.count(),12);assert.equal(await h.f.locator('.board-option:visible').count(),0);
   assert.equal(await options.evaluateAll(nodes=>nodes.every(n=>n.hidden)),true);
@@ -78,8 +78,8 @@ for(const name of ['chatgpt','Claude'])for(const width of [734,390])for(const th
  try{
   // Force overflow visible so a future document guard cannot conceal a regression.
   await h.frame.evaluate(()=>{const style=document.createElement('style');style.textContent='html,body{overflow-x:visible!important}';document.head.append(style);window.__widths=[];const sample=()=>{__widths.push([document.documentElement.scrollWidth,document.documentElement.clientWidth]);requestAnimationFrame(sample);};sample();});
-  for(let count=0;count<3;count++){await h.f.locator('.boards-tile').nth(count).click();const g=await geometry(h);assert.ok(g.scroll<=g.client,JSON.stringify(g));}
-  await h.f.locator('.see-board').first().click();
+  for(let count=0;count<3;count++){await h.f.locator('.tile-input').nth(count).click();const g=await geometry(h);assert.ok(g.scroll<=g.client,JSON.stringify(g));}
+  await h.f.locator('.board-thumbnail').first().click();
   for(const mode of ['light','dark']){const button=h.f.locator(`.board-mode-switch[data-mode=${mode}]`);if(await button.count())await button.click();}
   for(const height of [900,5000,2000]){await h.page.locator('iframe').evaluate((n,height)=>n.style.height=height+'px',height);await h.frame.evaluate(()=>new Promise(requestAnimationFrame));const g=await geometry(h);assert.ok(g.scroll<=g.client,JSON.stringify(g));}
   await h.f.getByText('Close this board',{exact:true}).first().click();
@@ -94,7 +94,7 @@ test('action note fallback, empty override and labels never supply engine-owned 
  const form=boardForm();form.actions=[{value:'more',label:'One more round',needs:'any',note:'Caller default',notes:{one:'',several:'Caller several'}},{value:'lock',label:'Lock it',needs:'one',note:'Caller lock'}];
  const h=await kit.open(form);try{
   const note=h.f.locator('[data-action=more] small');assert.equal(await note.innerText(),'Caller default');
-  await h.f.locator('.boards-tile').nth(0).click();assert.equal(await note.isHidden(),true);assert.equal(await h.f.locator('[data-action=lock] small').innerText(),'Caller lock');
-  await h.f.locator('.boards-tile').nth(1).click();assert.equal(await note.innerText(),'Caller several');
+  await h.f.locator('.tile-input').nth(0).click();assert.equal(await note.isHidden(),true);assert.equal(await h.f.locator('[data-action=lock] small').innerText(),'Caller lock');
+  await h.f.locator('.tile-input').nth(1).click();assert.equal(await note.innerText(),'Caller several');
  }finally{await h.context.close();}
 });

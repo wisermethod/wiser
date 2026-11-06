@@ -197,8 +197,10 @@ function boardQuestion(fieldset,q,id) {
       const b=showing(row);
       if(row.input)row.input.value=row.steps[row.index].value;
       if(row.caption)row.caption.textContent=b.name;
+      if(row.thumbnail){row.thumbnail.setAttribute("aria-label",`${WORDS.seeBoard}: ${b.name}`);row.input.setAttribute("aria-label",b.name);}
       if(row.preview){
         const art=look?globalThis.WiserBoardView.look(model,b,{logo:state.form.brand.logo}):globalThis.WiserBoardView.draw(model,b,{compact:!single,logo:state.form.brand.logo,...(pageMode?{mode:pageMode}:{})});
+        if(row.thumbnail)art.setAttribute("aria-hidden","true");
         const capSwitch=row.preview.parentElement===fieldset&&row.preview.previousElementSibling?.classList.contains("board-mode-switches")?row.preview.previousElementSibling:null;
         const capMode=capSwitch?.querySelector('[aria-pressed="true"]')?.dataset.mode;
         row.preview.replaceWith(art);row.preview=art;
@@ -272,11 +274,15 @@ function boardQuestion(fieldset,q,id) {
     const caption=el("span",{class:"tile-label"},el("span",{text:label}),el("span",{class:"mark check","aria-hidden":true}),note?el("small",{id:`${id}-${i}-note`,text:note}):null,
       !look&&o.recommendation?el("small",{class:"board-recommendation"},el("b",{text:WORDS.recommended}),document.createTextNode(" · "+o.recommendation)):null);
     row.caption=caption.firstElementChild;
-    const preview=look?globalThis.WiserBoardView.look(model,b,{logo:state.form.brand.logo}):el("div",{class:"board-crop","aria-hidden":true},globalThis.WiserBoardView.draw(model,b,{compact:true,logo:state.form.brand.logo,...(pageMode?{mode:pageMode}:{})}));
-    row.preview=look?preview:preview.firstElementChild;
-    const tile=el("label",{class:`tile boards-tile${look?' looks-tile':''}`,for:input.id},input,preview,caption);
-    if(look){grid.append(tile);continue;}
-    const full=el("button",{class:"see-board",type:"button",text:WORDS.seeBoard,"aria-expanded":"false"});
+    const preview=look?globalThis.WiserBoardView.look(model,b,{logo:state.form.brand.logo}):globalThis.WiserBoardView.draw(model,b,{compact:true,logo:state.form.brand.logo,...(pageMode?{mode:pageMode}:{})});
+    if(!look)preview.setAttribute("aria-hidden","true");
+    row.preview=preview;
+    if(look){grid.append(el("label",{class:"tile boards-tile looks-tile",for:input.id},input,preview,caption));continue;}
+    input.setAttribute("aria-label",label);
+    const full=el("button",{class:"board-thumbnail",type:"button","aria-label":`${WORDS.seeBoard}: ${label}`,"aria-expanded":"false"},preview);
+    row.thumbnail=full;
+    caption.append(input);
+    const tile=el("div",{class:"tile boards-tile"},full,caption);
     full.addEventListener("click",()=>{
       if(!viewer.hidden&&returnFocus===full){close();return;}
       close(false);returnFocus=full;activeInput=input;activeRow=row;
@@ -298,7 +304,7 @@ function boardQuestion(fieldset,q,id) {
       back.focus({preventScroll:true});
       bringIntoView(viewerBar,"start");
     });
-    grid.append(el("div",{class:"board-option"},tile,full));
+    grid.append(el("div",{class:"board-option"},tile));
   }
   if(look||q.pick!==0&&!single)fieldset.append(grid);
   if(q.min)fieldset.append(el("p",{class:"board-minimum help",role:"status",text:WORDS[['','pickAtLeastOne','pickAtLeastTwo','pickAtLeastThree'][q.min]]}));

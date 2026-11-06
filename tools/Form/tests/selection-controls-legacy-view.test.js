@@ -10,7 +10,7 @@ before(async()=>{kit=await browserKit();});
 after(async()=>{await kit?.browser.close();});
 const baselineView=execFileSync('git',['show','05cb8f27:tools/Form/engine/boards.js'],{encoding:'utf8'});
 const baselineEngine=execFileSync('git',['show','05cb8f27:tools/Form/engine/engine.js'],{encoding:'utf8'});
-for(const view of ['look','board'])for(const width of [390,734])for(const theme of ['light','dark'])test(`selector legacy fixture without steps: ${view} ${width} ${theme} stays byte-identical`,async()=>{
+for(const view of ['look'])for(const width of [390,734])for(const theme of ['light','dark'])test(`selector legacy fixture without steps: ${view} ${width} ${theme} stays byte-identical`,async()=>{
  const form=lookForm(),q=form.questions[0];q.view=view;delete q.controls;
  for(const o of q.options){delete o.steps;if(view==='board')delete o.board.depth;}
  assert.deepEqual(checkForm(form),{ok:true,problems:[]});

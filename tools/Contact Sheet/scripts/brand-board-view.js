@@ -88,10 +88,13 @@ function rules(b) {
   return photo || never ? `<section class="rules">${photo}${never}</section>` : '';
 }
 function board(spec, b, mode, compact = false) {
+  const thumbnail = compact;
+  compact = false;
   const c = b.palette[mode], h = b.type.heading.sizes.display;
   const hero = `<section class="brand-hero">${lockup(spec, b, mode, compact)}<h2 class="brand-headline" style="${faceStyle(b, compact ? b.textStyles.tileHeadline : b.textStyles.headline)};max-width:min(${h.maxWidth || 12}em,100%)">${headline(b, mode)}${compact ? '' : note(b, mode)}</h2><p class="hero-body">${esc(b.content.body)}</p>${compact ? '' : `<p class="hero-small label">${esc(b.content.smallPrint)}</p>`}</section>`;
   const renderBlock = (block) => {
     switch (block.kind) {
+      case 'row': return `<div class="board-row">${block.blocks.map(renderBlock).join('')}</div>`;
       case 'hero': return hero;
       case 'palette': return swatches(b, mode, false, compact);
       case 'type': return types(b, compact);
@@ -107,7 +110,7 @@ function board(spec, b, mode, compact = false) {
       default: throw new Error(`Unknown board block: ${block.kind}`);
     }
   };
-  return `<div class="brand-board${compact ? ' tile' : ''}" data-board="${b.number}" data-mode="${mode}" style="${vars(b, mode)}"><div class="page-pattern" aria-hidden="true" style="background-image:url('${uri(b.modes[mode].drawings.pattern)}');opacity:${b.graphics.pattern.strength[mode]};transform:rotate(${b.graphics.pattern.angle || 0}deg)"></div>${b.modes[mode][compact ? 'tile' : 'blocks'].map(renderBlock).join('')}</div>`;
+  return `<div class="brand-board${thumbnail ? ' tile' : ''}" data-board="${b.number}" data-mode="${mode}" style="${vars(b, mode)}${thumbnail ? `;--thumbnail-note-size:${b.textStyles.note.size}px` : ''}"><div class="page-pattern" aria-hidden="true" style="background-image:url('${uri(b.modes[mode].drawings.pattern)}');opacity:${b.graphics.pattern.strength[mode]};transform:rotate(${b.graphics.pattern.angle || 0}deg)"></div>${b.modes[mode][thumbnail ? 'tile' : 'blocks'].map(renderBlock).join('')}${thumbnail ? foot(b) : ''}</div>`;
 }
 function metadata(b) {
   return `<div class="board-meta"><p class="energy">${esc(b.energy)}</p><h2>${b.number} · ${esc(b.name)}</h2>${b.zero ? '<p class="board-zero">Your brand as it is today · Board zero</p>' : ''}${b.recommendation ? `<p class="recommendation"><b>Recommended</b> · ${esc(b.recommendation)}</p>` : ''}${b.why ? `<p>${esc(b.why)}</p>` : ''}</div>`;
@@ -125,7 +128,7 @@ export function renderBrandBoards(validatedSpec) {
   const label = `{OvO} Wiser · Brand boards for ${esc(spec.person)}`;
   const zero = spec.boards.find((b) => b.zero), single = spec.boards.length === 1;
   const ordered = [...(zero ? [zero] : []), ...spec.groups.flatMap((g) => spec.boards.filter((b) => b.group === g.id && !b.zero))];
-  const tile = (b) => `<article class="board-option">${metadata(b)}${board(spec, b, b.primaryMode, true)}</article>`;
+  const tile = (b) => `<article class="board-option">${metadata(b)}<a class="board-thumbnail" href="#whole-${b.number}" aria-label="${esc(b.labels.open)}: ${esc(b.name)}"><div aria-hidden="true" inert>${board(spec, b, b.primaryMode, true)}</div></a></article>`;
   const intro = spec.intro.map((s) => `<p>${esc(s)}</p>`).join('');
   const index = single ? '' : `<div class="index-page"><header id="all-boards"><h1>${label}</h1>${intro}</header>${zero ? `<div class="boards-grid zero-first">${tile(zero)}</div>` : ''}${spec.groups.map((g) => `<section class="board-group"><h2 class="group-label">${esc(g.label)}</h2><div class="boards-grid">${spec.boards.filter((b) => b.group === g.id && !b.zero).map(tile).join('')}</div></section>`).join('')}<footer class="page-foot">${esc(spec.footnote)}</footer></div>`;
   const wholes = ordered.map((b, i) => `<section class="whole-view" id="whole-${b.number}" aria-label="${esc(b.name)} whole board">${[b.primaryMode, opposite(b.primaryMode)].map((mode) => `<div class="mode-sheet${mode === b.primaryMode ? ' primary' : ''}" id="whole-${b.number}-${mode}"><header class="sheet-head"${single && mode === b.primaryMode ? ' id="all-boards"' : ''}><div><p class="wiser-label">${label}</p>${single ? `<div class="sheet-intro">${intro}</div>` : ''}<p class="board-nav">${single ? '' : `<a href="#all-boards">← All ${ordered.length} boards</a> · Board ${i + 1} of ${ordered.length} · `}${mode} · <a href="#whole-${b.number}-${opposite(mode)}">See it in ${opposite(mode)}</a></p>${metadata(mode === b.primaryMode ? b : { ...b, recommendation: undefined })}</div></header>${board(spec, b, mode)}${foot(b)}</div>`).join('')}</section>`).join('\n');

@@ -38,8 +38,8 @@ export async function run(directory) {
     for(const [kind,form]of Object.entries(cases)){
      const h=await kit.open(form,width,theme);
      try{
-      if(kind==='round1'){await h.f.locator('.boards-tile').nth(0).click();await h.f.locator('.boards-tile').nth(1).click();await h.f.locator('#board-grid-view').evaluate(n=>n.scrollTop=0);}
-      if(kind==='variations')await h.f.locator('.boards-tile').first().click();
+      if(kind==='round1'){await h.f.locator('.tile-input').nth(0).click();await h.f.locator('.tile-input').nth(1).click();await h.f.locator('#board-grid-view').evaluate(n=>n.scrollTop=0);}
+      if(kind==='variations')await h.f.locator('.tile-input').first().click();
       const save=async(state)=>{const file=`${prefix}-${state}.png`;await h.f.locator('#root').screenshot({path:resolve(directory,file)});record.renders.push(file);};
       await save(kind==='round1'?'tiles-two-picked':kind);
       if(kind==='round1'){
@@ -48,7 +48,7 @@ export async function run(directory) {
        for(let top=grid.height,index=1;top<grid.total;top+=grid.height,index++){
         await h.f.locator('#board-grid-view').evaluate((n,top)=>n.scrollTop=top,top);await save(`tiles-scroll-${index}`);
        }
-       await h.f.locator('.see-board').first().click();await save('whole');
+       await h.f.locator('.board-thumbnail').first().click();await save('whole');
        await h.frame.evaluate(()=>{for(const n of document.querySelectorAll('#root,.board-viewer,.board-viewer-scroll')){n.style.height='auto';n.style.overflow='visible';}});await h.page.locator('iframe').evaluate(n=>n.style.height='30000px');
        const file=`${prefix}-whole-content.png`;await h.f.locator('.board-viewer-scroll .board-art').screenshot({path:resolve(directory,file)});record.renders.push(file);
       }
