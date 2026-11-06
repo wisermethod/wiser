@@ -35,7 +35,7 @@ Where nothing has been read and they skip, or what they send next cannot be read
 
 Said with S1's No line.
 
-> It takes about eight minutes: a few questions about you, some quick taps, then I'll show you how you come across and write your first piece. There's nothing to prepare, and "not sure" is always a fine answer.
+> It takes about 15 minutes: a few questions about you, some quick taps, then I'll show you how you come across and write your first piece. There's nothing to prepare, and "not sure" is always a fine answer.
 
 ## W1 (typed)
 
@@ -278,12 +278,12 @@ For the post, a tap; its takeaway is W2's point, so it is not asked. Write the r
 
 > Who should this post be for?
 
-- the first reader
-- the second reader
-- the third reader
+- [the first frame]
+- [the second frame]
+- [the third frame]
 - Anyone: a general audience
 
-Pick one. Where fewer than two can be written, ask instead, typed: "Who should read it? A few words is plenty." The answers file records the readers shown and the one picked; typed in place of a tap, their words are the reader.
+Pick one. Each bracket stands for one frame, written as the paragraph above says; the bracket itself is never shown, and a frame not written is left out. Where fewer than two can be written, ask instead, typed: "Who should read it? A few words is plenty." The answers file records the readers shown and the one picked; typed in place of a tap, their words are the reader.
 
 For every other piece, one sentence that gives the piece what it needs, typed, asked by the piece:
 - Something I'm working on: "What is it, and who's it for? A sentence is plenty."
@@ -291,6 +291,12 @@ For every other piece, one sentence that gives the piece what it needs, typed, a
 - The thank-you note: "Who's it for, and what did they do?"
 
 Skipped: write only from what they told you in W1 and W2, for someone who would follow their work; where W1 and W2 were skipped too, there is nothing to write from, and the run stops by `paths/coach.md` step 8. Feeds: the piece's subject and reader; `about.md` `## Current Focus` where it is their work, written by Onboard Root.
+
+## Waiting line
+
+Said once, as a message of its own, after F2a is answered or skipped, or after F2 is skipped, where a piece will be written; where a skip line stops the run instead, it is not said. Nothing of the piece is shown with it: the piece first appears with A2, after the second read.
+
+> Writing your piece now. It takes a minute or two.
 
 ## A2. The first piece (typed)
 
@@ -354,3 +360,7 @@ Asked with the third version, after two returns, in place of A4, and carrying th
 [name] is their folder's name, as `skills/Onboard Root/`'s close says it.
 
 > Your personal writing style (we call it 'voice') is saved in your [name] folder. Whenever you have something you wrote and like, bring it to me and ask me to tune your voice using it.
+
+Run by `skills/Onboard Root/`, say this in its place, since its close says what the folder holds and how to tune the voice:
+
+> Your voice ({OvO} Wiser's description of your writing style) is saved.
