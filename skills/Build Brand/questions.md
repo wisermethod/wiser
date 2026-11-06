@@ -8,11 +8,11 @@ B0 records a path choice only where one is actually needed; the sitting and the 
 
 ## Opening
 
-> Let's build your brand: a few quick taps, then brands made for you. About 12 minutes.
+> Let's build your brand: a few quick taps, then brands made for you. About 15 minutes.
 
 For an organisation:
 
-> Let's build [org]'s brand: a few quick taps, then brands made for [org]. About 12 minutes.
+> Let's build [org]'s brand: a few quick taps, then brands made for [org]. About 15 minutes.
 
 Say it as one message, then step 1 immediately. No additional introduction.
 
@@ -273,6 +273,14 @@ No real source rule, no pull question. Feeds the selection, Visual Personality a
 
 ## Step 3: Whole looks
 
+Only when the lettering is not installed, before installing it:
+
+> Getting your looks ready. The first time takes a few minutes while I get set up.
+
+A failed lettering install or check stops this sitting:
+
+> I couldn't get your looks ready just now. Say "build my brand" any time and we'll pick up from here.
+
 > Which of these feel like you? Pick up to three.
 
 Twelve tiles from `select.mjs looks`, its options unchanged, at least two on a plain ground and all five marks. The three actions, in order, have the following exact labels and lines. Conditions and `needs` are engine data, never shown as explanation.
@@ -293,7 +301,7 @@ When no new page of twelve can be made from looks not yet shown, the last page o
 
 ## Making the boards
 
-> Making your boards now. A minute or two.
+> Making your boards now. A few minutes.
 
 Only where the computer needs one-time setup instead:
 
@@ -304,6 +312,10 @@ Only where the computer needs one-time setup instead:
 Progress: "Step 4 of 6: your boards".
 
 > Select the board(s) that feel most like you
+
+Under the question, in its `help` field:
+
+> To lock a board in, leave just that one ticked.
 
 Tile: picture, name, tick beside the caption, word/boundary pairs, and at most two recommendations with their reason. "See it full size" replaces all tiles with the whole board inside the same card. "Close this board" above and below it, with "Pick this one" tick; Light and Dark switch, primary mode first. Close keeps picks and returns to that tile. Any number may be ticked; only sending is held at three. No stop button.
 
@@ -324,6 +336,14 @@ Where the member's own logo or font files cannot show in the card, one message, 
 
 > Your boards use your own [logo / fonts], which this card can't show, so I'll open them on their own page instead.
 
+For any other card limitation, including a missing card display, use the looks own-page line or boards own-page line, respectively, before opening the unchanged page:
+
+> Your looks can't show in this card, so I'll open them on their own page instead.
+
+> Your boards can't show in this card, so I'll open them on their own page instead.
+
+Ask that page's actions with their existing labels, lines and pick conditions on the question tool; never ask for unseen pictures by their labels alone.
+
 ### Board copy
 
 The initials caption:
@@ -343,6 +363,10 @@ Progress every round: "Step 5 of 6: blend and tune". Why once on the first round
 Each round: four new boards per picked board, one pick four, two eight, three twelve; no picks a fresh page from another angle. Review before showing every page. Same card question:
 
 > Select the board(s) that feel most like you
+
+Under the question, in its `help` field:
+
+> To lock a board in, leave just that one ticked.
 
 The same buttons as Step 4. There is no cap on rounds and no dark-pattern question.
 
@@ -409,7 +433,11 @@ Then one status line:
 
 > Setting up your colours and lettering for everything I make for you.
 
-Ghost Writer checks the kept sentence and words once here. Where it changes the kept sentence, before Done:
+Ghost Writer checks the kept sentence and words once here. Only where it changes a word, before checking the changed board again:
+
+> Checking the words on your board. A minute or two.
+
+Where it changes the kept sentence, before the direct run's Done or the caller return:
 
 > I tightened your sentence: [new sentence]
 
@@ -419,7 +447,7 @@ Where it changes a kept word or what that word isn't, one line for each changed 
 
 With no voice file to check the words against, say nothing of it: the voice note is not offered, and nothing is disclosed.
 
-Then:
+On a caller, return `locked` with `design`, `offers` as data and `waitsOn` only where provisional, under `SKILL.md` Return to the caller; no Done or offers line. The locked board is display-only and is never waited on. On a direct run only, say the close and offers:
 
 > Done. Your brand is set, and everything I make for you will use it.
 >
@@ -449,10 +477,12 @@ Keep B1 for received files and the website, B2 for stated colour values and lett
 
 Progress: "Step 1 of 3: your brand files". Why: "I'll read your brand from what you already have." An industry's Record my look shows this step with no progress line, since it has no step 2 or 3.
 
-> Drop your brand files here in the chat: a brand guide, your logo, slides or a document in your style. Or paste your website's address. Either works, or both.
+> Drop your brand files here in the chat: a brand guide, your logo, slides or a document in your style. Or type your website's address. Either works, or both.
 
 - Done, they're in
 - Use my website
+- I don't have them: build one with me
+- Leave this for later
 
 Where the app accepts a whole dropped folder, show this sentence alone as the whole line, replacing the longer chat line:
 
@@ -460,11 +490,11 @@ Where the app accepts a whole dropped folder, show this sentence alone as the wh
 
 After Use my website:
 
-> Paste the address here.
+> Type the address here.
 
 Done with nothing received:
 
-> I don't see any files yet. Drop them in, or paste your website's address.
+> I don't see any files yet. Drop them in, or type your website's address.
 
 Wiser files the originals itself, as `paths/brief.md` says. Its one status line:
 
@@ -499,7 +529,7 @@ Fix the selected rules, repeat the evidence pass in `writing.md`, then repeat B8
 
 ### Brief close
 
-Only after the confirmed write:
+Only after the confirmed write, on a direct run, say the close and offers. On a caller return `complete` with `design`, `offers` as data and `waitsOn` only where provisional, under `SKILL.md` Return to the caller; no Done or offers line:
 
 > Done. Your brand is recorded, and everything I make for you will use it.
 >

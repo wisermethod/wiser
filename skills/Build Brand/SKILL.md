@@ -42,12 +42,31 @@ A brand designer who turns the person's own words and choices into usable rules.
 
 First test the resolved owning root's type, before choosing a path, consulting a saved sitting or asking any question. An `industry` root opens only `paths/record-my-look.md`; pass any caller answer into that path within its conventions-only limits. Do not offer it full or simple, ask B0, or open the sitting.
 
-For every other type, reuse a caller's `brief`, `full`, `simple` or Not now answer without asking again. With no caller answer, a direct request for a simple brand made for the person runs `paths/simple.md`. A direct "build my brand" resumes an unfinished sitting at its saved boards, or opens `paths/sitting.md` with its opening line and step 1. That step's "I have a brand I'm happy with" is the direct build's way into the brief path. Ask no B0 at this front door. An ask that selects none of these paths needs clarification.
+For every other type, reuse a caller's `brief`, `full`, `simple` or Not now answer without asking again. With no caller answer, a direct request for a simple brand made for the person runs `paths/simple.md`. A direct "build my brand" resumes an unfinished sitting at its saved boards, or at its saved step when no boards have shown, or opens `paths/sitting.md` with its opening line and step 1. That step's "I have a brand I'm happy with" is the direct build's way into the brief path. Ask no B0 at this front door. An ask that selects none of these paths needs clarification.
 
 - `brief`: `paths/brief.md`, the existing-brand files and read-back.
 - `full`: `paths/sitting.md`, the one-sitting build; it loads `paths/organisation.md` only at the organisation step and `lock.md` at the lock.
 - `simple`: `paths/simple.md`, choices made at the person's request, with no questions.
 - Not now: write nothing, including no stub or answers record, return that answer to the caller, or stop when called directly. Onboarding keeps its light fill.
+
+## Return to the caller
+
+Build Brand hands these to Onboard Root's personal-onboarding caller, as data, never said:
+
+- `status`: `locked`, `complete` or `stopped`. `not now` is Onboard Root's own, for "Let's do this later", which runs nothing here.
+- `design`: the design file's path, on every return.
+- `look`: the one-page look's path, on the simple path's `complete` only.
+- `sitting`: the saved sitting's path, on `stopped` only.
+- `waitsOn`: what a provisional design still waits on, in plain words, on every return where the design is provisional. It is absent where nothing waits.
+- `offers`: the offer list for that path, as data, never said on this caller.
+
+Which return each path gives:
+
+- the full sitting gives `locked` or `stopped`;
+- the brief path gives `complete` or `stopped`;
+- the simple path gives `complete`, with no close line of its own.
+
+Use these same field words on every caller return. A stopped simple run uses `stopped` with its saved sitting rather than claiming a missing page complete. Keep the caller and its selected path through a branch change or resume. Return control immediately after the path's work, without ending the caller's session or waiting on an offer. A caller receives no Done or offers line; offers stay available on the member's later request. A direct run keeps its close and offers. Where a design is provisional, return `waitsOn` in plain words; otherwise omit it. Take the full and brief offer lists from their respective bank close; the simple path has only its page's existing logo offer. Keep the list as `offers` data even on a stopped return; nothing offered starts until the member asks.
 
 ## Rules every path keeps
 
