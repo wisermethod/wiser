@@ -2,15 +2,15 @@
 name: Set Up Wiser
 type: skill
 category: onboarding
-description: Take a new member, in one chat, from no folder open to their own Wiser folder on their Desktop, set up and with their voice and look recorded, and then to a project in their app with that folder attached, checking their Wiser connection first
-version: 0.4.0
+description: Take a new member, in one chat, from no folder open to their own Wiser folder on their Desktop, set up and with their voice and look recorded, and then to a project in their app with that folder attached, checking their Wiser connection first, on the ask set up wiser (also setup wiser)
+version: 0.4.1
 ---
 
 # Set Up Wiser
 
 ## Context
 
-Use when a person types the named ask **set up wiser** in Claude Cowork or the ChatGPT desktop app. It is the whole first run, in one chat: it makes their folder, hands it to `skills/Onboard Root/`, which sets it up and runs the voice coach and the design question here, and ends with the steps for the project that makes every later chat start from that folder. It takes no expert gate, and neither does the onboarding it hands over, which it has already settled (`skills/Onboard Root/` Context). The named ask **onboard project** is the fallback for a folder this chat could not reach, onboarded inside the project instead.
+Use when a person types the named ask **set up wiser** (also "setup wiser") in Claude Cowork or the ChatGPT desktop app. It is the whole first run, in one chat: it makes their folder, hands it to `skills/Onboard Root/`, which sets it up and runs the voice coach and the design question here, and ends with the steps for the project that makes every later chat start from that folder. It takes no expert gate, and neither does the onboarding it hands over, which it has already settled (`skills/Onboard Root/` Context). The named ask **onboard project** is the fallback for a folder this chat could not reach, onboarded inside the project instead.
 
 Not for writing into the folder itself: `skills/Onboard Root/` fills it. Not for connecting a vendor account, which is `skills/Connect Account/`. Not for a command-line session, whose working directory is already its folder: tell them to start it in an empty folder named with their first name and type "Onboard Project", and stop. Not for Claude or ChatGPT in a web browser, where Wiser's skills do not run: say that Wiser's setup runs in Claude Cowork or the ChatGPT desktop app, and stop.
 

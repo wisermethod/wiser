@@ -2,8 +2,8 @@
 name: Set Up Connectors
 type: skill
 category: system
-description: Lead this app to the Wiser endpoint and its sign-in, or on request attach the local gateway in a command-line harness with its project key, naming the one step the state in front of it needs
-version: 0.5.0
+description: Lead this app to the Wiser endpoint and its sign-in, or on request attach the local gateway in a command-line harness with its project key, naming the one step the state in front of it needs, and, on the ask set up connectors (also setup connectors, enable connectors or install connectors), do so for a new app, harness, machine or OS user
+version: 0.5.1
 ---
 
 # Set Up Connectors
