@@ -70,7 +70,7 @@ test('swatch fit keeps the top-right badge independent of patch height and retai
    const out=[];
    const fit=(pixels,width)=>{
     surface.style.width=width+'px';
-    const currentScale=parseFloat(getComputedStyle(board).zoom);
+    const currentScale=width/parseFloat(getComputedStyle(board).width);
     rows[2].style.height=(224+pixels/currentScale)+'px';
     WiserBoardView.fitLooks();
     const patch=surface.querySelector('.thumbnail-patch'),badge=tile.querySelector('.thumbnail-badge');

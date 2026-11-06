@@ -11,7 +11,8 @@ export const BOARD_LABELS = {
 // One split for all thumbnails: the type/words row ends the left column.
 // It minimizes mean absolute column imbalance across both reference sets/modes.
 export const BOARD_LAYOUT = {
-  thumbnail: { width: 3000, columns: 2, splitAfter: 2, gap: 40, padding: 32, swatches: ['panel', 'pop', 'deep'] },
+  // Near the 1,926 px reference median; a fixed ratio also bounds phone pages.
+  thumbnail: { width: 3000, height: 1920, columns: 2, splitAfter: 2, gap: 40, padding: 32, swatches: ['panel', 'pop', 'deep'] },
   card: { maxWidth: 900, width: 734, margin: 16, padding: 24, gap: 16,
     heroColumns: 1, typeColumns: 2, graphicColumns: 2, cardColumns: 2,
     headlineScale: .58, headlineMin: 32, bodySize: 20, otherHeadlineScale: .42,

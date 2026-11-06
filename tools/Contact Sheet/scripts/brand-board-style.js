@@ -44,7 +44,8 @@ export const BRAND_BOARD_CSS = `
    is zoomed; swatches and the corner badge retain actual CSS-pixel sizes. */
 .board-thumbnail{display:block;min-width:0;container-type:inline-size;text-decoration:none;color:inherit}
 .board-thumbnail:focus-visible{outline:3px solid currentColor;outline-offset:4px}
-.thumbnail-surface{position:relative;container-type:inline-size}
+.thumbnail-surface{position:relative;container-type:inline-size;aspect-ratio:${thumbnail.width}/${thumbnail.height}}
+.thumbnail-surface>.brand-board.tile{position:absolute;top:0;left:0}
 .brand-board.tile{display:grid;width:${thumbnail.width}px;max-width:none;margin:0;padding:${thumbnail.padding}px;grid-template-columns:repeat(${thumbnail.columns},minmax(0,1fr));gap:${thumbnail.gap}px;zoom:calc(100cqw / ${thumbnail.width}px)}
 .thumbnail-column{position:relative;z-index:1;min-width:0;display:flex;flex-direction:column;gap:24px;align-self:start}
 .tile .board-row{position:relative;z-index:1;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}

@@ -6,6 +6,20 @@ export function fitBoardThumbnails(root = document) {
     const columns = [...board.querySelectorAll(':scope > .thumbnail-column')];
     const rows = columns.flatMap(c => [...c.children]);
     if (columns.length !== 2 || rows.length < 2) continue;
+    // Measure at natural size on every fit, including after fonts, mode or width
+    // change. Only the drawing shrinks; its box and real-size overlays do not.
+    board.style.zoom = '1';
+    const natural = board.getBoundingClientRect();
+    const box = surface.getBoundingClientRect();
+    board.style.zoom = String(Math.min(box.width / natural.width, box.height / natural.height));
+    // Zoom can round descendant line boxes differently from the natural layout.
+    // Check the painted size and correct downward rather than crop that rounding.
+    for (let pass = 0; pass < 3; pass++) {
+      const drawn = board.getBoundingClientRect();
+      if (drawn.width <= box.width && drawn.height <= box.height) break;
+      board.style.zoom = String(parseFloat(board.style.zoom) * Math.min(box.width / drawn.width, (box.height - .1) / drawn.height));
+    }
+    surface.style.backgroundColor = getComputedStyle(board).backgroundColor;
     // Both renderers use BOARD_LAYOUT.thumbnail.splitAfter, after the type row.
     // The left column is shorter across the reference boards in either mode.
     const ends = columns.map(c => c.lastElementChild.getBoundingClientRect().bottom);

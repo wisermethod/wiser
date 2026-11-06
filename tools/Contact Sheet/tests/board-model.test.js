@@ -216,7 +216,7 @@ test('Own-page patches share the fixed row split, top-right badge and ordered re
       const scale=board.getBoundingClientRect().width/board.offsetWidth,gap=parseFloat(getComputedStyle(columns[0]).gap)*scale;
       const patch=surface.querySelector('.thumbnail-patch'),badge=n.querySelector('.thumbnail-badge'),box=patch.getBoundingClientRect();
       return {heights:rows.map(n=>n.getBoundingClientRect().height),gap,split:columns[0].children.length,
-        height:surface.getBoundingClientRect().height,boardHeight:board.getBoundingClientRect().height,
+        height:surface.getBoundingClientRect().height,boardHeight:board.getBoundingClientRect().height,overlayOnly:getComputedStyle(patch).position==='absolute',
         swatches:[...patch.querySelectorAll('.thumbnail-swatch')].map(s=>({key:s.dataset.swatch,value:s.dataset.colour,shown:!s.hidden,width:s.getBoundingClientRect().width,height:s.getBoundingClientRect().height})),
         badge:badge?{top:badge.getBoundingClientRect().top-surface.getBoundingClientRect().top,right:surface.getBoundingClientRect().right-badge.getBoundingClientRect().right,inSurface:badge.parentElement===surface,inPatch:patch.contains(badge),inCaption:!!n.querySelector('.board-meta .recommendation b'),width:badge.getBoundingClientRect().width,height:badge.getBoundingClientRect().height}:null,
         sentence:board.querySelector('.banner-copy>p').getClientRects().length,accessible:n.querySelector('.board-meta .visually-hidden')?.textContent,hidden:n.querySelector('.board-meta .visually-hidden')?.closest('[aria-hidden="true"],[inert]')!==null,
@@ -224,7 +224,7 @@ test('Own-page patches share the fixed row split, top-right badge and ordered re
     }));
     assert.equal(await page.getByRole('link',{name:/Recommended/}).count(),spec.boards.filter(b=>b.recommendation).length);
     for(const [i,b]of boards.entries()){
-      assert.ok(b,'own-page has the same patch');assert.equal(b.height,b.boardHeight);
+      assert.ok(b,'own-page has the same patch');assert.ok(b.boardHeight<=b.height+.5);assert.ok(b.overlayOnly);
       assert.equal(b.split,2);assert.ok(b.sentence>0);
       assert.deepEqual(b.swatches.map(s=>s.key),['panel','pop','deep']);
       assert.deepEqual(b.swatches.map(s=>s.value),['panel','pop','deep'].map(k=>spec.boards[i].palette[mode][k]));
@@ -248,7 +248,7 @@ test('Own-page small patches retain the swatch prefix without moving the top-rig
     await page.locator('.board-option').first().evaluate((n,{pixels,width})=>{
       const surface=n.querySelector('.thumbnail-surface'),board=surface.querySelector('.brand-board'),cols=[...board.querySelectorAll('.thumbnail-column')],rows=cols.flatMap(c=>[...c.children]);
       rows.slice(3).forEach(n=>n.remove());rows.slice(0,3).forEach(n=>{n.replaceChildren();n.style.height='100px';});
-      surface.style.width=width+'px';const scale=board.getBoundingClientRect().width/board.offsetWidth;
+      surface.style.width=width+'px';const scale=width/parseFloat(getComputedStyle(board).width);
       rows[2].style.height=(224+pixels/scale)+'px';
     },{pixels,width});
     await page.evaluate(fitBoardThumbnails);

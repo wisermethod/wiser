@@ -20,7 +20,8 @@ try{
     const measured=await measureWholeBoard(h,form,theme);
     assert.ok(measured.height<5000);assert.equal(measured.thumbnails,12);
     assert.ok(measured.unchanged&&measured.inputElements<1000);assert.equal(measured.elementsBefore,measured.elementsAfter);
-    assert.deepEqual(measured.clippedText,[]);assert.ok(measured.bannerSentences.every(n=>n>0));
+    assert.deepEqual(measured.clippedText,[]);assert.deepEqual(measured.clippedArt,[]);
+    assert.ok(measured.pictures.every(p=>p.width===measured.pictures[0].width&&p.height===measured.pictures[0].height));assert.ok(measured.bannerSentences.every(n=>n>0));
     const name=`${business}-${page}-${kept?'kept':'plain'}-${theme}-${width}`;
     await h.page.locator('iframe').evaluate((n,height)=>n.style.height=height+'px',measured.height+2);
     await h.f.locator('#root').screenshot({path:resolve(output,name+'.png')});
