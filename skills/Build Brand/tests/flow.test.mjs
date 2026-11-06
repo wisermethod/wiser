@@ -20,7 +20,7 @@ const openingTaps=readFileSync(resolve(dirname(journeyPath),'2026-10-28-opening-
 
 test('router preserves identity and declares the one-sitting format change',()=>{
   assert.match(router,/^name: Build Brand$/m);assert.match(router,/^type: skill$/m);assert.match(router,/^category: onboarding$/m);
-  assert.match(router,/^version: 0\.4\.0$/m);assert.match(router,/^description: .*one sitting.*without a Playbook/m);
+  {const v=router.match(/^version: (\d+)\.(\d+)\.(\d+)$/m);assert.ok(v,'a semantic version');assert.ok(+v[1]>0||+v[2]>=3,`the one-sitting format change arrived in 0.3.0; got ${v[0]}`);}assert.match(router,/^description: .*one sitting.*without a Playbook/m);
   for(const key of ['design','voice','about'])assert.ok(router.includes(`  - ${key}`));
   for(const gap of ['naming a brand','trademark search','brand mark and logo creation'])assert.ok(router.includes(`  - ${gap}`));
   assert.ok(Buffer.byteLength(router)<58514/3,'router stays under a third of the original');
