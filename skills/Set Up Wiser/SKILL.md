@@ -42,7 +42,7 @@ Does this chat have a folder open? No: go to step 2. Yes, one or more: you canno
 
 ### 2. Say what is happening, then check Wiser
 
-Say: "Hi! I'm checking that Wiser is ready and getting a few things set up for you. Setting up takes under an hour, in three parts: your folder, how you write, and a look for your work. I'll walk you through each step."
+Say: "Hi! I'm checking that Wiser is ready and getting a few things set up for you. We'll do it in three parts: your folder, how you write, and a look for your work. I'll walk you through each step."
 
 Call `whoami`. What came back? An account id: go to step 4. This session has no `whoami`: go to step 3. It is listed but the call failed or returned no account id: their sign-in to Wiser needs renewing, so go to step 3 and give them the renewal there.
 
