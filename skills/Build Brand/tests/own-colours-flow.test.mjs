@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { buildOwnColours, coloursFromComment, PAIRS, wcag, apca } from '../scripts/own-colours.mjs';
+import { buildOwnColours, coloursFromComment, PAIRS, EXTRA_PAIRS, wcag, apca } from '../scripts/own-colours.mjs';
 import { select, selectionForAssembly } from '../scripts/select.mjs';
 import { assemble, LIBRARY } from '../scripts/assemble.mjs';
 import { boardRefusal } from '../scripts/refusals.mjs';
@@ -13,6 +13,12 @@ test('ported PAIRS and reading formulae agree with the renderer', async () => {
   const block=source.slice(source.indexOf('const PAIRS = ['),source.indexOf('];',source.indexOf('const PAIRS = [')));
   const pairs=[...block.matchAll(/\['([^']+)', '(\w+)', '(\w+)', (null|[\d.]+)(?:, (\d+))?\]/g)].map(([,label,fg,bg,need,lc])=>[label,fg,bg,need==='null'?null:+need,...(lc?[+lc]:[])]);
   assert.deepEqual(PAIRS,pairs);
+  // These checks live outside PAIRS in the actual renderer, after record().
+  const reading=source.slice(source.indexOf("for (const [fg, bg] of [["),source.indexOf('const drawn ='));
+  const extra=[...reading.matchAll(/\['(sub|note)', '(ground)'\]/g)].map(([,fg,bg])=>[`${fg} on ${bg}`,fg,bg,4.5]);
+  assert.deepEqual(EXTRA_PAIRS,extra);
+  assert.match(reading,/b\.graphics\?\.pattern, 'ground', \['text', 'headline', 'smallPrint', 'sub', 'note', 'mark'\], 'mark'/);
+  assert.match(reading,/b\.graphics\?\.texture, 'cardBack', \['cardBackText'\], 'cardBackMark'/);
   const renderer=await import('../../../tools/Contact Sheet/scripts/brand-boards.js');
   for(const [a,b] of [['#B22234','#FFFFFF'],['#162D50','#fff'],['#B89B58','#246247']]) {
     assert.ok(Math.abs(wcag(a,b)-renderer.wcag(a,b))<1e-12);

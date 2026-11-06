@@ -316,7 +316,7 @@ function makeDocuments(spec, a, index, paths, tapData) {
   if(a.ownColours) {
     add('Color', `Colours as said: ${a.ownColours.said}.`, [A('ownColours.said')]);
     for(const [i,v] of a.ownColours.values.entries())add('Color', `${v.name}: ${v.value}.`, [A(`ownColours.values.${i}.name`),A(`ownColours.values.${i}.value`)]);
-    for(const [i,m] of a.ownColours.moves.entries())add('Color', `${m.colour} ${m.direction}: ${m.from} to ${m.to} (${m.mode} ${m.role}).`, ['colour','direction','from','to','mode','role'].map(k=>A(`ownColours.moves.${i}.${k}`)));
+    for(const [i,m] of a.ownColours.moves.entries())add('Color', `${m.colour??m.role} ${m.direction}: ${m.from} to ${m.to} (${m.mode} ${m.role}).`, [...(m.colour?['colour']:[]),'direction','from','to','mode','role'].map(k=>A(`ownColours.moves.${i}.${k}`)));
   } else for (const [i, sw] of b.palette.swatches.entries()) add('Color', `${sw.name}: ${sw.role}, ${sw.share}% of page weight.`, [S(`palette.swatches.${i}.name`), S(`palette.swatches.${i}.role`), S(`palette.swatches.${i}.share`)]);
   for (const role of ['heading', 'body', ...(b.type.handwriting ? ['handwriting'] : [])]) {
     const f = b.type[role]; add('Typography', `${role}: ${f.family}. ${f.description} Licence: ${f.licence}.`, [S(`type.${role}.family`), S(`type.${role}.description`), S(`type.${role}.licence`)]);

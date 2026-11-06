@@ -33,7 +33,7 @@ test('gold on white takes the closest passing fixed-hue/chroma lightness and rep
   assert.equal(passes(fromOklch({...oklch(gold.value),L:move.toL+1e-7})),false,'a smaller move fails');
   assert.ok(Math.abs(oklch(move.to).C-oklch(gold.value).C)<.002);
   assert.ok(Math.abs(oklch(move.to).H-oklch(gold.value).H)<1);
-  assert.equal(p.light.pop, move.to); assert.equal(p.dark.pop, move.to);
+  assert.equal(p.light.pop, move.to); assert.ok(wcag(p.dark.pop,p.dark.ground)>=1.5);
   assert.ok(r.lines.includes('I deepened your gold a little, so words on it stay easy to read.'));
   assert.deepEqual(r.checks.problems, []);
 });
@@ -61,12 +61,12 @@ test('a white text endpoint repairs the supporting background and records its di
   assert.equal(r.kept.palette.overrides.dark.text,'#FFFFFF');
   assert.ok(r.moves.some(m=>m.mode==='dark'&&m.role==='panel'&&m.direction==='deepened'));
 });
-test('neutral codes retain input ordering, and lighter reading repairs use C4 lightened', async () => {
+test('neutral codes retain input ordering and derived repairs do not name white', async () => {
   const {buildOwnColours}=await load();
   const r=buildOwnColours('#737373 and white');
-  assert.equal(r.kept.palette.overrides.light.pop,'#737373');
+  assert.equal(r.values[0].value,'#737373');
   assert.ok(r.moves.some(m=>m.direction==='lightened'));
-  assert.ok(r.lines.includes('I lightened your white a little, so words on it stay easy to read.'));
+  assert.ok(!r.lines.includes('I lightened your white a little, so words on it stay easy to read.'));
 });
 test('bright colours can use the existing dark words; a code no lightness move can fix is toned a touch, hue kept', async () => {
   const {buildOwnColours}=await load();

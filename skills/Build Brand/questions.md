@@ -63,7 +63,7 @@ C5 for an unknown word, filling that word exactly:
 
 > I don't know the colour "[word]". Could you say it another way, or type its code?
 
-Colours named in either page comment are already the answer: ask no C2, use C3 to C5. Save J1c verbatim and file the built set with the work. These C labels identify approved copy, not boards-page answer numbers.
+An entirely known colour phrase or an explicit request to use colours in either page comment is already the answer: ask no C2, use C3 to C5. Colour words under less, more, too, not or without stay steer and off; pass the whole comment to `coloursFromComment` before extracting a phrase. Save J1c verbatim and file the built set with the work. These C labels identify approved copy, not boards-page answer numbers.
 
 ## Organisation: Who it's for
 

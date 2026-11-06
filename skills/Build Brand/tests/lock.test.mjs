@@ -22,6 +22,8 @@ test('own colours lock names the member words, used values and shade moves, citi
   Object.assign(f.spec.boards[0].palette,ownColours.kept.palette.overrides);
   f.save();const result=f.result(),design=f.read(),color=design.split('## Color\n')[1].split('\n## ')[0];
   assert.ok(color.includes('green and gold'));
+  assert.ok(ownColours.moves.some(m=>m.colour===null),'derived repairs have no invented member name');
+  assert.ok(!color.includes('null '),'derived repairs file their role');
   assert.ok(color.split('\n').filter(line=>line.startsWith('- ')).every(line=>line.includes('J1c')));
   for(const v of ownColours.values)assert.ok(color.includes(v.value));
   for(const move of ownColours.moves){assert.ok(color.includes(move.from));assert.ok(color.includes(move.to));assert.ok(color.includes(move.direction));}

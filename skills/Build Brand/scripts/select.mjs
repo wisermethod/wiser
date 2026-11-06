@@ -157,7 +157,7 @@ export function validateAnswers(a, data, library, command) {
     if(command==='looks') fail('displayedBoards','only board pages support displayed-page retries');
     if(!a.pageDisplayed) fail('displayedBoards','requires pageDisplayed: true');
     array(a.displayedBoards,'displayedBoards');
-    const roundPage=command==='round1'||!a.picks?.length,zero=roundPage&&Object.keys(kept).length?1:0;
+    const roundPage=command==='round1'||!a.picks?.length,zero=roundPage&&!a.ownColours&&Object.keys(kept).length?1:0;
     const count=roundPage?12:(a.picks?.length??0)*4;
     if(a.displayedBoards.length!==count) fail('displayedBoards','supply the complete displayed selection.boards');
     for(const [i,b] of a.displayedBoards.entries()) {
@@ -543,6 +543,7 @@ function makeBoard(library,a,c,number,group,base) {
   if(number===0)b.zero=true;
   const kept=a.kept??{};
   if(kept.palette) b.palette={...b.palette,...copy(kept.palette)};
+  if(a.ownColours) {b.palette.names=a.ownColours.values.map(v=>`${v.value} ${v.name}`);b.palette.energy=a.ownColours.lines[0];b.energy=b.palette.energy;}
   if(kept.pairing) b.pairing.id=kept.pairing;
   for(const role of ['headingFrom','bodyFrom']) if(own(kept,role)) b.pairing[role]=copy(kept[role]);
   if(kept.primaryMode&&!a.mode) b.primaryMode=kept.primaryMode;
@@ -550,11 +551,12 @@ function makeBoard(library,a,c,number,group,base) {
   if(kept.markFile||base?.markFile) { b.markFile=kept.markFile??base.markFile;delete b.initials;delete b.container; }
   else { delete b.markFile;b.container=c.container??base?.container??CONTAINERS[c.graphicSet.id]??'drafting-box';b.initials=a.name.split(/\s+/).slice(0,2).map(w=>Array.from(w)[0]).join('').toUpperCase(); }
   if(group!=='looks') {
-    const names=[part(library,'pairings',b.pairing.id).name,part(library,'palettes',b.palette.id).name,part(library,'graphics',b.graphicSet.id).name];
+    const names=[part(library,'pairings',b.pairing.id).name,...(a.ownColours?[]:[part(library,'palettes',b.palette.id).name]),part(library,'graphics',b.graphicSet.id).name];
     if(b.container) names.push(part(library,'containers',b.container).name);
     names.push(b.primaryMode);
     b.name=names.join(' / ');
   }
+  if(a.ownColours)b.name=boardLabel(library,b);
   return b;
 }
 function effective(c,a,library) {
@@ -599,7 +601,7 @@ function pickedLook(look,value,library,kept) {
   return picked;
 }
 function boardLabel(library,b) {
-  return [part(library,'pairings',b.pairing.id).name,part(library,'palettes',b.palette.id).name,part(library,'graphics',b.graphicSet.id).name,...(b.container?[part(library,'containers',b.container).name]:[]),b.primaryMode].join(' / ');
+  return [part(library,'pairings',b.pairing.id).name,...(b.palette.names?[]:[part(library,'palettes',b.palette.id).name]),part(library,'graphics',b.graphicSet.id).name,...(b.container?[part(library,'containers',b.container).name]:[]),b.primaryMode].join(' / ');
 }
 const boardValue=(owner,b)=>'board-'+createHash('sha256').update(JSON.stringify(stable([owner.number,boardKey(owner),b.palette]))).digest('hex').slice(0,32);
 const FORM_COPY=['depth','handwriting','buttonRadius','heroPhrase','content','note','sample','items','closingExamples'];
@@ -726,7 +728,7 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
     b.primaryMode=a.mode;
     if(!b.zero) b.name=boardLabel(library,b);
   }
-  const energies=ENERGIES.filter(energy=>library.palettes.some(p=>p.energy===energy));
+  const energies=a.ownColours?[]:ENERGIES.filter(energy=>library.palettes.some(p=>p.energy===energy));
   if(unsteered) Object.assign(state,{dials:blank(),darkLed:0,brightColour:0,labels:[]});
   // Picks are full records: validate all fields through the existing assembler,
   // before any ranking or check. Kept assets remain fixed in later rounds.
@@ -809,7 +811,7 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
     } else if(roundPage) {
       if(unsteered) groups.forEach((g,i)=>g.label=['First set','Second set','Third set'][i]);
       const palettes=new Set(),pairings=new Set(),groundFamilies=new Set();let darks=0;
-      const total=Object.keys(a.kept??{}).length?11:12;
+      const total=!a.ownColours&&Object.keys(a.kept??{}).length?11:12;
       const fixedGround=!!a.kept?.palette?.id || ['light','dark'].some(mode=>own(a.kept?.palette?.overrides?.[mode]??{},'ground'));
       const strongest=Object.keys(AXES).filter(k=>Math.abs(state.dials[k])>=2);
       const pagePool=()=>pool.map(c=>{
@@ -853,7 +855,8 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
           if(group.id==='close') {groundFamilies.add(next.ground.family);darks+=Number(next.ground.dark);}
         }
       }
-      if(a.kept?.palette?.id) notes.push('A fixed complete palette takes precedence over available-energy coverage and ground-family variety; every board names its actual fixed palette energy.');
+      if(a.ownColours)notes.push("Every board uses the member's single colour set; distinct recipe energies are not chased.");
+      else if(a.kept?.palette?.id) notes.push('A fixed complete palette takes precedence over available-energy coverage and ground-family variety; every board names its actual fixed palette energy.');
       else if(fixedGround) notes.push('Kept ground roles take precedence over ground-family variety; the page still covers the available recipe energies.');
     } else {
       groups=a.picks.map((b,i)=>({id:`pick-${i+1}`,label:`Variations of board ${b.number}`}));
@@ -917,7 +920,7 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
     boards=a.pageDisplayed?copy(a.displayedBoards):chosen.map(slotBoard);
     const kept=a.kept??{};
     const zeroBoard=c=>{const b=makeBoard(library,a,c,0,groups[0].id);b.zero=true;b.name='What you are keeping';b.why='Your kept assets, held on every board.';return b;};
-    if(Object.keys(kept).length&&roundPage&&!a.pageDisplayed) {
+    if(!a.ownColours&&Object.keys(kept).length&&roundPage&&!a.pageDisplayed) {
       const zero=zeroBoard(chosen[0]);
       if(checker&&!accept(chosen[0],groups[0].id,0)) fail('board zero','kept assets cannot build; supply usable assets rather than relaxing them');
       boards.unshift(zero);
@@ -983,16 +986,16 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
     const result={command,selection,dials:state.dials,wholeLookBoosts:boosts,darkLed:state.darkLed,brightColour:state.brightColour,ignoredNudges:state.ignored,positions:chosen.map(summary),spares:spares.map((list,i)=>({slot:i+1,ranked:list.map(summary)})),replacements,checks:{enabled:check,attempts:checker?.attempts??0},notes};
     if(command==='looks') {
       result.checks.feasibilitySearch=feasibilitySearch;
-      result.looks=chosen.map((c,i)=>({value:lookId(c),label:`${c.pairing.name} / ${c.palette.name} / ${c.graphicSet.name}`,kind:c.kind,...summary(c)}));
+      result.looks=chosen.map((c,i)=>({value:lookId(c),label:a.ownColours?boards[i].name:`${c.pairing.name} / ${c.palette.name} / ${c.graphicSet.name}`,kind:c.kind,...summary(c)}));
       result.controls=pageControls(a);
       result.options=result.looks.map((look,i)=>{
         const b=boards[i];
-        const names=[part(library,'pairings',b.pairing.id).name,part(library,'palettes',b.palette.id).name,part(library,'graphics',b.graphicSet.id).name];
+        const names=[part(library,'pairings',b.pairing.id).name,...(a.ownColours?[]:[part(library,'palettes',b.palette.id).name]),part(library,'graphics',b.graphicSet.id).name];
         let steps=(a.kept?.palette?[chosen[i]]:pool.filter(step=>step.style.id===chosen[i].style.id&&step.family===chosen[i].family)).sort((x,y)=>['muted','balanced','bold'].indexOf(paletteFamily(x.palette.id).step)-['muted','balanced','bold'].indexOf(paletteFamily(y.palette.id).step)).flatMap(step=>{
           const candidate=effective(step,a,library),board=makeBoard(library,a,candidate,i+1,'looks');
           const depth=Object.fromEntries(['light','dark'].map(mode=>[mode,cardDepth(library,step.palette,step.style,mode)]));
           if(['light','dark'].some(mode=>refused({...board,primaryMode:mode,depth:depth[mode]})||checker&&!checker.acceptBoard({...board,primaryMode:mode,depth:depth[mode]}))) return [];
-          const label=[part(library,'pairings',board.pairing.id).name,part(library,'palettes',board.palette.id).name,part(library,'graphics',board.graphicSet.id).name].join(', ');
+          const label=[part(library,'pairings',board.pairing.id).name,...(a.ownColours?[]:[part(library,'palettes',board.palette.id).name]),part(library,'graphics',board.graphicSet.id).name].join(', ');
           // An overlay can only replace fields, so a field the option's own depth carries and this
           // step's lacks is stated at its default (Form's depth table); omit a step without one.
           if(Object.values(depth).some(fields=>Object.keys(b.depth??{}).some(key=>!Object.hasOwn(fields,key)&&!Object.hasOwn(STEP_DEPTH_DEFAULTS,key)))) return [];
@@ -1018,7 +1021,7 @@ function selectPage(command, answers, {library=load(LIBRARY),data=load(TAPS),che
         const owner=assemblyBoard(b);
         b.value=boardValue(owner,owner);
         b.steps=library.palettes.filter(p=>a.kept?.palette?p.id===owner.palette.id:paletteFamily(p.id).family===paletteFamily(owner.palette.id).family).flatMap(p=>{
-          const step={...copy(owner),palette:{...copy(owner.palette),id:p.id},energy:p.energy};
+          const step={...copy(owner),palette:{...copy(owner.palette),id:p.id},energy:a.ownColours?owner.energy:p.energy};
           step.name=p.id===owner.palette.id?owner.name:boardLabel(library,step);
           if(['light','dark'].some(mode=>refused({...step,primaryMode:mode})||checker&&!checker.acceptBoard({...step,primaryMode:mode}))) return [];
           return [{value:boardValue(owner,step),...step}];

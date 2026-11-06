@@ -13,10 +13,10 @@ const CONTRACT_PINS={
   "Selection from answers": "46a780d4dd7b2bb86575b650372c56867a3a5995cc29cafe432070865c2cb125"
 };
 // Approved own-colour source and single-strength selection contract, 2026-11-06.
-export const CONTRACT_EDITS = [{date: '2026-11-06', reason: 'M7.4: member colours, reading derivation, fixed controls and J1c lock evidence; then the operator\'s "Tone it a touch": a code no fixed-chroma move can read softens chroma by the smallest step', contract: {
+export const CONTRACT_EDITS = [{date: '2026-11-06', reason: 'M7.4: member colours, reading derivation, fixed controls and J1c lock evidence; then "Tone it a touch"; round 2 fixes role visibility, single near-whites, input-only disclosures, parsing and steer, derived/composite reading, guide precedence, member labels in a closed array within the form budget, no board zero or recipe energies, and grey strength controls', contract: {
   "Locking a board": "f988424a3e1663c11f839e466e1358642f24fc9f7a9233d640e45894d9bc6de9",
-  "Selection from answers": "0c600ffa04df0edcc3eedc421e2ff169c66ddc46b412d795a9e62d56869e0168",
-  "Own colours": "1d3f50738f364264b621984a150590f697d5e85801171dcbd369f31b558452ce"
+  "Selection from answers": "88495df1269e68d94f805f239d0e72a93eb7c5c4427ccfd0cbeb32365f298b9e",
+  "Own colours": "e3132726551a0e1c45e58dfbd568468b79da9f8a27d79c38d9bbc96c4eb1bf84"
 }}];
 const CATALOGUE_PINS={
   'Settings and use': '15853880b2650344881e894c98c00cd796493dc1a6f3d390f91bc088287f4dca',

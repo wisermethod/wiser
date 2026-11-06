@@ -8,7 +8,7 @@ import { isDeepStrictEqual } from 'node:util';
 const HELP = `Build a member's own colours at one strength, in both modes.
 Usage: node own-colours.mjs --colours 'red, white and blue'
        node own-colours.mjs help
-  --colours <text>  Their exact words or opaque sRGB #RGB / #RRGGBB codes.
+  --colours <text>  Their exact words or opaque sRGB #RGB / #RRGGBB / #RRGGBBFF codes.
   --help, -h       Help without reading files.
 Success: one JSON object on stdout, exit 0: status, said, values, moves,
 checks, lines (C3/C4 or C5), and kept.palette.overrides (all 19 roles).
@@ -77,6 +77,20 @@ export const PAIRS = [
   ['social banner monogram','text','panel',3],
   ['button text (open link and sample)','onPop','pop',4.5,60]
 ];
+export const EXTRA_PAIRS = [['sub on ground','sub','ground',4.5],['note on ground','note','ground',4.5]];
+const graphics=()=>JSON.parse(readFileSync(new URL('../parts/parts.json',import.meta.url),'utf8')).graphics;
+let graphicCache;
+function compositePairs(c,mode) {
+  graphicCache??=graphics();
+  return graphicCache.flatMap(g=>[
+    ['pattern','ground',['text','headline','smallPrint','sub','note'],'mark'],
+    ['texture','cardBack',['cardBackText'],'cardBackMark']
+  ].flatMap(([kind,bg,fgs,fallback])=>{
+    const graphic=g[kind],keys=new Set([...graphic.svg.matchAll(/\{\{(\w+)\}\}/g)].map(m=>m[1]));
+    if(/currentColor/.test(graphic.svg))keys.add(fallback);
+    return [...keys].flatMap(ink=>fgs.map(fg=>({fg,bg,label:`${fg} over ${g.id} ${kind}`,value:mix(c[bg],c[ink],graphic.strength[mode])})));
+  }));
+}
 export const LIMITS = Object.freeze({P1:45,P2:.13,P3:.10,P4:60,P5:.45,P8:.004});
 export function full(c,mode) {
   const r={...c};
@@ -97,9 +111,11 @@ export function checkPalette(palette) {
   const result={problems:[]};
   for(const mode of ['light','dark']) {
     const c=palette[mode],o=Object.fromEntries(Object.entries(c).map(([k,v])=>[k,oklch(v)]));
-    const pairs=PAIRS.map(([label,fg,bg,need,lc])=>({label,fg,bg,wcag:wcag(c[fg],c[bg]),apca:Math.abs(apca(c[fg],c[bg])),need,lc:lc??null}));
+    const pairs=[...PAIRS,...EXTRA_PAIRS].map(([label,fg,bg,need,lc])=>({label,fg,bg,wcag:wcag(c[fg],c[bg]),apca:Math.abs(apca(c[fg],c[bg])),need,lc:lc??null}));
     const problems=pairs.filter(p=>(p.need!=null&&p.wcag<p.need)||(p.lc&&p.apca<p.lc)).map(p=>`${mode} PAIRS ${p.label}`);
-    const principles={P1:Math.abs(apca(c.pop,c.ground)),P2:o.pop.C,P3:Math.max(...['ground','panel','deep','pop'].map(k=>o[k].C))-Math.min(...['ground','panel','deep','pop'].map(k=>o[k].C)),P4:Math.abs(apca(c.headline,c.ground)),P5:Math.abs(o.ground.L-o.deep.L),P6:pairs.at(-1).wcag>=4.5&&pairs.at(-1).apca>=60,P7:!problems.length,P8:Math.min(...Object.values(o).map(v=>v.C))};
+    for(const p of compositePairs(c,mode))if(wcag(c[p.fg],p.value)<4.5)problems.push(`${mode} ${p.label}`);
+    const buttonPair=pairs.find(p=>p.fg==='onPop');
+    const principles={P1:Math.abs(apca(c.pop,c.ground)),P2:o.pop.C,P3:Math.max(...['ground','panel','deep','pop'].map(k=>o[k].C))-Math.min(...['ground','panel','deep','pop'].map(k=>o[k].C)),P4:Math.abs(apca(c.headline,c.ground)),P5:Math.abs(o.ground.L-o.deep.L),P6:buttonPair.wcag>=4.5&&buttonPair.apca>=60,P7:!problems.length,P8:Math.min(...Object.values(o).map(v=>v.C))};
     if(principles.P4<LIMITS.P4)problems.push(`${mode} P4 headline on ground`);
     // P1-3/P5 are matrix measurements (round 2); the operator's own-colour
     // decision exempts P8's neutral/dated-cluster preferences, not reading.
@@ -146,13 +162,39 @@ export function minimumLightnessMove(value,passes,{soften=false}={}) {
   }
   throw Error(`No readable sRGB colour keeps the hue of ${value}`);
 }
+const colourKey=value=>hex(rgb(value));
 function readColours(said) {
   if(typeof said!=='string'||!said.trim()||said.length>2000||/[\x00-\x1f\u2028\u2029]/.test(said))throw Error('colours: supply non-empty single-line text up to 2000 characters');
   const {colours,modifiers}=table(),values=[],unknown=[];
-  const tokens=said.trim().replace(/^(?:just\s+|a\s+|an\s+)/i,'').split(/\s*(?:,|;|\band\b|&)\s*/i).filter(Boolean);
-  for(const name of tokens) {
+  const chunks=said.trim().replace(/^(?:just\s+|a\s+|an\s+)/i,'').split(/\s*(?:,|;|\band\b|&)\s*/i).filter(Boolean);
+  // Split whitespace only if the entire chunk is a run of recognised colours.
+  // Longest names win; an unknown prose chunk stays intact for C5.
+  const known=phrase=>{
+    if(/^#(?:[a-f\d]{3}|[a-f\d]{6}|[a-f\d]{6}ff)$/i.test(phrase))return true;
+    let word=phrase.toLowerCase().replace(/-/g,' ');
+    while(!Object.hasOwn(colours,word)) {
+      const [first,...rest]=word.split(/\s+/);
+      if(!Object.hasOwn(modifiers,first)||!rest.length)return false;
+      word=rest.join(' ');
+    }
+    return true;
+  };
+  const split=chunk=>{
+    const words=chunk.trim().split(/\s+/);
+    const run=start=>{
+      if(start===words.length)return [];
+      for(let end=words.length;end>start;end--) {
+        const phrase=words.slice(start,end).join(' ');
+        if(known(phrase)) {const rest=run(end);if(rest)return [phrase,...rest];}
+      }
+      return null;
+    };
+    return run(0)??[chunk];
+  };
+  for(const name of chunks.flatMap(split)) {
     let word=name.trim().toLowerCase().replace(/-/g,' '),value,mods=[];
     if(/^#(?:[a-f\d]{3}|[a-f\d]{6})$/i.test(name))value=name;
+    else if(/^#[a-f\d]{6}ff$/i.test(name))value=name.slice(0,7);
     else {
       while(!Object.hasOwn(colours,word)) {
         const [first,...rest]=word.split(/\s+/);
@@ -165,7 +207,7 @@ function readColours(said) {
           const c=oklch(value);
           for(const m of mods){c.L=Math.max(0,Math.min(1,c.L+m.L));c.C=Math.max(0,c.C+m.C);}
           // Modifier creation may reach the gamut edge; report its actual
-          // chosen value. Reading repair below never changes its C or H.
+          // chosen value. Reading repair keeps hue and files any chroma softening.
           while(!(value=fromOklch(c))&&c.C>0)c.C=Math.max(0,c.C-.001);
           if(!value)throw Error(`Cannot represent modified colour ${name}`);
         }
@@ -179,14 +221,15 @@ export function buildOwnColours(said) {
   const {values,unknown}=readColours(said);
   if(unknown.length)return {status:'unknown',said,unknown,lines:unknown.map(word=>`I don't know the colour "${word}". Could you say it another way, or type its code?`)};
   if(!values.length)throw Error('colours: name at least one colour');
-  const ordered=[...values].sort((a,b)=>oklch(a.value).L-oklch(b.value).L);
-  const light=oklch(ordered.at(-1).value).L>.9?ordered.at(-1):{name:'white',value:'#FFFFFF'};
-  const dark=values.length===1?{name:'near-black',value:'#181A1B'}:ordered[0];
-  const accent=[...values].sort((a,b)=>oklch(b.value).C-oklch(a.value).C)[0];
+  const unique=[...new Map(values.map(v=>[colourKey(v.value),v])).values()];
+  const ordered=[...unique].sort((a,b)=>oklch(a.value).L-oklch(b.value).L);
+  const light=unique.length>1&&oklch(ordered.at(-1).value).L>.9?ordered.at(-1):{name:'white',value:'#FFFFFF'};
+  const dark=unique.length===1?{name:'near-black',value:'#181A1B'}:ordered[0];
+  const accent=[...unique].sort((a,b)=>oklch(b.value).C-oklch(a.value).C)[0];
   const moves=[];
   const move=(value,passes,colour,role,mode,soften=false)=>{
     const next=minimumLightnessMove(value,passes,{soften});
-    if(next.value!==value)moves.push({colour,role,mode,from:value,to:next.value,direction:next.delta<0?'deepened':'lightened',fromL:oklch(value).L,toL:next.L,deltaL:next.delta,...(next.chromaDelta?{fromC:oklch(value).C,toC:next.C,chromaDelta:next.chromaDelta}:{})});
+    if(colourKey(next.value)!==colourKey(value))moves.push({colour:values.find(v=>colourKey(v.value)===colourKey(value))?.name??null,role,mode,from:value,to:next.value,direction:oklch(next.value).L<oklch(value).L?'deepened':'lightened',fromL:oklch(value).L,toL:next.L,deltaL:next.delta,...(next.chromaDelta?{fromC:oklch(value).C,toC:next.C,chromaDelta:next.chromaDelta}:{})});
     return next.value;
   };
   const readable=(fg,bg,lc=0)=>wcag(fg,bg)>=4.5&&Math.abs(apca(fg,bg))>=lc;
@@ -194,48 +237,74 @@ export function buildOwnColours(said) {
   // Prefer the light words on the button in both modes. If that repair is
   // outside sRGB at fixed C/H, use the existing dark words (yellow, for
   // example) before declaring a physically impossible reading repair.
+  const lightAccent=unique.length===1&&oklch(accent.value).L>.9;
+  const button=lightAccent?{value:deep,name:dark.name}:accent;
   let pop,onPop=light.value;
-  try {pop=move(accent.value,v=>readable(onPop,v,60),accent.name,'pop','both');}
+  try {pop=move(button.value,v=>readable(onPop,v,60),button.name,'pop','both');}
   catch {
-    try {onPop=deep;pop=move(accent.value,v=>readable(onPop,v,60),accent.name,'pop','both');}
+    try {onPop=deep;pop=move(button.value,v=>readable(onPop,v,60),button.name,'pop','both');}
     // Last, the operator's "Tone it a touch": light words again, chroma softened.
-    catch {onPop=light.value;pop=move(accent.value,v=>readable(onPop,v,60),accent.name,'pop','both',true);}
+    catch {onPop=light.value;pop=move(button.value,v=>readable(onPop,v,60),button.name,'pop','both',true);}
   }
   const palette={};
   for(const mode of ['light','dark']) {
     const ground=mode==='light'?light.value:deep,text=mode==='light'?deep:light.value;
-    const extra=values.find(v=>![light,dark,accent].includes(v));
-    const c=full({ground,panel:mix(ground,extra?.value??text,.04),text,headline:text,deep,pop,onPop,mark:extra?.value??pop},mode);
-    for(const fg of new Set(PAIRS.filter(p=>p[3]!=null).map(p=>p[1]))) {
-      const pairs=PAIRS.filter(p=>p[1]===fg&&p[3]!=null);
+    const extra=lightAccent?accent:unique.find(v=>![light,dark,accent].includes(v));
+    const visible=v=>wcag(v,ground)>=1.5;
+    // A role collision is an assignment choice, not a shade move. Try the
+    // remaining member colours, then the other ink, without filing a C4.
+    const alternatives=[...unique.map(v=>v.value),text,deep,light.value];
+    const modePop=visible(pop)?pop:alternatives.find(v=>visible(v)&&(readable(light.value,v,60)||readable(deep,v,60)));
+    const modeInk=modePop===pop?onPop:readable(light.value,modePop,60)?light.value:deep;
+    const mark=extra?.value??pop;
+    let c=full({ground,panel:lightAccent&&mode==='light'&&colourKey(accent.value)!=='#FFFFFF'?accent.value:mix(ground,extra?.value??text,.04),text,headline:text,deep,pop:modePop,onPop:modeInk,mark:visible(mark)?mark:alternatives.find(visible)},mode);
+    const repair=foregrounds=>{for(const fg of foregrounds) {
+      const pairs=[...PAIRS,...EXTRA_PAIRS].filter(p=>p[1]===fg&&p[3]!=null);
       if(fg==='headline')pairs.push(['P4','headline','ground',4.5,60]);
       const originalL=oklch(c[fg]).L;
       const passes=v=>pairs.every(([, ,bg,need,lc])=>
         (originalL-oklch(c[bg]).L)*(oklch(v).L-oklch(c[bg]).L)>=0&&
-        wcag(v,c[bg])>=need&&(!lc||Math.abs(apca(v,c[bg]))>=lc));
+        wcag(v,c[bg])>=need&&(!lc||Math.abs(apca(v,c[bg]))>=lc))&&compositePairs(c,mode).filter(p=>p.fg===fg).every(p=>wcag(v,p.value)>=4.5);
       const colour=fg.startsWith('cardFront')?dark.name:fg==='cardBackText'||fg==='onPop'?light.name:mode==='light'?dark.name:light.name;
       try {c[fg]=move(c[fg],passes,colour,fg,mode);}
       catch(error) {
         // White is already an endpoint. If its supporting surface is too
         // light, repair that failing surface instead of changing hue/chroma.
-        for(const bg of new Set(pairs.filter(([, ,bg,need,lc])=>wcag(c[fg],c[bg])<need||lc&&Math.abs(apca(c[fg],c[bg]))<lc).map(p=>p[2]))) {
+        const failing=pairs.filter(([, ,bg,need,lc])=>wcag(c[fg],c[bg])<need||lc&&Math.abs(apca(c[fg],c[bg]))<lc).map(p=>p[2]);
+        failing.push(...compositePairs(c,mode).filter(p=>p.fg===fg&&wcag(c[fg],p.value)<4.5).map(p=>p.bg));
+        for(const bg of new Set(failing)) {
           const requirements=pairs.filter(p=>p[2]===bg);
-          const onSurface=v=>requirements.every(([, , ,need,lc])=>wcag(c[fg],v)>=need&&(!lc||Math.abs(apca(c[fg],v))>=lc));
-          c[bg]=move(c[bg],onSurface,mode==='dark'?dark.name:light.name,bg,mode);
+          const onSurface=v=>requirements.every(([, , ,need,lc])=>wcag(c[fg],v)>=need&&(!lc||Math.abs(apca(c[fg],v))>=lc))&&
+            compositePairs({...c,[bg]:v},mode).filter(p=>p.fg===fg&&p.bg===bg).every(p=>wcag(c[fg],p.value)>=4.5);
+          c[bg]=move(c[bg],onSurface,mode==='dark'?dark.name:light.name,bg,mode,true);
         }
         if(!passes(c[fg]))c[fg]=move(c[fg],passes,colour,fg,mode,true);
       }
-    }
+    }};
+    repair(['text','headline','onPop']);
+    c=full(c,mode);
+    repair(new Set([...PAIRS,...EXTRA_PAIRS].filter(p=>p[3]!=null).map(p=>p[1])));
     palette[mode]=c;
   }
   const checks=checkPalette(palette);
   if(checks.problems.length)throw Error(`Own colours fail reading: ${checks.problems.join('; ')}`);
-  const disclosures=[...new Set(moves.map(m=>`I ${m.direction} your ${m.colour} a little, so words on it stay easy to read.`))];
+  const disclosed=new Set();
+  const disclosures=moves.filter(m=>{
+    if(!m.colour||disclosed.has(colourKey(m.from)))return false;
+    disclosed.add(colourKey(m.from));return true;
+  }).map(m=>`I ${m.direction} your ${m.colour} a little, so words on it stay easy to read.`);
   return {status:'ready',said,values,moves,checks,strength:'one',kept:{palette:{overrides:palette}},lines:[`These use your colours: ${said}.`,...disclosures]};
 }
-// A comment's named colours are its answer. The session extracts that phrase
-// verbatim (no extra question) and gives it here, exactly like C2's typed reply.
-export function coloursFromComment(colours) { return buildOwnColours(colours); }
+// An entire known colour phrase, or an explicit use request, answers C2.
+// Colour words under less, more, too, not or without stay steer and off.
+// The sitting passes the whole comment so extracting a word cannot lose intent.
+export function coloursFromComment(comment) {
+  const parsed=readColours(comment);
+  if(/\b(?:less|more|too|not|without)\b/i.test(comment))return {status:'steer',said:comment};
+  if(!parsed.unknown.length)return buildOwnColours(comment);
+  const request=comment.match(/^(?:(?:please\s+)?use|(?:I|we)\s+(?:want|would like)(?:\s+to use)?)\s+(.+?)[.!]?$/i);
+  return request?buildOwnColours(request[1]):{status:'steer',said:comment};
+}
 export function validateOwnColours(record) {
   const built=buildOwnColours(record?.said);
   if(built.status!=='ready'||!isDeepStrictEqual(record,built))throw Error('ownColours: use the unchanged ready result from own-colours.mjs');
