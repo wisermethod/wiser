@@ -1,6 +1,6 @@
 # The interview
 
-What the coach says and asks, in the order `paths/coach.md` runs it. A tapped question is asked with the app's question tool where it has one: each option a button, and where an option below has words after a colon, the words before it are the button and the words after it are the line under it. Where the app has none, one question per message, its options lettered, answered with a letter. A question that says pick any takes more than one of its options: with the question tool, as its multiple choice; with none, answered with one or more letters. A typed question is a plain message, one at a time. The codes (S, W, P, R, F, A) are the question numbers the answers file records and `voice.md` cites, and each sample the person gives is numbered E1 onward. Bank version for every row: `Build Voice bank 9`.
+What the coach says and asks, in the order `paths/coach.md` runs it. A tapped question is asked with the app's question tool where it has one: each option a button, and where an option below has words after a colon, the words before it are the button and the words after it are the line under it. Where the app has none, one question per message, its options lettered, answered with a letter. A question that says pick any takes more than one of its options: with the question tool, as its multiple choice; with none, answered with one or more letters. A typed question is a plain message, one at a time. The codes (S, W, P, R, F, A) are the question numbers the answers file records and `voice.md` cites, and each sample the person gives is numbered E1 onward. Bank version for every row: `Build Voice bank 10`.
 
 Each question says what it **feeds**. A line in quotation marks after a pick is the exact line that pick writes into `voice.md` `## How They Write`, copied word for word. A tap the person's samples settled is not asked, and a screen left with no question is not shown, nor the line said before it.
 
@@ -292,9 +292,17 @@ For every other piece, one sentence that gives the piece what it needs, typed, a
 
 Skipped: write only from what they told you in W1 and W2, for someone who would follow their work; where W1 and W2 were skipped too, there is nothing to write from, and the run stops by `paths/coach.md` step 8. Feeds: the piece's subject and reader; `about.md` `## Current Focus` where it is their work, written by Onboard Root.
 
-## A2. The verdict (tapped)
+## A2. The first piece (typed)
 
-The question carries the piece, so the two are always seen together: it opens with "Here's your first piece:", then the piece in full and, where anything in it was made up, the one line that says what, then:
+The question carries the piece, so the two are always seen together: it opens with "Here's your first piece:", then the piece in full and, where anything in it was made up, the one line that says what, then this, typed, never as taps:
+
+> First drafts are never quite right, and your pushback is how I learn your voice. What's wrong with it? Quote a line that doesn't sound like you and say it your way, or just tell me what's off.
+
+Each piece opens in short paragraphs with a blank line between them. The answers file records each piece and what was made up. An answer that names a change is sorted by `paths/coach.md` step 6, even where it also praises the piece or says to send it. One that accepts the piece and names no change, such as "nothing", a bare "no" or "I'd send it", is their Yes: it sets the confirmation date, and the piece is not asked about again. One that says the piece is off but names nothing to change, such as "it's not me", is followed by A3. A skip or "not sure" is followed once by A2a. Feeds: each change by its sort in `paths/coach.md` step 6.
+
+## A2a. The verdict on the first piece (tapped, only after a skip or "not sure")
+
+Asked once, where A2 was skipped or answered "not sure", carrying the same piece as A2 does, then:
 
 > Would you send this under your name?
 
@@ -302,15 +310,15 @@ The question carries the piece, so the two are always seen together: it opens wi
 - Almost: I'd change a few things
 - No, it doesn't sound like me
 
-Each piece opens in short paragraphs with a blank line between them. The answers file records each piece and what was made up. Yes sets the confirmation date. After a rewrite it is asked again, in the same form, and recorded A4, opening with "Here it is with your changes:", the piece in full and the one line A3a gives.
+Yes sets the confirmation date. Almost or No: A3. A skip stops the coach by `paths/coach.md` step 8.
 
 ## A3 (typed)
 
-Asked on Almost or No:
+Asked after an A2 that says the piece is off but names nothing to change, or Almost or No at A2a, and as A5 on Almost or No at A4:
 
 > What would you change? Quote the line and say it your way, or just tell me.
 
-After the rewrite, A5. Feeds: each change by its sort in `paths/coach.md` step 6.
+A skip or "not sure" here, or an answer that still names no change, stops the coach by `paths/coach.md` step 8, with no rewrite shown. Feeds: each change by its sort in `paths/coach.md` step 6.
 
 ## A3a (typed, only when they answer it)
 
@@ -318,11 +326,23 @@ Never asked as a question. Version 2 is shown with one line on where each change
 
 > Tell me if any of those should go the other way.
 
-Where they name one, typed in place of a tap or in a reply, it is recorded as A3a and moved: into the voice, one line in `## How They Write`, or in `## Prohibitions` where it says never; or out of it, so the piece keeps it and the voice does not. Then A4 is asked again, and a move is not a return. Silence moves nothing. After the second rewrite, A5a.
+Where they name one, typed in place of a tap or in a reply, it is recorded as A3a, or A5a on version 3, and moved: into the voice, one line in `## How They Write`, or in `## Prohibitions` where it says never; or out of it, so the piece keeps it and the voice does not. Then the question that version carries, A4 or A6, is asked again, and a move is not a return: it rewrites nothing, and no verdict is taken from the reply that names it. Silence moves nothing.
+
+## A4. The verdict (tapped)
+
+Asked with version 2, after the first rewrite, carrying the piece as A2 does: it opens with "Here it is with your changes:", then the piece in full and the one line A3a gives, then:
+
+> Would you send this under your name?
+
+- Yes, send it
+- Almost: I'd change a few things
+- No, it doesn't sound like me
+
+Yes sets the confirmation date. Almost or No: A5, then the second rewrite, shown with A6. A skip or "not sure", here or at A6, stops the coach by `paths/coach.md` step 8.
 
 ## A6. Keep or stop (tapped)
 
-Asked with the third version, after two returns, in place of A2, and carrying that version and its line as A4 does.
+Asked with the third version, after two returns, in place of A4, and carrying that version and its line as A4 does.
 
 > Want to keep your voice as it is now, or stop here and pick it up later?
 

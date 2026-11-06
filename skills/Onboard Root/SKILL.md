@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types
-version: 0.48.2
+version: 0.48.3
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
 ---
@@ -127,7 +127,7 @@ What did Build Voice return? Complete: the person kept its first piece, and the 
 
 `memory/about.md` has four headings: Who, Key Facts, Relationships, Current Focus, and after Step 2 it may carry `## Personality`, which Build Voice owns and this step leaves as written. Fill `about.md` from what the person said, from the run's answers file and from any file they supplied, under rules 1 and 2. A fact from the answers file is the person's own answer, so it carries `(Firsthand: <their name>, W1)` with its question number. Each prompt line in the template, a whole line beginning and ending with `*`, is replaced with content or with a label; none survives. A heading the person has not addressed gets `[Not available: not yet supplied]`, and the file is still usable.
 
-What they do and what people come to them for (W1) fills `## Key Facts`; where a later answer in the run corrects it (A3 or A5), the later answer is the one written and cited. Current Focus fills from F2a where the person told the coach about something they are working on, and carries the date they said it; otherwise it takes its label like any heading.
+What they do and what people come to them for (W1) fills `## Key Facts`; where a later answer in the run corrects it (A2, A3 or A5), the later answer is the one written and cited. Current Focus fills from F2a where the person told the coach about something they are working on, and carries the date they said it; otherwise it takes its label like any heading.
 
 `memory/design.md` takes its headings, optional headings included, from the template's `prompts/personal/design.md` sheet. After filling `about.md` and before filling `design.md`, say **"Next up is building a design look for you."**, then ask once, as taps where the app offers a question tool, the way Two paths asks the type, in these words: **"Do you already have a look you'd like me to record, or shall we build one together?"** Where the request already answers it, take that answer and ask nothing. Ask these Build Brand entry taps on the app's question tool, following `skills/Build Voice/paths/coach.md` How you ask; where it has none, ask one question per message with lettered options. Do not send these taps through a form.
 
