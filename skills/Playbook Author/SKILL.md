@@ -2,8 +2,8 @@
 name: Playbook Author
 type: skill
 category: authoring
-description: Create, instantiate, resume, review, hand off at a session's end, or close out a WISER Playbook for work that spans sessions
-version: 0.4.1
+description: Create, instantiate, resume, review, hand off at a session's end, or close out a WISER Playbook for work that spans sessions, and, on the ask wrap up, end the session, Playbook or not, with its hand-over message
+version: 0.4.2
 ---
 
 # Playbook Author
@@ -34,7 +34,7 @@ Decide the job before running any section.
 | A Template master covers the process | Instantiate, even when the request says create |
 | A Playbook exists and work stopped mid-flight | Resume |
 | A Playbook exists and is being audited | Review |
-| A session working a Playbook is ending, or stops at a stop-and-tell checkpoint | Hand off, ahead of every row above |
+| A session working a Playbook is ending, or stops at a stop-and-tell checkpoint, or any session, with or without a Playbook, takes the named ask wrap up | Hand off, ahead of every row above |
 | The work an instance or one-time Playbook covers is finished | Close out |
 
 ## Create
