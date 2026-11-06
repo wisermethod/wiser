@@ -3,7 +3,7 @@ name: Delegate Build
 type: skill
 category: system
 description: Delegated build work and its independent review, with only verified findings folded back
-version: 0.3.0
+version: 0.3.1
 ---
 
 # Delegate Build

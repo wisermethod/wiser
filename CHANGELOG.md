@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.06, November 6, 2026
+
+- When Delegate Build hands a builder an edit to existing instructions, the brief now says every existing sentence stays where it is, word for word, unless the brief quotes it and says what replaces it, and the review lists each sentence the builder removed, moved or changed that the brief did not, so a rule reworded or moved in passing is caught. (19709c68)
+- Build Brand's flow test checks the version the skill now carries. (bb9796cc)
+
 ## v2026.11.05.4, November 5, 2026
 
 - When the voice coach shows you your first piece, it now asks what's wrong with it, and you type the answer: quote a line that doesn't sound like you and say it your way, or just say what's off. Before, you tapped Yes, Almost or No. If nothing needs changing, say so and the piece is done. (37cee85a)
