@@ -20,7 +20,7 @@ const openingTaps=readFileSync(resolve(dirname(journeyPath),'2026-10-28-opening-
 
 test('router preserves identity and declares the one-sitting format change',()=>{
   assert.match(router,/^name: Build Brand$/m);assert.match(router,/^type: skill$/m);assert.match(router,/^category: onboarding$/m);
-  assert.match(router,/^version: 0\.5\.0$/m);assert.match(router,/^description: .*one sitting.*without a Playbook/m);
+  {const v=router.match(/^version: (\d+)\.(\d+)\.(\d+)$/m);assert.ok(v,'a semantic version');assert.ok(+v[1]>0||+v[2]>=3,`the one-sitting format change arrived in 0.3.0; got ${v[0]}`);}assert.match(router,/^description: .*one sitting.*without a Playbook/m);
   for(const key of ['design','voice','about'])assert.ok(router.includes(`  - ${key}`));
   for(const gap of ['naming a brand','trademark search','brand mark and logo creation'])assert.ok(router.includes(`  - ${gap}`));
   assert.ok(Buffer.byteLength(router)<58514/3,'router stays under a third of the original');
@@ -39,7 +39,7 @@ test('whole member lines and options match both ways from Opening through Each a
 });
 
 for(const [name,literal] of [
-  ['opening', "Let's build your brand: a few quick taps, then brands made for you. About 12 minutes."],
+  ['opening', "Let's build your brand: a few quick taps, then brands made for you. About 15 minutes."],
   ['option','Starting fresh'],
   ['nested quotes', 'In a sentence, what do you do? For example: "I help small bakeries sell online."'],
   ['brand-folder receipt', 'Saved in your "brand" folder.'],
@@ -53,7 +53,7 @@ for(const [name,literal] of [
 });
 
 test('old copy in source notes or unrelated path prose cannot satisfy a changed screen',()=>{
-  const literal="Let's build your brand: a few quick taps, then brands made for you. About 12 minutes.";
+  const literal="Let's build your brand: a few quick taps, then brands made for you. About 15 minutes.";
   const changed=bank.replace(literal,'Changed opening.');
   assert.throws(()=>compareJourneyCopy(journey,changed+`\n## Source notes\n> ${literal}\n`,openingTaps));
   assert.throws(()=>compareJourneyCopy(journey,changed+'\nUnrelated path prose: '+literal,openingTaps));
@@ -69,7 +69,7 @@ test('copy gate rejects an extra option or screen on either side',()=>{
 });
 
 test('copy gate rejects a deleted opening',()=>{
-  const opening="> Let's build your brand: a few quick taps, then brands made for you. About 12 minutes.\n";
+  const opening="> Let's build your brand: a few quick taps, then brands made for you. About 15 minutes.\n";
   assert.ok(bank.includes(opening));
   assert.throws(()=>compareJourneyCopy(journey,bank.replace(opening,''),openingTaps));
 });
@@ -119,7 +119,7 @@ test('brand-folder hosts use the whole drop line and retain their own computer f
   assert.match(files,/show this sentence alone as the whole line, replacing the longer chat line:\n\n> Drop your brand files, or a folder of them, here in the chat\n/);
   assert.ok(!files.includes('replace the first clause'));
   assert.match(brief,/whole-folder variant as the entire line/);
-  assert.match(brief,/otherwise name that location in words and continue with this branch's Brand files drop, website and empty-receipt lines and its same two choices/);
+  assert.match(brief,/otherwise name that location in words and continue with this branch's Brand files drop, website and empty-receipt lines and its same four options/);
   assert.match(brief,/keep step's Folder screens, Skip option and empty-folder line never run here/);
   for(const old of ["using the bank's Folder lines",'Skip this: build without them',"The folder's still empty. Put them in, or tap Skip."])assert.ok(!brief.includes(old),old);
 });
@@ -256,4 +256,54 @@ test('industry Record my look keeps the brand-files screen without a progress li
  assert.match(read('paths/record-my-look.md'),/no progress line: an industry has no step 2 or 3/);
  assert.match(read('paths/brief.md').split('\n')[2],/An industry's Record my look shows the Brand files screen with no progress line/);
  assert.match(bank.split('\n')[2],/industry Record my look exception in `paths\/brief\.md`/);
+});
+
+const rf5Drafts=[
+ "Let's build your brand: a few quick taps, then brands made for you. About 15 minutes.",
+ "Let's build [org]'s brand: a few quick taps, then brands made for [org]. About 15 minutes.",
+ "Getting your looks ready. The first time takes a few minutes while I get set up.",
+ 'I couldn\'t get your looks ready just now. Say "build my brand" any time and we\'ll pick up from here.',
+ 'Making your boards now. A couple minutes.',
+ 'Checking the words on your board. A minute or two.',
+ 'To lock a board in, leave just that one ticked.',
+ "Drop your brand files here in the chat: a brand guide, your logo, slides or a document in your style. Or type your website's address. Either works, or both.",
+ 'Type the address here.',
+ "I don't see any files yet. Drop them in, or type your website's address.",
+ "I don't have them: build one with me",
+ 'Leave this for later',
+ "Your looks can't show in this card, so I'll open them on their own page instead.",
+ "Your boards can't show in this card, so I'll open them on their own page instead.",
+ 'Your looks can\'t show in this app until Wiser is reconnected. Reconnect it in the app\'s settings, then say "build my brand" and we\'ll pick up from here.',
+ 'Your boards can\'t show in this app until Wiser is reconnected. Reconnect it in the app\'s settings, then say "build my brand" and we\'ll pick up from here.',
+ 'I couldn\'t get your boards ready just now. Say "build my brand" any time and we\'ll pick up from here.',
+ 'I couldn\'t get your looks ready: this computer couldn\'t reach the internet to fetch the lettering. Check you\'re online, then say "build my brand" and we\'ll pick up from here.',
+ 'I couldn\'t get your looks ready: your network blocked the lettering download. If you\'re on a work or school network, try another one, then say "build my brand" and we\'ll pick up from here.',
+ 'I couldn\'t get your looks ready: the lettering download isn\'t answering right now. That\'s on our side, not yours. Say "build my brand" in a little while and we\'ll pick up from here.',
+ 'I couldn\'t get your looks ready: the lettering download was taking too long. A steadier connection helps. Say "build my brand" any time and we\'ll pick up from here.',
+ 'I couldn\'t get your looks ready: there wasn\'t room on this computer to save the lettering. Free up some space, then say "build my brand" and we\'ll pick up from here.',
+ ...['looks','boards'].flatMap(k=>[
+  `Your ${k} didn't show in this card. Reconnecting Wiser in the app's settings usually fixes it. Then say "build my brand" and we'll pick up from here.`,
+  `Your ${k} couldn't open in a browser window on this computer. Say "build my brand" to try again, and we'll pick up from here.`,
+  `I couldn't get your ${k} ready: something went wrong on our side while making them. Say "build my brand" any time and we'll pick up from here.`])
+];
+for(const [i,line] of rf5Drafts.entries())test(`RF5 draft ${i+1} is marked in the journey and a copy change fails on either side`,()=>{
+ assert.ok(bank.includes(line),line);
+ const at=journey.indexOf(line);assert.ok(at>=0,line);
+ const tail=journey.slice(at+line.length);
+ // Blockquotes/options have a separate marker; inline variants carry it on
+ // that line. The marker must immediately follow this draft, not another.
+ // Every RF5 line was approved on 2026-11-06, relayed by the first run session.
+ const marker=/\(the operator's (?:yes|wording) of 2026-11-06/;
+ assert.match(tail,new RegExp('^(?:"?\\s*)?(?:as a plain message )?'+marker.source));
+ const changed=line.slice(0,-1)+'!';
+ assert.throws(()=>compareJourneyCopy(journey,bank.replace(line,changed),openingTaps));
+ assert.throws(()=>compareJourneyCopy(journey.replace(line,changed),bank,openingTaps));
+});
+
+test('RF5 reasons: no draft marker remains, and the sitting names its cause lines',()=>{
+ assert.doesNotMatch(journey,/\(draft, 2026-11-05, for the operator's approval\)/);
+ assert.match(sitting,/line for the cause shown, R1 to R5 there, or its plain failure line where no listed cause is shown/);
+ assert.match(sitting,/reconnect-to-fix line for looks or boards/);
+ assert.match(sitting,/could-not-open line for looks or boards; where assembly, the design check or a script failed, its on-our-side line/);
+ assert.match(bank,/never guess a cause/);
 });

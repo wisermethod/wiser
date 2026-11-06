@@ -8,11 +8,11 @@ B0 records a path choice only where one is actually needed; the sitting and the 
 
 ## Opening
 
-> Let's build your brand: a few quick taps, then brands made for you. About 12 minutes.
+> Let's build your brand: a few quick taps, then brands made for you. About 15 minutes.
 
 For an organisation:
 
-> Let's build [org]'s brand: a few quick taps, then brands made for [org]. About 12 minutes.
+> Let's build [org]'s brand: a few quick taps, then brands made for [org]. About 15 minutes.
 
 Say it as one message, then step 1 immediately. No additional introduction.
 
@@ -273,6 +273,36 @@ No real source rule, no pull question. Feeds the selection, Visual Personality a
 
 ## Step 3: Whole looks
 
+Only when the lettering is not installed, before installing it:
+
+> Getting your looks ready. The first time takes a few minutes while I get set up.
+
+A failed lettering install or check stops this sitting:
+
+> I couldn't get your looks ready just now. Say "build my brand" any time and we'll pick up from here.
+
+Say the line for the cause the failure shows, and the line above only where none of these is shown; never guess a cause.
+
+On a network error, `ENOTFOUND`, `EAI_AGAIN`, `ECONNREFUSED`, `ENETUNREACH` or `ECONNRESET`:
+
+> I couldn't get your looks ready: this computer couldn't reach the internet to fetch the lettering. Check you're online, then say "build my brand" and we'll pick up from here.
+
+On `HTTPS 403`:
+
+> I couldn't get your looks ready: your network blocked the lettering download. If you're on a work or school network, try another one, then say "build my brand" and we'll pick up from here.
+
+On `HTTPS 404` or any `HTTPS 5xx`:
+
+> I couldn't get your looks ready: the lettering download isn't answering right now. That's on our side, not yours. Say "build my brand" in a little while and we'll pick up from here.
+
+When the five-minute limit ends a font command:
+
+> I couldn't get your looks ready: the lettering download was taking too long. A steadier connection helps. Say "build my brand" any time and we'll pick up from here.
+
+On `ENOSPC` while saving the lettering:
+
+> I couldn't get your looks ready: there wasn't room on this computer to save the lettering. Free up some space, then say "build my brand" and we'll pick up from here.
+
 > Which of these feel like you? Pick up to three.
 
 Twelve tiles from `select.mjs looks`, its options unchanged, at least two on a plain ground and all five marks. The three actions, in order, have the following exact labels and lines. Conditions and `needs` are engine data, never shown as explanation.
@@ -293,7 +323,7 @@ When no new page of twelve can be made from looks not yet shown, the last page o
 
 ## Making the boards
 
-> Making your boards now. A minute or two.
+> Making your boards now. A couple minutes.
 
 Only where the computer needs one-time setup instead:
 
@@ -304,6 +334,10 @@ Only where the computer needs one-time setup instead:
 Progress: "Step 4 of 6: your boards".
 
 > Select the board(s) that feel most like you
+
+Under the question, in its `help` field:
+
+> To lock a board in, leave just that one ticked.
 
 Tile: picture, name, tick beside the caption, word/boundary pairs, and at most two recommendations with their reason. "See it full size" replaces all tiles with the whole board inside the same card. "Close this board" above and below it, with "Pick this one" tick; Light and Dark switch, primary mode first. Close keeps picks and returns to that tile. Any number may be ticked; only sending is held at three. No stop button.
 
@@ -324,6 +358,52 @@ Where the member's own logo or font files cannot show in the card, one message, 
 
 > Your boards use your own [logo / fonts], which this card can't show, so I'll open them on their own page instead.
 
+For any other card limitation, including a missing card display, use the looks own-page line or boards own-page line, respectively, before opening the unchanged page:
+
+> Your looks can't show in this card, so I'll open them on their own page instead.
+
+> Your boards can't show in this card, so I'll open them on their own page instead.
+
+Use those two lines only where this session can open a page the member sees: a command-line tool on their own computer, through Form's window or Browser Control. In the Claude app, Cowork or ChatGPT with no `show_form`, say this instead, then save and return `stopped`:
+
+> Your looks can't show in this app until Wiser is reconnected. Reconnect it in the app's settings, then say "build my brand" and we'll pick up from here.
+
+> Your boards can't show in this app until Wiser is reconnected. Reconnect it in the app's settings, then say "build my brand" and we'll pick up from here.
+
+Where the app has `show_form` but this card still cannot show, or the page cannot open, say the looks failure line above, or for boards:
+
+> I couldn't get your boards ready just now. Say "build my brand" any time and we'll pick up from here.
+
+Say the line for what happened, and the plain failure line only where none of these is shown:
+
+Where the app has `show_form` but the looks card failed or showed nothing:
+
+> Your looks didn't show in this card. Reconnecting Wiser in the app's settings usually fixes it. Then say "build my brand" and we'll pick up from here.
+
+Where the app has `show_form` but the boards card failed or showed nothing:
+
+> Your boards didn't show in this card. Reconnecting Wiser in the app's settings usually fixes it. Then say "build my brand" and we'll pick up from here.
+
+Where Form's window or Browser Control could not open the looks page:
+
+> Your looks couldn't open in a browser window on this computer. Say "build my brand" to try again, and we'll pick up from here.
+
+Where it could not open the boards page:
+
+> Your boards couldn't open in a browser window on this computer. Say "build my brand" to try again, and we'll pick up from here.
+
+Where assembly, the design check or a script failed while making the looks:
+
+> I couldn't get your looks ready: something went wrong on our side while making them. Say "build my brand" any time and we'll pick up from here.
+
+Or the boards:
+
+> I couldn't get your boards ready: something went wrong on our side while making them. Say "build my brand" any time and we'll pick up from here.
+
+On a page of their own, the pictures are numbered, and their picks on the question tool are "Look 1" to "Look 12" and "Board 1" onward, matching those numbers.
+
+Ask that page's actions with their existing labels, lines and pick conditions on the question tool; never ask for unseen pictures by their labels alone.
+
 ### Board copy
 
 The initials caption:
@@ -343,6 +423,10 @@ Progress every round: "Step 5 of 6: blend and tune". Why once on the first round
 Each round: four new boards per picked board, one pick four, two eight, three twelve; no picks a fresh page from another angle. Review before showing every page. Same card question:
 
 > Select the board(s) that feel most like you
+
+Under the question, in its `help` field:
+
+> To lock a board in, leave just that one ticked.
 
 The same buttons as Step 4. There is no cap on rounds and no dark-pattern question.
 
@@ -409,17 +493,21 @@ Then one status line:
 
 > Setting up your colours and lettering for everything I make for you.
 
-Ghost Writer checks the kept sentence and words once here. Where it changes the kept sentence, before Done:
+Ghost Writer checks the kept sentence and words once here. Only where it changes a word, before checking the changed board again:
+
+> Checking the words on your board. A minute or two.
+
+Where it changes the kept sentence, before the direct run's Done or the caller return:
 
 > I tightened your sentence: [new sentence]
 
-Where it changes a kept word or what that word isn't, one line for each changed pair, after any sentence line and before Done, [not] being the word's boundary:
+Where it changes a kept word or what that word isn't, one line for each changed pair, after any sentence line and before the direct run's Done or the caller return, [not] being the word's boundary:
 
 > I tightened one of your words: [word], not [not].
 
 With no voice file to check the words against, say nothing of it: the voice note is not offered, and nothing is disclosed.
 
-Then:
+On a caller, return `locked` with `design`, `offers` as data and `waitsOn` only where provisional, under `SKILL.md` Return to the caller; no Done or offers line. The locked board is display-only and is never waited on. On a direct run only, say the close and offers:
 
 > Done. Your brand is set, and everything I make for you will use it.
 >
@@ -449,10 +537,12 @@ Keep B1 for received files and the website, B2 for stated colour values and lett
 
 Progress: "Step 1 of 3: your brand files". Why: "I'll read your brand from what you already have." An industry's Record my look shows this step with no progress line, since it has no step 2 or 3.
 
-> Drop your brand files here in the chat: a brand guide, your logo, slides or a document in your style. Or paste your website's address. Either works, or both.
+> Drop your brand files here in the chat: a brand guide, your logo, slides or a document in your style. Or type your website's address. Either works, or both.
 
 - Done, they're in
 - Use my website
+- I don't have them: build one with me
+- Leave this for later
 
 Where the app accepts a whole dropped folder, show this sentence alone as the whole line, replacing the longer chat line:
 
@@ -460,11 +550,11 @@ Where the app accepts a whole dropped folder, show this sentence alone as the wh
 
 After Use my website:
 
-> Paste the address here.
+> Type the address here.
 
 Done with nothing received:
 
-> I don't see any files yet. Drop them in, or paste your website's address.
+> I don't see any files yet. Drop them in, or type your website's address.
 
 Wiser files the originals itself, as `paths/brief.md` says. Its one status line:
 
@@ -499,7 +589,7 @@ Fix the selected rules, repeat the evidence pass in `writing.md`, then repeat B8
 
 ### Brief close
 
-Only after the confirmed write:
+Only after the confirmed write, on a direct run, say the close and offers. On a caller return `complete` with `design`, `offers` as data and `waitsOn` only where provisional, under `SKILL.md` Return to the caller; no Done or offers line:
 
 > Done. Your brand is recorded, and everything I make for you will use it.
 >

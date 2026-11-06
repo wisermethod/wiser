@@ -633,7 +633,7 @@ function boardsForm(a,selection,selectionDir,command) {
   }
   const variation=command==='variations',extra=['org','client','department'].includes(a.type)?1:0;
   const form={title:`Step ${(variation?5:4)+extra} of ${6+extra}: ${variation?'blend and tune':'your boards'}`,brand,boardDefaults,
-    questions:[{id:'boards',type:'boards',label:'Select the board(s) that feel most like you',pick:3,controls:pageControls(a),options}],
+    questions:[{id:'boards',type:'boards',label:'Select the board(s) that feel most like you',help:'To lock a board in, leave just that one ticked.',pick:3,controls:pageControls(a),options}],
     actions:[{value:'more',label:'Show me more',needs:'any',notes:{none:'None of these work',one:'Show me variations of this board',several:'Show me variations of these boards'}},{value:'lock',label:'Lock this board in',note:'and finish my brand',needs:'one'}]};
   const checked=checkForm(form);
   if(!checked.ok) {
