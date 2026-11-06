@@ -119,6 +119,7 @@ const PATTERN_OK = {
   '^[A-Za-z0-9_-]{1,128}$': 'voice_fake-1',
   '^/': '/a',
   '^[0-9]{1,3}$': '27',
+  '^[0-9]{1,19}$': '2000000000000000001',
   '^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$': 'en-US',
   // xai: voice ids and the published language-tag subset.
   '^[a-z0-9]{1,64}$': 'fakevoice123',

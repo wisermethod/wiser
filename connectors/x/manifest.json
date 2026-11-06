@@ -1,0 +1,92 @@
+{
+  "id": "x",
+  "service": "x",
+  "modules": {
+    "account": {
+      "auth": {
+        "provider": "catalog",
+        "toolkit": "TWITTER",
+        "scheme": "OAUTH2",
+        "privilege": "write"
+      },
+      "actions": {
+        "me": {
+          "description": "Read the connected X account",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        },
+        "get_post": {
+          "description": "Read one X post by id",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "post_id": {
+                "type": "string",
+                "pattern": "^[0-9]{1,19}$"
+              }
+            },
+            "required": [
+              "post_id"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "recent_posts": {
+          "description": "Read only the connected account's recent posts; max_results defaults to 5 and is limited to 5 through 10. The first users/me answer must have a data.id matching ^[0-9]{1,19}$ before the posts request is made",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "max_results": {
+                "type": "integer",
+                "minimum": 5,
+                "maximum": 10
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "delete_post": {
+          "description": "Delete one X post by id",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "post_id": {
+                "type": "string",
+                "pattern": "^[0-9]{1,19}$"
+              }
+            },
+            "required": [
+              "post_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "unwrap_token": false,
+      "fallback": "none"
+    }
+  }
+}
