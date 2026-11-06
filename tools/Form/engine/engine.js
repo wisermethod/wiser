@@ -175,7 +175,8 @@ function boardQuestion(fieldset,q,id) {
   const rows=q.options.map((o,i)=>({option:o,steps:model.steps?.[i]??[{value:o.value,boards:{light:model.boards[i],dark:model.boards[i]}}],index:o.steps?.findIndex(s=>s.value===o.value)??0}));
   // resolveBoards has merged each optional step overlay onto its option depth.
   const showing=row=>row.steps[row.index].boards[pageMode??row.option.board.primaryMode];
-  const position=(row,index)=>['muted','balanced','bold'].indexOf(row.option.steps?.[index]?.palette.id.match(/-(muted|balanced|bold)$/)?.[1]);
+  // An own-value step may omit its palette and take the option's board palette whole.
+  const position=(row,index)=>['muted','balanced','bold'].indexOf((row.option.steps?.[index]?.palette??row.option.board.palette)?.id?.match(/-(muted|balanced|bold)$/)?.[1]);
   const nextStep=(row,delta)=>{
     const next=row.index+delta;
     return next>=0&&next<row.steps.length&&position(row,next)===position(row,row.index)+delta?next:row.index;

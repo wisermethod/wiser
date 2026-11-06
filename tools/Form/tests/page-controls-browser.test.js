@@ -173,3 +173,23 @@ test('unlabelled steps return to the option caption or the default look caption'
   assert.deepEqual(h.errors,[]);
  }finally{await h.context.close();}
 });
+
+// The second overlay review: an own-value step may omit its palette, so the strength buttons must
+// read that step's level from the option's board palette rather than throw while the card is built.
+for(const view of ['look','board'])test(`strength controls ${view}: an own-value step without palette still loads, moves and sends a step`,async()=>{
+ const form=controlsForm(view,'light'),q=form.questions[0];
+ for(const o of q.options)for(const s of o.steps)if(s.value===o.value)delete s.palette;
+ const h=await kit.open(form,734,'light',{autoSize:true});
+ try{
+  assert.deepEqual(h.errors,[]);
+  const b=buttons(h),inputs=h.f.locator('.tile-input');
+  assert.equal(await inputs.count(),q.options.length);
+  const before=await inputs.evaluateAll(n=>n.map(x=>x.value));
+  const movable=(await b.bold.isDisabled())?b.muted:b.bold;
+  await movable.click();
+  const after=await inputs.evaluateAll(n=>n.map(x=>x.value));
+  assert.notDeepEqual(after,before,'a press moves at least one card to another step');
+  assert.ok(after.every((v,i)=>q.options[i].steps.some(s=>s.value===v)),'every tile shows one of its own steps');
+  assert.deepEqual(h.errors,[]);
+ }finally{await h.context.close();}
+});
