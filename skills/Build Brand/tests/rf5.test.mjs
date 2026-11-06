@@ -75,7 +75,7 @@ test('RF5 B3: missing fonts get a line before install, checked fonts stay quiet,
  }
 });
 test('RF5 B3: making estimate and changed-word check use the bank at the right moment',()=>{
- assert.ok(bank.includes('Making your boards now. A few minutes.'));
+ assert.ok(bank.includes('Making your boards now. A couple minutes.'));
  assert.ok(bank.includes('Making your boards now. The first time takes a few minutes while I get set up.'));
  assert.ok(bank.includes(lines.checking));
  assert.ok(lock.indexOf(lines.checking)<lock.indexOf('reassemble the same visual board'));

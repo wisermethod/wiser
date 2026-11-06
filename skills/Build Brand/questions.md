@@ -301,7 +301,7 @@ When no new page of twelve can be made from looks not yet shown, the last page o
 
 ## Making the boards
 
-> Making your boards now. A few minutes.
+> Making your boards now. A couple minutes.
 
 Only where the computer needs one-time setup instead:
 

@@ -263,7 +263,7 @@ const rf5Drafts=[
  "Let's build [org]'s brand: a few quick taps, then brands made for [org]. About 15 minutes.",
  "Getting your looks ready. The first time takes a few minutes while I get set up.",
  'I couldn\'t get your looks ready just now. Say "build my brand" any time and we\'ll pick up from here.',
- 'Making your boards now. A few minutes.',
+ 'Making your boards now. A couple minutes.',
  'Checking the words on your board. A minute or two.',
  'To lock a board in, leave just that one ticked.',
  "Drop your brand files here in the chat: a brand guide, your logo, slides or a document in your style. Or type your website's address. Either works, or both.",
@@ -280,7 +280,10 @@ for(const [i,line] of rf5Drafts.entries())test(`RF5 draft ${i+1} is marked in th
  const tail=journey.slice(at+line.length);
  // Blockquotes/options have a separate marker; inline variants carry it on
  // that line. The marker must immediately follow this draft, not another.
- assert.match(tail,/^(?:"?\s*)?(?:as a plain message )?\(draft, 2026-11-05, for the operator's approval\)/);
+ // Approved on 2026-11-06 (relayed by the first run session), except the
+ // looks failure line, which stays a draft until its reasons are approved.
+ const marker=line.startsWith("I couldn't get your looks ready")?/\(draft, 2026-11-05, for the operator's approval\)/:/\(the operator's (?:yes|wording) of 2026-11-06/;
+ assert.match(tail,new RegExp('^(?:"?\\s*)?(?:as a plain message )?'+marker.source));
  const changed=line.slice(0,-1)+'!';
  assert.throws(()=>compareJourneyCopy(journey,bank.replace(line,changed),openingTaps));
  assert.throws(()=>compareJourneyCopy(journey.replace(line,changed),bank,openingTaps));
