@@ -58,7 +58,7 @@ Take the name as they spell it, with each character the Names rules in `standard
 
 Find their Desktop as their computer reports it, never by assuming where it is: on Windows it is often inside OneDrive. Can this session reach it? Where the app shows the person a request to allow that, tell them to allow it.
 
-- **Yes, and Wiser on the Desktop already holds a folder with that name, compared ignoring case.** Use the folder's own spelling from here on. Is it empty? Yes: use it. Is it a Wiser folder whose `AGENTS.md` `## Onboarding` section still opens "Not onboarded", because an earlier setup stopped before its close? Yes: use it, and step 5 runs, saying nothing about the earlier try. Is it any other Wiser folder? Yes: use it, say "You already have a Wiser folder, so we'll use that one.", and step 5 does not run. Neither: say a folder with that name is already there with other things in it, and ask for another name to use, such as their first name and last initial; take the answer through the paragraph on the Names rules above, not the question before it.
+- **Yes, and Wiser on the Desktop already holds a folder with that name, compared ignoring case.** Use the folder's own spelling from here on. Is it empty? Yes: use it. Is it a Wiser folder whose `AGENTS.md` `## Onboarding` section does not open "Not onboarded"? Yes: use it, say "You already have a Wiser folder, so we'll use that one.", and step 5 does not run. No, because it holds other things or an earlier setup that stopped before its close: say a folder with that name is already there with other things in it, and ask for another name to use, such as their first name and last initial; take the answer through the paragraph on the Names rules above, not the question before it, and then through this paragraph and these bullets again with that name.
 - **Yes, and there is no such folder.** Make the folder Wiser on the Desktop where it is missing, and their folder inside it under the folder's name, and put nothing in either. Read it back. It exists and is empty: say "Done. Your folder is on your Desktop, in Wiser, called <the folder's name>." It is missing or holds anything: take the next bullet's route.
 - **No**, or the app refuses: the person makes the two folders in step 6, at the moment the app asks them to choose a folder. Say: "I can't reach your Desktop from this chat, so you'll make the folder in the next step. I'll tell you exactly where to click."
 
@@ -66,7 +66,7 @@ Then go to step 5.
 
 ### 5. Set up their folder
 
-Was the folder new, empty, or a Wiser folder not yet onboarded, and made where this session can write it? Yes: run `skills/Onboard Root/` by name on its personal path, handing it that folder as the destination, the type personal, and their first name, as they spelled it, as their name; it copies the folder in, or finishes what an earlier try left, runs the voice coach and the design question in this chat, and closes. Then go to step 6. It was any other Wiser folder, or the person will make it in step 6: go to step 6.
+Was the folder new or empty, and made where this session can write it? Yes: run `skills/Onboard Root/` by name on its personal path, handing it that folder as the destination, the type personal, and their first name, as they spelled it, as their name; it copies the folder in, runs the voice coach and the design question in this chat, and closes. Then go to step 6. It was already a Wiser folder, or the person will make it in step 6: go to step 6.
 
 ### 6. The project, and what comes next
 
