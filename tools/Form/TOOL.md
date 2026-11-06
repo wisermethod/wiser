@@ -3,7 +3,7 @@ name: Form
 type: tool
 category: automation
 description: Check and fill Wiser forms and draw their questions in a page that returns answers to the chat
-version: 0.5.1
+version: 0.6.0
 ---
 
 # Form

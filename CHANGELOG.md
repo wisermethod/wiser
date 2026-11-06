@@ -4,6 +4,14 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.05.3, November 5, 2026
+
+- Building a brand now opens on twelve cards chosen for your answers from a set of 300 designed cards: 30 colour sets in ten colour families, each muted, balanced and bold, across ten styles, each in a light and a dark version. (85a6c13e, 05cb8f27)
+- Above the cards, on the first page and on every page of boards, a Light / Dark switch flips every card at once, starting on your answer to "Do you prefer light mode or dark mode?", and More muted and More bold move every card along its colour family. What you pick is what you see, and the brand you lock keeps both versions, leading with the one showing when you lock it. (3b905b63, c94368ba)
+- Each page spreads across styles and colours, with no more than two cards in one style or one colour family. (05cb8f27)
+- If you answered Dark, the cards now open dark. (05cb8f27)
+- Stacked initials whose first letter drops below the line, such as a J, no longer run into the rule between them. (05cb8f27)
+
 ## v2026.11.05.2, November 5, 2026
 
 - About 180 lessons from building and testing Wiser are now written into the step that runs when each one matters: how a change is proved, how a build is briefed and reviewed, how a Playbook is planned and resumed, and the notes on the gateway, connectors and tools. Prove Change, Delegate Build and Playbook Author keep their length: where one step gathers several rules, it sends you to a short list beside the skill. (56cce1a3, 2384b758, f2bcf80a)
