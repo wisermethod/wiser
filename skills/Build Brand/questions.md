@@ -1,6 +1,6 @@
 # Build Brand's question bank
 
-Read by section. Member copy below is fixed: preserve every word, option order, progress and why line, filling brackets only from the member's material, with the industry Record my look exception in `paths/brief.md` for the Brand files progress line. Section headings, answer numbers, feeds and instructions are never shown. `SKILL.md` supplies the bank version, `Build Brand 0.4.0`; `records.md` supplies the C14 record. Retained brief-path sections at the end still govern that path alone.
+Read by section. Member copy below is fixed: preserve every word, option order, progress and why line, filling brackets only from the member's material, with the industry Record my look exception in `paths/brief.md` for the Brand files progress line. Section headings, answer numbers, feeds and instructions are never shown. `SKILL.md` supplies the bank version, `Build Brand 0.6.0`; `records.md` supplies the C14 record. Retained brief-path sections at the end still govern that path alone.
 
 ## Answer numbers
 

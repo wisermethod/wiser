@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.06.6, November 6, 2026
+
+- Each board on a page of your boards is now the whole board in small, its parts in two columns, so you can see its colours, lettering, mark and pieces before you open it. Every card is the same size, with the board's colours in its corner and "Recommended" at the top right of a recommended one. Tapping the picture opens the board full size, and only the tick box picks it. Before, a card showed only the top of its board, so the cards looked alike. (72755041, 10369a27, 691f7fac, 8f3ae341)
+- You can now use your own colours when building a brand. Choose "Type my colours instead" where Wiser asks for your brand files, or tell it in a comment on any page, such as "red, white and blue" or a colour code. Wiser makes a full set from them, readable on light and dark backgrounds, and shows your looks and boards in your colours. Where a shade had to change a little so words on it stay easy to read, Wiser tells you which. (50558419, 7f4011d8, f86efe3a, f166f87e, 78600113)
+- On a page in your own colours, "More muted" and "More bold" are greyed, so your colours stay as you gave them; "Light" and "Dark" still switch every card. (50558419, f166f87e)
+
 ## v2026.11.06.5, November 6, 2026
 
 - When you tell the voice coach a kind of writing you'd hate to sound like, its follow-up now says so in your words: "You said you'd hate to sound [like that]. Here are three lines about your work written that way, on purpose. Which one sounds the worst?" Before, it asked which would make you wince most, which was easy to read as which line you liked. The last choice is now "None of these bother me". (16f35adf)
