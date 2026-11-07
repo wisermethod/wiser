@@ -799,7 +799,7 @@ export const CURATED = Object.freeze([
     "toolkit": "GMAIL",
     "tool": "GMAIL_UPDATE_DRAFT",
     "kind": "change",
-    "summary": "Change an existing Gmail draft without sending it.",
+    "summary": "Change an unsent Gmail draft.",
     "key_fields": [
       "draft_id"
     ],
@@ -1946,7 +1946,7 @@ export const CURATED = Object.freeze([
     "toolkit": "GOOGLECALENDAR",
     "tool": "GOOGLECALENDAR_EVENTS_MOVE",
     "kind": "send",
-    "summary": "Move an event to another calendar.",
+    "summary": "Move an event between your calendars.",
     "key_fields": [
       "send_updates",
       "destination",
@@ -2685,7 +2685,7 @@ export const CURATED = Object.freeze([
     "toolkit": "GOOGLEDRIVE",
     "tool": "GOOGLEDRIVE_CREATE_FILE_FROM_TEXT",
     "kind": "change",
-    "summary": "Create a Drive file from text you give.",
+    "summary": "Create a Google Drive file from text.",
     "key_fields": [
       "file_name",
       "text_content"

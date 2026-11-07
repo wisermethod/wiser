@@ -56,6 +56,26 @@ async function grant(f, args) {
   return made.standing_approval;
 }
 
+test('a grant retried after its proposal was lost and the grant revoked is refused, not reported as made', async (t) => {
+  const f = await fixture(t);
+  // Dated, so this file store keeps the revoked row as the hosted store keeps every revoked row; it compacts a
+  // revoked no-end one, which is safe here because a local process never hydrates a consumed proposal again.
+  const args = { ...scope(['send']), days: 30 };
+  assert.equal((await tool(f, { ...args, mode: 'propose' })).status, 'standing_approval_proposed');
+  // A host that failed to persist the consumed proposal hydrates it again on the retry.
+  const lost = [...f.gw.pendingConfirmations.entries()];
+  assert.equal(lost.length, 1);
+  const made = await tool(f, { ...args, mode: 'grant', confirmed: true });
+  assert.equal(made.status, 'ok');
+  assert.equal((await tool(f, { mode: 'revoke', id: made.standing_approval.id })).status, 'ok');
+  for (const [key, expiry] of lost) f.gw.pendingConfirmations.set(key, expiry);
+  const replay = await tool(f, { ...args, mode: 'grant', confirmed: true });
+  assert.deepEqual(replay, { status: 'invalid_arguments', field: 'confirmed', reason: 'revoked' });
+  assert.deepEqual((await tool(f, { mode: 'list' })).standing_approvals, []);
+  assert.equal((await f.gw.execute(call('send'))).status, 'needs_confirmation');
+  assert.deepEqual(f.calls, []);
+});
+
 for (const kinds of [['send'], ['change'], ['send', 'change']]) {
   test(`no-end ${kinds.join('+')} Playbook grant persists, matches years later, lists and revokes`, async (t) => {
     const f = await fixture(t);

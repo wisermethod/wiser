@@ -288,6 +288,12 @@ test('a curated row reads as a phrase inside the warning and the summary line, a
     const phrase = curatedActionDefinition(row).standing_approval.summary;
     assert.match(phrase, /^[a-z][^.]*[^.\s]$/, `${row.id}: "${phrase}"`);
   }
+  // Reworded so the warning's "on your connection" cannot attach to their last words (session 2 review).
+  for (const [id, phrase] of [['google.gmail.update_draft', 'change an unsent Gmail draft'],
+    ['google.calendar.events_move', 'move an event between your calendars'],
+    ['google.drive.create_file_from_text', 'create a Google Drive file from text']]) {
+    assert.equal(curatedActionDefinition(CURATED.find((row) => row.id === id)).standing_approval.summary, phrase);
+  }
 });
 
 test('curated changes and sends run under a matching grant; an injected grant cannot cover a delete', async () => {

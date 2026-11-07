@@ -243,6 +243,9 @@ export async function standingApprovalsTool(gateway, args = {}) {
     const stored = (await gateway.standingApprovals.list()).find((row) => row.id === grant.id);
     if (!stored) throw new Error('standing approval was not saved');
     line.grant_id = stored.id;
+    // A grant retried after its host lost the consumed proposal finds the grant it already made; if that grant
+    // was revoked since, nothing is granted, so the answer must not read as a new approval.
+    if (stored.revoked_at) return statusObject(STATUS.INVALID_ARGUMENTS, { field: 'confirmed', reason: 'revoked' });
     return { status: 'ok', standing_approval: stored, summary: standingApprovalSummary(stored) };
   });
 }
