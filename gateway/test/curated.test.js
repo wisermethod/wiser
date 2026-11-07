@@ -6,6 +6,7 @@ import { CURATED } from '../providers/composio/curated.js';
 import { createCatalogProvider } from '../providers/composio/catalog-provider.js';
 import { createAuthProvider as createStubProvider } from '../providers/nango/auth-provider.js';
 import { loadCuratedActions } from '../src/curated.js';
+import { curatedActionDefinition } from '../src/catalog.js';
 import { createAudit } from '../src/audit.js';
 import { ConnectionGateway, PENDING_CONFIRMATION_TTL_MS } from '../src/gateway.js';
 import { loadConnectors } from '../src/manifest.js';
@@ -247,12 +248,12 @@ test('describe and search expose curated metadata; changes and sends are grantab
     action: READ.id, privilege: 'write', risk: 'low', confirmation: 'none',
     description: READ.summary, curated: true, kind: READ.kind, summary: READ.summary,
   }]);
-  for (const row of [CHANGE, send]) {
+  for (const [row, phrase] of [[CHANGE, 'create a new Gmail label'], [send, 'send the named test item']]) {
     const checked = gw.standingApprovalScope({ mode: 'propose', actions: [row.id], root: 'Test' });
     assert.equal(checked.refusal, undefined);
     assert.deepEqual(checked.scope.actions, [row.id]);
     assert.deepEqual(checked.kinds, [row.kind]);
-    assert.deepEqual(checked.summaries, [row.summary]);
+    assert.deepEqual(checked.summaries, [phrase]);
   }
   assert.equal(gw.standingApprovalScope({ mode: 'propose', actions: [READ.id], root: 'Test' }).refusal.reason, 'not_eligible');
   assert.deepEqual(gw.standingApprovalScope({ mode: 'propose', actions: [deleted.id], root: 'Test' }).refusal,
@@ -273,6 +274,20 @@ test('curated policy denial runs no provider and is audited on the catalog path'
   assert.equal(calls.length, 0);
   assert.equal(gw.pendingConfirmations.size, 0);
   assert.equal(auditLines(audit)[0].path, 'catalog');
+});
+
+test('a curated row reads as a phrase inside the warning and the summary line, as a manifest summary does', async () => {
+  const { gw } = await fixture();
+  const scope = { actions: [CHANGE.id], root: 'Test', playbook: 'Test writes', days: null };
+  const proposed = await gw.callTool('standing_approvals', { ...scope, mode: 'propose' });
+  assert.ok(proposed.warning.startsWith('This standing approval lets your assistant create a new Gmail label on your connection'));
+  const granted = await gw.callTool('standing_approvals', { ...scope, mode: 'grant', confirmed: true });
+  assert.ok(granted.summary.startsWith('Lets your assistant create a new Gmail label on your connection'));
+  assert.ok(granted.summary.endsWith(', with no end date, until you revoke it.'));
+  for (const row of CURATED.filter((entry) => entry.kind === 'change' || entry.kind === 'send')) {
+    const phrase = curatedActionDefinition(row).standing_approval.summary;
+    assert.match(phrase, /^[a-z][^.]*[^.\s]$/, `${row.id}: "${phrase}"`);
+  }
 });
 
 test('curated changes and sends run under a matching grant; an injected grant cannot cover a delete', async () => {

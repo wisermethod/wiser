@@ -141,12 +141,23 @@ export function loadCuratedActions(catalogProvider, connectors = []) {
   return { rows, errors };
 }
 
+/**
+ * A row's summary is a sentence for a stop ("Create a new Gmail label."); a grant's
+ * warning and summary line embed it after "lets your assistant", as a manifest's
+ * standing_approval.summary is written ("send Gmail messages").
+ * @param {string} summary
+ */
+export function approvalPhrase(summary) {
+  const phrase = summary.trim().replace(/\.$/, '');
+  return /^[A-Z][a-z]/.test(phrase) ? phrase[0].toLowerCase() + phrase.slice(1) : phrase;
+}
+
 /** Reviewed changes and sends use the same grant checks as manifest actions. */
 export function curatedActionDefinition(row) {
   return {
     ...CURATED_KINDS[row.kind],
     ...(['change', 'send'].includes(row.kind)
-      ? { standing_approval: { kind: row.kind, summary: row.summary } } : {}),
+      ? { standing_approval: { kind: row.kind, summary: approvalPhrase(row.summary) } } : {}),
     description: row.summary,
     execution: { prefer: 'catalog' },
     input: row.input_schema,
