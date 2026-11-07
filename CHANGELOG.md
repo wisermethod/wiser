@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.07.2, November 7, 2026
+
+- Wiser can now use 46 of Composio's own tools for Gmail, Google Calendar, Google Drive and Outlook, with no connector written for them: labels, conversations, drafts and contacts in Gmail; calendars, free time, quick add and changing or moving an event in Google Calendar; folders, comments and saved versions in Google Drive; mail, people and calendars in Outlook. Reading runs straight away. The 10 that write stop for your yes first. Each call reaches only the account you connected. (59c7388b, bd89b3e8, 2b33060f, c7bfc6a3, a78e60ad)
+- When one of those tools stops for your yes, the stop now opens with one plain line saying what it will do, then the details that matter most, such as who an invite goes to and when. (f312b8d4, c7bfc6a3)
+- You can now approve a Playbook in advance to send and to create or change things until you revoke the approval, instead of for a set number of days, and the warning says so in plain words. Nothing can approve a delete in advance: a delete always stops for your yes. Creating and updating Google Calendar invites can now be approved in advance too, as sending. On the Wiser endpoint an approval with no end date can't be saved yet, so choose a number of days there for now. (2b33060f, 8727c784, 06df051e)
+
 ## v2026.11.07, November 7, 2026
 
 - A calendar invite Wiser creates or updates in Google Calendar can now carry a Google Meet link: ask for one and Google adds it, so you no longer open the event in Google Calendar to click "Add Google Meet video conferencing". The answer shows the link. If Google is still making it, the answer says so and says to read the event again to get it. An update that doesn't ask for a link leaves an existing one as it was. (6bc31ee4)
