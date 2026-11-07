@@ -8,17 +8,18 @@ Not a primitive. Skills and experts invoke connectors by action id, `service.mod
 
 ## The parts
 
-`src/gateway.js` keeps `ConnectionGateway`'s public methods as explicit delegates to these parts:
+`src/gateway.js` is the composition: it keeps `ConnectionGateway`'s public methods as explicit delegates and sequences `execute` through these six parts:
 
-| File | Job |
-|------|-----|
-| `src/connections.js` | Connection flows, provider account listings, labels and module bindings |
-| `src/catalog.js` | Action lookup, listing, search, description and curated-row loading and validation |
-| `src/tools.js` | Tool definitions, argument validation and dispatch |
-| `src/first-party.js` | Classifier identity, session binding, subscription checks and execution |
-| `src/host.js` | Constructor options, private local file access, user identity and output cleanup |
+| Part | File | Job |
+|------|------|-----|
+| Tools | `src/tools.js` | Tool definitions, argument validation and dispatch |
+| Catalog | `src/catalog.js` | Action lookup, listing, search, description and curated-row loading and validation |
+| Safety | `src/safety.js` | Policy and execution checks, pending confirmations and file snapshots, disclosure, standing-approval proposals and scopes |
+| Connections | `src/connections.js` | Connection flows, provider account listings, labels and module bindings |
+| Runner | `src/runner.js`, with `src/first-party.js` for the classifier | Approved connector and catalog calls, files in and out and audit; the classifier helper keeps identity, session binding, subscription checks and execution |
+| Host | `src/host.js` | Constructor options, private local file access, user identity and output cleanup |
 
-`src/curated.js` preserves its existing imports by re-exporting the catalog's curated helpers. `execute` is untangled next; it, `withAudit`, pending confirmations and the standing-approvals tool remain in `src/gateway.js` for now.
+`src/curated.js` preserves its existing imports by re-exporting the catalog's curated helpers. The public `pendingConfirmations` map remains host-hydratable; private file snapshots stay in Safety. `execute` prepares the call synchronously, checks its connection and approval, continues into Runner without an extra await before execution, then adds any standing-approval result stamp after the audit.
 
 ## Everything the gateway writes, and where
 
