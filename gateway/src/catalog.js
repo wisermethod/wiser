@@ -19,7 +19,11 @@ const ANNOTATIONS = new Set([
   'title', 'description', 'default', 'examples', 'human_parameter_name', 'human_parameter_description',
 ]);
 const TYPES = new Set(['string', 'boolean', 'number', 'integer', 'array']);
-const ACCOUNT_SELECTORS = new Set(['user_id', 'userId', 'user_principal_name']);
+export const CURATED_FORBIDDEN_INPUT_FIELDS = new Set([
+  'user_id', 'userId', 'user_principal_name', 'access_token', 'oauth_token', 'key',
+  'callback', 'quotaUser', 'alt', 'xgafv', '$.xgafv', 'uploadType', 'upload_protocol',
+  'prettyPrint', 'useDomainAdminAccess', 'supportsAllDrives', 'includeItemsFromAllDrives', 'corpora',
+]);
 const plain = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
   && [Object.prototype, null].includes(Object.getPrototypeOf(value));
 
@@ -119,7 +123,7 @@ export function loadCuratedActions(catalogProvider, connectors = []) {
         else if (typeof row.kind !== 'string' || !Object.hasOwn(CURATED_KINDS, row.kind)) reason = 'invalid_kind';
         else if (!(PRIVILEGE_LEVEL[mod.auth.privilege] >= PRIVILEGE_LEVEL[CURATED_KINDS[row.kind].privilege])) reason = 'insufficient_privilege';
         else if (!supportsCuratedSchema(row.input_schema)) reason = 'unsupported_input_schema';
-        else if (Object.keys(row.input_schema.properties ?? {}).some((field) => ACCOUNT_SELECTORS.has(field))) reason = 'account_selector';
+        else if (Object.keys(row.input_schema.properties ?? {}).some((field) => CURATED_FORBIDDEN_INPUT_FIELDS.has(field))) reason = 'forbidden_input_field';
         else if (typeof row.tool !== 'string' || !row.tool || typeof row.summary !== 'string' || !row.summary
           || !Array.isArray(row.key_fields) || row.key_fields.some((field) => typeof field !== 'string'
             || !Object.hasOwn(row.input_schema.properties ?? {}, field))
@@ -137,10 +141,12 @@ export function loadCuratedActions(catalogProvider, connectors = []) {
   return { rows, errors };
 }
 
-/** A curated action has no standing_approval declaration. */
+/** Reviewed changes and sends use the same grant checks as manifest actions. */
 export function curatedActionDefinition(row) {
   return {
     ...CURATED_KINDS[row.kind],
+    ...(['change', 'send'].includes(row.kind)
+      ? { standing_approval: { kind: row.kind, summary: row.summary } } : {}),
     description: row.summary,
     execution: { prefer: 'catalog' },
     input: row.input_schema,
@@ -165,6 +171,11 @@ export function loadCatalog(gateway) {
 
 export function getCuratedAction(gateway, id) {
   return catalogs.get(gateway).actions.get(id);
+}
+
+/** Module grants freeze the currently loaded curated rows too. */
+export function curatedModuleActions(gateway, service, module) {
+  return [...catalogs.get(gateway).actions.keys()].filter((id) => id.startsWith(`${service}.${module}.`));
 }
 
 export function isInvalidCuratedId(gateway, id) {
@@ -349,14 +360,14 @@ export function describeAction(gateway, id) {
       description: curated.row.summary,
     };
   }
-  if (isInvalidCuratedId(gateway, id) && !firstPartyDef(id)) {
-    return statusObject(STATUS.NEEDS_CONNECTOR, { action: id, reason: 'undeclared' });
-  }
   const resolved = resolveAction(id, {
     connectors: gateway.connectors,
     catalogProvider: gateway.catalogProvider,
     classifier: gateway.classifier,
   });
+  if (isInvalidCuratedId(gateway, id) && !firstPartyDef(id) && resolved.path !== 'catalog') {
+    return statusObject(STATUS.NEEDS_CONNECTOR, { action: id, reason: 'undeclared' });
+  }
   // Widened by name: the fallback is an equality test against a path word, not
   // a general "resolution succeeded" test. Filling resolveFirstPartyMcp alone
   // does not change this surface; `first_party_mcp` has to be named here.

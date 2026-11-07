@@ -339,7 +339,6 @@ for (const name of [
 
 for (const [kinds, playbook, days] of [
   [['send'], undefined, 8], [['send'], SEND_PLAYBOOK, 91],
-  [['delete'], undefined, 8], [['delete'], SEND_PLAYBOOK, 8],
   [['pay'], undefined, 8], [['pay'], SEND_PLAYBOOK, 8],
   [['publish'], SEND_PLAYBOOK, 8], [['grant_access'], SEND_PLAYBOOK, 8],
   [['send', 'change'], SEND_PLAYBOOK, 8],
@@ -363,6 +362,24 @@ for (const [kinds, playbook, days] of [
       const saved = await grant(f, { ...scope, days: 7 });
       assert.equal((await f.gw.callTool('execute', { ...f.call, ...(playbook ? { playbook } : {}) })).standing_approval?.id, saved.id);
     }
+  });
+}
+
+for (const playbook of [undefined, SEND_PLAYBOOK]) {
+  test(`delete scope ${playbook ? 'with' : 'without'} a Playbook is refused at every duration`, async (t) => {
+    const f = await probe(t, { kind: 'delete' });
+    const scope = { ...f.scope, ...(playbook ? { playbook } : {}) };
+    for (const days of [undefined, 1, 7, 8, 90, 365, null]) {
+      for (const mode of ['propose', 'grant']) {
+        const refused = await tool(f, { ...scope, days, mode, ...(mode === 'grant' ? { confirmed: true } : {}) });
+        assert.deepEqual(refused, {
+          status: 'invalid_arguments', field: 'actions', reason: 'Delete actions cannot be covered by a standing approval.',
+        });
+      }
+    }
+    assert.equal(f.gw.pendingConfirmations.size, 0);
+    assert.deepEqual(await f.gw.standingApprovals.list(), []);
+    assert.equal(f.calls.length, 0);
   });
 }
 

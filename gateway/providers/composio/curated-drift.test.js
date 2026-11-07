@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, linkSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, symlinkSync, linkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -43,7 +43,7 @@ test('canonical schema comparison sorts all object keys and retains array order'
   assert.notEqual(canonicalJson(['a', 'b']), canonicalJson(['b', 'a']));
 });
 
-test('matching fixture passes for all 48 rows without a key or network', async () => {
+test('matching fixture passes for all 46 rows without a key or network', async () => {
   const { file } = files();
   const result = await run(['--fixture', file]);
   assert.equal(result.code, 0, result.stderr);
@@ -72,6 +72,19 @@ test('hint order and unrelated hints do not change read/write semantics', () => 
   const tools = listing();
   for (const tool of tools) tool.tags = ['idempotentHint', ...tool.tags].reverse();
   assert.deepEqual(findDrift(CURATED, tools), []);
+});
+
+for (const [kind, hint] of [
+  ['read', 'createHint'], ['read', 'updateHint'], ['read', 'destructiveHint'],
+  ['change', 'destructiveHint'], ['send', 'destructiveHint'],
+]) test(`listing hint ${hint} conflicts with ${kind} even after the row hint is updated`, async () => {
+  const row = { ...ROW, kind, hint: [...ROW.hint, hint] };
+  const tool = listing().find((item) => item.slug === row.tool);
+  tool.tags = [...row.hint];
+  const { file } = files([tool]);
+  const fixture = JSON.parse(readFileSync(file, 'utf8'));
+  assert.deepEqual(findDrift([row], fixture.items), [{ id: row.id, reason: 'kind' }]);
+  assert.deepEqual(findDrift([{ ...row, kind: 'delete' }], fixture.items), []);
 });
 
 test('one report names each changed row and every kind of drift', async () => {
@@ -152,6 +165,18 @@ test('fixture path screening rejects credential files, aliases and the credentia
     assert.equal(result.stderr.includes(KEY), false);
   }
   assert.equal((await run(['--env', env, '--fixture', file])).code, 0);
+});
+
+test('fixture path screening refuses a mixed-case memory segment before reading its contents', async () => {
+  const { home } = files();
+  const memory = join(home, 'MeMoRy');
+  mkdirSync(memory);
+  const file = join(memory, 'listing.json');
+  writeFileSync(file, 'not a listing');
+  const result = await run(['--fixture', file]);
+  assert.equal(result.code, 2);
+  assert.equal(result.stdout, '');
+  assert.equal(result.stderr, '--fixture refuses credential or memory files; provide a tool listing.\n');
 });
 
 test('an empty provider key is a key error, without a network call', async () => {

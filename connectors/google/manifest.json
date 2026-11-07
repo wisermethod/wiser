@@ -691,6 +691,11 @@
               "end"
             ],
             "additionalProperties": false
+          },
+          "standing_approval": {
+            "kind": "send",
+            "summary": "create Google Calendar events",
+            "caution": "Calendar creates and updates may notify attendees. Both count as sending even when notifications are off, because approval kinds cannot depend on input."
           }
         },
         "update_event": {
@@ -805,6 +810,11 @@
                 }
               }
             ]
+          },
+          "standing_approval": {
+            "kind": "send",
+            "summary": "update Google Calendar events",
+            "caution": "Calendar creates and updates may notify attendees. Both count as sending even when notifications are off, because approval kinds cannot depend on input."
           }
         }
       },

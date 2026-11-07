@@ -92,7 +92,7 @@ export const TOOLS = [
         root: ROOT_SCHEMA,
         playbook: PLAYBOOK_SCHEMA,
         where: { type: 'object', additionalProperties: { type: 'array', minItems: 1, maxItems: 20, items: { type: 'string', minLength: 1, maxLength: 120 } }, description: 'Restrict declared string fields to these exact allowed values.' },
-        days: { type: 'integer', minimum: 1, maximum: 365, description: 'Set the duration in days, at most 7 for heightened actions, or 90 for a grant that only sends and names a Playbook.' },
+        days: { type: ['integer', 'null'], minimum: 1, maximum: 365, description: 'Use null for no end date only when a Playbook is named and every kind is send or change. Otherwise set days, at most 7 for heightened actions, or 90 for send-only Playbook grants; ordinary grants allow 365. Omission keeps the existing default.' },
         confirmed: { type: 'boolean', description: 'Use true only after the person answers yes to this exact proposed warning.' },
         id: { type: 'string', description: 'Identify the standing approval to revoke.' },
       },
@@ -198,7 +198,7 @@ export function validateArgs(name, args) {
         if (a.actions.length < 1 || a.actions.length > 20) return invalid('actions', a.actions.length < 1 ? 'min' : 'max');
         if (a.actions.some((id) => typeof id !== 'string' || !ACTION_RE.test(id))) return invalid('actions', 'pattern');
       }
-      if (a.days !== undefined) {
+      if (a.days !== undefined && a.days !== null) {
         if (!Number.isInteger(a.days)) return invalid('days', 'type');
         if (a.days < 1 || a.days > 365) return invalid('days', a.days < 1 ? 'min' : 'max');
       }

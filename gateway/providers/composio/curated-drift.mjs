@@ -74,7 +74,7 @@ function fixtureFile(path, envPath) {
   } catch { throw new CheckError('--fixture must name a readable JSON listing file. Run with --help.', 2); }
   // Use the resolved path for both the screen and the read. Also catch a hard
   // link of the key file: a different spelling cannot make credentials a fixture.
-  if (canonical.split(sep).includes('memory') || /(?:^|\/)\.?[^/]*\.env(?:\.[^/]*)?$/.test(canonical)) {
+  if (canonical.split(sep).some((segment) => segment.toLowerCase() === 'memory') || /(?:^|\/)\.?[^/]*\.env(?:\.[^/]*)?$/.test(canonical)) {
     throw new CheckError('--fixture refuses credential or memory files; provide a tool listing.', 2);
   }
   if (envPath) {
@@ -181,6 +181,11 @@ export function findDrift(rows, tools) {
       if (canonicalJson(schema) !== canonicalJson(row.input_schema)) drift.push({ id: row.id, reason: 'input_schema' });
     }
     const selectedHints = (hints) => [...new Set(hints.filter((hint) => HINTS.has(hint)))].sort();
+    if (Array.isArray(tool.tags) && ((row.kind === 'read'
+      && tool.tags.some((hint) => ['createHint', 'updateHint', 'destructiveHint'].includes(hint)))
+      || (row.kind !== 'delete' && tool.tags.includes('destructiveHint')))) {
+      drift.push({ id: row.id, reason: 'kind' });
+    }
     if (!Array.isArray(tool.tags) || tool.tags.some((hint) => typeof hint !== 'string')
       || !Array.isArray(row.hint) || canonicalJson(selectedHints(tool.tags)) !== canonicalJson(selectedHints(row.hint))) {
       drift.push({ id: row.id, reason: 'hints' });

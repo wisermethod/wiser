@@ -5,10 +5,10 @@ import { composeSummary, containsUnsafeCodePoint, discloseAttachmentFiles, discl
 import { validateInput } from './input-schema.js';
 import { evaluate } from './policy.js';
 import { assertNoSecrets } from './store.js';
-import { STANDING_APPROVAL_DAY_MS, buildStandingApprovalWarning, isActiveStandingApproval, isHeightened, matchStandingApproval, maxStandingApprovalDays, standingApprovalSummary } from './standing-approvals.js';
+import { STANDING_APPROVAL_DAY_MS, buildStandingApprovalWarning, canHaveNoEnd, isActiveStandingApproval, isDeleteAction, isHeightened, matchStandingApproval, maxStandingApprovalDays, standingApprovalSummary } from './standing-approvals.js';
 import { FIRST_PARTY_ACTIONS, firstPartyDef, parseActionId, resolveAction } from './resolve.js';
 import { isActive } from './connections.js';
-import { getCuratedAction } from './catalog.js';
+import { curatedModuleActions, getCuratedAction } from './catalog.js';
 import { inputFileAccessFor } from './host.js';
 import { validateArgs } from './tools.js';
 
@@ -219,7 +219,7 @@ export async function standingApprovalsTool(gateway, args = {}) {
     if (checked.refusal) return checked.refusal;
     const { scope, summaries, cautions, kinds, heightened } = checked;
     const at = gateway.now();
-    const expiresOn = new Date(at + scope.days * STANDING_APPROVAL_DAY_MS).toISOString().slice(0, 10);
+    const expiresOn = scope.days === null ? null : new Date(at + scope.days * STANDING_APPROVAL_DAY_MS).toISOString().slice(0, 10);
     const warning = buildStandingApprovalWarning({ scope, summaries, cautions, kinds, heightened, expiresOn });
     const key = confirmationDigest(['standing_approval', scope, warning]);
     const proposalExpiry = mode === 'grant' && args.confirmed === true ? gateway.takePendingConfirmationExpiry(key) : null;
@@ -237,7 +237,7 @@ export async function standingApprovalsTool(gateway, args = {}) {
       id: `sa_${createHash('sha256').update(`${key}:${proposalExpiry}`).digest('hex').slice(0, 32)}`,
       service, module, ...storedScope, summaries, cautions, kinds, heightened,
       created_at: new Date(at).toISOString(),
-      expires_at: new Date(at + days * STANDING_APPROVAL_DAY_MS).toISOString(), revoked_at: null,
+      expires_at: days === null ? null : new Date(at + days * STANDING_APPROVAL_DAY_MS).toISOString(), revoked_at: null,
     };
     await gateway.standingApprovals.add(grant);
     const stored = (await gateway.standingApprovals.list()).find((row) => row.id === grant.id);
@@ -264,18 +264,28 @@ export function standingApprovalScope(gateway, args) {
     const [service, module] = args.module.split('.');
     const found = gateway.lookupModule(service, module);
     actions = Object.entries(found?.mod.actions ?? {})
-      .filter(([, action]) => action.standing_approval)
+      .filter(([, action]) => action.standing_approval || isDeleteAction(action))
       .map(([name]) => `${service}.${module}.${name}`);
+    actions.push(...curatedModuleActions(gateway, service, module)
+      .filter((id) => getCuratedAction(gateway, id).row.kind !== 'read'));
     if (actions.length === 0) return bad('module', 'not_eligible');
   }
   actions = [...new Set(actions)].sort();
-  const covered = [];
-  for (const action of actions) {
+  const covered = actions.map((action) => {
     const parsed = parseActionId(action);
-    if (!parsed || parsed.service === 'wiser') return bad('actions', 'not_eligible');
     const resolved = resolveAction(action, { connectors: gateway.connectors });
-    if (resolved.path !== 'connector' || !resolved.def.standing_approval) return bad('actions', 'not_eligible');
-    covered.push(resolved);
+    if (resolved.path === 'connector') return resolved;
+    const curated = getCuratedAction(gateway, action);
+    return { parsed, def: curated?.def, auth: gateway.lookupModule(parsed?.service, parsed?.module)?.auth };
+  });
+  // Both propose and grant rebuild every action here, including module and
+  // curated scopes. Refuse deletes before eligibility, account or duration
+  // checks, even if another action in the same request is not eligible.
+  if (covered.some(({ def }) => isDeleteAction(def))) {
+    return bad('actions', 'Delete actions cannot be covered by a standing approval.');
+  }
+  if (covered.some(({ parsed, def }) => !parsed || parsed.service === 'wiser' || !def?.standing_approval)) {
+    return bad('actions', 'not_eligible');
   }
   const { service, module } = covered[0].parsed;
   if (covered.some((item) => item.parsed.service !== service || item.parsed.module !== module)) {
@@ -308,8 +318,10 @@ export function standingApprovalScope(gateway, args) {
   const kinds = [...new Set(covered.map(({ def }) => def.standing_approval.kind))].sort();
   const heightened = isHeightened(kinds);
   const maxDays = maxStandingApprovalDays(kinds, args.playbook);
-  const days = args.days ?? Math.min(90, maxDays);
-  if (days > maxDays) return bad('days', 'max');
+  const days = args.days === undefined ? Math.min(90, maxDays) : args.days;
+  if (days === null) {
+    if (!canHaveNoEnd(kinds, args.playbook)) return bad('days', 'No end date requires a Playbook and only send or change actions.');
+  } else if (days > maxDays) return bad('days', 'max');
   const scope = {
     actions, module_wide: Boolean(args.module), label: args.label ?? null,
     provider_account_id: record.provider_account_id, root: args.root,
@@ -585,7 +597,8 @@ export async function approveExecute(gateway, call, line, { prepareInputFiles, r
   if (needsConfirm) {
     const approval = approvalDisclosure(act, input);
     if (approval.refusal) return approval.refusal;
-    if (!hasInputFiles && confirm !== true && root && act.standing_approval && resolved.path === 'connector') {
+    if (!hasInputFiles && confirm !== true && root && act.standing_approval
+        && !isDeleteAction(act) && (resolved.path === 'connector' || curated)) {
       request.standingGrant = matchStandingApproval(await gateway.standingApprovals.list(), {
         action, manifestAction: act, label, providerAccountId: record.provider_account_id,
         root, playbook, input, now: gateway.now(),

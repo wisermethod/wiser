@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import { CURATED } from '../providers/composio/curated.js';
 import { createCatalogProvider, curatedSlugMap } from '../providers/composio/catalog-provider.js';
 import { loadCuratedActions } from '../src/curated.js';
+import { CURATED_FORBIDDEN_INPUT_FIELDS } from '../src/catalog.js';
 import { loadConnectors } from '../src/manifest.js';
 import { createFakeProviders, createTestGateway, DEFAULT_CONNECTORS, putActive } from './fake-provider.js';
 
@@ -37,18 +38,27 @@ async function fixture(rows = [READ, CHANGE], options = {}) {
 const schema = (value) => ({ type: 'object', properties: { value } });
 const rowWithSchema = (input_schema) => ({ ...READ, key_fields: [], input_schema });
 
-test('the curated data holds all 48 rows, recorded narrowing and exact provider mappings', () => {
-  assert.equal(CURATED.length, 48);
-  assert.equal(new Set(CURATED.map((row) => row.id)).size, 48);
+test('the curated data holds all 46 rows, recorded narrowing and exact provider mappings', () => {
+  assert.equal(CURATED.length, 46);
+  assert.equal(new Set(CURATED.map((row) => row.id)).size, 46);
   const catalog = createCatalogProvider();
   for (const row of CURATED) {
     assert.equal(catalog.toSlug(row.id), row.tool, row.id);
     assert.ok(Array.isArray(row.narrowed), row.id);
+    assert.ok(Object.keys(row.input_schema.properties).every((key) => !CURATED_FORBIDDEN_INPUT_FIELDS.has(key)), row.id);
     for (const key of row.narrowed) {
       assert.equal(Object.hasOwn(row.input_schema.properties, key), false, `${row.id}: ${key}`);
       assert.equal(row.input_schema.required?.includes(key) ?? false, false, `${row.id}: ${key}`);
     }
   }
+  for (const id of ['google.gmail.add_label_to_email', 'google.gmail.modify_thread_labels']) {
+    assert.equal(CURATED.some((row) => row.id === id), false, id);
+    assert.equal(catalog.toSlug(id), null, id);
+  }
+  for (const name of ['quick_add', 'patch_event', 'events_move']) {
+    assert.equal(CURATED.find((row) => row.id === `google.calendar.${name}`).kind, 'send');
+  }
+  assert.equal(Object.hasOwn(CURATED.find((row) => row.id === 'google.calendar.patch_event').input_schema.properties, 'status'), false);
 });
 
 for (const [name, value] of [
@@ -68,11 +78,16 @@ for (const [name, value] of [
   assert.equal(calls.length, 0);
 });
 
-for (const key of ['user_id', 'userId', 'user_principal_name']) {
-  test(`a curated schema cannot select another account with ${key}`, async () => {
+for (const key of [
+  'user_id', 'userId', 'user_principal_name', 'access_token', 'oauth_token', 'key',
+  'callback', 'quotaUser', 'alt', 'xgafv', '$.xgafv', 'uploadType', 'upload_protocol',
+  'prettyPrint', 'useDomainAdminAccess', 'supportsAllDrives', 'includeItemsFromAllDrives', 'corpora',
+]) {
+  test(`a curated schema refuses account, credential, transport or admin field ${key}`, async () => {
+    assert.equal(CURATED_FORBIDDEN_INPUT_FIELDS.has(key), true);
     const row = rowWithSchema({ type: 'object', properties: { [key]: { type: 'string' } } });
     assert.deepEqual(loadCuratedActions(provider([row]), CONNECTORS).errors,
-      [{ id: row.id, reason: 'account_selector' }]);
+      [{ id: row.id, reason: 'forbidden_input_field' }]);
     const { gw, calls } = await fixture([row]);
     assert.equal((await gw.execute({ action: row.id, input: { [key]: 'other@example.com' } })).status, 'needs_connector');
     assert.equal(calls.length, 0);
@@ -84,6 +99,20 @@ test('a removed selector is refused on the shipped read and never reaches the pr
   assert.deepEqual(await gw.execute({ action: READ.id, input: { user_id: 'other@example.com' } }),
     { status: 'invalid_arguments', field: 'user_id' });
   assert.equal(calls.length, 0);
+});
+
+for (const [id, input, field] of [
+  ['google.drive.list_children_v2', { folderId: 'folder', access_token: 'fixture-token' }, 'access_token'],
+  ['google.drive.list_children_v2', { folderId: 'folder', oauth_token: 'fixture-token' }, 'oauth_token'],
+  ['google.drive.list_children_v2', { folderId: 'folder', key: 'fixture-key' }, 'key'],
+  ['google.drive.list_shared_drives', { useDomainAdminAccess: true }, 'useDomainAdminAccess'],
+  ['google.calendar.patch_event', { calendar_id: 'primary', event_id: 'event', status: 'cancelled' }, 'status'],
+]) test(`shipped ${id} refuses narrowed ${field} before the provider`, async () => {
+  const row = CURATED.find((item) => item.id === id);
+  const { gw, calls } = await fixture([row]);
+  assert.deepEqual(await gw.execute({ action: id, input }), { status: 'invalid_arguments', field });
+  assert.equal(calls.length, 0);
+  assert.equal(gw.pendingConfirmations.size, 0);
 });
 
 for (const patch of [{}, { kind: 'unknown' }]) test(`all duplicate id copies are invalid, including a later ${patch.kind ?? 'valid'} tool swap`, async () => {
@@ -141,6 +170,22 @@ test('an invalid curated collision leaves a hand-written description in place', 
   const { gw } = await fixture([row]);
   assert.equal(gw.describeAction(row.id).curated, undefined);
   assert.equal(gw.describeAction(row.id).description, 'List or search messages');
+});
+
+test('an invalid curated id cannot hide a mapping-only catalog description', async () => {
+  const id = 'github.repos.get';
+  const row = { ...READ, id };
+  const catalog = createCatalogProvider({ envPath: null });
+  const { gw, calls } = await fixture([row], {
+    connectors: CONNECTORS.filter((connector) => connector.service !== 'github'),
+  });
+  // Keep the rejected row and resolve through the shipped mapping.js table.
+  gw.catalogProvider.toSlug = catalog.toSlug;
+  assert.deepEqual(gw.describeAction(id), {
+    action: id, service: 'github', module: 'repos', source: 'catalog', input: null,
+  });
+  assert.equal((await gw.execute({ action: id, input: {} })).status, 'needs_connector');
+  assert.equal(calls.length, 0);
 });
 
 test('search preserves hand-written matches, applies the same filter, and describes copied key fields', async () => {
@@ -203,8 +248,6 @@ for (const kind of ['read', 'change', 'send', 'delete']) {
       key_fields: ['value'], input_schema: schema({ type: 'string' }),
     };
     const { gw, calls, audit, store } = await fixture([row]);
-    // Neither an explicit grant nor a module grant can remove a curated stop.
-    if (kind !== 'read') gw.standingApprovals = { list: () => assert.fail('curated calls cannot consult grants') };
     const call = { action: row.id, input: { value: 'item' }, root: 'Test' };
     const first = await gw.execute(call);
     if (kind === 'read') assert.equal(first.ok, true);
@@ -212,15 +255,40 @@ for (const kind of ['read', 'change', 'send', 'delete']) {
       assert.equal(first.status, 'needs_confirmation');
       assert.equal(first.confirmation, 'always');
       assert.equal(calls.length, 0);
-      assert.equal(gw.standingApprovalScope({ mode: 'propose', actions: [row.id], root: 'Test' }).refusal.reason, 'not_eligible');
+      const scope = { actions: [row.id], root: 'Test' };
+      const explicit = gw.standingApprovalScope({ ...scope, mode: 'propose' });
       const moduleGrant = gw.standingApprovalScope({ mode: 'propose', module: 'google.gmail', root: 'Test' });
-      assert.equal(moduleGrant.scope.actions.includes(row.id), false);
-      assert.equal((await gw.execute({ ...call, confirm: true })).ok, true);
-      assert.equal((await gw.execute(call)).status, 'needs_confirmation', 'a delete or write stops again after its one approved run');
+      if (kind === 'delete') {
+        const refusal = { status: 'invalid_arguments', field: 'actions', reason: 'Delete actions cannot be covered by a standing approval.' };
+        assert.deepEqual(explicit.refusal, refusal);
+        assert.deepEqual(moduleGrant.refusal, refusal);
+        assert.deepEqual(await gw.callTool('standing_approvals', { ...scope, mode: 'grant', confirmed: true }), refusal);
+        await gw.standingApprovals.add({
+          id: 'sa_injected_delete', actions: [row.id], kinds: ['delete'], summaries: [row.summary], cautions: [],
+          root: 'Test', playbook: null, label: null, where: null, heightened: true,
+          provider_account_id: store.getConnection({ service: 'google', module: 'gmail' }).provider_account_id,
+          created_at: new Date(gw.now()).toISOString(), expires_at: new Date(gw.now() + 86_400_000).toISOString(), revoked_at: null,
+        });
+        assert.equal((await gw.execute(call)).status, 'needs_confirmation', 'an injected delete grant cannot remove the stop');
+        assert.equal(calls.length, 0);
+        assert.equal((await gw.execute({ ...call, confirm: true })).ok, true);
+      } else {
+        assert.equal(explicit.refusal, undefined);
+        assert.deepEqual(explicit.scope.actions, [row.id]);
+        assert.equal(moduleGrant.scope.actions.includes(row.id), true);
+        assert.equal((await gw.callTool('standing_approvals', { ...scope, mode: 'propose' })).status, 'standing_approval_proposed');
+        const granted = await gw.callTool('standing_approvals', { ...scope, mode: 'grant', confirmed: true });
+        assert.equal(granted.status, 'ok');
+        const ran = await gw.execute(call);
+        assert.equal(ran.ok, true);
+        assert.equal(ran.standing_approval.id, granted.standing_approval.id);
+        assert.equal((await gw.callTool('standing_approvals', { mode: 'revoke', id: granted.standing_approval.id })).status, 'ok');
+      }
+      assert.equal((await gw.execute(call)).status, 'needs_confirmation', 'revoked writes and one-time approved deletes stop again');
     }
     assert.equal(calls.length, 1);
     assert.equal(calls[0].providerAccountId, store.getConnection({ service: 'google', module: 'gmail' }).provider_account_id);
-    const lines = readFileSync(audit.file, 'utf8').trim().split('\n').map(JSON.parse);
+    const lines = readFileSync(audit.file, 'utf8').trim().split('\n').map(JSON.parse).filter((line) => line.op === 'execute');
     assert.equal(lines.filter((line) => line.status === 'ok').length, 1);
     assert.ok(lines.every((line) => line.service === 'google' && line.path === 'catalog'));
   });

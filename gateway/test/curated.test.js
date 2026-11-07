@@ -87,11 +87,11 @@ function providerForRows(rows) {
   return { curated: () => rows, toSlug: (id) => slugs.get(id) ?? null };
 }
 
-test('48 curated rows include the two narrowed Solve schemas and hint tags, with provider-local slugs', () => {
+test('46 curated rows include the two narrowed Solve schemas and hint tags, with provider-local slugs', () => {
   const provider = createCatalogProvider({ envPath: null });
   assert.ok(Object.isFrozen(CURATED));
   assert.equal(provider.curated(), CURATED);
-  assert.equal(CURATED.length, 48);
+  assert.equal(CURATED.length, 46);
   assert.deepEqual([READ, CHANGE].map((row) => row?.id), ['google.gmail.list_labels', 'google.gmail.create_label']);
   for (const row of CURATED) {
     assert.equal(Object.getPrototypeOf(row), Object.prototype);
@@ -193,8 +193,10 @@ for (const [name, action, input, field] of [
   assert.equal(gw.pendingConfirmations.size, 0);
 });
 
-test('describe exposes curated metadata while search and standing approval eligibility stay unchanged', async () => {
-  const { gw } = await fixture();
+test('describe and search expose curated metadata; changes and sends are grantable, deletes are refused', async () => {
+  const send = fixtureRow('send');
+  const deleted = fixtureRow('delete');
+  const { gw } = await fixture([...CURATED, send, deleted]);
   const described = await gw.callTool('describe_action', { action: CHANGE.id });
   assert.equal(described.curated, true);
   assert.equal(described.kind, 'change');
@@ -207,7 +209,16 @@ test('describe exposes curated metadata while search and standing approval eligi
     action: READ.id, privilege: 'write', risk: 'low', confirmation: 'none',
     description: READ.summary, curated: true, kind: READ.kind, summary: READ.summary,
   }]);
-  assert.equal(gw.standingApprovalScope({ mode: 'propose', actions: [CHANGE.id], root: 'Test' }).refusal.reason, 'not_eligible');
+  for (const row of [CHANGE, send]) {
+    const checked = gw.standingApprovalScope({ mode: 'propose', actions: [row.id], root: 'Test' });
+    assert.equal(checked.refusal, undefined);
+    assert.deepEqual(checked.scope.actions, [row.id]);
+    assert.deepEqual(checked.kinds, [row.kind]);
+    assert.deepEqual(checked.summaries, [row.summary]);
+  }
+  assert.equal(gw.standingApprovalScope({ mode: 'propose', actions: [READ.id], root: 'Test' }).refusal.reason, 'not_eligible');
+  assert.deepEqual(gw.standingApprovalScope({ mode: 'propose', actions: [deleted.id], root: 'Test' }).refusal,
+    { status: 'invalid_arguments', field: 'actions', reason: 'Delete actions cannot be covered by a standing approval.' });
 });
 
 test('invalid curated input cannot reach provider hydration with a missing connection', async () => {
@@ -226,11 +237,39 @@ test('curated policy denial runs no provider and is audited on the catalog path'
   assert.equal(auditLines(audit)[0].path, 'catalog');
 });
 
-test('a curated row cannot be covered even by an injected standing approval', async () => {
-  const { gw, calls } = await fixture();
-  gw.standingApprovals = { list: () => assert.fail('curated calls cannot consult standing approvals') };
-  assert.equal((await gw.execute({ action: CHANGE.id, input: { label_name: 'Work' }, root: 'Test' })).status, 'needs_confirmation');
-  assert.equal(calls.length, 0);
+test('curated changes and sends run under a matching grant; an injected grant cannot cover a delete', async () => {
+  for (const row of [CHANGE, fixtureRow('send'), fixtureRow('delete')]) {
+    const { gw, calls, record, audit } = await fixture([row]);
+    const scope = { actions: [row.id], root: 'Test', playbook: 'Test writes', days: null };
+    const input = row.kind === 'change' ? { label_name: 'Work' } : { target: 'item-1' };
+    const call = { action: row.id, input, root: scope.root, playbook: scope.playbook };
+    assert.equal((await gw.execute(call)).status, 'needs_confirmation');
+    assert.equal(calls.length, 0);
+    if (row.kind === 'delete') {
+      gw.standingApprovals = { list: () => [{
+        id: 'sa_injected_delete', actions: [row.id], kinds: ['delete'], summaries: [row.summary], cautions: [],
+        root: scope.root, playbook: scope.playbook, label: null, where: null, heightened: true,
+        provider_account_id: record.provider_account_id, created_at: new Date(gw.now()).toISOString(),
+        expires_at: new Date(gw.now() + 86_400_000).toISOString(), revoked_at: null,
+      }] };
+      const stopped = await gw.execute(call);
+      assert.equal(stopped.status, 'needs_confirmation');
+      assert.equal(stopped.risk, 'destructive');
+      assert.equal(stopped.standing_approval, undefined);
+      assert.equal(calls.length, 0);
+      assert.ok(auditLines(audit).every((line) => line.grant_id === null));
+    } else {
+      assert.equal((await gw.callTool('standing_approvals', { ...scope, mode: 'propose' })).status, 'standing_approval_proposed');
+      const granted = await gw.callTool('standing_approvals', { ...scope, mode: 'grant', confirmed: true });
+      assert.equal(granted.status, 'ok');
+      const ran = await gw.execute(call);
+      assert.equal(ran.ok, true);
+      assert.deepEqual(ran.standing_approval, { id: granted.standing_approval.id, expires_at: null });
+      assert.equal(calls.length, 1);
+      assert.equal(calls[0].providerAccountId, record.provider_account_id);
+      assert.equal(auditLines(audit).at(-1).grant_id, granted.standing_approval.id);
+    }
+  }
 });
 
 test('providers without curated(), including the second adapter, supply no rows', () => {
@@ -272,7 +311,14 @@ for (const [name, patch, reason] of INVALID) test(`invalid curated row is skippe
     assert.equal(calls.length, 1, 'the hand-written action still runs');
   } else {
     assert.equal((await gw.execute({ action: row.id })).status, 'needs_connector');
-    assert.equal(gw.describeAction(row.id).status, 'needs_connector');
+    if (['two id parts', 'empty id part'].includes(name)) {
+      assert.deepEqual(gw.describeAction(row.id), { status: 'needs_connector', action: row.id });
+    } else {
+      const [service, module] = row.id.split('.');
+      // The fixture registers every supplied id as a provider mapping. A
+      // rejected row contributes no schema or safety metadata to that mapping.
+      assert.deepEqual(gw.describeAction(row.id), { action: row.id, service, module, source: 'catalog', input: null });
+    }
     assert.equal(calls.length, 0);
   }
 });
@@ -337,7 +383,9 @@ for (const [name, schema] of [
     [{ id: row.id, reason: 'unsupported_input_schema' }]);
   const { gw, calls } = await fixture([row]);
   assert.equal((await gw.execute({ action: row.id, input: {} })).status, 'needs_connector');
-  assert.equal(gw.describeAction(row.id).status, 'needs_connector');
+  assert.deepEqual(gw.describeAction(row.id), {
+    action: row.id, service: 'google', module: 'gmail', source: 'catalog', input: null,
+  });
   assert.equal(calls.length, 0);
 });
 
@@ -362,14 +410,14 @@ test('hosted construction with bound proxies preserves rows and hydrated pending
   assert.equal(Object.hasOwn(opts, 'inputFileAccess'), false);
   assert.equal(Object.hasOwn(opts, 'authConfigured'), false);
   assert.equal(gw.pendingConfirmations, pendingConfirmations);
-  assert.equal(gw.listActions().filter((row) => row.curated).length, 48);
+  assert.equal(gw.listActions().filter((row) => row.curated).length, 46);
   assert.equal((await gw.execute({ action: READ.id, input: {} })).ok, true);
   const call = { action: CHANGE.id, input: { label_name: 'Across requests' } };
   assert.equal((await gw.execute(call)).status, 'needs_confirmation');
   assert.equal(pendingConfirmations.size, 1);
   const nextRequest = new ConnectionGateway(opts);
   assert.equal(nextRequest.pendingConfirmations, pendingConfirmations);
-  assert.equal(nextRequest.listActions().filter((row) => row.curated).length, 48);
+  assert.equal(nextRequest.listActions().filter((row) => row.curated).length, 46);
   assert.equal((await nextRequest.execute({ ...call, confirm: true })).ok, true);
   assert.equal(calls.length, 2);
   assert.equal(pendingConfirmations.size, 0);

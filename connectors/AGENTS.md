@@ -39,6 +39,10 @@ Four consequences follow, each a fact about the code rather than a rule:
 - **One shipped path removes a record, and it is `disconnect`.** It revokes the credential at the provider, asks the provider whether it is still there, and removes every local row holding that provider account **only** when the answer is that it is gone. A grant that is merely inactive keeps its rows, because it is coming back. A status does update short of removal, when a check returns a recognised inactive status: `connect_status` writes what the provider reports, and an execute meeting 401 or 403 refreshes. A provider outage leaves the row as it was, deliberately, so an outage does not read as a lost grant. **Until 2026-09-20 nothing removed a record at all**, and a row outlived the account it named; the `pagespeed/insights` row that stood ACTIVE against a 404 for five sessions is what that looked like.
 - **Replacing a credential without reconnecting is not a path this root has.** The adapter implements no update operation, and whether the provider offers one has not been verified here. Reconnecting is the shipped route; check before assuming an in-place edit exists.
 
+**A standing approval is separate from account access.** It removes the gateway's per-call approval stop within a frozen action list, connection, root, optional Playbook and exact string-field limits. The member's yes to the gateway's warning is the whole confirmation; add no second confirmation. Hand-written actions must declare eligibility; curated `change` and `send` rows are grantable under the same rules, `read` rows need no grant, and any scope containing a delete is refused, alone or mixed. A curated `delete` kind, a hand-written `delete` declaration or a `destructive` risk each refuses the scope. A scheduled run may send and create or update under its matching grant, never delete.
+
+An explicit `days: null` asks for no end date only when the grant names a Playbook and every kind is `send` or `change`. The stored and listed end is `expires_at: null`. The warning says: "It lasts until you revoke it. Under this approval nobody looks at each send or change before it happens." It also says: "To limit recipients, use where to restrict declared recipient string fields to exact allowed values. Fields that are arrays, including Gmail recipients and Calendar attendees, cannot be limited with where." Omitting days keeps the dated default: 90 days for ordinary grants, at most 365; 7 days for heightened grants, except 90 for send-only Playbook grants. Dated send/change mixtures keep 7 days. Calendar create and update both declare `send`, the safer reading because kinds cannot depend on attendees or notification input. `gateway/AGENTS.md` Standing approvals owns storage and matching, and `skills/Standing Approval/` owns the member's turn.
+
 ## Grants are per module
 
 **One binding per module and label, and several bindings may share one credential.** Both
@@ -66,6 +70,8 @@ it ends every binding pointing at that credential and not only the module you na
 which in `modules_ending` before it does anything. Nothing about that is an exception to the rule
 above. A binding is a pointer, the credential is the thing, and removing the thing removes every
 pointer to it.
+
+Standing approvals keep that module and label boundary too. A module-wide standing approval expands to its current eligible hand-written and curated actions when proposed and granted; adding an action later never widens a stored grant. Ending a standing approval removes permission to skip a stop, leaving account access in place. Disconnecting or rebinding its provider account ends the match even for a grant with no end date.
 
 **What each half lets you predict.** From the first: a second module has its own record, and
 an unlabelled connect gets its own turn through `skills/Connect Account/`, though adoption may

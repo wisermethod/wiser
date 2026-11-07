@@ -795,146 +795,6 @@ export const CURATED = Object.freeze([
     ]
   },
   {
-    "id": "google.gmail.add_label_to_email",
-    "toolkit": "GMAIL",
-    "tool": "GMAIL_ADD_LABEL_TO_EMAIL",
-    "kind": "change",
-    "summary": "Add or remove labels on one Gmail message.",
-    "key_fields": [
-      "message_id"
-    ],
-    "input_schema": {
-      "type": "object",
-      "title": "AddLabelToEmailRequest",
-      "required": [
-        "message_id"
-      ],
-      "properties": {
-        "message_id": {
-          "type": "string",
-          "title": "Message Id",
-          "pattern": "^[0-9a-fA-F]+$",
-          "examples": [
-            "1a2b3c4d5e6f7890",
-            "abcd1234efab5678"
-          ],
-          "description": "Immutable ID of the message to modify. Gmail message IDs are hexadecimal strings (e.g., '1a2b3c4d5e6f7890'). IMPORTANT: Do NOT use UUIDs (32-character strings like '093ca4662b214d5eba8f4ceeaad63433'), thread IDs, or internal system IDs - these will cause 'Invalid id value' errors. Obtain valid message IDs from: (1) 'GMAIL_FETCH_EMAILS' response 'messageId' field, (2) 'GMAIL_FETCH_MESSAGE_BY_THREAD_ID' response, or (3) 'GMAIL_LIST_THREADS' and then fetching thread messages.",
-          "human_parameter_name": "Message ID",
-          "human_parameter_description": "Enter the Gmail message ID (a hexadecimal string like '1a2b3c4d5e6f7890'). Get this from GMAIL_FETCH_EMAILS 'messageId' field. Do NOT use UUIDs or 32-character strings."
-        },
-        "add_label_ids": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "title": "Add Label Ids",
-          "default": [],
-          "examples": [
-            "STARRED",
-            "IMPORTANT",
-            "CATEGORY_UPDATES",
-            "Label_1"
-          ],
-          "description": "Label IDs to add (IDs, not display names). System labels: INBOX, SPAM, TRASH, UNREAD, STARRED, IMPORTANT, CATEGORY_PERSONAL, CATEGORY_SOCIAL, CATEGORY_PROMOTIONS, CATEGORY_UPDATES, CATEGORY_FORUMS. Use full CATEGORY_ prefix (e.g., 'CATEGORY_UPDATES' not 'UPDATES'). Custom labels: call 'listLabels' first to get the ID (format: 'Label_<number>'). Do NOT use the label display name; the API requires the ID. SENT, DRAFT, CHAT are immutable and cannot be added or removed. A label cannot appear in both add_label_ids and remove_label_ids.",
-          "human_parameter_name": "Label IDs to add",
-          "human_parameter_description": "List the IDs of labels to add. Use exact system label IDs (e.g., 'CATEGORY_UPDATES' not 'UPDATES') or custom label IDs from listLabels (e.g., 'Label_1' not the label name). Note: SENT, DRAFT, and CHAT cannot be modified."
-        },
-        "remove_label_ids": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "title": "Remove Label Ids",
-          "default": [],
-          "examples": [
-            "UNREAD",
-            "INBOX",
-            "CATEGORY_UPDATES",
-            "Label_1"
-          ],
-          "description": "Label IDs to remove (IDs, not display names). System labels: INBOX, SPAM, TRASH, UNREAD, STARRED, IMPORTANT, CATEGORY_PERSONAL, CATEGORY_SOCIAL, CATEGORY_PROMOTIONS, CATEGORY_UPDATES, CATEGORY_FORUMS. Use full CATEGORY_ prefix (e.g., 'CATEGORY_UPDATES' not 'UPDATES'). Custom labels: call 'listLabels' first to get the ID (format: 'Label_<number>'). SENT, DRAFT, CHAT are immutable and cannot be removed. Common operations: to mark as read, remove 'UNREAD'; to archive, remove 'INBOX'. A label cannot appear in both add_label_ids and remove_label_ids.",
-          "human_parameter_name": "Label IDs to remove",
-          "human_parameter_description": "List the IDs of labels to remove. Use exact system label IDs (e.g., 'CATEGORY_UPDATES' not 'UPDATES') or custom label IDs from listLabels (e.g., 'Label_1' not the label name). To mark as read, remove 'UNREAD'. To archive, remove 'INBOX'. Note: SENT, DRAFT, and CHAT cannot be modified."
-        }
-      }
-    },
-    "narrowed": [
-      "user_id"
-    ],
-    "hint": [
-      "idempotentHint",
-      "openWorldHint",
-      "updateHint"
-    ]
-  },
-  {
-    "id": "google.gmail.modify_thread_labels",
-    "toolkit": "GMAIL",
-    "tool": "GMAIL_MODIFY_THREAD_LABELS",
-    "kind": "change",
-    "summary": "Add or remove labels on a whole Gmail conversation.",
-    "key_fields": [
-      "thread_id"
-    ],
-    "input_schema": {
-      "type": "object",
-      "title": "ModifyThreadLabelsRequest",
-      "required": [
-        "thread_id"
-      ],
-      "properties": {
-        "thread_id": {
-          "type": "string",
-          "title": "Thread Id",
-          "examples": [
-            "18ea7715b619f09c"
-          ],
-          "description": "Immutable ID of the thread to modify.",
-          "human_parameter_name": "Thread ID",
-          "human_parameter_description": "The unique identifier of the thread you want to modify. Make sure this ID is valid for the operation."
-        },
-        "add_label_ids": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "title": "Add Label Ids",
-          "examples": [
-            "STARRED",
-            "INBOX",
-            "Label_1"
-          ],
-          "description": "List of label IDs to add to the thread. Must be valid label IDs that exist in the user's account. System labels use uppercase names (e.g., 'INBOX', 'STARRED', 'IMPORTANT', 'UNREAD', 'SPAM', 'TRASH', 'SENT', 'DRAFT', 'CATEGORY_PERSONAL', 'CATEGORY_SOCIAL', 'CATEGORY_PROMOTIONS', 'CATEGORY_UPDATES', 'CATEGORY_FORUMS'). Custom labels use the format 'Label_N' (e.g., 'Label_1', 'Label_42'). Use GMAIL_LIST_LABELS to discover available label IDs. Accepts either a list or a JSON-encoded string. Note: If a label appears in both add_label_ids and remove_label_ids, the add operation takes priority. Use GMAIL_CREATE_LABEL first if the label does not yet exist, then supply its returned ID here.",
-          "human_parameter_name": "Label IDs to add",
-          "human_parameter_description": "Provide the labels you want to apply to the thread. Use GMAIL_LIST_LABELS to find valid label IDs."
-        },
-        "remove_label_ids": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "title": "Remove Label Ids",
-          "examples": [
-            "IMPORTANT",
-            "CATEGORY_UPDATES",
-            "Label_1"
-          ],
-          "description": "List of label IDs to remove from the thread. Must be valid label IDs that exist in the user's account. System labels use uppercase names (e.g., 'INBOX', 'STARRED', 'IMPORTANT', 'UNREAD', 'SPAM', 'TRASH', 'SENT', 'DRAFT', 'CATEGORY_PERSONAL', 'CATEGORY_SOCIAL', 'CATEGORY_PROMOTIONS', 'CATEGORY_UPDATES', 'CATEGORY_FORUMS'). Custom labels use the format 'Label_N' (e.g., 'Label_1', 'Label_42'). Use GMAIL_LIST_LABELS to discover available label IDs. Accepts either a list or a JSON-encoded string. Note: Labels that appear in both add_label_ids and remove_label_ids will be automatically removed from this list (add takes priority).",
-          "human_parameter_name": "Label IDs to remove",
-          "human_parameter_description": "Specify the labels you want to remove from the thread. Use GMAIL_LIST_LABELS to find valid label IDs."
-        }
-      }
-    },
-    "narrowed": [
-      "user_id"
-    ],
-    "hint": [
-      "idempotentHint",
-      "openWorldHint",
-      "updateHint"
-    ]
-  },
-  {
     "id": "google.gmail.update_draft",
     "toolkit": "GMAIL",
     "tool": "GMAIL_UPDATE_DRAFT",
@@ -1696,7 +1556,7 @@ export const CURATED = Object.freeze([
     "id": "google.calendar.quick_add",
     "toolkit": "GOOGLECALENDAR",
     "tool": "GOOGLECALENDAR_QUICK_ADD",
-    "kind": "change",
+    "kind": "send",
     "summary": "Add an event from one line of text, such as \"Lunch with Sam Friday 1pm\".",
     "key_fields": [
       "text"
@@ -1758,7 +1618,7 @@ export const CURATED = Object.freeze([
     "id": "google.calendar.patch_event",
     "toolkit": "GOOGLECALENDAR",
     "tool": "GOOGLECALENDAR_PATCH_EVENT",
-    "kind": "change",
+    "kind": "send",
     "summary": "Change some details of an existing event.",
     "key_fields": [
       "calendar_id",
@@ -1772,21 +1632,6 @@ export const CURATED = Object.freeze([
         "event_id"
       ],
       "properties": {
-        "status": {
-          "enum": [
-            "confirmed",
-            "tentative",
-            "cancelled"
-          ],
-          "type": "string",
-          "title": "Status",
-          "examples": [
-            "confirmed",
-            "tentative",
-            "cancelled"
-          ],
-          "description": "Status of the event."
-        },
         "summary": {
           "type": "string",
           "title": "Summary",
@@ -2077,6 +1922,7 @@ export const CURATED = Object.freeze([
     },
     "narrowed": [
       "source",
+      "status",
       "reminders",
       "attachments",
       "conference_data",
@@ -2095,7 +1941,7 @@ export const CURATED = Object.freeze([
     "id": "google.calendar.events_move",
     "toolkit": "GOOGLECALENDAR",
     "tool": "GOOGLECALENDAR_EVENTS_MOVE",
-    "kind": "change",
+    "kind": "send",
     "summary": "Move an event to another calendar.",
     "key_fields": [
       "calendar_id",
@@ -2376,30 +2222,6 @@ export const CURATED = Object.freeze([
           "title": "Q",
           "description": "Query string for searching children."
         },
-        "alt": {
-          "enum": [
-            "json",
-            "media",
-            "proto"
-          ],
-          "type": "string",
-          "title": "AltEnum",
-          "description": "Data format for response enum."
-        },
-        "key": {
-          "type": "string",
-          "title": "Key",
-          "description": "API key. Your API key identifies your project and provides you with API access, quota, and reports. Required unless you provide an OAuth 2.0 token."
-        },
-        "xgafv": {
-          "enum": [
-            "1",
-            "2"
-          ],
-          "type": "string",
-          "title": "XgafvEnum",
-          "description": "V1 error format enum."
-        },
         "fields": {
           "type": "string",
           "title": "Fields",
@@ -2409,11 +2231,6 @@ export const CURATED = Object.freeze([
           "type": "string",
           "title": "Order By",
           "description": "A comma-separated list of sort keys. Valid keys are 'createdDate', 'folder', 'lastViewedByMeDate', 'modifiedByMeDate', 'modifiedDate', 'quotaBytesUsed', 'recency', 'sharedWithMeDate', 'starred', and 'title'. Each key sorts ascending by default, but may be reversed with the 'desc' modifier. Example usage: ?orderBy=folder,modifiedDate desc,title."
-        },
-        "callback": {
-          "type": "string",
-          "title": "Callback",
-          "description": "JSONP callback parameter."
         },
         "folderId": {
           "type": "string",
@@ -2429,44 +2246,25 @@ export const CURATED = Object.freeze([
           "title": "Page Token",
           "description": "Page token for children."
         },
-        "quotaUser": {
-          "type": "string",
-          "title": "Quota User",
-          "description": "Available to use for quota purposes for server-side applications. Can be any arbitrary string assigned to a user, but should not exceed 40 characters."
-        },
         "maxResults": {
           "type": "integer",
           "title": "Max Results",
           "description": "Maximum number of children to return."
-        },
-        "uploadType": {
-          "type": "string",
-          "title": "Upload Type",
-          "description": "Legacy upload protocol for media (e.g. 'media', 'multipart')."
-        },
-        "oauth_token": {
-          "type": "string",
-          "title": "Oauth Token",
-          "description": "OAuth 2.0 token for the current user."
-        },
-        "prettyPrint": {
-          "type": "boolean",
-          "title": "Pretty Print",
-          "description": "Returns response with indentations and line breaks."
-        },
-        "access_token": {
-          "type": "string",
-          "title": "Access Token",
-          "description": "OAuth access token."
-        },
-        "upload_protocol": {
-          "type": "string",
-          "title": "Upload Protocol",
-          "description": "Upload protocol for media (e.g. 'raw', 'multipart')."
         }
       }
     },
-    "narrowed": [],
+    "narrowed": [
+      "alt",
+      "key",
+      "xgafv",
+      "callback",
+      "quotaUser",
+      "uploadType",
+      "oauth_token",
+      "prettyPrint",
+      "access_token",
+      "upload_protocol"
+    ],
     "hint": [
       "idempotentHint",
       "openWorldHint",
@@ -2765,17 +2563,12 @@ export const CURATED = Object.freeze([
           "description": "The token for continuing a previous list request on the next page. This should be set to the value of 'nextPageToken' from the previous response. Continue paginating until `nextPageToken` is absent; stopping early silently omits revisions.",
           "human_parameter_name": "Page token for next page",
           "human_parameter_description": "If you're continuing from a previous list, paste the next page token you received to load the following set of revisions. Leave blank to start from the first page."
-        },
-        "supportsAllDrives": {
-          "type": "boolean",
-          "title": "Supports All Drives",
-          "description": "Whether the requesting application supports both My Drives and shared drives. Defaults to false. Must be set to `true` for shared drive files; omitting it causes `fileId` resolution failures on shared drives.",
-          "human_parameter_name": "Does the application support all drives?",
-          "human_parameter_description": "Turn this on if the file might be in a shared drive so we can find its revisions there too. Leave it off if you only use My Drive."
         }
       }
     },
-    "narrowed": [],
+    "narrowed": [
+      "supportsAllDrives"
+    ],
     "hint": [
       "idempotentHint",
       "openWorldHint",
@@ -2825,17 +2618,12 @@ export const CURATED = Object.freeze([
           "description": "Page token for shared drives.",
           "human_parameter_name": "Page token",
           "human_parameter_description": "Use this token to continue from where the last page left off. You usually get it from a previous list call when there are more results."
-        },
-        "useDomainAdminAccess": {
-          "type": "boolean",
-          "title": "Use Domain Admin Access",
-          "description": "Issue the request as a domain administrator. If set to true, then all shared drives of the domain in which the requester is an administrator are returned.",
-          "human_parameter_name": "Use domain admin access?",
-          "human_parameter_description": "Turn this on if you're a Google Workspace admin and want to list all shared drives in your domain, not just the ones you can access directly. Leave it off for regular personal results."
         }
       }
     },
-    "narrowed": [],
+    "narrowed": [
+      "useDomainAdminAccess"
+    ],
     "hint": [
       "idempotentHint",
       "openWorldHint",
