@@ -58,6 +58,9 @@ test('the curated data holds all 46 rows, recorded narrowing and exact provider 
   for (const name of ['quick_add', 'patch_event', 'events_move']) {
     assert.equal(CURATED.find((row) => row.id === `google.calendar.${name}`).kind, 'send');
   }
+  for (const name of ['create_comment', 'create_reply']) {
+    assert.equal(CURATED.find((row) => row.id === `google.drive.${name}`).kind, 'send');
+  }
   assert.equal(Object.hasOwn(CURATED.find((row) => row.id === 'google.calendar.patch_event').input_schema.properties, 'status'), false);
 });
 

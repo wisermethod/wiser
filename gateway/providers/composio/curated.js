@@ -2753,7 +2753,7 @@ export const CURATED = Object.freeze([
     "id": "google.drive.create_comment",
     "toolkit": "GOOGLEDRIVE",
     "tool": "GOOGLEDRIVE_CREATE_COMMENT",
-    "kind": "change",
+    "kind": "send",
     "summary": "Add a comment to a Drive file.",
     "key_fields": [
       "file_id",
@@ -2830,7 +2830,7 @@ export const CURATED = Object.freeze([
     "id": "google.drive.create_reply",
     "toolkit": "GOOGLEDRIVE",
     "tool": "GOOGLEDRIVE_CREATE_REPLY",
-    "kind": "change",
+    "kind": "send",
     "summary": "Reply to a comment on a Drive file.",
     "key_fields": [
       "file_id",
