@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.07.3, November 7, 2026
+
+- When you approve one of Composio's Gmail, Google Calendar or Google Drive tools in advance, its warning and the line that lists the approval now read as one sentence, such as "lets your assistant create a new Gmail label", instead of breaking off at a full stop. Three of those tools are described more plainly: changing an unsent Gmail draft, moving an event between your calendars, and creating a Google Drive file from text. (7edb9e70, 5bf18d70)
+- If an approval you have revoked is asked for again with the same yes, for example after a connection dropped mid-answer, Wiser now says it was revoked instead of answering as if it had just been made. Nothing runs under it either way. (5bf18d70)
+
 ## v2026.11.07.2, November 7, 2026
 
 - Wiser can now use 46 of Composio's own tools for Gmail, Google Calendar, Google Drive and Outlook, with no connector written for them: labels, conversations, drafts and contacts in Gmail; calendars, free time, quick add and changing or moving an event in Google Calendar; folders, comments and saved versions in Google Drive; mail, people and calendars in Outlook. Reading runs straight away. The 10 that write stop for your yes first. Each call reaches only the account you connected. (59c7388b, bd89b3e8, 2b33060f, c7bfc6a3, a78e60ad)
