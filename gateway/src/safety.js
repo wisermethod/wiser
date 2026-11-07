@@ -618,6 +618,8 @@ export async function approveExecute(gateway, call, line, { prepareInputFiles, r
           module: parsed.module,
           risk,
           description: act?.description,
+          leadingSummary: curated?.row.summary,
+          keyFields: curated?.row.key_fields ?? act?.key_fields,
           disclosure, attachmentFiles,
         });
         return statusObject(STATUS.NEEDS_CONFIRMATION, {

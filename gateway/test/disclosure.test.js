@@ -585,3 +585,69 @@ test('a truncated structured value caps on whole escape tokens and digests the r
   assert.equal(carriesRawUnsafe(field.text), null);
   assert.equal(carriesRawUnsafe(field.full), null);
 });
+
+// ---------------------------------------------------- prioritized stop display
+
+test('an existing action without key_fields keeps its exact pre-change rendering and input order', () => {
+  const { summary } = summaryFor(servicesEnable, 'google-cloud.services.enable', {
+    service: 'translate.googleapis.com', project: 'wiser-method-prod',
+  });
+  const before = 'google-cloud.services.enable on google-cloud/services with service="translate.googleapis.com", '
+    + 'project="wiser-method-prod"; risk high; Enable the named service on the named Google Cloud project';
+  assert.deepEqual(Buffer.from(summary), Buffer.from(before));
+});
+
+test('key fields keep their capped escaped values before a full budget of remaining fields', () => {
+  const properties = {};
+  const input = {};
+  for (let i = 0; i < 30; i += 1) {
+    properties[`remaining_${i}`] = { type: 'string' };
+    input[`remaining_${i}`] = 'ordinary'.repeat(100);
+  }
+  properties.subject = { type: 'string' };
+  properties.target = { type: 'string' };
+  input.subject = 'Lunch Friday';
+  input.target = 'a'.repeat(VALUE_CAP - 1) + '\u001b' + 'z'.repeat(200);
+  const disclosure = discloseInput({ input: { properties } }, input);
+  const target = disclosure.shown.find((f) => f.name === 'target');
+  const leadingSummary = 'Change the named test item.';
+  const summary = composeSummary({
+    action: 'test.mod.change', service: 'test', module: 'mod', risk: 'medium',
+    description: leadingSummary, leadingSummary, keyFields: ['target', 'subject'], disclosure,
+  });
+  assert.ok(summary.startsWith(`${leadingSummary} target=${target.text}, subject="Lunch Friday", remaining_0=`));
+  assert.ok(summary.length <= SUMMARY_CAP);
+  assert.match(summary, /more fields not shown/);
+  assert.equal(carriesRawUnsafe(summary), null);
+  assert.equal(target.text, renderValue(input.target).text, 'priority must not change escaping or truncation');
+  assert.equal(target.full, renderValue(input.target).full);
+  assert.ok(summary.indexOf('remaining_0=') < summary.indexOf('remaining_1='));
+  assert.equal(summary.indexOf(leadingSummary), summary.lastIndexOf(leadingSummary), 'do not repeat the curated summary as a description');
+});
+
+test('a curated leading summary is escaped and capped before any remaining fields consume the total budget', () => {
+  const leadingSummary = 's'.repeat(VALUE_CAP - 1) + '\u001b' + 'tail'.repeat(1000);
+  const summary = composeSummary({
+    action: 'test.mod.change', service: 'test', module: 'mod', risk: 'medium', leadingSummary,
+    keyFields: ['target'], disclosure: discloseInput({ input: { properties: { target: { type: 'string' } } } }, { target: 'test-item' }),
+  });
+  assert.ok(summary.startsWith('s'.repeat(VALUE_CAP - 1) + '… ('));
+  assert.match(summary, /sha256:[0-9a-f]{16}\)/);
+  assert.doesNotMatch(summary, /\\x[0-9a-f]?…/);
+  assert.match(summary, /target="test-item"/);
+  assert.ok(summary.length <= SUMMARY_CAP);
+  assert.equal(carriesRawUnsafe(summary), null);
+});
+
+test('missing and repeated key fields neither invent nor duplicate displayed values', () => {
+  const disclosure = discloseInput({ input: { properties: {
+    target: { type: 'string' }, optional: { type: 'string' }, note: { type: 'string' },
+  } } }, { note: 'A note', target: 'test-item' });
+  const summary = composeSummary({
+    action: 'test.mod.change', service: 'test', module: 'mod', risk: 'medium',
+    keyFields: ['optional', 'target', 'target'], disclosure,
+  });
+  assert.match(summary, / with target="test-item", note="A note"; risk medium$/);
+  assert.doesNotMatch(summary, /optional=/);
+  assert.equal([...summary.matchAll(/target=/g)].length, 1);
+});

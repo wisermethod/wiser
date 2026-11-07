@@ -355,3 +355,153 @@ test('keys.create omitting the optional key_id: the stop shows what was supplied
   assert.match(r.summary, /display_name="Translate key"/);
   assert.match(r.summary, /apiTargets/);
 });
+
+// ---------------------------------------------------- readable confirmation stops
+
+async function curatedConfirmationFixture(row, input) {
+  const { createFakeProviders } = await import('./fake-provider.js');
+  const fake = createFakeProviders();
+  const calls = [];
+  fake.catalog.curated = () => [row];
+  fake.catalog.setSlug(row.id, row.tool);
+  fake.catalog.execute = async (call) => { calls.push(call); return { ok: true }; };
+  const made = await createTestGateway({ fake, session: false });
+  const [service, module] = row.id.split('.');
+  const record = await putActive(made.store, fake, { service, module });
+  const stop = await made.gw.execute({ action: row.id, input });
+  return { ...made, stop, record, calls };
+}
+
+test('a shipped curated change leads with its summary and key field, before the other supplied fields', async () => {
+  const { CURATED } = await import('../providers/composio/curated.js');
+  const row = CURATED.find((item) => item.id === 'google.gmail.create_label');
+  const { stop, calls } = await curatedConfirmationFixture(row, { text_color: '#ffffff', label_name: 'Lunch Friday' });
+  assert.equal(stop.status, 'needs_confirmation');
+  assert.ok(stop.summary.startsWith(`${row.summary} label_name="Lunch Friday", text_color="#ffffff"`));
+  assert.equal(stop.risk, 'medium');
+  assert.equal(stop.confirmation, 'always');
+  assert.equal(rawUnsafeAnywhere(stop), null);
+  assert.equal(calls.length, 0);
+});
+
+for (const kind of ['change', 'send', 'delete']) {
+  test(`a fixture curated ${kind} reserves summary and all keys before cutting long remaining fields`, async () => {
+    const properties = {};
+    const input = {};
+    for (let i = 0; i < 30; i += 1) {
+      properties[`remaining_${i}`] = { type: 'string' };
+      input[`remaining_${i}`] = 'long remaining text '.repeat(40);
+    }
+    properties.subject = { type: 'string' };
+    properties.target = { type: 'string' };
+    input.subject = 'Lunch Friday';
+    input.target = 'sam@example.com';
+    const row = {
+      id: `google.gmail.fixture_${kind}`, toolkit: 'GMAIL', tool: `FIXTURE_${kind.toUpperCase()}`,
+      kind, summary: `${kind[0].toUpperCase() + kind.slice(1)} the named test item.`,
+      key_fields: ['target', 'subject'],
+      input_schema: { type: 'object', properties, required: ['target'], additionalProperties: false },
+      narrowed: [], hint: kind === 'delete' ? ['destructiveHint'] : ['createHint'],
+    };
+    const { stop, gw, record, calls } = await curatedConfirmationFixture(row, input);
+    assert.equal(stop.status, 'needs_confirmation');
+    assert.ok(stop.summary.startsWith(`${row.summary} target="sam@example.com", subject="Lunch Friday", remaining_0=`));
+    assert.match(stop.summary, /remaining_0="long remaining text/);
+    assert.match(stop.summary, /more fields not shown/);
+    assert.match(stop.summary, /full text is in input_values/);
+    assert.ok(stop.summary.length <= 2000);
+    assert.equal(stop.risk, { change: 'medium', send: 'high', delete: 'destructive' }[kind]);
+    assert.equal(stop.confirmation, 'always');
+    assert.deepEqual(stop.input_fields, Object.keys(input));
+    assert.deepEqual(stop.input_values.map((field) => field.name), Object.keys(input));
+    assert.equal(rawUnsafeAnywhere(stop), null);
+    assert.equal(calls.length, 0);
+    const { confirmationDigest } = await import('../src/safety.js');
+    assert.equal(gw.pendingConfirmations.has(confirmationDigest(['execute', row.id, input, record.provider_account_id])), true,
+      'display priority must not change the confirmation identity');
+  });
+}
+
+test('Gmail send prioritizes every recipient group, subject and the body opening', async () => {
+  const { gw, store, fake } = await createTestGateway({ session: false });
+  await putActive(store, fake, { service: 'google', module: 'gmail' });
+  const body = 'Hi Sam, would you like lunch Friday? '.repeat(10);
+  const input = {
+    body_html: '<p>Lunch Friday?</p>', body, subject: 'Lunch Friday',
+    bcc: ['lee@example.com'], cc: ['jo@example.com'], to: ['sam@example.com'],
+  };
+  const stop = await gw.execute({ action: 'google.gmail.send_message', input });
+  assert.equal(stop.status, 'needs_confirmation');
+  const { renderValue } = await import('../src/disclosure.js');
+  const bodyDisplay = renderValue(body);
+  assert.ok(stop.summary.startsWith('google.gmail.send_message on google/gmail with to=["sam@example.com"], '
+    + 'cc=["jo@example.com"], bcc=["lee@example.com"], subject="Lunch Friday", '
+    + `body=${bodyDisplay.text}, body_html=`));
+  assert.equal(stop.input_values.find((field) => field.name === 'body').full, bodyDisplay.full);
+  assert.deepEqual(stop.input_fields, Object.keys(input));
+  assert.ok(stop.summary.length <= 2000);
+  assert.equal(rawUnsafeAnywhere(stop), null);
+});
+
+test('Calendar create prioritizes title, start, end and attendees', async () => {
+  const { gw, store, fake } = await createTestGateway({ session: false });
+  await putActive(store, fake, { service: 'google', module: 'calendar' });
+  const stop = await gw.execute({ action: 'google.calendar.create_event', input: {
+    calendar_id: 'primary', description: 'Meet for lunch.', notify_guests: true,
+    attendees: ['sam@example.com'], end: '2026-11-13T13:00:00-07:00',
+    start: '2026-11-13T12:00:00-07:00', summary: 'Lunch Friday',
+  } });
+  assert.equal(stop.status, 'needs_confirmation');
+  assert.ok(stop.summary.startsWith('google.calendar.create_event on google/calendar with summary="Lunch Friday", '
+    + 'start="2026-11-13T12:00:00-07:00", end="2026-11-13T13:00:00-07:00", attendees=["sam@example.com"], '
+    + 'calendar_id="primary", description="Meet for lunch.", notify_guests=true'));
+  assert.ok(stop.summary.length <= 2000);
+  assert.equal(rawUnsafeAnywhere(stop), null);
+});
+
+test('a hand-written action without key_fields preserves the entire existing stop byte for byte', async () => {
+  const { gw, store, fake } = await createTestGateway({ session: false });
+  await putActive(store, fake, { service: 'google-cloud', module: 'services', privilege: 'write' });
+  const stop = await gw.execute({ action: 'google-cloud.services.enable', input: {
+    service: 'translate.googleapis.com', project: 'wiser-method-prod',
+  } });
+  const before = {
+    status: 'needs_confirmation', action: 'google-cloud.services.enable', service: 'google-cloud', module: 'services',
+    risk: 'high', confirmation: 'always', label: null,
+    input_fields: ['service', 'project'], undeclared_fields: 0,
+    input_values: [
+      { name: 'service', value: '"translate.googleapis.com"', truncated: false },
+      { name: 'project', value: '"wiser-method-prod"', truncated: false },
+    ],
+    withheld_fields: [],
+    summary: 'google-cloud.services.enable on google-cloud/services with service="translate.googleapis.com", '
+      + 'project="wiser-method-prod"; risk high; Enable the named service on the named Google Cloud project',
+    description: 'Enable the named service on the named Google Cloud project',
+  };
+  assert.deepEqual(Buffer.from(JSON.stringify(stop)), Buffer.from(JSON.stringify(before)));
+});
+
+for (const [name, key_fields] of [
+  ['unknown input property', ['unknown_field']], ['inherited input property', ['toString']],
+  ['a string', 'target'], ['null', null], ['an object', {}], ['a non-string member', [7]],
+]) {
+  test(`manifest load refuses key_fields with ${name} and names the action`, async () => {
+    await assert.rejects(() => gatewayWithAction({
+      risk: 'medium', confirmation: 'always', execution: { prefer: 'proxy' }, key_fields,
+      input: { type: 'object', properties: { target: { type: 'string' } } },
+    }), (err) => {
+      assert.equal(err.field, 'modules.thing.actions.act.key_fields');
+      assert.match(err.message, /manifest\.json.*modules\.thing\.actions\.act\.key_fields/);
+      return true;
+    });
+  });
+}
+
+test('manifest load accepts an empty key_fields array and preserves the stop', async () => {
+  const { gw } = await gatewayWithAction({
+    description: 'Change the test item', risk: 'medium', confirmation: 'always', execution: { prefer: 'proxy' }, key_fields: [],
+    input: { type: 'object', properties: { target: { type: 'string' } } },
+  });
+  const stop = await gw.execute({ action: 'probe.thing.act', input: { target: 'test-item' } });
+  assert.equal(stop.summary, 'probe.thing.act on probe/thing with target="test-item"; risk medium; Change the test item');
+});

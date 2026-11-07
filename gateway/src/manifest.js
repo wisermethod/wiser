@@ -96,6 +96,13 @@ function validateAction(action, file, field) {
   if (action.description !== undefined && typeof action.description !== 'string') {
     throw validationError(file, `${field}.description`, 'must be a string');
   }
+  if (Object.hasOwn(action, 'key_fields')) {
+    if (!Array.isArray(action.key_fields) || action.key_fields.some((name) =>
+      typeof name !== 'string' || !action.input?.properties || Array.isArray(action.input.properties) ||
+      typeof action.input.properties !== 'object' || !Object.hasOwn(action.input.properties, name))) {
+      throw validationError(file, `${field}.key_fields`, 'must be an array of declared input property names');
+    }
+  }
   if (Object.hasOwn(action, 'standing_approval')) {
     const standing = action.standing_approval;
     const at = `${field}.standing_approval`;
