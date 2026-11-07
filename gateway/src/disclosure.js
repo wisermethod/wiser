@@ -583,14 +583,21 @@ export function composeSummary({ action, service, module, risk, description, lea
     // The clause announcing omissions is reserved at its worst case BEFORE any value
     // is fitted. Fitting first and appending it afterwards overran the cap.
     const budget = Math.max(0, SUMMARY_CAP - spent - moreValues(valueCount).length - valueJoin.length);
-    const keys = fit(keyValues, budget, () => '', ', ');
-    const remaining = Math.max(0, budget - keys.text.length - (keys.kept.length ? ', '.length : 0));
-    // Ordinary fields cannot consume a key field's budget. If the keys alone
-    // overflow, omit ordinary fields entirely and still honor the absolute cap.
-    const chosen = fit(rendered, keys.dropped ? 0 : remaining, () => '', ', ');
-    const kept = [...keys.kept, ...chosen.kept];
+    // Keep a prefix of keys: a short later key must not leapfrog one that did not fit.
+    const keys = [];
+    let keysLength = 0;
+    for (const key of keyValues) {
+      const cost = key.length + (keys.length ? ', '.length : 0);
+      if (keysLength + cost > budget) break;
+      keys.push(key);
+      keysLength += cost;
+    }
+    // Dropped keys consume no budget, so ordinary fields may still fit.
+    const remaining = Math.max(0, budget - keysLength - (keys.length ? ', '.length : 0));
+    const chosen = fit(rendered, remaining, () => '', ', ');
+    const kept = [...keys, ...chosen.kept];
     if (kept.length) valueClause = `${valueJoin}${kept.join(', ')}`;
-    omitted = keys.dropped + chosen.dropped;
+    omitted = keyValues.length - keys.length + chosen.dropped;
   } else if (disclosure.fields.length) {
     // Nothing was eligible; name the fields as the summary always has.
     const names = ` with ${disclosure.fields.map(esc).join(', ')}`;

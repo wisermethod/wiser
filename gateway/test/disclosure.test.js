@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
   composeSummary,
+  discloseAttachmentFiles,
   discloseInput,
   escapeForDisplay,
   renderValue,
@@ -650,4 +651,51 @@ test('missing and repeated key fields neither invent nor duplicate displayed val
   assert.match(summary, / with target="test-item", note="A note"; risk medium$/);
   assert.doesNotMatch(summary, /optional=/);
   assert.equal([...summary.matchAll(/target=/g)].length, 1);
+});
+
+for (const position of ['first', 'middle']) {
+  test(`key fields stop at an oversized ${position} clause and leave room for ordinary fields`, () => {
+    const oversized = `oversized_${'k'.repeat(position === 'first' ? SUMMARY_CAP + 100 : SUMMARY_CAP - 240)}`;
+    const properties = {
+      first: { type: 'string' }, [oversized]: { type: 'string' },
+      last: { type: 'string' }, note: { type: 'string' },
+    };
+    const input = { note: 'still fits', last: 'do not leapfrog', [oversized]: 'large key', first: 'a'.repeat(110) };
+    const disclosure = discloseInput({ input: { properties } }, input);
+    const summary = composeSummary({
+      action: 'test.mod.change', service: 'test', module: 'mod', risk: 'medium',
+      keyFields: position === 'first' ? [oversized, 'first', 'last'] : ['first', oversized, 'last'],
+      disclosure,
+    });
+    assert.ok(summary.length <= SUMMARY_CAP);
+    assert.ok(summary.includes('note="still fits"'), 'a dropped key must not consume the remaining ordinary-field budget');
+    assert.ok(!summary.includes(`${oversized}=`));
+    assert.doesNotMatch(summary, /last=/, 'a later short key must not leapfrog a dropped key');
+    if (position === 'middle') assert.ok(summary.includes(`first="${input.first}"`));
+    else assert.doesNotMatch(summary, /first=/);
+    assert.match(summary, new RegExp(`; ${position === 'middle' ? 2 : 3} more fields not shown`));
+  });
+}
+
+test('a stop without key_fields keeps its exact rendering with a cut value, a withheld field and an attachment', () => {
+  const action = { input: { properties: {
+    note: { type: 'string' }, withheld: { type: 'string', enum: ['allowed'] }, recipient: { type: 'string' },
+  } } };
+  assert.equal(Object.hasOwn(action, 'key_fields'), false);
+  const disclosure = discloseInput(action, { note: 'x'.repeat(150), withheld: 'not allowed', recipient: 'member@example.test' });
+  const attachmentFiles = discloseAttachmentFiles([{ name: 'review.txt', path: '/tmp/review.txt', size: 42 }]);
+  assert.equal(disclosure.shown[0].truncated, true);
+  assert.deepEqual(disclosure.withheld, [{ name: 'withheld', reason: 'enum' }]);
+  assert.equal(attachmentFiles.length, 1);
+  const summary = composeSummary({
+    action: 'test.mod.send', service: 'test', module: 'mod', risk: 'high',
+    description: 'Send the named test item.', disclosure, attachmentFiles,
+  });
+  // Captured from the renderer before the key-prefix fix.
+  const before = 'test.mod.send on test/mod with note="' + 'x'.repeat(120)
+    + '"… (150 characters total, sha256:21d86423955a661e), recipient="member@example.test", '
+    + 'attachment "review.txt" at "/tmp/review.txt", 42 bytes; every attachment name, path and size is in '
+    + 'attachment_files, with full text for shortened values; note is shortened here, its full text is in input_values; '
+    + 'withheld was supplied and is not shown, because it fails its own enum; risk high; Send the named test item.';
+  assert.deepEqual(Buffer.from(summary), Buffer.from(before));
 });

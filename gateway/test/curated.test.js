@@ -136,6 +136,44 @@ test('curated read runs without a stop, maps the slug and arguments, and audits 
   assert.equal(Object.hasOwn(line, 'input'), false);
 });
 
+test('Calendar quick-add discloses the actual event and notifications without the old sample event', async () => {
+  const { gw, store, fake, calls } = await fixture();
+  await putActive(store, fake, { service: 'google', module: 'calendar', privilege: 'write' });
+  const input = { calendar_id: 'primary', send_updates: 'all', text: 'Project review Tuesday at 10am' };
+  const stop = await gw.execute({ action: 'google.calendar.quick_add', input });
+  assert.equal(stop.status, 'needs_confirmation');
+  assert.doesNotMatch(JSON.stringify(stop), /Lunch with Sam/);
+  assert.ok(stop.summary.startsWith('Add an event to your calendar from one line of text. '
+    + 'text="Project review Tuesday at 10am", send_updates="all", calendar_id="primary"'));
+  assert.equal(calls.length, 0);
+});
+
+test('Calendar patch keeps notifications and attendees visible when every free-form property is long', async () => {
+  const { gw, store, fake, calls } = await fixture();
+  await putActive(store, fake, { service: 'google', module: 'calendar', privilege: 'write' });
+  const row = CURATED.find((item) => item.id === 'google.calendar.patch_event');
+  const input = {};
+  const longFields = [];
+  for (const [name, property] of Object.entries(row.input_schema.properties)) {
+    if (property.type === 'string' && !property.enum && !property.pattern) {
+      input[name] = `${name} ${'x'.repeat(150)}`;
+      longFields.push(name);
+    } else if (property.type === 'array') {
+      input[name] = [`${name}@example.test`, `${'x'.repeat(150)}@example.test`];
+      longFields.push(name);
+    }
+  }
+  // Put notification behavior last in input order, behind the oversized values.
+  input.send_updates = 'all';
+  const stop = await gw.execute({ action: row.id, input });
+  assert.equal(stop.status, 'needs_confirmation');
+  for (const name of longFields) assert.equal(stop.input_values.find((field) => field.name === name).truncated, true, name);
+  const attendees = stop.input_values.find((field) => field.name === 'attendees');
+  assert.ok(stop.summary.startsWith(`${row.summary} send_updates="all", attendees=${attendees.value}, summary=`));
+  assert.ok(stop.summary.length <= 2000);
+  assert.equal(calls.length, 0);
+});
+
 for (const row of [CHANGE, fixtureRow('send'), fixtureRow('delete')]) {
   test(`curated ${row.kind} discloses its fields, binds confirmation and consumes it once`, async () => {
     const { gw, calls, audit } = await fixture([row]);

@@ -1557,9 +1557,10 @@ export const CURATED = Object.freeze([
     "toolkit": "GOOGLECALENDAR",
     "tool": "GOOGLECALENDAR_QUICK_ADD",
     "kind": "send",
-    "summary": "Add an event from one line of text, such as \"Lunch with Sam Friday 1pm\".",
+    "summary": "Add an event to your calendar from one line of text.",
     "key_fields": [
-      "text"
+      "text",
+      "send_updates"
     ],
     "input_schema": {
       "type": "object",
@@ -1621,7 +1622,10 @@ export const CURATED = Object.freeze([
     "kind": "send",
     "summary": "Change some details of an existing event.",
     "key_fields": [
-      "calendar_id",
+      "send_updates",
+      "attendees",
+      "summary",
+      "start_time",
       "event_id"
     ],
     "input_schema": {
@@ -1944,9 +1948,9 @@ export const CURATED = Object.freeze([
     "kind": "send",
     "summary": "Move an event to another calendar.",
     "key_fields": [
-      "calendar_id",
-      "event_id",
-      "destination"
+      "send_updates",
+      "destination",
+      "event_id"
     ],
     "input_schema": {
       "type": "object",
