@@ -31,7 +31,22 @@ Nothing is written inside this plugin. The gateway has no dependencies, so it in
 
 ## What a connector module receives, and may do
 
-A module is `connectors/<service>/index.js`, exporting `modules`, a map of module name to a map of action name to `async (input, ctx) => result`. The manifest beside it declares every action the gateway will serve; the validator refuses a module that exports more or fewer.
+A module is `connectors/<service>/index.js`, exporting `modules`, a map of module name to a map of action name to `async (input, ctx) => result`. The manifest beside it declares every action the module serves; the validator refuses a module that exports more or fewer. A catalog provider may additionally supply curated actions under an existing catalog-authenticated module, as described below.
+
+### Curated catalog actions
+
+A curated row is reviewed plain data supplied by the catalog provider's optional synchronous `curated()` method. At construction the gateway snapshots the rows and skips any invalid entry. `--check` uses the same validation and fails on any invalid row, leaving its existing connector listing unchanged and adding the valid curated ids under `curated`. A manifest action always wins over a curated id.
+
+`src/curated.js` derives action metadata from this fixed table. Privilege here is the minimum the module must grant; execution policy and audit retain the module's manifest privilege, as they do for its hand-written actions.
+
+| Kind | Minimum module privilege | Risk | Confirmation |
+|------|--------------------------|------|--------------|
+| `read` | `read` | `low` | `none` |
+| `change` | `write` | `medium` | `always` |
+| `send` | `write` | `high` | `always` |
+| `delete` | `write` | `destructive` | `always` |
+
+Valid rows use the existing module connection and the `catalog` execution path, including policy, input validation, pending confirmations, disclosure and audit. After policy allows the call, curated input is validated before any provider call, including account hydration. Only schema constraints `src/input-schema.js` enforces are accepted; provider annotations remain intact, and unsupported constraints reject the row rather than being silently ignored. The gateway still refuses undeclared input keys. `describe_action` exposes the summary, kind, schema and `curated: true`; `search_actions` is unchanged. Curated actions have no standing approval eligibility.
 
 `ctx` carries `service`, `module`, `action`, `input`, and the capabilities below:
 

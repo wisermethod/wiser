@@ -6,6 +6,7 @@ import { buildContext } from './context.js';
 import { STATUS, StatusSignal, classifierAuditStatus, isStatusObject, projectProviderCodes, sanitizeError, statusObject, vendorErrorFrom } from './errors.js';
 import { composeSummary, containsUnsafeCodePoint, discloseAttachmentFiles, discloseInput } from './disclosure.js';
 import { validateInput } from './input-schema.js';
+import { curatedActionDefinition, loadCuratedActions } from './curated.js';
 import { cleanupOutputs, stripSlot, writeOutputFile } from './file-output.js';
 import { readInputFiles, screenInputFiles } from './file-input.js';
 import { createResponseHeaderGuard } from './response-headers.js';
@@ -593,6 +594,8 @@ function listingProviderError(err) {
 export class ConnectionGateway {
   #inputFileAccess = null;
   #fileConfirmations = new Map();
+  #curatedActions = new Map();
+  #invalidCuratedIds = new Set();
 
   /**
    * @param {object} opts
@@ -629,6 +632,11 @@ export class ConnectionGateway {
       ? Boolean(opts.authConfigured)
       : (typeof this.authProvider?.isConfigured === 'function' ? this.authProvider.isConfigured() : Boolean(this.authProvider));
     this.connectors = Array.isArray(opts.connectors) ? opts.connectors : [];
+    const curated = loadCuratedActions(this.catalogProvider, this.connectors);
+    for (const row of curated.rows) {
+      this.#curatedActions.set(row.id, { row, def: curatedActionDefinition(row) });
+    }
+    this.#invalidCuratedIds = new Set(curated.errors.map((error) => error.id));
     this.envPath = opts.envPath || null;
     this.classifier = opts.classifier || null;
     this.classifierIdentity = typeof opts.classifierIdentity === 'function'
@@ -1308,6 +1316,25 @@ export class ConnectionGateway {
         ...(act.output_file ? { output_file: act.output_file, local_only: true } : {}),
       };
     }
+    const curated = this.#curatedActions.get(id);
+    if (curated) {
+      return {
+        action: id,
+        service: parsed.service,
+        module: parsed.module,
+        source: 'catalog',
+        curated: true,
+        kind: curated.row.kind,
+        summary: curated.row.summary,
+        privilege: found.auth.privilege,
+        risk: curated.def.risk,
+        confirmation: curated.def.confirmation,
+        execution: { ...curated.def.execution },
+        input: structuredClone(curated.row.input_schema),
+        description: curated.row.summary,
+      };
+    }
+    if (this.#invalidCuratedIds.has(id)) return statusObject(STATUS.NEEDS_CONNECTOR, { action: id, reason: 'undeclared' });
     const resolved = resolveAction(id, {
       connectors: this.connectors,
       catalogProvider: this.catalogProvider,
@@ -1363,7 +1390,9 @@ export class ConnectionGateway {
       line.module = parsed.module;
 
       const found = this.lookupModule(parsed.service, parsed.module);
-      const act = found?.mod?.actions?.[parsed.action];
+      const declaredAct = found?.mod?.actions?.[parsed.action];
+      const curated = declaredAct ? null : this.#curatedActions.get(action);
+      const act = declaredAct ?? curated?.def;
       const auth = found?.auth;
       // Call-local permissions also govern the writer after the module returns.
       const outputDeclaration = act?.output_file ? {
@@ -1396,11 +1425,11 @@ export class ConnectionGateway {
         op: 'execute',
       });
       if (decision.effect === 'deny') {
-        line.path = 'none';
+        line.path = curated ? 'catalog' : 'none';
         return statusObject(STATUS.DENIED, { rule: decision.rule });
       }
 
-      const resolved = resolveAction(action, {
+      const resolved = curated ? { path: 'catalog', actionId: action } : resolveAction(action, {
         connectors: this.connectors,
         catalogProvider: this.catalogProvider,
         classifier: this.classifier,
@@ -1430,12 +1459,18 @@ export class ConnectionGateway {
         if (parsed.service === 'wiser') return this.needsSubscriptionResult('missing');
         return statusObject(STATUS.NEEDS_CONNECTOR, { action });
       }
-      // An action no manifest declares has no privilege, risk or confirmation, so a
-      // bare mapping row never runs. In v1 the catalog step is reached only through a
-      // manifest row whose module delegates via ctx.catalog.
+      // A bare mapping row never runs. Only a manifest action or a validated
+      // curated row supplies the safety declaration used by the common flow.
       if (!act) {
         line.path = 'none';
         return statusObject(STATUS.NEEDS_CONNECTOR, { action, reason: 'undeclared' });
+      }
+
+      // Curated rows have no module validator. Refuse bad input before even a
+      // provider account listing can run; declared actions retain their ordering.
+      if (curated) {
+        const invalidField = validateInput(act.input, input === undefined ? {} : input);
+        if (invalidField !== null) return statusObject(STATUS.INVALID_ARGUMENTS, { field: invalidField });
       }
 
       const hasInputFiles = inputDeclaration && input !== null && typeof input === 'object' &&
@@ -1521,7 +1556,7 @@ export class ConnectionGateway {
       // `!== null` and not truthiness: a field name is a string and `""` is falsy, so a
       // truthiness test accepts any input whose first offending key is the empty string
       // and stops checking the rest. src/input-schema.js says so at the function.
-      const invalidField = validateInput(act.input, input === undefined ? {} : input);
+      const invalidField = curated ? null : validateInput(act.input, input === undefined ? {} : input);
       if (invalidField !== null) return statusObject(STATUS.INVALID_ARGUMENTS, { field: invalidField });
 
       const provider = this.providerFor(authForRun);

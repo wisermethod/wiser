@@ -1,5 +1,9 @@
 import { readFileSync } from 'node:fs';
-import { fromSlug, toSlug, toolkitsFor } from './mapping.js';
+import { fromSlug, toSlug as mappedToSlug, toolkitsFor } from './mapping.js';
+import { CURATED } from './curated.js';
+
+const curatedSlugs = new Map(CURATED.map((row) => [row.id, row.tool]));
+const toSlug = (actionId) => mappedToSlug(actionId) ?? curatedSlugs.get(actionId) ?? null;
 
 const BASE = 'https://backend.composio.dev/api/v3.1';
 
@@ -130,6 +134,9 @@ export function createCatalogProvider({ envPath } = {}) {
   return {
     toSlug,
     fromSlug,
+    curated() {
+      return CURATED;
+    },
     isConfigured() {
       return Boolean(apiKey);
     },

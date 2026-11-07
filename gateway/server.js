@@ -15,6 +15,7 @@ import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { defaultGatewayHome, defaultProviderEnvPath, ensureProviderEnvFile } from './src/paths.js';
 import { FIRST_PARTY_ACTIONS } from './src/resolve.js';
+import { loadCuratedActions } from './src/curated.js';
 
 const GATEWAY_DIR = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_POLICY_PATH = join(GATEWAY_DIR, 'policy.default.json');
@@ -459,6 +460,10 @@ async function main() {
   const classifier = classifiers.length === 0 ? null : (classifiers.length === 1 ? classifiers[0] : classifiers);
 
   if (flags.check) {
+    // Validation needs only the catalog's static data, never a credential or transport.
+    const catalog = await loadAdapter(catalogName, 'catalog-provider.js', 'createCatalogProvider', { envPath: null });
+    const curated = loadCuratedActions(catalog, connectors);
+    if (curated.errors.length) fail(`Error: invalid curated rows: ${JSON.stringify(curated.errors)}`);
     const actions = [];
     const list = connectors.map((c) => {
       const modules = {};
@@ -484,6 +489,7 @@ async function main() {
       actions,
       classifier: classifierActions,
       policy: { default_role: policy.default_role, rules: (policy.rules || []).length },
+      curated: curated.rows.map((row) => row.id),
     })}\n`);
     process.exit(0);
   }

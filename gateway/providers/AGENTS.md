@@ -55,8 +55,11 @@ Serves a provider's own tools behind our action ids. Exporting `createCatalogPro
 |--------|---------|
 | `search({ service, module, query })` | our action ids the provider can serve, from the adapter's mapping |
 | `execute({ actionId, userId, providerAccountId, arguments })` | the tool's result, or `{ status, error }` with no body |
+| `curated()` (optional, synchronous) | a frozen array of reviewed plain-data tool rows; absence means no curated actions |
 
-The mapping between our ids and the provider's slugs is a table inside the adapter, `mapping.js`, in both directions. A slug appears there and in a manifest's `auth.toolkit`, and nowhere else.
+A curated row names an id, toolkit, tool, kind, plain summary, key fields, exact provider input schema and recorded hint tags. It needs no connector function. The gateway snapshots and validates the rows once, skips invalid entries at runtime and reports them in `--check`; `gateway/AGENTS.md` owns their safety table. Provider wrappers must pass this optional method through bound and synchronously.
+
+The mapping between our ids and the provider's slugs is a table inside the adapter, `mapping.js`, in both directions. Curated rows live in that adapter's `curated.js`; `toSlug` and `execute` also serve their ids. Search remains mapping-only. Slugs stay inside the adapter, apart from a manifest's `auth.toolkit`.
 
 ## The adapters here
 
