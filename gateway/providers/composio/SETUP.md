@@ -28,7 +28,7 @@ This key authenticates the gateway to Composio.
 2. Select a project, or create one. One project is enough for this plugin.
 3. Open Settings, then Project Settings, then API Keys. If the dashboard shows Platform first: open Platform, select the project, then Settings, then the API Keys tab.
 4. Create a key. Use a full-access project API key. Do not use an organisation key. Organisation keys live under Organization Settings, General Settings, Organization Access Tokens, and they go in a different header. This gateway sends `x-api-key` and will not accept an org key.
-5. Copy the key once. It is shown at creation. Anyone holding it can act as every account you later connect.
+5. Copy the key once. It is shown at creation. Anyone holding it can act as every account you later connect. The key belongs to the member who created it: removing that member from the organisation permanently revokes it, and every gateway using it stops. Create it signed in as a login that will stay in the organisation.
 6. Open the empty file at the path `gateway/SETUP.md` names for this OS. That file exists only after the gateway has served once (a harness attach, not `help` and not `--check`). If it is missing, attach the gateway once, then come back. Do not create the path yourself. Paste the key after `WISER_AUTH_PROVIDER_KEY=` and save. Do not paste the key into chat. `COMPOSIO_API_KEY=` is accepted as an alias. The second line is `WISER_USER_ID=`. Leave it empty on a first machine; the gateway fills it. On a later machine, copy the whole file so the user id matches.
 7. Restart the harness after you save.
 
