@@ -1,174 +1,28 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { isAbsolute } from 'node:path';
-import { isAncestorPid, rescanRefusal, verify } from '../../hooks/lib/binding.mjs';
-import { isRefused } from '../../hooks/lib/presence.mjs';
 import { buildContext } from './context.js';
 import { STATUS, StatusSignal, classifierAuditStatus, isStatusObject, projectProviderCodes, sanitizeError, statusObject, vendorErrorFrom } from './errors.js';
 import { composeSummary, containsUnsafeCodePoint, discloseAttachmentFiles, discloseInput } from './disclosure.js';
 import { validateInput } from './input-schema.js';
-import { curatedActionDefinition, loadCuratedActions } from './curated.js';
-import { cleanupOutputs, stripSlot, writeOutputFile } from './file-output.js';
+import { stripSlot, writeOutputFile } from './file-output.js';
 import { readInputFiles, screenInputFiles } from './file-input.js';
 import { createResponseHeaderGuard } from './response-headers.js';
 import { evaluate } from './policy.js';
 import { assertNoSecrets } from './store.js';
-import { STANDING_APPROVAL_DAY_MS, buildStandingApprovalWarning, createStandingApprovals, isActiveStandingApproval, isHeightened, matchStandingApproval, maxStandingApprovalDays, standingApprovalResult, standingApprovalSummary } from './standing-approvals.js';
-import { readProviderUserId, writeProviderUserIdIfEmpty } from './paths.js';
-import { readClassifierKey } from './paths.js';
-import { FIRST_PARTY_ACTIONS, firstPartyDef, parseActionId, resolveAction, validateFirstPartyAnswer } from './resolve.js';
-// The vocabularies a store row's own `privilege` and `provider` are checked against,
-// taken from where the manifest validator already defines them rather than restated.
-import { AUTH_PROVIDERS, PRIVILEGES } from './manifest.js';
+import { STANDING_APPROVAL_DAY_MS, buildStandingApprovalWarning, isActiveStandingApproval, isHeightened, matchStandingApproval, maxStandingApprovalDays, standingApprovalResult, standingApprovalSummary } from './standing-approvals.js';
+import { FIRST_PARTY_ACTIONS, firstPartyDef, parseActionId, resolveAction } from './resolve.js';
+import * as connections from './connections.js';
+import { isActive } from './connections.js';
+import * as catalog from './catalog.js';
+import * as tools from './tools.js';
+import { validateArgs } from './tools.js';
+import * as firstParty from './first-party.js';
+import { firstPartyVersionFacts } from './first-party.js';
+import * as host from './host.js';
 
+export { classifierNeedsSubscription, mcpClassifierIdentity, oneShotClassifierIdentity } from './first-party.js';
+export { SEARCH_PICK_BAND } from './catalog.js';
+export { validateArgs } from './tools.js';
 export { buildStandingApprovalWarning, createStandingApprovals, matchStandingApproval, standingApprovalSummary } from './standing-approvals.js';
-
-/** A version fact is a non-empty string. Longer than this is a payload, not a version. */
-const VERSION_FACT_MAX = 128;
-
-const BAR_PATHS = new Set(['routing.door_r2', 'routing.target_r2', 'gate.T_fail']);
-
-/**
- * @param {unknown} result
- * @returns {Record<string, unknown> | null}
- */
-function plainMeta(result) {
-  const meta = result && typeof result === 'object' && !Array.isArray(result) ? result.meta : null;
-  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return null;
-  return meta;
-}
-
-/**
- * A non-empty version string, or null. The string `unknown` is kept: the
- * adapter writes it when an envelope was read and its model was not one.
- * @param {unknown} value
- * @returns {string | null}
- */
-function usableVersionString(value) {
-  if (typeof value !== 'string' || value.length === 0 || value.length > VERSION_FACT_MAX) return null;
-  return value;
-}
-
-/**
- * @param {unknown} value
- * @returns {string | null}
- */
-function usableBar(value) {
-  return typeof value === 'string' && BAR_PATHS.has(value) ? value : null;
-}
-
-/**
- * The two version facts the audit line copies off `result.meta`. A fact is a
- * non-empty string of at most VERSION_FACT_MAX characters, or null. A
- * non-string, an empty string, and a longer string are null, so a nested
- * value cannot reach the audit file. Null and a missing key are both null:
- * this function never omits a key.
- * @param {unknown} result
- */
-function firstPartyVersionFacts(result) {
-  const meta = plainMeta(result);
-  if (!meta) return { model: null, calibrated_model_version: null };
-  return {
-    model: usableVersionString(meta.model),
-    calibrated_model_version: usableVersionString(meta.calibrated_model_version),
-  };
-}
-
-/**
- * Rebuild the adapter's result as inert data the gateway owns.
- *
- * **Round 2 of adversarial review found two ways round the first version of
- * this function and both are why it now copies rather than spreads.** It
- * spread the adapter's object, which carries an enumerable `toJSON` across
- * unchanged: the in-memory projection nulled the member and `JSON.stringify`
- * at the RPC layer then called the adapter's own serialiser and returned
- * whatever it liked. And it keyed on `Object.hasOwn(result, 'meta')` while
- * `plainMeta` reads `result.meta`, which walks the prototype, so a `meta`
- * inherited from a prototype was read for the audit line and returned to the
- * caller unprojected.
- *
- * So: own enumerable string keys only, no function values, no `__proto__`,
- * and `meta` is always the three contract members forced to their types or
- * absent. An adapter chooses the data and never the serialisation.
- * @param {unknown} result
- */
-function projectFirstPartyResult(result) {
-  if (!result || typeof result !== 'object' || Array.isArray(result)) return result;
-  const meta = plainMeta(result);
-  const out = {};
-  for (const key of Object.keys(result)) {
-    if (key === 'meta' || key === '__proto__') continue;
-    const value = result[key];
-    if (typeof value === 'function') continue;
-    out[key] = value;
-  }
-  if (meta) {
-    out.meta = {
-      model: usableVersionString(meta.model),
-      bar: usableBar(meta.bar),
-      calibrated_model_version: usableVersionString(meta.calibrated_model_version),
-    };
-  }
-  return out;
-}
-
-/**
- * Read the version facts onto the audit line before a conversion can drop
- * `meta`. `vendorErrorFrom` builds a fresh object; the stamp is what the
- * line keeps.
- * @param {Record<string, unknown>} line
- * @param {unknown} result
- */
-function stampVersionFacts(line, result, key) {
-  const facts = firstPartyVersionFacts(result);
-  // A version fact is a short string and so is a credential. Length cannot
-  // tell them apart, so the one credential this process holds is compared
-  // directly and never logged, whatever the adapter called it. Round 2 of
-  // adversarial review is why: the projection had stopped a nested payload
-  // and a long one, and a key is neither.
-  const notTheKey = (value) => (key && value === key ? null : value);
-  line.model = notTheKey(facts.model);
-  line.calibrated_model_version = notTheKey(facts.calibrated_model_version);
-}
-
-/**
- * A success object that failed its declared answer. The reason is fixed so the
- * adapter's own message, which can carry a credential or a vendor name, is
- * not the call's answer. `meta` is the three members only, each forced to its
- * contract type.
- * @param {unknown} result
- */
-function malformedAnswer(result) {
-  const out = { status: 'unavailable', reason: 'malformed answer' };
-  if (!plainMeta(result)) return out;
-  const projected = projectFirstPartyResult(result);
-  if (projected && projected.meta) out.meta = projected.meta;
-  return out;
-}
-
-function isUnitProbability(value) {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
-}
-
-const CLASSIFIER_SETUP = 'Open the credential file the gateway created, paste the classifier key after WISER_CLASSIFIER_KEY=, save, and restart. Do not paste the key into chat.';
-const CLASSIFIER_SETUP_MISSING = 'Pass --classifier with an absolute path to a classifier directory, set WISER_CLASSIFIER_KEY in the credential file, and restart. Do not paste the key into chat.';
-
-/**
- * True when a first-party call would answer needs_subscription.
- *
- * No classifier loaded is the `resolved.path === 'none'` branch in `execute`.
- * An empty key line is `readClassifierKey` returning null, the same read
- * `executeFirstParty` passes as `key`. That null is what the contract answers
- * as needs_subscription. This does not call the adapter.
- *
- * @param {object | object[] | null | undefined} classifier
- * @param {string | null | undefined} envPath
- * @returns {boolean}
- */
-export function classifierNeedsSubscription(classifier, envPath) {
-  const list = Array.isArray(classifier) ? classifier : (classifier ? [classifier] : []);
-  if (list.length === 0) return true;
-  return readClassifierKey(envPath) == null;
-}
 
 /**
  * Grant states a provider may report that are not ACTIVE, and that the gateway
@@ -184,175 +38,6 @@ const STOPPED_GRANT_STATES = ['EXPIRED', 'FAILED', 'INACTIVE', 'INITIATED', 'ABS
 // These refusals may mean the grant itself failed. The status read decides:
 // only a stopped reading changes the result or the connection row.
 const GRANT_REFUSAL_STATUSES = [401, 403, 410, 422];
-
-/** The pre-seam sentence. `tools/list` returns this byte for byte when no classifier is loaded. */
-const SEARCH_ACTIONS_DESCRIPTION = 'Search action ids this gateway serves, with privilege, risk, and confirmation.';
-/** One sentence, at most 120 characters, added only when a classifier is loaded. */
-const SEARCH_ACTIONS_PICK = 'An accepted pick is listed first and marked.';
-/** The lowest classifier confidence at which a search pick is accepted. */
-export const SEARCH_PICK_BAND = 0.51;
-
-/**
- * Long-running MCP server. The env session id is the one from startup and is
- * stale after /clear, so the pointer for the parent process is the session.
- * @returns {{ harnessPid: number, sessionId: null }}
- */
-export function mcpClassifierIdentity() {
-  return { harnessPid: process.ppid, sessionId: null };
-}
-
-/**
- * One-shot `--call` / `--route`. Both values are required; neither is optional.
- * `CLAUDE_PID` is accepted only when it is an ancestor of this process.
- * @param {NodeJS.ProcessEnv} [env]
- * @param {{ ancestorReader?: (pid: number) => number | null, ancestorStart?: number }} [opts]
- * @returns {{ harnessPid: number, sessionId: string } | { ok: false, reason: string }}
- */
-export function oneShotClassifierIdentity(env = process.env, opts = {}) {
-  const raw = env.CLAUDE_PID;
-  const sessionId = env.CLAUDE_CODE_SESSION_ID;
-  const harnessPid = typeof raw === 'string' && /^[0-9]+$/.test(raw) ? Number(raw) : Number.NaN;
-  if (!Number.isInteger(harnessPid) || harnessPid <= 0) return { ok: false, reason: 'no-harness' };
-  if (typeof sessionId !== 'string' || sessionId.length === 0) return { ok: false, reason: 'no-session' };
-  if (!isAncestorPid(harnessPid, { reader: opts.ancestorReader, start: opts.ancestorStart })) {
-    return { ok: false, reason: 'not-ancestor' };
-  }
-  return { harnessPid, sessionId };
-}
-
-const LABEL_PATTERN = '^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$';
-const LABEL_SCHEMA = { type: 'string', pattern: LABEL_PATTERN, description: 'Optional connection name. Omit to use the unlabelled binding' };
-
-const ROOT_PATTERN = '^[A-Za-z0-9_-](?:[A-Za-z0-9 ._-]{0,62}[A-Za-z0-9_-])?$';
-const PLAYBOOK_PATTERN = '^[A-Za-z0-9_-](?:[A-Za-z0-9 ._()-]{0,126}[A-Za-z0-9_()-])?$';
-const ROOT_SCHEMA = { type: 'string', pattern: ROOT_PATTERN, description: 'The root from which this work is done.' };
-const PLAYBOOK_SCHEMA = { type: 'string', pattern: PLAYBOOK_PATTERN, description: 'The Playbook under which this work is done.' };
-
-const TOOLS = [
-  {
-    name: 'execute',
-    description: 'Run a connector action by id (service.module.action). Returns the result or a status object naming the next step.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        action: { type: 'string', description: 'Action id, service.module.action' },
-        input: { type: 'object', description: 'Action arguments' },
-        root: ROOT_SCHEMA,
-        playbook: PLAYBOOK_SCHEMA,
-        label: LABEL_SCHEMA,
-        confirm: { type: 'boolean', description: 'True only after a person approved a needs_confirmation stop for this exact input. The approval is used once. A confirm with no matching stop is answered with a fresh stop' },
-      },
-      required: ['action'],
-      additionalProperties: false,
-    },
-    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
-  },
-  {
-    name: 'start_connect',
-    description: 'Begin a human connect flow for a service module. Returns a link to open or a file to write. Never completes a grant and never accepts a key.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        service: { type: 'string' },
-        module: { type: 'string' },
-        label: LABEL_SCHEMA,
-      },
-      required: ['service', 'module'],
-      additionalProperties: false,
-    },
-    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
-  },
-  {
-    name: 'connect_status',
-    description: 'Ask the provider what a grant\'s status is and write it to the connection record (metadata only). Answers connected only when the provider says active and a connector still declares the module; a row whose connector was retired is answered needs_connector, refreshed when the provider gave a status to refresh it with.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        service: { type: 'string' },
-        module: { type: 'string' },
-        label: LABEL_SCHEMA,
-      },
-      required: ['service', 'module'],
-      additionalProperties: false,
-    },
-    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
-  },
-  {
-    name: 'disconnect',
-    description: 'Revoke a connected credential at the provider and remove every local record of it. DESTRUCTIVE: one credential backs every module of its toolkit that has no grant of its own, so this ends all of them, not only the module named. Stops for confirmation first and names what it will end.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        service: { type: 'string' },
-        module: { type: 'string' },
-        label: LABEL_SCHEMA,
-        provider_account_id: { type: 'string', description: 'The account the confirmation named. Required with confirm, and refused if the binding has changed since' },
-        confirm: { type: 'boolean', description: 'True only after a person approved a needs_confirmation stop for this exact input. The approval is used once. A confirm with no matching stop is answered with a fresh stop' },
-      },
-      required: ['service', 'module'],
-      additionalProperties: false,
-    },
-    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
-  },
-  {
-    name: 'standing_approvals',
-    description: "Propose a standing approval, grant it after the person's explicit yes to the warning, list approvals, or revoke one.",
-    inputSchema: {
-      type: 'object',
-      properties: {
-        mode: { type: 'string', enum: ['propose', 'grant', 'list', 'revoke'], description: 'Choose whether to propose, grant, list or revoke a standing approval.' },
-        actions: { type: 'array', minItems: 1, maxItems: 20, items: { type: 'string', pattern: '^[a-z0-9][a-z0-9-]*\\.[a-z0-9][a-z0-9-]*\\.[a-z0-9][a-z0-9_.-]*$' }, description: 'Name the eligible action ids to approve within one module.' },
-        module: { type: 'string', pattern: '^[a-z0-9][a-z0-9-]*\\.[a-z0-9][a-z0-9-]*$', description: 'Name one service.module to approve all its currently eligible actions.' },
-        label: { ...LABEL_SCHEMA, description: 'Name the connection label, or omit it for the unlabelled connection.' },
-        root: ROOT_SCHEMA,
-        playbook: PLAYBOOK_SCHEMA,
-        where: { type: 'object', additionalProperties: { type: 'array', minItems: 1, maxItems: 20, items: { type: 'string', minLength: 1, maxLength: 120 } }, description: 'Restrict declared string fields to these exact allowed values.' },
-        days: { type: 'integer', minimum: 1, maximum: 365, description: 'Set the duration in days, at most 7 for heightened actions, or 90 for a grant that only sends and names a Playbook.' },
-        confirmed: { type: 'boolean', description: 'Use true only after the person answers yes to this exact proposed warning.' },
-        id: { type: 'string', description: 'Identify the standing approval to revoke.' },
-      },
-      required: ['mode'],
-      additionalProperties: false,
-    },
-    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-  },
-  {
-    name: 'list_connections',
-    description: 'Check project-key configuration, then list connection records. Returns needs_provider when unconfigured. Metadata only; never tokens.',
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-  },
-  {
-    name: 'search_actions',
-    description: SEARCH_ACTIONS_DESCRIPTION,
-    inputSchema: {
-      type: 'object',
-      properties: {
-        query: { type: 'string' },
-        service: { type: 'string' },
-      },
-      additionalProperties: false,
-    },
-    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-  },
-  {
-    name: 'describe_action',
-    description: 'Return the input schema and manifest row for an action id.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        action: { type: 'string', description: 'Action id, service.module.action' },
-      },
-      required: ['action'],
-      additionalProperties: false,
-    },
-    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-  },
-];
-
-function nowIso() {
-  return new Date().toISOString();
-}
 
 /** How long a pending approval stays matchable. A restart drops it sooner. */
 export const PENDING_CONFIRMATION_TTL_MS = 15 * 60 * 1000;
@@ -427,240 +112,22 @@ function approvalDisclosure(spec, input) {
   return { disclosure, inputForKey: input === undefined ? {} : input };
 }
 
-const NAME_RE = /^[a-z0-9][a-z0-9-]*$/;
-const ACTION_RE = /^[a-z0-9][a-z0-9-]*\.[a-z0-9][a-z0-9-]*\.[a-z0-9][a-z0-9_.-]*$/;
-const LABEL_RE = new RegExp(LABEL_PATTERN);
-const ROOT_RE = new RegExp(ROOT_PATTERN);
-const PLAYBOOK_RE = new RegExp(PLAYBOOK_PATTERN);
-const MODULE_RE = /^[a-z0-9][a-z0-9-]*\.[a-z0-9][a-z0-9-]*$/;
-
-function isPlainObject(v) {
-  return Boolean(v) && typeof v === 'object' && !Array.isArray(v);
-}
-
-/**
- * The published inputSchema is enforced here, before anything is audited or echoed,
- * so an argument that is not an identifier never reaches a log line or a result.
- * @param {string} name
- * @param {unknown} args
- */
-export function validateArgs(name, args) {
-  const bad = (field) => statusObject(STATUS.INVALID_ARGUMENTS, { tool: name, field });
-  if (!isPlainObject(args)) return name === 'standing_approvals'
-    ? statusObject(STATUS.INVALID_ARGUMENTS, { tool: name, field: 'arguments', reason: 'type' })
-    : bad('arguments');
-  const a = args;
-  // Every tool publishes additionalProperties: false, so an undeclared key is refused by name,
-  // never ignored: a host's misspelled `inputs` once ran an action with no input at all.
-  const declared = TOOLS.find((tool) => tool.name === name)?.inputSchema.properties;
-  if (declared) {
-    for (const key of Object.keys(a)) {
-      if (!Object.hasOwn(declared, key)) {
-        return statusObject(STATUS.INVALID_ARGUMENTS, { tool: name, field: key, reason: 'not_declared' });
-      }
-    }
-  }
-  if (['execute', 'start_connect', 'connect_status', 'disconnect', 'standing_approvals'].includes(name)
-    && Object.hasOwn(a, 'label')
-    && (typeof a.label !== 'string' || !LABEL_RE.test(a.label))) {
-    return name === 'standing_approvals'
-      ? statusObject(STATUS.INVALID_ARGUMENTS, { tool: name, field: 'label', reason: 'pattern' })
-      : bad('label');
-  }
-  const optString = (k, re) => a[k] === undefined || (typeof a[k] === 'string' && (!re || re.test(a[k])));
-  switch (name) {
-    case 'execute':
-      if (typeof a.action !== 'string' || !ACTION_RE.test(a.action)) return bad('action');
-      if (a.input !== undefined && !isPlainObject(a.input)) return bad('input');
-      if (a.confirm !== undefined && typeof a.confirm !== 'boolean') return bad('confirm');
-      if (!optString('root', ROOT_RE)) return bad('root');
-      if (!optString('playbook', PLAYBOOK_RE)) return bad('playbook');
-      return null;
-    case 'standing_approvals': {
-      const invalid = (field, reason) => statusObject(STATUS.INVALID_ARGUMENTS, { tool: name, field, reason });
-      const schema = TOOLS.find((tool) => tool.name === name).inputSchema;
-      if (!schema.properties.mode.enum.includes(a.mode)) return invalid('mode', 'enum');
-      if (!optString('root', ROOT_RE)) return invalid('root', 'pattern');
-      if (!optString('playbook', PLAYBOOK_RE)) return invalid('playbook', 'pattern');
-      if (!optString('module', MODULE_RE)) return invalid('module', 'pattern');
-      if (!optString('id')) return invalid('id', 'type');
-      if (a.confirmed !== undefined && typeof a.confirmed !== 'boolean') return invalid('confirmed', 'type');
-      if (a.actions !== undefined) {
-        if (!Array.isArray(a.actions)) return invalid('actions', 'type');
-        if (a.actions.length < 1 || a.actions.length > 20) return invalid('actions', a.actions.length < 1 ? 'min' : 'max');
-        if (a.actions.some((id) => typeof id !== 'string' || !ACTION_RE.test(id))) return invalid('actions', 'pattern');
-      }
-      if (a.days !== undefined) {
-        if (!Number.isInteger(a.days)) return invalid('days', 'type');
-        if (a.days < 1 || a.days > 365) return invalid('days', a.days < 1 ? 'min' : 'max');
-      }
-      if (a.where !== undefined) {
-        if (!isPlainObject(a.where)) return invalid('where', 'type');
-        for (const [field, values] of Object.entries(a.where)) {
-          const at = `where.${field}`;
-          if (!Array.isArray(values)) return invalid(at, 'type');
-          if (values.length < 1 || values.length > 20) return invalid(at, values.length < 1 ? 'min' : 'max');
-          if (values.some((value) => typeof value !== 'string')) return invalid(at, 'type');
-          if (values.some((value) => value.length < 1 || value.length > 120)) return invalid(at, 'length');
-        }
-      }
-      return null;
-    }
-    case 'start_connect':
-    case 'connect_status':
-      if (typeof a.service !== 'string' || !NAME_RE.test(a.service)) return bad('service');
-      if (typeof a.module !== 'string' || !NAME_RE.test(a.module)) return bad('module');
-      return null;
-    case 'disconnect':
-      if (typeof a.service !== 'string' || !NAME_RE.test(a.service)) return bad('service');
-      if (typeof a.module !== 'string' || !NAME_RE.test(a.module)) return bad('module');
-      // The account id comes from the provider and is not ours to shape, so it is
-      // checked for being a non-empty string and nothing more. It is never used to
-      // build a path here; the adapter encodes it.
-      if (a.provider_account_id !== undefined
-        && (typeof a.provider_account_id !== 'string' || a.provider_account_id.length === 0)) return bad('provider_account_id');
-      if (a.confirm !== undefined && typeof a.confirm !== 'boolean') return bad('confirm');
-      return null;
-    case 'search_actions':
-      if (!optString('query')) return bad('query');
-      if (!optString('service', NAME_RE)) return bad('service');
-      return null;
-    case 'describe_action':
-      if (typeof a.action !== 'string' || !ACTION_RE.test(a.action)) return bad('action');
-      return null;
-    case 'list_connections':
-      return null;
-    default:
-      return null;
-  }
-}
-
-function isActive(record) {
-  return Boolean(record && record.status === 'ACTIVE');
-}
-
-// Omit a toolkit when two ACTIVE accounts share its raw key or its CUSTOM_-stripped key.
-function activeAccountIdsByToolkit(accounts) {
-  const idsByKey = new Map();
-  const addId = (key, id) => {
-    if (!idsByKey.has(key)) idsByKey.set(key, new Set());
-    idsByKey.get(key).add(id);
-  };
-  for (const account of accounts) {
-    if (!account || account.status !== 'ACTIVE' || !account.id || !account.toolkit) continue;
-    const key = String(account.toolkit).toUpperCase();
-    addId(key, account.id);
-    addId(key.replace(/^CUSTOM_/, ''), account.id);
-  }
-  const ambiguousIds = new Set();
-  for (const ids of idsByKey.values()) {
-    if (ids.size > 1) {
-      for (const id of ids) ambiguousIds.add(id);
-    }
-  }
-  const byToolkit = new Map();
-  for (const [key, ids] of idsByKey) {
-    if (ids.size !== 1) continue;
-    const [id] = ids;
-    if (ambiguousIds.has(id)) continue;
-    byToolkit.set(key, id);
-  }
-  return byToolkit;
-}
-
-/**
- * A rejected account listing, as a provider error for the request that failed.
- * `listingRequest` is the adapter's `{ status, endpoint, method }` and nothing
- * from the body. A rejection that names no request is still not a missing grant.
- * @param {unknown} err
- */
-function listingProviderError(err) {
-  const named = err && typeof err === 'object' && !Array.isArray(err) ? err.listingRequest : null;
-  const request = named && typeof named === 'object' && !Array.isArray(named) ? named : null;
-  const endpoint = request && typeof request.endpoint === 'string' && request.endpoint.length > 0
-    ? request.endpoint
-    : null;
-  const method = request && typeof request.method === 'string' ? request.method : null;
-  const httpStatus = request && Object.hasOwn(request, 'status') ? request.status : null;
-  return vendorErrorFrom({
-    status: httpStatus,
-    error: { code: 'vendor_error', endpoint, method },
-  });
-}
-
 /**
  * Connection gateway: resolve, policy, execute, connect.
  */
 export class ConnectionGateway {
-  #inputFileAccess = null;
   #fileConfirmations = new Map();
-  #curatedActions = new Map();
-  #invalidCuratedIds = new Set();
 
   /**
    * @param {object} opts
    */
   constructor(opts) {
-    this.home = opts.home;
-    if (opts.outputsDir != null && (typeof opts.outputsDir !== 'string' || !isAbsolute(opts.outputsDir))) {
-      throw new TypeError('outputsDir must be an absolute path');
-    }
-    this.outputsDir = opts.outputsDir ?? null;
-    if (opts.inputFileAccess != null) {
-      const access = opts.inputFileAccess;
-      const absolute = (value) => typeof value === 'string' && isAbsolute(value) && !value.includes('\u0000');
-      const secrets = access.secretFiles ?? {};
-      if (typeof access !== 'object' || Array.isArray(access) || access.enabled !== true ||
-          !absolute(opts.home) || !absolute(access.envPath) || !secrets || typeof secrets !== 'object' ||
-          !Object.values(secrets).every(absolute) || (access.secretsDir != null && !absolute(access.secretsDir))) {
-        throw new TypeError('inputFileAccess requires explicit absolute local paths');
-      }
-      this.#inputFileAccess = {
-        home: opts.home, envPath: access.envPath, secretFiles: Object.values(secrets), secretsDir: access.secretsDir ?? null,
-      };
-    }
-    this.role = opts.role || 'runtime';
-    this.harness = opts.harness || 'unknown';
-    this.store = opts.store;
-    this.policy = opts.policy;
-    this.audit = opts.audit;
-    this.authProvider = opts.authProvider || null;
-    this.fetchImpl = opts.fetchImpl ?? globalThis.fetch;
-    this.catalogProvider = opts.catalogProvider || null;
-    this.localFileProvider = opts.localFileProvider || null;
-    this.authConfigured = opts.authConfigured !== undefined
-      ? Boolean(opts.authConfigured)
-      : (typeof this.authProvider?.isConfigured === 'function' ? this.authProvider.isConfigured() : Boolean(this.authProvider));
-    this.connectors = Array.isArray(opts.connectors) ? opts.connectors : [];
-    const curated = loadCuratedActions(this.catalogProvider, this.connectors);
-    for (const row of curated.rows) {
-      this.#curatedActions.set(row.id, { row, def: curatedActionDefinition(row) });
-    }
-    this.#invalidCuratedIds = new Set(curated.errors.map((error) => error.id));
-    this.envPath = opts.envPath || null;
-    this.classifier = opts.classifier || null;
-    this.classifierIdentity = typeof opts.classifierIdentity === 'function'
-      ? opts.classifierIdentity
-      : mcpClassifierIdentity;
-    /** @type {Set<string>} */
-    this.confirmedOnce = new Set();
-    /**
-     * Pending approvals, key to expiry in milliseconds. In memory only. A host
-     * that builds one gateway per request hydrates and flushes this Map the
-     * same way it does `confirmedOnce`.
-     * @type {Map<string, number>}
-     */
-    this.pendingConfirmations = opts.pendingConfirmations instanceof Map
-      ? opts.pendingConfirmations
-      : new Map();
-    /** Milliseconds. Read on every use so a test can reassign `gw.now`. */
-    this.now = typeof opts.now === 'function' ? opts.now : Date.now;
-    this.standingApprovals = opts.standingApprovals || createStandingApprovals(this.store?.home, () => this.now());
+    host.initializeHost(this, opts);
   }
 
   /** Called only on stdio serve start, and by the writer before each file. */
   cleanupOutputs() {
-    cleanupOutputs(this.outputsDir);
+    return host.cleanupOutputs(this);
   }
 
   /** Drop pending approvals whose expiry has passed. */
@@ -740,35 +207,15 @@ export class ConnectionGateway {
    * @returns {{ ok: true, binding: Record<string, unknown> } | { ok: false, reason: string }}
    */
   classifierSession() {
-    const ident = this.classifierIdentity();
-    if (!ident || ident.ok === false) {
-      return { ok: false, reason: (ident && ident.reason) || 'no-harness' };
-    }
-    const verified = verify({
-      home: this.home,
-      harnessPid: ident.harnessPid,
-      sessionId: ident.sessionId ?? null,
-    });
-    if (!verified.ok) return verified;
-    if (verified.binding.refused === true) return { ok: false, reason: 'refused' };
-    const owning = verified.binding.owning_root;
-    if (typeof owning !== 'string' || owning.length === 0) {
-      return { ok: false, reason: 'no-owning-root' };
-    }
-    if (isRefused(owning)) return { ok: false, reason: 'refused' };
-    if (rescanRefusal(verified.binding)) return { ok: false, reason: 'refused' };
-    return verified;
+    return firstParty.classifierSession(this);
   }
 
   classifiers() {
-    if (!this.classifier) return [];
-    return Array.isArray(this.classifier) ? this.classifier : [this.classifier];
+    return firstParty.classifiers(this);
   }
 
   needsSubscriptionResult(kind) {
-    return statusObject(STATUS.NEEDS_SUBSCRIPTION, {
-      setup: kind === 'missing' ? CLASSIFIER_SETUP_MISSING : CLASSIFIER_SETUP,
-    });
+    return firstParty.needsSubscriptionResult(this, kind);
   }
 
   /**
@@ -784,34 +231,15 @@ export class ConnectionGateway {
    * store race recorded in `src/store.js`.
    */
   get revokedAccounts() {
-    if (!this._revokedAccounts) this._revokedAccounts = new Set();
-    return this._revokedAccounts;
+    return connections.revokedAccounts(this);
   }
 
   resolveUserId() {
-    const fromEnv = readProviderUserId(this.envPath);
-    if (fromEnv) {
-      const doc = this.store.read();
-      if (doc.userId !== fromEnv) {
-        doc.userId = fromEnv;
-        this.store.write(doc);
-      }
-      return fromEnv;
-    }
-    const fromStore = this.store.getUserId();
-    writeProviderUserIdIfEmpty(this.envPath, fromStore);
-    return fromStore;
+    return host.resolveUserId(this);
   }
 
   listTools() {
-    if (this.classifiers().length === 0) return TOOLS;
-    return TOOLS.map((tool) => {
-      if (tool.name !== 'search_actions') return tool;
-      return {
-        ...tool,
-        description: `${SEARCH_ACTIONS_DESCRIPTION} ${SEARCH_ACTIONS_PICK}`,
-      };
-    });
+    return tools.listTools(this);
   }
 
   /**
@@ -819,89 +247,31 @@ export class ConnectionGateway {
    * @param {object} [args]
    */
   async callTool(name, args = {}) {
-    const invalid = validateArgs(name, args);
-    if (invalid) return invalid;
-    switch (name) {
-      case 'execute':
-        return this.execute(args);
-      case 'start_connect':
-        return this.startConnect(args);
-      case 'connect_status':
-        return this.connectStatus(args);
-      case 'disconnect':
-        return this.disconnect(args);
-      case 'standing_approvals':
-        return this.standingApprovalsTool(args);
-      case 'list_connections':
-        return this.listConnections();
-      case 'search_actions':
-        return this.searchActions(args);
-      case 'describe_action':
-        return this.describeAction(args.action ?? args.id);
-      default: {
-        const err = new Error(`unknown tool "${name}"`);
-        err.unknownTool = true;
-        throw err;
-      }
-    }
+    return tools.callTool(this, name, args);
   }
 
   lookupModule(service, module) {
-    const connector = this.connectors.find((c) => c.id === service || c.service === service);
-    if (!connector) return null;
-    const mod = connector.manifest?.modules?.[module];
-    if (!mod) return null;
-    return { connector, mod, auth: mod.auth };
+    return catalog.lookupModule(this, service, module);
   }
 
   requireLabel(tool, service, module) {
-    const labels = this.store.listConnections()
-      .filter((row) => row.service === service && row.module === module && typeof row.label === 'string')
-      .map((row) => row.label).sort();
-    return labels.length ? statusObject(STATUS.INVALID_ARGUMENTS, { tool, field: 'label', labels }) : null;
+    return connections.requireLabel(this, tool, service, module);
   }
 
   bindLabelledModules(found, record) {
-    const toolkit = (value) => String(value || '').toUpperCase().replace(/^CUSTOM_/, '');
-    if (!toolkit(found.auth.toolkit)) return;
-    for (const [module, definition] of Object.entries(found.connector.manifest.modules)) {
-      const auth = definition.auth;
-      if (module === record.module || auth.provider !== found.auth.provider
-        || toolkit(auth.toolkit) !== toolkit(found.auth.toolkit)) continue;
-      // One label holds one credential per toolkit, so a sibling on another account moves too.
-      const current = this.store.getConnection({ service: record.service, module, label: record.label });
-      if (isActive(current) && current.provider_account_id === record.provider_account_id) continue;
-      // A sibling mid-reconnect onto a new account is left to finish; a refresh must not undo it.
-      if (current?.status === 'INITIATED' && current.provider_account_id !== record.provider_account_id) continue;
-      this.store.putConnection({
-        service: record.service,
-        module,
-        label: record.label,
-        privilege: auth.privilege,
-        provider: auth.provider,
-        provider_account_id: record.provider_account_id,
-        scopes: [],
-        status: 'ACTIVE',
-      });
-    }
+    return connections.bindLabelledModules(this, found, record);
   }
 
   providerFor(auth) {
-    if (auth?.provider === 'local-file') return this.localFileProvider;
-    return this.authProvider;
+    return connections.providerFor(this, auth);
   }
 
   needsProviderCredential(auth) {
-    if (!auth) return !this.authConfigured;
-    if (auth.provider === 'local-file') return false;
-    return !this.authConfigured;
+    return connections.needsProviderCredential(this, auth);
   }
 
   needsProviderResult() {
-    const setup = typeof this.authProvider?.setupText === 'function'
-      ? this.authProvider.setupText()
-      : 'Open the credential file the gateway created, paste the project key after WISER_AUTH_PROVIDER_KEY=, save, and restart. Do not paste the key into chat.';
-    return statusObject(STATUS.NEEDS_PROVIDER, { setup });
+    return connections.needsProviderResult(this);
   }
 
   /**
@@ -1111,8 +481,7 @@ export class ConnectionGateway {
   }
 
   listConnections() {
-    if (this.needsProviderCredential()) return this.needsProviderResult();
-    return this.hydrateFromProvider().then(() => ({ connections: this.store.listConnections() }));
+    return connections.listConnections(this);
   }
 
   /**
@@ -1122,106 +491,11 @@ export class ConnectionGateway {
    * are not hydrated.
    */
   async hydrateFromProvider() {
-    const list = this.authProvider?.listAccounts;
-    if (typeof list !== 'function') return;
-    let accounts;
-    try {
-      accounts = await list.call(this.authProvider, { userId: this.resolveUserId() });
-    } catch (err) {
-      // Returned, not swallowed, so connect_status can tell a failed list from
-      // an empty one. execute and list_connections ignore this value. They still
-      // write nothing, which is what they already did.
-      return { failed: true, error: err };
-    }
-    if (!Array.isArray(accounts) || accounts.length === 0) return;
-
-    const byToolkit = activeAccountIdsByToolkit(accounts);
-    // A toolkit with a labelled row is named call by call, so adoption never guesses there:
-    // an account a label just let go of would otherwise land on the unlabelled binding.
-    const toolkitKey = (value) => String(value || '').toUpperCase().replace(/^CUSTOM_/, '');
-    const labelledToolkits = new Set(this.store.listConnections()
-      .filter((row) => row.label !== undefined)
-      .map((row) => toolkitKey(this.lookupModule(row.service, row.module)?.auth?.toolkit))
-      .filter(Boolean));
-
-    for (const connector of this.connectors) {
-      const service = connector.id || connector.service;
-      const modules = connector.manifest?.modules || {};
-      for (const [module, definition] of Object.entries(modules)) {
-        const auth = definition?.auth;
-        if (!auth || auth.provider === 'local-file') continue;
-        const toolkit = auth.toolkit && String(auth.toolkit).toUpperCase();
-        if (!toolkit) continue;
-        if (labelledToolkits.has(toolkitKey(toolkit))) continue;
-        const accountId = byToolkit.get(toolkit) || byToolkit.get(toolkit.replace(/^CUSTOM_/, ''));
-        if (!accountId) continue;
-        // A listing captured before a teardown still carries the revoked account. Writing
-        // it back recreates the stale ACTIVE rows this build exists to remove, and
-        // checking whether a row exists cannot catch it, because writing missing rows is
-        // what hydration is for.
-        if (this.revokedAccounts.has(accountId)) continue;
-        if (this.store.listConnections().some((row) => row.label !== undefined && row.provider_account_id === accountId)) continue;
-        const existing = this.store.getConnection({ service, module });
-        if (isActive(existing) && existing.provider_account_id) continue;
-        this.store.putConnection({
-          service,
-          module,
-          privilege: auth.privilege,
-          provider: auth.provider,
-          provider_account_id: accountId,
-          scopes: [],
-          status: 'ACTIVE',
-        });
-      }
-    }
+    return connections.hydrateFromProvider(this);
   }
 
-  listActions({ query, service } = {}) {
-    const q = typeof query === 'string' ? query.toLowerCase() : '';
-    const actions = [];
-    for (const c of this.connectors) {
-      if (service && c.service !== service && c.id !== service) continue;
-      for (const [modName, mod] of Object.entries(c.manifest.modules)) {
-        for (const [actName, act] of Object.entries(mod.actions)) {
-          const id = `${c.service}.${modName}.${actName}`;
-          const description = act.description || '';
-          if (q && !id.toLowerCase().includes(q) && !description.toLowerCase().includes(q)) continue;
-          actions.push({
-            action: id,
-            privilege: mod.auth.privilege,
-            risk: act.risk,
-            confirmation: act.confirmation,
-            description: description || null,
-          });
-        }
-      }
-    }
-    const seen = new Set(actions.map((a) => a.action));
-    for (const c of this.classifiers()) {
-      if (typeof c.actions !== 'function') continue;
-      let ids;
-      try { ids = c.actions(); } catch { continue; }
-      if (!Array.isArray(ids)) continue;
-      for (const id of ids) {
-        if (seen.has(id)) continue;
-        const parsed = parseActionId(id);
-        if (!parsed) continue;
-        if (service && parsed.service !== service) continue;
-        const def = firstPartyDef(id);
-        if (!def) continue;
-        const description = def.description || '';
-        if (q && !id.toLowerCase().includes(q) && !description.toLowerCase().includes(q)) continue;
-        seen.add(id);
-        actions.push({
-          action: id,
-          privilege: def.privilege ?? null,
-          risk: def.risk ?? null,
-          confirmation: def.confirmation ?? null,
-          description: description || null,
-        });
-      }
-    }
-    return actions;
+  listActions(args = {}) {
+    return catalog.listActions(this, args);
   }
 
   /**
@@ -1232,149 +506,19 @@ export class ConnectionGateway {
    * @returns {{ call: boolean, reason: string | null } | null}
    */
   classifierSearchAttempt(args) {
-    const query = args.query;
-    if (typeof query !== 'string' || query.length === 0) return null;
-    if (this.classifiers().length === 0) return null;
-    const session = this.classifierSession();
-    if (!session.ok) return { call: false, reason: session.reason };
-    if (readClassifierKey(this.envPath) == null) return null;
-    return { call: true, reason: null };
+    return catalog.classifierSearchAttempt(this, args);
   }
 
   searchActions(args = {}) {
-    const actions = this.listActions({ query: args.query, service: args.service });
-    const attempt = this.classifierSearchAttempt(args);
-    if (!attempt) return { actions };
-    if (!attempt.call) {
-      return {
-        actions,
-        classifier: { path: 'builtin', reason: attempt.reason },
-      };
-    }
-    return this.rankSearch(actions, args);
+    return catalog.searchActions(this, args);
   }
 
   async rankSearch(actions, args) {
-    const universe = this.listActions({ service: args.service })
-      .filter((row) => !String(row.action).startsWith('wiser.'));
-    const options = universe.map((row) => ({ id: row.action, label: row.description || '' }));
-    const answer = await this.execute({
-      action: 'wiser.decide.choice',
-      input: { decision: args.query, options, allow_uncalibrated: true },
-    });
-    const choice = answer && typeof answer.choice === 'string' ? answer.choice : null;
-    const confidence = answer && Object.hasOwn(answer, 'confidence') ? answer.confidence : null;
-    const accepted = choice !== null
-      && !(typeof answer.status === 'string' && answer.status.length > 0)
-      && options.some((opt) => opt.id === choice);
-    // The confidence band: a pick below it is not acted on, and today's results stand. Set by rule on a
-    // calibration set of its own, the lowest confidence at which the pick was at least as precise as a
-    // host choosing, then tested on a second set.
-    const inBand = typeof confidence === 'number' && Number.isFinite(confidence)
-      && confidence >= 0 && confidence <= 1 && confidence >= SEARCH_PICK_BAND;
-    if (!accepted || !inBand) {
-      const reason = answer && typeof answer.status === 'string' && answer.status
-        ? answer.status
-        : (accepted ? 'below-band' : 'not-accepted');
-      return {
-        actions,
-        classifier: { path: 'builtin', reason, choice, confidence },
-      };
-    }
-    const chosen = universe.find((row) => row.action === choice);
-    const rest = actions.filter((row) => row.action !== choice);
-    return {
-      actions: [{ ...chosen, classifier: true }, ...rest],
-      classifier: { path: 'classifier', reason: null, choice, confidence },
-    };
+    return catalog.rankSearch(this, actions, args);
   }
 
   describeAction(id) {
-    const parsed = parseActionId(id);
-    if (!parsed) return statusObject(STATUS.NEEDS_CONNECTOR, { action: id ?? null });
-    const found = this.lookupModule(parsed.service, parsed.module);
-    const act = found?.mod?.actions?.[parsed.action];
-    if (act) {
-      let description = act.description ?? null;
-      if (act.output_file) {
-        description = `${description ? `${description} ` : ''}This action writes a file into the gateway's outputs/ directory and runs on the local gateway only.`;
-      }
-      if (act.input_files) {
-        description = `${description ? `${description} ` : ''}Calls naming ${act.input_files.field} run only on local stdio, with an aggregate cap of ${act.input_files.max_bytes} bytes. Symbolic links at any component and all multiply linked files are refused; give the real path when an ancestor is linked.`;
-      }
-      return {
-        action: `${parsed.service}.${parsed.module}.${parsed.action}`,
-        service: parsed.service,
-        module: parsed.module,
-        privilege: found.auth.privilege,
-        risk: act.risk,
-        confirmation: act.confirmation,
-        execution: act.execution,
-        input: act.input ?? null,
-        description,
-        ...(act.input_files ? { input_files: { ...act.input_files } } : {}),
-        ...(act.output_file ? { output_file: act.output_file, local_only: true } : {}),
-      };
-    }
-    const curated = this.#curatedActions.get(id);
-    if (curated) {
-      return {
-        action: id,
-        service: parsed.service,
-        module: parsed.module,
-        source: 'catalog',
-        curated: true,
-        kind: curated.row.kind,
-        summary: curated.row.summary,
-        privilege: found.auth.privilege,
-        risk: curated.def.risk,
-        confirmation: curated.def.confirmation,
-        execution: { ...curated.def.execution },
-        input: structuredClone(curated.row.input_schema),
-        description: curated.row.summary,
-      };
-    }
-    if (this.#invalidCuratedIds.has(id)) return statusObject(STATUS.NEEDS_CONNECTOR, { action: id, reason: 'undeclared' });
-    const resolved = resolveAction(id, {
-      connectors: this.connectors,
-      catalogProvider: this.catalogProvider,
-      classifier: this.classifier,
-    });
-    // Widened by name: the fallback is an equality test against a path word, not
-    // a general "resolution succeeded" test. Filling resolveFirstPartyMcp alone
-    // does not change this surface; `first_party_mcp` has to be named here.
-    if (resolved.path === 'catalog') {
-      return {
-        action: id,
-        service: parsed.service,
-        module: parsed.module,
-        source: 'catalog',
-        input: null,
-      };
-    }
-    if (resolved.path === 'first_party_mcp') {
-      const def = FIRST_PARTY_ACTIONS[id];
-      if (!def) {
-        return statusObject(STATUS.NEEDS_CONNECTOR, { action: id, reason: 'undeclared' });
-      }
-      const described = resolved.describe && typeof resolved.describe === 'object' ? resolved.describe : {};
-      return {
-        action: id,
-        service: parsed.service,
-        module: parsed.module,
-        privilege: def.privilege ?? null,
-        risk: def.risk ?? null,
-        confirmation: def.confirmation ?? null,
-        source: 'first_party_mcp',
-        input: def.input ?? described.request ?? null,
-        description: def.description ?? null,
-        answer: described.answer ?? null,
-      };
-    }
-    if (parsed.service === 'wiser') {
-      return this.needsSubscriptionResult('missing');
-    }
-    return statusObject(STATUS.NEEDS_CONNECTOR, { action: id });
+    return catalog.describeAction(this, id);
   }
 
   async execute({ action, input, confirm, label, root, playbook } = {}) {
@@ -1391,7 +535,7 @@ export class ConnectionGateway {
 
       const found = this.lookupModule(parsed.service, parsed.module);
       const declaredAct = found?.mod?.actions?.[parsed.action];
-      const curated = declaredAct ? null : this.#curatedActions.get(action);
+      const curated = declaredAct ? null : catalog.getCuratedAction(this, action);
       const act = declaredAct ?? curated?.def;
       const auth = found?.auth;
       // Call-local permissions also govern the writer after the module returns.
@@ -1475,7 +619,7 @@ export class ConnectionGateway {
 
       const hasInputFiles = inputDeclaration && input !== null && typeof input === 'object' &&
         !Array.isArray(input) && Object.hasOwn(input, inputDeclaration.field);
-      if (hasInputFiles && !this.#inputFileAccess) {
+      if (hasInputFiles && !host.inputFileAccessFor(this)) {
         return statusObject(STATUS.LOCAL_ONLY, {
           action, reason: 'Calls naming local input files run only on the local stdio gateway.',
         });
@@ -1597,7 +741,7 @@ export class ConnectionGateway {
       let preparedInputFiles = inputDeclaration ? [] : undefined;
       let fileDescriptors = [];
       if (hasInputFiles) {
-        const screened = screenInputFiles(input[inputDeclaration.field], inputDeclaration, inputFileSchema, this.#inputFileAccess);
+        const screened = screenInputFiles(input[inputDeclaration.field], inputDeclaration, inputFileSchema, host.inputFileAccessFor(this));
         const files = isStatusObject(screened) ? screened : readInputFiles(screened);
         if (isStatusObject(files)) {
           if (fileApproval) {
@@ -1822,478 +966,23 @@ export class ConnectionGateway {
    * First-party dispatch. Never reads `act` (undefined for a wiser.* id).
    * @param {object} args
    */
-  async executeFirstParty({ action, input, confirm, label, parsed, decision, resolved, line }) {
-    const session = this.classifierSession();
-    if (!session.ok) return statusObject(STATUS.CLASSIFIER_UNBOUND, { reason: session.reason });
-
-    const def = resolved.def || firstPartyDef(action) || {};
-    line.privilege = def.privilege ?? line.privilege ?? null;
-
-    const invalidField = validateInput(def.input, input === undefined ? {} : input);
-    if (invalidField !== null) return statusObject(STATUS.INVALID_ARGUMENTS, { field: invalidField });
-
-    const confirmation = def.confirmation || 'none';
-    const onceKey = label === undefined ? action : canonicalJson([action, label]);
-    const needsConfirm =
-      decision.effect === 'confirm' ||
-      confirmation === 'always' ||
-      (confirmation === 'once' && !this.confirmedOnce.has(onceKey));
-    // Same rule as the connector path: disclosure first, and the key only when
-    // a stop or a match is needed and nothing was withheld.
-    if (needsConfirm) {
-      const approval = approvalDisclosure(def, input);
-      if (approval.refusal) return approval.refusal;
-      const confirmKey = confirmationDigest([
-        'execute',
-        action,
-        approval.inputForKey,
-        null,
-        ...(label === undefined ? [] : [label]),
-      ]);
-      const matched = confirm === true && this.takePendingConfirmation(confirmKey);
-      if (!matched) {
-        this.recordPendingConfirmation(confirmKey);
-        const disclosure = approval.disclosure;
-        const summary = composeSummary({
-          action,
-          service: parsed.service,
-          module: parsed.module,
-          risk: def.risk,
-          description: def.description,
-          disclosure,
-        });
-        return statusObject(STATUS.NEEDS_CONFIRMATION, {
-          action,
-          service: parsed.service,
-          module: parsed.module,
-          risk: def.risk ?? null,
-          confirmation,
-          label: label ?? null,
-          input_fields: disclosure.fields,
-          undeclared_fields: disclosure.undeclared,
-          input_values: inputValueEntries(disclosure.shown),
-          withheld_fields: disclosure.withheld,
-          summary,
-          description: def.description ?? null,
-          ...(confirm === true ? { reason: 'unmatched_confirm' } : {}),
-        });
-      }
-    }
-    if (confirm === true && confirmation === 'once') {
-      this.confirmedOnce.add(onceKey);
-    }
-
-    try {
-      const key = readClassifierKey(this.envPath);
-      if (key == null) return this.needsSubscriptionResult();
-      if (typeof resolved.fn !== 'function') {
-        return { status: 'unavailable', reason: 'unknown action id' };
-      }
-      const raw = await resolved.fn(input ?? {}, key);
-      if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) {
-        return { status: 'unavailable', reason: 'malformed answer' };
-      }
-      stampVersionFacts(line, raw, key);
-      const result = projectFirstPartyResult(raw);
-      if (result.status === STATUS.NEEDS_CONNECT && label !== undefined) result.label = label;
+  async executeFirstParty(args) {
+    // Keep this projection guard here for consumers that inspect gateway.js.
+    const projectStatus = (result) => {
       if (isStatusObject(result)) return projectProviderCodes(result);
-      if (result.error && result.error.code === 'vendor_error') return vendorErrorFrom(result);
-      // An adapter status is not re-parsed as a success answer. A
-      // below_threshold that names `p` still has to name a probability: a
-      // string there is not left for a caller to coerce, and a missing `p`
-      // stays the object the adapter returned.
-      if (typeof result.status === 'string' && result.status) {
-        if (result.status === 'below_threshold' && Object.hasOwn(result, 'p') && !isUnitProbability(result.p)) {
-          return malformedAnswer(result);
-        }
-        return result;
-      }
-      if (!validateFirstPartyAnswer(action, input ?? {}, result)) return malformedAnswer(result);
-      return result;
-    } catch {
-      // The adapter is not trusted, including with this process's own
-      // StatusSignal. Every throw is the fixed adapter error.
-      return { status: 'unavailable', reason: 'adapter_error' };
-    }
-  }
-
-  async startConnect({ service, module, label } = {}) {
-    return this.withAudit('startConnect', { service, module, label, action: null }, async (line) => {
-      if (!service || !module) {
-        return statusObject(STATUS.NEEDS_CONNECTOR, { action: null, service: service ?? null, module: module ?? null });
-      }
-      const found = this.lookupModule(service, module);
-      if (!found) {
-        line.path = 'none';
-        return statusObject(STATUS.NEEDS_CONNECTOR, { service, module });
-      }
-      if (label !== undefined && found.auth.provider === 'local-file') {
-        return statusObject(STATUS.INVALID_ARGUMENTS, { tool: 'start_connect', field: 'label' });
-      }
-      line.privilege = found.auth.privilege;
-      const decision = evaluate(this.policy, {
-        harness: this.harness,
-        role: this.role,
-        service,
-        module,
-        privilege: found.auth.privilege,
-        op: 'startConnect',
-      });
-      if (decision.effect === 'deny') {
-        return statusObject(STATUS.DENIED, { rule: decision.rule });
-      }
-
-      if (this.needsProviderCredential(found.auth)) {
-        return this.needsProviderResult();
-      }
-
-      const provider = this.providerFor(found.auth);
-      if (!provider || typeof provider.initiate !== 'function') {
-        return this.needsProviderResult();
-      }
-
-      const initiated = await provider.initiate({
-        userId: this.resolveUserId(),
-        service,
-        module,
-        toolkit: found.auth.toolkit,
-        scheme: found.auth.scheme,
-        file: found.auth.file,
-        variables: found.auth.variables,
-      });
-
-      if (initiated && initiated.error && initiated.error.code === 'vendor_error') {
-        const mapped = vendorErrorFrom(initiated);
-        if (typeof initiated.toolkit === 'string') mapped.toolkit = initiated.toolkit;
-        if (Number.isFinite(initiated.configs)) mapped.configs = initiated.configs;
-        return mapped;
-      }
-
-      if (initiated?.kind === 'file') {
-        if (!initiated.path) {
-          const setup = typeof provider.setupText === 'function' ? provider.setupText() : null;
-          return statusObject(STATUS.NEEDS_PROVIDER, { setup, provider: 'local-file' });
-        }
-        line.path = 'connector';
-        this.store.putConnection({
-          id: randomUUID(),
-          service,
-          module,
-          privilege: found.auth.privilege,
-          provider: found.auth.provider,
-          provider_account_id: found.auth.file,
-          scopes: [],
-          status: 'INITIATED',
-          created: nowIso(),
-          updated: nowIso(),
-        });
-        return {
-          status: 'file',
-          path: initiated.path,
-          variables: initiated.variables,
-          next: 'connectStatus',
-        };
-      }
-
-      line.path = 'connector';
-      line.provider_account_id = initiated?.providerAccountId ?? null;
-      this.store.putConnection({
-        id: randomUUID(),
-        service,
-        module,
-        ...(label === undefined ? {} : { label }),
-        privilege: found.auth.privilege,
-        provider: found.auth.provider,
-        provider_account_id: initiated?.providerAccountId ?? null,
-        scopes: [],
-        status: 'INITIATED',
-        created: nowIso(),
-        updated: nowIso(),
-      });
-      return {
-        status: 'link',
-        url: initiated?.url ?? null,
-        next: 'connectStatus',
-      };
+      return null;
+    };
+    return firstParty.executeFirstParty(this, args, {
+      canonicalJson, confirmationDigest, approvalDisclosure, inputValueEntries, projectStatus,
     });
   }
 
-  async connectStatus({ service, module, label } = {}) {
-    const labelled = label === undefined ? {} : { label };
-    return this.withAudit('connectStatus', { service, module, label, action: null }, async (line) => {
-      if (!service || !module) {
-        return statusObject(STATUS.NEEDS_CONNECTOR, { service: service ?? null, module: module ?? null });
-      }
-      const found = this.lookupModule(service, module);
-      if (label !== undefined && found?.auth?.provider === 'local-file') {
-        return statusObject(STATUS.INVALID_ARGUMENTS, { tool: 'connect_status', field: 'label' });
-      }
-      const stored = this.store.getConnection({ service, module, label });
+  async startConnect(args = {}) {
+    return connections.startConnect(this, args);
+  }
 
-      // **A record can outlive whatever made it, and that is when its status most
-      // needs refreshing.** Retiring a connector leaves its row here reading ACTIVE
-      // against nothing that declares it. Refusing on `undeclared` meant the row
-      // could never be written, so it kept lying. Found 2026-09-20 by running a real
-      // teardown against the real row `pagespeed/insights`: the teardown returned
-      // `absent_but_teardown_failed`, the row survived, and `connect_status` could
-      // not correct it. `disconnect` was taught this at e84467a; this is the same
-      // shape on the status path.
-      //
-      // Any row carrying an account qualifies, not only an ACTIVE one: a stale row
-      // is exactly what needs refreshing. **A store row is not a manifest.** The
-      // vocabularies come from `manifest.js`, not restated: a second copy is how a
-      // list drifts. Policy matching is strict equality, so `"ADMIN"` or `""`
-      // matches no privilege rule; `connectStatus` evaluates with `privilege: 'read'`
-      // regardless, so an unvalidated stored privilege would not even be the value
-      // policy saw. An unrecognised provider is worse: `providerFor` sends
-      // everything that is not exactly `local-file` to the catalog adapter, so a row
-      // naming nothing would query the wrong vendor about an account that is not
-      // theirs.
-      const orphaned = !found && stored?.provider_account_id ? {
-        auth: { privilege: stored.privilege ?? null, provider: stored.provider ?? null },
-      } : null;
-      if (orphaned && !PRIVILEGES.has(orphaned.auth.privilege)) {
-        return statusObject(STATUS.DENIED, {
-          rule: { effect: 'deny', reason: 'unknown_privilege' },
-          service,
-          module,
-          reason: 'orphaned_record_without_privilege',
-          privilege: typeof orphaned.auth.privilege === 'string' ? orphaned.auth.privilege : null,
-        });
-      }
-      if (orphaned && !AUTH_PROVIDERS.has(orphaned.auth.provider)) {
-        return statusObject(STATUS.DENIED, {
-          rule: { effect: 'deny', reason: 'unknown_provider' },
-          service,
-          module,
-          reason: 'orphaned_record_without_provider',
-          provider: typeof orphaned.auth.provider === 'string' ? orphaned.auth.provider : null,
-        });
-      }
-      if (!found && !orphaned) {
-        line.path = 'none';
-        return statusObject(STATUS.NEEDS_CONNECTOR, { service, module, reason: 'undeclared' });
-      }
-      const target = found || orphaned;
-
-      // Policy still runs, and still with `privilege: 'read'` / `op: 'connectStatus'`
-      // regardless of the module's own privilege. The audit line takes privilege from
-      // the validated stored value when there is no manifest to read it from.
-      line.privilege = target.auth.privilege;
-      const decision = evaluate(this.policy, {
-        harness: this.harness,
-        role: this.role,
-        service,
-        module,
-        privilege: 'read',
-        op: 'connectStatus',
-      });
-      if (decision.effect === 'deny') {
-        return statusObject(STATUS.DENIED, { rule: decision.rule });
-      }
-
-      // `local-file` status({ service, file, variables }) needs `file` and
-      // `variables`, which live in the manifest the orphan no longer has. With them
-      // undefined it returns INACTIVE because no path resolved, which is a guess
-      // about a file we never located, dressed as an answer. `needs_connector` is
-      // the refusal: `denied` is for authorization, and this is inability to
-      // interpret a credential whose path is gone. Do not guess.
-      if (orphaned && orphaned.auth.provider === 'local-file') {
-        line.path = 'none';
-        return statusObject(STATUS.NEEDS_CONNECTOR, {
-          service,
-          module,
-          reason: 'orphaned_local_file_record',
-        });
-      }
-
-      if (label !== undefined && !stored?.provider_account_id) {
-        return statusObject(STATUS.NEEDS_CONNECT, { service, module, privilege: target.auth.privilege, label });
-      }
-
-      if (this.needsProviderCredential(target.auth)) {
-        return this.needsProviderResult();
-      }
-
-      const provider = this.providerFor(target.auth);
-      let record = stored;
-      if (!provider || typeof provider.status !== 'function') {
-        line.provider_account_id = record?.provider_account_id ?? null;
-        line.path = 'connector';
-        return this.needsProviderResult();
-      }
-
-      // A catalog account is asked for by id. With none, the catalog adapter
-      // requests `/connected_accounts/`. That URL answers 200 with a listing,
-      // and a listing has no account status, so it arrives here as
-      // vendor_error. Measured live on 2026-09-19 for dataforseo and for bing,
-      // each with no row. execute does not ask that URL. It refreshes from
-      // the account list first and, when that still leaves no account id,
-      // answers needs_connect. The same refresh here. The account endpoint
-      // is called only once an id exists. local-file status reads a file.
-      // An orphan already carries an id, and that path is unchanged.
-      //
-      // A list that could not be read is not an empty list. listAccounts
-      // rejects on an HTTP error, a malformed body, or a transport error, and
-      // hydrateFromProvider used to catch that and return, so this branch
-      // answered needs_connect when the provider was never read. The answer
-      // is the provider error for that listing request, and the row is left
-      // as it was. execute still ignores the rejection and answers
-      // needs_connect. That path is not this one.
-      const storedId = record?.provider_account_id;
-      const hasAccount = typeof storedId === 'string' && storedId.length > 0;
-      if (label === undefined && !orphaned && target.auth.provider !== 'local-file' && !hasAccount) {
-        const listed = await this.hydrateFromProvider();
-        if (listed && listed.failed) {
-          line.provider_account_id = record?.provider_account_id ?? null;
-          line.path = 'connector';
-          return listingProviderError(listed.error);
-        }
-        record = this.store.getConnection({ service, module, label });
-        const refreshed = record?.provider_account_id;
-        if (typeof refreshed !== 'string' || refreshed.length === 0) {
-          line.provider_account_id = null;
-          line.path = 'connector';
-          return statusObject(STATUS.NEEDS_CONNECT, {
-            service,
-            module,
-            privilege: found.auth.privilege,
-            ...labelled,
-          });
-        }
-      }
-
-      line.provider_account_id = record?.provider_account_id ?? null;
-      line.path = 'connector';
-
-      const statusArgs = {
-        providerAccountId: record?.provider_account_id ?? null,
-        service,
-        file: found?.auth?.file,
-        variables: found?.auth?.variables,
-      };
-      const raw = await provider.status(statusArgs);
-      if (raw && typeof raw === 'object' && raw.error) {
-        // A transport or provider failure is not a grant status. The record is left as
-        // it was, so an outage does not turn a working connection into needs_connect.
-        return vendorErrorFrom(raw);
-      }
-      const mapped = typeof raw === 'string' ? raw : raw?.status;
-      if (!mapped) {
-        if (orphaned) {
-          // **A distinct reason, because `orphaned_record` promises a refresh and this
-          // is the one orphan path that cannot deliver one.** The provider answered
-          // nothing a status can be read from, so there is no word to write and the row
-          // keeps whatever it held. Returning `orphaned_record` here would have told
-          // three documents' worth of readers that the row now matches the provider
-          // when nobody had asked the provider successfully. Found by adversarial
-          // review round two, which is where the first fix's own description broke.
-          return statusObject(STATUS.NEEDS_CONNECTOR, {
-            service, module, reason: 'orphaned_status_unreadable',
-          });
-        }
-        return statusObject(STATUS.NEEDS_CONNECT, { service, module, privilege: found.auth.privilege, ...labelled });
-      }
-
-      if (orphaned) {
-        // Re-read before writing, exactly as both declared branches do.
-        // `disconnect` can remove this row while the provider call is in flight,
-        // which is how an orphan gets taken down at all, and a status answer that
-        // overtakes a teardown must not recreate it.
-        //
-        // Rebound: `startConnect` refuses `!found` at the lookup and hydration
-        // writes only declared modules, so no current gateway path rebinds an
-        // undeclared service. The store is still shared, and this is the check
-        // the declared path already paid for, not a new claim that rebound cannot
-        // happen.
-        const current = this.store.getConnection({ service, module, label });
-        const accountNow = current?.provider_account_id ?? null;
-        const accountThen = record.provider_account_id ?? null;
-        if (!current) {
-          return statusObject(STATUS.NEEDS_CONNECTOR, { service, module, reason: 'removed_while_checking' });
-        }
-        if (accountNow !== accountThen) {
-          return statusObject(STATUS.NEEDS_CONNECTOR, { service, module, reason: 'rebound_while_checking' });
-        }
-        this.store.putConnection({
-          id: record.id,
-          service,
-          module,
-          ...labelled,
-          privilege: record.privilege,
-          provider: record.provider,
-          provider_account_id: record.provider_account_id,
-          scopes: record.scopes || [],
-          status: mapped,
-          created: record.created,
-          updated: nowIso(),
-        });
-        // Never answer `connected` for an orphan. `execute` still refuses with
-        // `needs_connector`; telling a person "connected" sends them to use a
-        // thing that cannot be used. `needs_connector` is already truthful;
-        // a new STATUS value is not added.
-        return statusObject(STATUS.NEEDS_CONNECTOR, {
-          service,
-          module,
-          reason: 'orphaned_record',
-          provider_status: mapped,
-        });
-      }
-
-      if (mapped === 'ACTIVE') {
-        // Re-read before writing back. The row was captured before the provider round
-        // trip, and since 2026-09-20 something can remove it while that call is in
-        // flight: `disconnect` deletes rows, which nothing did before. Without this, a
-        // status answer that overtakes a teardown recreates an ACTIVE row for a
-        // credential that has just been revoked. Found by adversarial review; it is a
-        // defect the new tool created in an old function rather than one it inherited.
-        const current = this.store.getConnection({ service, module, label });
-        const accountNow = current?.provider_account_id ?? null;
-        const accountThen = record?.provider_account_id ?? null;
-        if (!current && record) {
-          return statusObject(STATUS.NEEDS_CONNECT, { service, module, privilege: found.auth.privilege, ...labelled, reason: 'removed_while_checking' });
-        }
-        if (record && accountNow !== accountThen) {
-          return statusObject(STATUS.NEEDS_CONNECT, { service, module, privilege: found.auth.privilege, ...labelled, reason: 'rebound_while_checking' });
-        }
-        const saved = this.store.putConnection({
-          id: record?.id || randomUUID(),
-          service,
-          module,
-          privilege: found.auth.privilege,
-          ...labelled,
-          provider: found.auth.provider,
-          provider_account_id: record?.provider_account_id ?? statusArgs.providerAccountId,
-          scopes: record?.scopes || [],
-          status: 'ACTIVE',
-          created: record?.created || nowIso(),
-          updated: nowIso(),
-        });
-        if (label !== undefined) this.bindLabelledModules(found, saved);
-        return { status: 'connected', connection: saved };
-      }
-      if (record) {
-        // The same guard as the ACTIVE branch above. A non-ACTIVE answer that overtakes
-        // a teardown put the deleted row back, and where a reconnect had landed it
-        // overwrote the new binding with the old one. Found by adversarial review after
-        // the first fix covered only the ACTIVE path.
-        const current = this.store.getConnection({ service, module, label });
-        const accountNow = current?.provider_account_id ?? null;
-        if (current && accountNow === (record.provider_account_id ?? null)) {
-          this.store.putConnection({ ...record, status: mapped });
-        }
-      }
-      if (mapped === 'INITIATED') {
-        return { status: 'INITIATED', service, module };
-      }
-      return statusObject(STATUS.NEEDS_CONNECT, {
-        service,
-        module,
-        privilege: found.auth.privilege,
-        ...labelled,
-        provider_status: mapped,
-      });
-    });
+  async connectStatus(args = {}) {
+    return connections.connectStatus(this, args);
   }
 
   /**
@@ -2311,390 +1000,10 @@ export class ConnectionGateway {
    * Confirmation is implemented here rather than inherited. A `confirmation` field is
    * manifest metadata read inside `execute`, and a top-level tool is not on that path.
    */
-  async disconnect({ service, module, label, provider_account_id: approvedAccount, confirm } = {}) {
-    return this.withAudit('disconnect', { service, module, label }, async (line) => {
-      const found = this.lookupModule(service, module);
-      if (label !== undefined && found?.auth?.provider === 'local-file') {
-        return statusObject(STATUS.INVALID_ARGUMENTS, { tool: 'disconnect', field: 'label' });
-      }
-      const stored = this.store.getConnection({ service, module, label });
-      if (label === undefined && !stored) {
-        const missing = this.requireLabel('disconnect', service, module);
-        if (missing) return missing;
-      }
-
-      // **A record can outlive whatever made it, and that is when it most
-      // needs taking down.** Retiring a connector leaves its grant live at the provider
-      // and its row here pointing at nothing, which is how a row is orphaned in the
-      // first place. Refusing on `undeclared` meant the tool built to clear stale rows
-      // could not clear the one kind the tree actually produces. Found in Refine by
-      // trying it on a real one.
-      //
-      // Any row carrying an account qualifies, not only an ACTIVE one: a stale or
-      // inactive row is exactly what a teardown is for. Nothing else is relaxed. The
-      // row carries its own `privilege` and `provider`, validated above, and every gate
-      // below still runs: the policy is
-      // evaluated on that stored privilege, the stop names the account and every module
-      // on it, the approval binds to the account id and to those modules, and removal still needs ABSENT
-      // corroborated by the teardown's final step. **A row with no stored privilege is
-      // refused**, because authorizing on nothing is what the sibling check already
-      // taught this function not to do.
-      // **A store row is not a manifest.** `manifest.js` validates `privilege` against
-      // read|write|admin and `providers/` decides what a provider name may be; a row
-      // has been through neither, and policy matching is strict equality, so `"ADMIN"`
-      // or `""` matches no privilege rule and slips past a privilege-specific denial.
-      // An unrecognised provider is worse: `providerFor` sends everything that is not
-      // exactly `local-file` to the catalog adapter, so a row naming nothing would have
-      // revoked against the catalog on no evidence it belonged there. Both found by
-      // adversarial review before this path saw a real account.
-      const orphaned = !found && stored?.provider_account_id ? {
-        auth: { privilege: stored.privilege ?? null, provider: stored.provider ?? null },
-      } : null;
-      if (orphaned && !PRIVILEGES.has(orphaned.auth.privilege)) {
-        return statusObject(STATUS.DENIED, {
-          rule: { effect: 'deny', reason: 'unknown_privilege' },
-          service,
-          module,
-          reason: 'orphaned_record_without_privilege',
-          privilege: typeof orphaned.auth.privilege === 'string' ? orphaned.auth.privilege : null,
-        });
-      }
-      if (orphaned && !AUTH_PROVIDERS.has(orphaned.auth.provider)) {
-        return statusObject(STATUS.DENIED, {
-          rule: { effect: 'deny', reason: 'unknown_provider' },
-          service,
-          module,
-          reason: 'orphaned_record_without_provider',
-          provider: typeof orphaned.auth.provider === 'string' ? orphaned.auth.provider : null,
-        });
-      }
-      if (!found && !orphaned) {
-        return statusObject(STATUS.NEEDS_CONNECTOR, { service, module, reason: 'undeclared' });
-      }
-      const target = found || orphaned;
-
-      const authorize = (svc, mod, privilege) => evaluate(this.policy, {
-        harness: this.harness,
-        role: this.role,
-        service: svc,
-        module: mod,
-        privilege,
-        risk: 'destructive',
-        op: 'disconnect',
-      });
-
-      const decision = authorize(service, module, target.auth?.privilege);
-      if (decision.effect === 'deny') return statusObject(STATUS.DENIED, { rule: decision.rule });
-      line.privilege = target.auth?.privilege ?? null;
-
-      const record = stored;
-      const accountId = record?.provider_account_id ?? null;
-      if (!record || !accountId) {
-        // Nothing here to take down. Said plainly rather than reported as a success
-        // that removed nothing, and rather than as an error the caller must interpret.
-        return statusObject(STATUS.NEEDS_CONNECT, {
-          service,
-          module,
-          privilege: target.auth?.privilege ?? null,
-          reason: 'nothing_to_disconnect',
-        });
-      }
-      line.provider_account_id = accountId;
-
-      // A stored id is echoed raw on the stop, because the caller sends it back.
-      // One that contains a code point the disclosure policy will not emit raw is
-      // refused before that stop, and the id is not copied onto the refusal.
-      if (containsUnsafeCodePoint(accountId)) {
-        return statusObject(STATUS.DENIED, {
-          service,
-          module,
-          reason: 'unsafe_account_id',
-        });
-      }
-
-      // Every row on this credential, because every one of them ends.
-      const boundRows = this.store.listConnections()
-        .filter((row) => row.provider_account_id === accountId);
-      const bound = boundRows.map((row) => ({
-        service: row.service,
-        module: row.module,
-        ...(row.label === undefined ? {} : { label: row.label }),
-      }));
-
-      // **Every one of them is authorized, not only the one named.** The policy is
-      // written per service and module, so an override may deny disconnecting one
-      // module and permit another; because this acts on the credential, calling
-      // through the permitted module would otherwise end the denied one. Found by
-      // adversarial review, and it is this build's own lesson committed again: a
-      // decision scoped to the unit the caller named, applied to the unit the system
-      // shares.
-      const authorizeBound = (rows) => {
-        for (const row of rows) {
-          const sibling = this.lookupModule(row.service, row.module);
-          // Fail closed on missing metadata. A row whose module no longer resolves has
-          // no manifest privilege, and passing `undefined` made every privilege rule
-          // skip — so an `admin` binding left behind by a retired module authorized as
-          // though it had no privilege at all. The stored privilege is used instead,
-          // and a row carrying neither is denied rather than waved through.
-          const privilege = sibling?.auth?.privilege ?? row.privilege ?? null;
-          if (!PRIVILEGES.has(privilege)) {
-            return statusObject(STATUS.DENIED, {
-              rule: { effect: 'deny', reason: 'unknown_privilege' },
-              service: row.service,
-              module: row.module,
-              reason: 'bound_module_denied',
-            });
-          }
-          // **A sibling's provider is checked too, and only checking the caller's was a
-          // hole.** Bindings are collected by account id alone, so two orphaned rows can
-          // share an account while naming different providers; validating the requested
-          // row and then deleting account-wide removed a row whose provider the gateway
-          // had explicitly refused to establish. A declared sibling is covered by its
-          // manifest, which `manifest.js` already validated. Adversarial review, round two.
-          if (!sibling && !AUTH_PROVIDERS.has(row.provider)) {
-            return statusObject(STATUS.DENIED, {
-              rule: { effect: 'deny', reason: 'unknown_provider' },
-              service: row.service,
-              module: row.module,
-              reason: 'bound_module_denied',
-            });
-          }
-          const verdict = authorize(row.service, row.module, privilege);
-          if (verdict.effect === 'deny') {
-            return statusObject(STATUS.DENIED, {
-              rule: verdict.rule,
-              service: row.service,
-              module: row.module,
-              reason: 'bound_module_denied',
-            });
-          }
-        }
-        return null;
-      };
-      const denied = authorizeBound(boundRows);
-      if (denied) return denied;
-
-      // The account id is rendered through the same escaper and cap as any other
-      // displayed value; the module list rides the description, which that function
-      // also escapes. The pending key is the stored account and the modules bound
-      // to it, not the caller's copy of the account. The list is sorted so two
-      // stores that hold the same rows in a different order are one approval.
-      const boundName = (row) => `${row.service}/${row.module}${row.label === undefined ? '' : `@${row.label}`}`;
-      const boundNames = bound.map(boundName).sort();
-      const confirmKey = confirmationDigest(['disconnect', service, module, accountId, boundNames, ...(label === undefined ? [] : [label])]);
-      const confirmationStop = (reason) => {
-        this.recordPendingConfirmation(confirmKey);
-        const disclosure = discloseInput(
-          { input: { properties: { provider_account_id: { type: 'string' } } } },
-          { provider_account_id: accountId },
-        );
-        const names = bound.map(boundName).join(', ');
-        const summary = composeSummary({
-          action: 'disconnect',
-          service,
-          module,
-          risk: 'destructive',
-          description: `revokes this credential at the provider and removes ${bound.length} local record${bound.length === 1 ? '' : 's'}, ending ${names}. You are approving this credential and these modules. A module bound to it after this stop is not covered by this approval${orphaned ? `. NOTE: nothing declares ${service}/${module} any more, so this record has outlived what made it; other bindings listed above may still be declared and still able to use this credential` : ''}`,
-          disclosure,
-        });
-        return statusObject(STATUS.NEEDS_CONFIRMATION, {
-          op: 'disconnect',
-          service,
-          module,
-          risk: 'destructive',
-          confirmation: 'always',
-          label: label ?? null,
-          provider_account_id: accountId,
-          modules_ending: bound,
-          input_fields: disclosure.fields,
-          undeclared_fields: disclosure.undeclared,
-          input_values: inputValueEntries(disclosure.shown),
-          withheld_fields: disclosure.withheld,
-          summary,
-          description: null,
-          ...(reason ? { reason } : {}),
-        });
-      };
-
-      if (confirm !== true) return confirmationStop();
-
-      // The approval named an account. If the binding moved between the stop and here,
-      // the approval is for something else. `startConnect` is the mechanism that moves
-      // it, and it installs a DIFFERENT id, so the delete below would skip the new row
-      // in any case; this refuses audibly instead of removing nothing in silence.
-      // These checks run before the pending-approval match.
-      if (approvedAccount === undefined) {
-        return statusObject(STATUS.INVALID_ARGUMENTS, { tool: 'disconnect', field: 'provider_account_id' });
-      }
-      if (approvedAccount !== accountId) {
-        return statusObject(STATUS.DENIED, {
-          rule: { effect: 'deny', reason: 'account_changed' },
-          service,
-          module,
-        });
-      }
-      if (!this.takePendingConfirmation(confirmKey)) return confirmationStop('unmatched_confirm');
-
-      const provider = this.providerFor(target.auth);
-      if (!provider || typeof provider.revoke !== 'function') {
-        return statusObject(STATUS.NEEDS_PROVIDER_CAPABILITY, { op: 'disconnect', capability: 'revoke' });
-      }
-
-      let outcome;
-      try {
-        outcome = await provider.revoke({ providerAccountId: accountId, service, file: target.auth?.file });
-      } catch {
-        // An adapter that throws is a transport or adapter failure, not a capability it
-        // lacks. Reporting it as a missing capability told a caller to report a broken
-        // connector when the right move is to retry. Adversarial review found four
-        // situations wearing one status word; they are four now.
-        return statusObject(STATUS.VENDOR_ERROR, {
-          op: 'disconnect', http_status: null, endpoint: null, method: 'revoke',
-        });
-      }
-      const steps = Array.isArray(outcome?.steps) ? outcome.steps : [];
-      // The adapter reports a failed final call as an error alongside `supported: true`.
-      // Absence is still worth checking — the account may be gone regardless — but that
-      // check can fail too, and its error was then the only one reported while the
-      // teardown's own was dropped. Carried so it survives whatever follows. Found by
-      // exercising a teardown that fails at the provider, in Refine.
-      const teardownError = outcome && outcome.error ? {
-        http_status: outcome.status ?? null,
-        endpoint: outcome.error.endpoint ?? null,
-        method: outcome.error.method ?? null,
-      } : null;
-      if (outcome?.supported !== true) {
-        return statusObject(STATUS.NEEDS_PROVIDER_CAPABILITY, {
-          op: 'disconnect',
-          capability: 'revoke',
-          how: typeof outcome?.how === 'string' ? outcome.how : null,
-          steps,
-        });
-      }
-
-      // **Absence is verified, never inferred from the revoke returning.** The adapter
-      // reports what each step did and a step can fail while the call succeeds; only
-      // the provider saying the account is not there justifies removing a local row.
-      // Removing on anything-not-ACTIVE would also remove rows for a suspended grant.
-      let after;
-      try {
-        after = await provider.status({ providerAccountId: accountId, service, file: target.auth?.file });
-      } catch {
-        after = null;
-      }
-      if (after && typeof after === 'object' && after.error) {
-        return { ...vendorErrorFrom(after), op: 'disconnect', steps, teardown_error: teardownError, removed: [] };
-      }
-      const observed = typeof after === 'string' ? after : after?.status ?? null;
-      if (observed === null) {
-        // Not the same as the provider saying the credential is still there. The check
-        // threw or answered nothing, so the state is unknown, and a caller told "still
-        // there" would retry against something it cannot see. Separated on the cold
-        // verification of the instructions that read this.
-        return statusObject(STATUS.TEARDOWN_INCOMPLETE, {
-          op: 'disconnect',
-          reason: 'absence_unverified',
-          provider_status: null,
-          steps,
-          teardown_error: teardownError,
-          removed: [],
-        });
-      }
-      if (observed !== 'ABSENT') {
-        // The credential may still exist. Report what happened and change nothing.
-        return statusObject(STATUS.TEARDOWN_INCOMPLETE, {
-          op: 'disconnect',
-          reason: 'not_absent_after_revoke',
-          provider_status: observed,
-          steps,
-          teardown_error: teardownError,
-          removed: [],
-        });
-      }
-
-      // **Absence alone is not deletion evidence when the teardown itself failed.**
-      // `providers/AGENTS.md` records that ABSENT means absent within the scope this
-      // credential can see, which is narrower than deleted: a project change or a
-      // visibility restriction also reads as 404. If the adapter's final step failed
-      // and the account then reads absent, the two readings are indistinguishable, so
-      // this fails closed rather than deleting every local row on an ambiguity. The
-      // final step is the one the contract says a top-level error reports, and it is
-      // a DELETE in the measured sequence, which is why the case where the
-      // revoke POST is refused and the DELETE succeeds still passes here.
-      // An adapter that reports nothing has established nothing. `{ supported: true,
-      // steps: [] }` plus an ABSENT reading was accepted until adversarial review found
-      // it, which is the original ambiguity returning through the gate built to close it.
-      if (steps.length === 0) {
-        return statusObject(STATUS.TEARDOWN_INCOMPLETE, {
-          op: 'disconnect',
-          reason: 'no_teardown_evidence',
-          provider_status: observed,
-          steps,
-          teardown_error: teardownError,
-          removed: [],
-        });
-      }
-      const last = steps[steps.length - 1];
-      if (last.ok !== true) {
-        return statusObject(STATUS.TEARDOWN_INCOMPLETE, {
-          op: 'disconnect',
-          reason: 'absent_but_teardown_failed',
-          provider_status: observed,
-          steps,
-          teardown_error: teardownError,
-          removed: [],
-        });
-      }
-
-      // Bindings were authorized before the provider round trip; a module attached to
-      // this credential during it was never checked. Re-collect and re-authorize now.
-      // The credential is already revoked at this point, so a denial here is reported
-      // as an incomplete teardown rather than pretended away.
-      const boundNow = this.store.listConnections().filter((row) => row.provider_account_id === accountId);
-      const deniedNow = authorizeBound(boundNow);
-      if (deniedNow) {
-        return statusObject(STATUS.TEARDOWN_INCOMPLETE, {
-          op: 'disconnect',
-          reason: 'binding_denied_after_revoke',
-          service: deniedNow.service,
-          module: deniedNow.module,
-          provider_status: observed,
-          steps,
-          removed: [],
-        });
-      }
-
-      // Hydration writes an ACTIVE row for any module of a toolkit with no grant of its
-      // own, from a listing it may have captured before this revoke. Remembering the
-      // account stops a delayed listing recreating exactly the stale rows this tool
-      // exists to remove. In-process only; the cross-process race is recorded in store.js.
-      this.revokedAccounts.add(accountId);
-      const removed = this.store.deleteConnection({ providerAccountId: accountId });
-      // **What succeeded is not always what a reader assumes.** The teardown is the
-      // adapter's sequence, and its last call is the one this gate requires: for the
-      // measured sequence that is the DELETE, which removes the provider's record of the
-      // credential. An earlier step failing means the credential may still be live at
-      // the vendor while the provider has forgotten it — the measured `API_KEY` case
-      // exactly, where the revoke POST is refused and the DELETE does the work. Saying
-      // only `disconnected` let that read as "the credential is dead". Found by the
-      // cold discoverability test in Refine, not by a review of this function.
-      const everyStepOk = steps.every((step) => step.ok === true);
-      return {
-        status: 'disconnected',
-        service,
-        module,
-        provider_account_id: accountId,
-        steps,
-        credential_revoked: everyStepOk ? 'yes' : 'unknown',
-        removed: removed.map((row) => ({
-          service: row.service,
-          module: row.module,
-          ...(row.label === undefined ? {} : { label: row.label }),
-        })),
-      };
-    });
+  async disconnect(args = {}) {
+    return connections.disconnect(this, args, { confirmationDigest, inputValueEntries });
   }
 }
 
-export { TOOLS as GATEWAY_TOOLS };
+export { TOOLS as GATEWAY_TOOLS } from './tools.js';
 export { sanitizeError };

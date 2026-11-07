@@ -6,6 +6,20 @@ How this plugin reaches an outside account: hosted inside the Wiser endpoint, or
 
 Not a primitive. Skills and experts invoke connectors by action id, `service.module.action`, and the gateway is how those ids are served: it loads every connector's manifest and module, resolves each id in a fixed order, applies the policy, and either runs the action or answers with a status object that names the next step. It holds no credential. The provider holds the grant; the local-file provider reads a bound credential file and hands the module nothing.
 
+## The parts
+
+`src/gateway.js` keeps `ConnectionGateway`'s public methods as explicit delegates to these parts:
+
+| File | Job |
+|------|-----|
+| `src/connections.js` | Connection flows, provider account listings, labels and module bindings |
+| `src/catalog.js` | Action lookup, listing, search, description and curated-row loading and validation |
+| `src/tools.js` | Tool definitions, argument validation and dispatch |
+| `src/first-party.js` | Classifier identity, session binding, subscription checks and execution |
+| `src/host.js` | Constructor options, private local file access, user identity and output cleanup |
+
+`src/curated.js` preserves its existing imports by re-exporting the catalog's curated helpers. `execute` is untangled next; it, `withAudit`, pending confirmations and the standing-approvals tool remain in `src/gateway.js` for now.
+
 ## Everything the gateway writes, and where
 
 **This is the authoritative list for the gateway and the connectors it loads.** `tools/AGENTS.md` carries the inventory for tools and points here; neither restates the other.
