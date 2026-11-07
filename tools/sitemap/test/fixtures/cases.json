@@ -1,0 +1,516 @@
+[
+  {
+    "name": "urlset sorting entities and first duplicate",
+    "input": {
+      "date": "2026-11-04",
+      "urls": [
+        "https://site.test/map.xml"
+      ]
+    },
+    "responses": {
+      "https://site.test/map.xml": {
+        "body": "<urlset><url><loc>https://site.test/z</loc><lastmod>2026-10-01T04:00:00Z</lastmod></url><url><loc>https://site.test/guide/a?x=1&amp;y=2</loc></url><url><loc>https://site.test/</loc></url><url><loc>https://site.test/z</loc><lastmod>2020-01-01</lastmod></url></urlset>"
+      }
+    },
+    "expected": {
+      "domain": "site.test",
+      "fetchedAt": "2026-11-04",
+      "sitemaps": [
+        "https://site.test/map.xml"
+      ],
+      "urls": [
+        {
+          "loc": "https://site.test/",
+          "path": "/",
+          "slug": "",
+          "segment": "",
+          "lastmod": null
+        },
+        {
+          "loc": "https://site.test/guide/a?x=1&y=2",
+          "path": "/guide/a",
+          "slug": "a",
+          "segment": "guide",
+          "lastmod": null
+        },
+        {
+          "loc": "https://site.test/z",
+          "path": "/z",
+          "slug": "z",
+          "segment": "z",
+          "lastmod": "2026-10-01"
+        }
+      ],
+      "count": 3,
+      "truncated": false
+    },
+    "requests": [
+      "https://site.test/map.xml"
+    ]
+  },
+  {
+    "name": "robots index cycle partial errors and private child",
+    "input": {
+      "date": "2026-11-04",
+      "domain": "site.test"
+    },
+    "responses": {
+      "https://site.test/robots.txt": {
+        "body": "Sitemap: /index.xml\n"
+      },
+      "https://site.test/index.xml": {
+        "body": "<sitemapindex><sitemap><loc>/child.xml</loc></sitemap><sitemap><loc>/missing.xml</loc></sitemap><sitemap><loc>http://127.0.0.1/private</loc></sitemap><sitemap><loc>/index.xml</loc></sitemap></sitemapindex>"
+      },
+      "https://site.test/child.xml": {
+        "body": "<urlset><url><loc>https://site.test/a</loc></url></urlset>"
+      },
+      "https://site.test/missing.xml": {
+        "status": 404
+      }
+    },
+    "expected": {
+      "domain": "site.test",
+      "fetchedAt": "2026-11-04",
+      "sitemaps": [
+        "https://site.test/child.xml"
+      ],
+      "urls": [
+        {
+          "loc": "https://site.test/a",
+          "path": "/a",
+          "slug": "a",
+          "segment": "a",
+          "lastmod": null
+        }
+      ],
+      "count": 1,
+      "truncated": false,
+      "errors": [
+        {
+          "url": "https://site.test/missing.xml",
+          "reason": "HTTP 404"
+        },
+        {
+          "url": "http://127.0.0.1/private",
+          "reason": "points at a loopback address, which this tool does not fetch; skipped"
+        }
+      ]
+    },
+    "requests": [
+      "https://site.test/robots.txt",
+      "https://site.test/index.xml",
+      "https://site.test/child.xml",
+      "https://site.test/missing.xml"
+    ]
+  },
+  {
+    "name": "discovery fallback and empty result",
+    "input": {
+      "date": "2026-11-04",
+      "domain": "site.test"
+    },
+    "responses": {
+      "https://site.test/robots.txt": {
+        "status": 404
+      },
+      "https://site.test/sitemap.xml": {
+        "status": 404
+      },
+      "https://site.test/sitemap_index.xml": {
+        "body": "<urlset/>"
+      }
+    },
+    "expected": {
+      "domain": "site.test",
+      "fetchedAt": "2026-11-04",
+      "sitemaps": [
+        "https://site.test/sitemap_index.xml"
+      ],
+      "urls": [],
+      "count": 0,
+      "truncated": false,
+      "errors": [
+        {
+          "url": "https://site.test/sitemap.xml",
+          "reason": "HTTP 404"
+        }
+      ],
+      "note": "N/A: no URLs parsed. The sitemap may be missing, blocked, or in a form this reader does not recognize."
+    },
+    "requests": [
+      "https://site.test/robots.txt",
+      "https://site.test/sitemap.xml",
+      "https://site.test/sitemap_index.xml"
+    ]
+  },
+  {
+    "name": "max stops in source order before sorting",
+    "input": {
+      "date": "2026-11-04",
+      "urls": [
+        "https://site.test/map.xml"
+      ],
+      "max": 1
+    },
+    "responses": {
+      "https://site.test/map.xml": {
+        "body": "<urlset><url><loc>https://site.test/z</loc><lastmod>2026-10-01T04:00:00Z</lastmod></url><url><loc>https://site.test/guide/a?x=1&amp;y=2</loc></url><url><loc>https://site.test/</loc></url><url><loc>https://site.test/z</loc><lastmod>2020-01-01</lastmod></url></urlset>"
+      }
+    },
+    "expected": {
+      "domain": "site.test",
+      "fetchedAt": "2026-11-04",
+      "sitemaps": [
+        "https://site.test/map.xml"
+      ],
+      "urls": [
+        {
+          "loc": "https://site.test/z",
+          "path": "/z",
+          "slug": "z",
+          "segment": "z",
+          "lastmod": "2026-10-01"
+        }
+      ],
+      "count": 1,
+      "truncated": true
+    },
+    "requests": [
+      "https://site.test/map.xml"
+    ]
+  },
+  {
+    "name": "gzip magic without extension",
+    "input": {
+      "date": "2026-11-04",
+      "urls": [
+        "https://site.test/map.xml"
+      ]
+    },
+    "responses": {
+      "https://site.test/map.xml": {
+        "base64": "H4sIAAAAAAAC/7MpLcopTi2xswHSdjY5+cl2GSUlBcVW+vrFmSWpeiWpxSX66VWZBTb6IDkbfbAyfagmACfbubc9AAAA"
+      }
+    },
+    "expected": {
+      "domain": "site.test",
+      "fetchedAt": "2026-11-04",
+      "sitemaps": [
+        "https://site.test/map.xml"
+      ],
+      "urls": [
+        {
+          "loc": "https://site.test/gzip",
+          "path": "/gzip",
+          "slug": "gzip",
+          "segment": "gzip",
+          "lastmod": null
+        }
+      ],
+      "count": 1,
+      "truncated": false
+    },
+    "requests": [
+      "https://site.test/map.xml"
+    ]
+  },
+  {
+    "name": "plain XML with gzip extension",
+    "input": {
+      "date": "2026-11-04",
+      "urls": [
+        "https://site.test/map.xml.gz"
+      ]
+    },
+    "responses": {
+      "https://site.test/map.xml.gz": {
+        "body": "<urlset><url><loc>https://site.test/gzip</loc></url></urlset>"
+      }
+    },
+    "expected": {
+      "domain": "site.test",
+      "fetchedAt": "2026-11-04",
+      "sitemaps": [
+        "https://site.test/map.xml.gz"
+      ],
+      "urls": [
+        {
+          "loc": "https://site.test/gzip",
+          "path": "/gzip",
+          "slug": "gzip",
+          "segment": "gzip",
+          "lastmod": null
+        }
+      ],
+      "count": 1,
+      "truncated": false
+    },
+    "requests": [
+      "https://site.test/map.xml.gz"
+    ]
+  },
+  {
+    "name": "redirect and credential redaction",
+    "input": {
+      "date": "2026-11-04",
+      "urls": [
+        "https://site.test/redirect.xml"
+      ]
+    },
+    "responses": {
+      "https://site.test/redirect.xml": {
+        "status": 302,
+        "headers": {
+          "location": "https://site.test/final.xml?token=sample-fixture"
+        }
+      },
+      "https://site.test/final.xml?token=sample-fixture": {
+        "body": "<urlset><url><loc>https://user:pass@site.test/a?api_key=sample-fixture</loc></url></urlset>"
+      }
+    },
+    "expected": {
+      "domain": "site.test",
+      "fetchedAt": "2026-11-04",
+      "sitemaps": [
+        "https://site.test/final.xml?token=redacted"
+      ],
+      "urls": [
+        {
+          "loc": "https://site.test/a?api_key=redacted",
+          "path": "/a",
+          "slug": "a",
+          "segment": "a",
+          "lastmod": null
+        }
+      ],
+      "count": 1,
+      "truncated": false
+    },
+    "requests": [
+      "https://site.test/redirect.xml",
+      "https://site.test/final.xml?token=sample-fixture"
+    ]
+  },
+  {
+    "name": "private redirect never fetched",
+    "input": {
+      "date": "2026-11-04",
+      "urls": [
+        "https://site.test/map.xml"
+      ]
+    },
+    "responses": {
+      "https://site.test/map.xml": {
+        "status": 302,
+        "headers": {
+          "location": "http://169.254.169.254/latest"
+        }
+      }
+    },
+    "expected": {
+      "domain": "site.test",
+      "fetchedAt": "2026-11-04",
+      "sitemaps": [
+        "https://site.test/map.xml"
+      ],
+      "urls": [],
+      "count": 0,
+      "truncated": false,
+      "errors": [
+        {
+          "url": "https://site.test/map.xml",
+          "reason": "the redirect to http://169.254.169.254/latest was not followed: it points at a cloud instance metadata address, which this tool does not fetch"
+        }
+      ],
+      "note": "N/A: no URLs parsed. The sitemap may be missing, blocked, or in a form this reader does not recognize."
+    },
+    "requests": [
+      "https://site.test/map.xml"
+    ]
+  },
+  {
+    "name": "corrupt gzip stays a partial result",
+    "input": {
+      "date": "2026-11-04",
+      "urls": [
+        "https://site.test/map.xml.gz"
+      ]
+    },
+    "responses": {
+      "https://site.test/map.xml.gz": {
+        "base64": "H4sAAA=="
+      }
+    },
+    "expected": {
+      "domain": "site.test",
+      "fetchedAt": "2026-11-04",
+      "sitemaps": [
+        "https://site.test/map.xml.gz"
+      ],
+      "urls": [],
+      "count": 0,
+      "truncated": false,
+      "errors": [
+        {
+          "url": "https://site.test/map.xml.gz",
+          "reason": "the body announced gzip but did not decompress"
+        }
+      ],
+      "note": "N/A: no URLs parsed. The sitemap may be missing, blocked, or in a form this reader does not recognize."
+    },
+    "requests": [
+      "https://site.test/map.xml.gz"
+    ]
+  },
+  {
+    "name": "refuse caller private literal",
+    "input": {
+      "date": "2026-11-04",
+      "urls": [
+        "http://0x7f000001/map.xml"
+      ]
+    },
+    "responses": {},
+    "expected": {
+      "error": "Error: --url http://127.0.0.1/map.xml points at a loopback address, which this tool does not fetch."
+    },
+    "requests": []
+  },
+  {
+    "name": "refuse caller IPv6 embedded private",
+    "input": {
+      "date": "2026-11-04",
+      "urls": [
+        "http://[::ffff:10.0.0.1]/map.xml"
+      ]
+    },
+    "responses": {},
+    "expected": {
+      "error": "Error: --url http://[::ffff:a00:1]/map.xml points at a private-range address, which this tool does not fetch."
+    },
+    "requests": []
+  },
+  {
+    "name": "refuse caller private DNS answer",
+    "input": {
+      "date": "2026-11-04",
+      "urls": [
+        "https://private-dns.test/map.xml"
+      ]
+    },
+    "responses": {},
+    "expected": {
+      "error": "Error: --url https://private-dns.test/map.xml points at a private-range address, which this tool does not fetch."
+    },
+    "requests": [],
+    "dns": {
+      "private-dns.test": [
+        "93.184.216.34",
+        "10.0.0.1"
+      ]
+    }
+  },
+  {
+    "name": "refuse caller non-http",
+    "input": {
+      "date": "2026-11-04",
+      "urls": [
+        "file:///tmp/map.xml"
+      ]
+    },
+    "responses": {},
+    "expected": {
+      "error": "Error: --url file:///tmp/map.xml uses file://, and this tool reads http and https sitemaps only."
+    },
+    "requests": []
+  },
+  {
+    "name": "refuse caller embedded credentials",
+    "input": {
+      "date": "2026-11-04",
+      "urls": [
+        "https://user:pass@site.test/map.xml"
+      ]
+    },
+    "responses": {},
+    "expected": {
+      "error": "Error: --url https://site.test/map.xml carries an embedded username and password, and this tool sends no credentials."
+    },
+    "requests": []
+  },
+  {
+    "name": "two-member network gzip joins the XML document",
+    "input": {
+      "date": "2026-11-04",
+      "urls": [
+        "https://site.test/map.xml"
+      ]
+    },
+    "responses": {
+      "https://site.test/map.xml": {
+        "base64": "H4sIABAI7GoC/7MpLcopTi2xswHSdjY5+cl2GSUlBcVW+vrFmSWpeiWpxSX6aZlFxSU2+iBJG32QOgCer97tNQAAAB+LCAAQCOxqAv+zKS3KsbPJyU+2yygpKSi20tcvzixJ1StJLS7RL05Nzs9LsdEHydrogxWCyOLUEjsAz9Bw1TcAAAA="
+      }
+    },
+    "expected": {
+      "domain": "site.test",
+      "fetchedAt": "2026-11-04",
+      "sitemaps": [
+        "https://site.test/map.xml"
+      ],
+      "urls": [
+        {
+          "loc": "https://site.test/first",
+          "path": "/first",
+          "slug": "first",
+          "segment": "first",
+          "lastmod": null
+        },
+        {
+          "loc": "https://site.test/second",
+          "path": "/second",
+          "slug": "second",
+          "segment": "second",
+          "lastmod": null
+        }
+      ],
+      "count": 2,
+      "truncated": false
+    },
+    "requests": [
+      "https://site.test/map.xml"
+    ]
+  },
+  {
+    "name": "offline index skips and redacts every child",
+    "offline": "<sitemapindex><sitemap><loc>https://site.test/child.xml?api_key=sample-fixture&amp;page=1</loc></sitemap><sitemap><loc>https://site.test/other.xml?token=sample-fixture</loc></sitemap></sitemapindex>",
+    "input": {
+      "date": "2026-11-04",
+      "files": [
+        "$file"
+      ]
+    },
+    "responses": {},
+    "requests": [],
+    "expected": {
+      "domain": "local",
+      "fetchedAt": "2026-11-04",
+      "sitemaps": [
+        "$file"
+      ],
+      "urls": [],
+      "count": 0,
+      "truncated": false,
+      "errors": [
+        {
+          "url": "https://site.test/child.xml?api_key=redacted&page=1",
+          "reason": "named by a local sitemap index; offline mode does not fetch child sitemaps, pass each file with --file"
+        },
+        {
+          "url": "https://site.test/other.xml?token=redacted",
+          "reason": "named by a local sitemap index; offline mode does not fetch child sitemaps, pass each file with --file"
+        }
+      ],
+      "note": "N/A: no URLs parsed. The file may be empty, a sitemap index without child files passed, or in a form this reader does not recognize."
+    }
+  }
+]

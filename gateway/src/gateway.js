@@ -1,7 +1,7 @@
 // Gateway composes the parts behind ConnectionGateway's public methods and ordered execute flow.
 import { isStatusObject, projectProviderCodes, sanitizeError } from './errors.js';
 import { standingApprovalResult } from './standing-approvals.js';
-import { canonicalJson, confirmationDigest, approvalDisclosure, inputValueEntries } from './safety.js';
+import { confirmationDigest, inputValueEntries } from './safety.js';
 import * as safety from './safety.js';
 import * as runner from './runner.js';
 import * as connections from './connections.js';
@@ -183,6 +183,7 @@ export class ConnectionGateway {
       const prepared = safety.prepareExecute(this, request, line);
       if (isStatusObject(prepared)) return prepared;
       if (prepared.firstParty) return this.executeFirstParty(prepared.firstParty);
+      if (prepared.hosted) return runner.runHosted(this, prepared);
       return safety.approveExecute(this, prepared, line, {
         prepareInputFiles: runner.prepareInputFiles,
         runApproved: (approved) => runner.runApproved(this, approved, line),
@@ -202,7 +203,7 @@ export class ConnectionGateway {
       return null;
     };
     return firstParty.executeFirstParty(this, args, {
-      canonicalJson, confirmationDigest, approvalDisclosure, inputValueEntries, projectStatus,
+      prepareUnboundAction: (call) => safety.prepareUnboundAction(this, call), projectStatus,
     });
   }
 

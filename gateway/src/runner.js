@@ -53,7 +53,7 @@ export async function withAudit(gateway, op, fields, fn) {
     else if (result && (result.status === 'link' || result.status === 'file')) line.status = result.status;
     else if (op.startsWith('standing_approvals.') && result && result.status === 'standing_approval_proposed') line.status = result.status;
     else if (result && result.status === 'disconnected') line.status = 'disconnected';
-    else if (line.path === 'first_party_mcp' && result && typeof result.status === 'string' && result.status) {
+    else if ((line.path === 'first_party_mcp' || line.path === 'hosted_tool') && result && typeof result.status === 'string' && result.status) {
       line.status = classifierAuditStatus(result.status);
     } else if (result && !line.status) line.status = 'ok';
     // executeFirstParty stamps these from the adapter result before a
@@ -68,6 +68,11 @@ export async function withAudit(gateway, op, fields, fn) {
   }
 }
 
+
+/** Invoke the host capability only after Safety has accepted the call. */
+export function runHosted(gateway, { hosted, input }) {
+  return hosted.execute(input ?? {});
+}
 
 /** Read each screened occurrence once, returning only call-local buffers and descriptors. */
 export function prepareInputFiles(gateway, { hasInputFiles, input, inputDeclaration, inputFileSchema }) {

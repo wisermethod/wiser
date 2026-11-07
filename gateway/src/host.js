@@ -4,6 +4,7 @@ import { cleanupOutputs as cleanupOutputFiles } from './file-output.js';
 import { createStandingApprovals } from './standing-approvals.js';
 import { readProviderUserId, writeProviderUserIdIfEmpty } from './paths.js';
 import { mcpClassifierIdentity } from './first-party.js';
+import { parseActionId } from './resolve.js';
 import { initializeCatalog, loadCatalog } from './catalog.js';
 
 const inputFileAccess = new WeakMap();
@@ -47,6 +48,19 @@ export function initializeHost(gateway, opts) {
     : (typeof gateway.authProvider?.isConfigured === 'function' ? gateway.authProvider.isConfigured() : Boolean(gateway.authProvider));
   gateway.connectors = Array.isArray(opts.connectors) ? opts.connectors : [];
   loadCatalog(gateway);
+  // Host-owned capabilities never require a connector grant. Snapshot declarations
+  // so the caller cannot change the safety metadata after registration.
+  gateway.hostedActions = new Map();
+  for (const entry of opts.hostedActions ?? []) {
+    const def = entry?.definition;
+    const parsed = parseActionId(def?.action);
+    if (!parsed || def.execution !== 'hosted' || typeof entry.execute !== 'function' ||
+        def.service !== parsed.service || def.module !== parsed.module ||
+        gateway.hostedActions.has(def.action) || gateway.lookupModule(parsed.service, parsed.module)) {
+      throw new TypeError('Invalid or colliding hosted action registration');
+    }
+    gateway.hostedActions.set(def.action, { definition: structuredClone(def), execute: entry.execute });
+  }
   gateway.envPath = opts.envPath || null;
   gateway.classifier = opts.classifier || null;
   gateway.classifierIdentity = typeof opts.classifierIdentity === 'function'

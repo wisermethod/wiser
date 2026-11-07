@@ -343,6 +343,65 @@ export function standingApprovalScope(gateway, args) {
 }
 
 
+/** Schema validation and input-bound confirmation for actions without a vendor grant. */
+export function prepareUnboundAction(gateway, { action, input, confirm, label, parsed, decision, def }) {
+  const invalidField = validateInput(def.input, input === undefined ? {} : input);
+  if (invalidField !== null) return statusObject(STATUS.INVALID_ARGUMENTS, { field: invalidField });
+
+  const confirmation = def.confirmation || 'none';
+  const onceKey = label === undefined ? action : canonicalJson([action, label]);
+  const needsConfirm =
+    decision.effect === 'confirm' ||
+    confirmation === 'always' ||
+    (confirmation === 'once' && !gateway.confirmedOnce.has(onceKey));
+  // Same rule as the connector path: disclosure first, and the key only when
+  // a stop or a match is needed and nothing was withheld.
+  if (needsConfirm) {
+    const approval = approvalDisclosure(def, input);
+    if (approval.refusal) return approval.refusal;
+    const confirmKey = confirmationDigest([
+      'execute',
+      action,
+      approval.inputForKey,
+      null,
+      ...(label === undefined ? [] : [label]),
+    ]);
+    const matched = confirm === true && gateway.takePendingConfirmation(confirmKey);
+    if (!matched) {
+      gateway.recordPendingConfirmation(confirmKey);
+      const disclosure = approval.disclosure;
+      const summary = composeSummary({
+        action,
+        service: parsed.service,
+        module: parsed.module,
+        risk: def.risk,
+        description: def.description,
+        disclosure,
+      });
+      return statusObject(STATUS.NEEDS_CONFIRMATION, {
+        action,
+        service: parsed.service,
+        module: parsed.module,
+        risk: def.risk ?? null,
+        confirmation,
+        label: label ?? null,
+        input_fields: disclosure.fields,
+        undeclared_fields: disclosure.undeclared,
+        input_values: inputValueEntries(disclosure.shown),
+        withheld_fields: disclosure.withheld,
+        summary,
+        description: def.description ?? null,
+        ...(confirm === true ? { reason: 'unmatched_confirm' } : {}),
+      });
+    }
+  }
+  if (confirm === true && confirmation === 'once') {
+    gateway.confirmedOnce.add(onceKey);
+  }
+
+  return null;
+}
+
 /** Synchronous checks and the file approval snapshot all precede the first await. */
 export function prepareExecute(gateway, request, line) {
   const { action, input, confirm, label, root, playbook, labelled } = request;
@@ -370,7 +429,8 @@ export function prepareExecute(gateway, request, line) {
   if (label !== undefined && auth?.provider === 'local-file') {
     return statusObject(STATUS.INVALID_ARGUMENTS, { tool: 'execute', field: 'label' });
   }
-  const firstParty = !act ? firstPartyDef(action) : null;
+  const hosted = gateway.hostedActions.get(action);
+  const firstParty = !act ? (hosted?.definition ?? firstPartyDef(action)) : null;
   const privilege = auth?.privilege ?? firstParty?.privilege;
   const risk = act?.risk ?? firstParty?.risk;
   line.privilege = privilege ?? null;
@@ -378,7 +438,7 @@ export function prepareExecute(gateway, request, line) {
   // first-party call on every exit, including the ones that never reach
   // the adapter: denied, needs_subscription, invalid_arguments,
   // needs_confirmation, and undeclared.
-  if (parsed.service === 'wiser' && !act) line.firstParty = true;
+  if (parsed.service === 'wiser' && !act && !hosted) line.firstParty = true;
 
   const decision = evaluate(gateway.policy, {
     harness: gateway.harness,
@@ -392,6 +452,14 @@ export function prepareExecute(gateway, request, line) {
   if (decision.effect === 'deny') {
     line.path = curated ? 'catalog' : 'none';
     return statusObject(STATUS.DENIED, { rule: decision.rule });
+  }
+
+  if (hosted) {
+    line.path = 'hosted_tool';
+    if (label !== undefined) return statusObject(STATUS.INVALID_ARGUMENTS, { field: 'label' });
+    const refusal = prepareUnboundAction(gateway, { action, input, confirm, label, parsed, decision, def: hosted.definition });
+    if (refusal) return refusal;
+    return { hosted, input };
   }
 
   const resolved = curated ? { path: 'catalog', actionId: action } : resolveAction(action, {
