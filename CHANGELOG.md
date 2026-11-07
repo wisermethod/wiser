@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.07, November 7, 2026
+
+- A calendar invite Wiser creates or updates in Google Calendar can now carry a Google Meet link: ask for one and Google adds it, so you no longer open the event in Google Calendar to click "Add Google Meet video conferencing". The answer shows the link. If Google is still making it, the answer says so and says to read the event again to get it. An update that doesn't ask for a link leaves an existing one as it was. (6bc31ee4)
+
 ## v2026.11.06.7, November 6, 2026
 
 - Setting up Wiser now warns you about the request to reach your Desktop before it appears, and the voice coach asks each question once. (6cf02598, b3cbc9bf)
