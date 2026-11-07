@@ -699,7 +699,12 @@ test('both calendar stops always show add_google_meet with the other input value
   const { gw, requests } = await harness('calendar');
   const manifest = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'));
   const actions = manifest.modules.calendar.actions;
-  for (const action of Object.values(actions)) assert.equal(Object.hasOwn(action, 'standing_approval'), false);
+  // Calendar create and update are grantable as sends (the operator's decision of 2026-11-07,
+  // gateway upgrade Milestone 4); every other calendar action declares no standing approval.
+  for (const [name, action] of Object.entries(actions)) {
+    if (name === 'create_event' || name === 'update_event') assert.equal(action.standing_approval?.kind, 'send');
+    else assert.equal(Object.hasOwn(action, 'standing_approval'), false);
+  }
   for (const [action, input] of MEET_INPUTS) {
     const name = action.split('.')[2];
     assert.equal(actions[name].confirmation, 'always');
