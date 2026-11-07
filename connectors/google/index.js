@@ -863,6 +863,13 @@ function sendUpdates(input) {
   return input.notify_guests === true ? 'all' : 'none';
 }
 
+function readGoogleMeet(input) {
+  if (Object.hasOwn(input, 'add_google_meet') && typeof input.add_google_meet !== 'boolean') {
+    return invalidArguments('add_google_meet');
+  }
+  return input.add_google_meet === true;
+}
+
 function eventBody(input, span) {
   const body = {};
   if (Object.hasOwn(input, 'summary')) body.summary = input.summary;
@@ -871,7 +878,37 @@ function eventBody(input, span) {
   if (span?.start) body.start = span.start;
   if (span?.end) body.end = span.end;
   if (Object.hasOwn(input, 'attendees')) body.attendees = input.attendees.map((email) => ({ email }));
+  if (input.add_google_meet === true) {
+    body.conferenceData = {
+      createRequest: {
+        requestId: randomUUID(),
+        conferenceSolutionKey: { type: 'hangoutsMeet' },
+      },
+    };
+  }
+  // Otherwise send no conference data: Google's version-0 behaviour leaves an existing Meet link untouched.
   return body;
+}
+
+function eventWithGoogleMeet(event) {
+  if (!event || typeof event !== 'object' || Array.isArray(event)) return event;
+  // Google's Event status is not a gateway stop, despite also being a string.
+  if (isStatusObject(event) && !['confirmed', 'tentative', 'cancelled'].includes(event.status)) return event;
+  const entries = event.conferenceData?.entryPoints;
+  const video = (Array.isArray(entries) ? entries.find((entry) => entry?.entryPointType === 'video') : null) ?? null;
+  const status = event.conferenceData?.createRequest?.status?.statusCode
+    ?? (event.hangoutLink || video ? 'success' : 'absent');
+  return {
+    ...event,
+    google_meet: {
+      status,
+      link: event.hangoutLink || video?.uri || null,
+      video_entry_point: video,
+      ...(status === 'pending' ? {
+        next: 'Google is still creating the Meet link; read the event back with google.calendar.get_event to get it.',
+      } : {}),
+    },
+  };
 }
 
 function eventText(input) {
@@ -891,6 +928,8 @@ function eventText(input) {
 async function create_event(input, ctx) {
   const calendar = calendarIdError(input.calendar_id);
   if (calendar) return calendar;
+  const meet = readGoogleMeet(input);
+  if (isStatusObject(meet)) return meet;
   const text = eventText(input);
   if (text) return text;
   const zone = readTimeZone(input);
@@ -901,21 +940,25 @@ async function create_event(input, ctx) {
   if (isStatusObject(updates)) return updates;
   const query = new URLSearchParams();
   query.set('sendUpdates', updates);
-  return proxyData(ctx, {
+  if (meet) query.set('conferenceDataVersion', '1');
+  const event = await proxyData(ctx, {
     endpoint: `${CALENDAR}/calendars/${encodeURIComponent(input.calendar_id)}/events?${query}`,
     method: 'POST',
     body: eventBody(input, span),
   });
+  return meet ? eventWithGoogleMeet(event) : event;
 }
 
 async function update_event(input, ctx) {
   const calendar = calendarIdError(input.calendar_id);
   if (calendar) return calendar;
+  const meet = readGoogleMeet(input);
+  if (isStatusObject(meet)) return meet;
   // A time zone is part of a start or an end, never a change of its own.
   if (Object.hasOwn(input, 'time_zone') && !Object.hasOwn(input, 'start') && !Object.hasOwn(input, 'end')) {
     return invalidArguments('time_zone');
   }
-  if (!CALENDAR_CHANGES.some((key) => Object.hasOwn(input, key))) return invalidArguments('summary');
+  if (!CALENDAR_CHANGES.some((key) => Object.hasOwn(input, key)) && !meet) return invalidArguments('summary');
   const text = eventText(input);
   if (text) return text;
   const zone = readTimeZone(input);
@@ -947,11 +990,13 @@ async function update_event(input, ctx) {
   if (isStatusObject(updates)) return updates;
   const query = new URLSearchParams();
   query.set('sendUpdates', updates);
-  return proxyData(ctx, {
+  if (meet) query.set('conferenceDataVersion', '1');
+  const event = await proxyData(ctx, {
     endpoint: `${CALENDAR}/calendars/${encodeURIComponent(input.calendar_id)}/events/${encodeURIComponent(input.event_id)}?${query}`,
     method: 'PATCH',
     body: eventBody(input, span),
   });
+  return meet ? eventWithGoogleMeet(event) : event;
 }
 
 // A lone surrogate is a JavaScript string that is not Unicode: UTF-8 encoding replaces it

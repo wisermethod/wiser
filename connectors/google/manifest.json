@@ -620,7 +620,7 @@
           }
         },
         "create_event": {
-          "description": "Creates a calendar event, asking Google to email guests only when notify_guests is true. start and end are each a YYYY-MM-DD date or an RFC 3339 date-time; given together they must be the same kind, and an all-day end is exclusive. A date-time with no offset needs an IANA time_zone such as America/Denver, never a bare offset, and time_zone is accepted only with start or end. Google, not this connector, refuses an end that is not after start. notify_guests defaults to false and is sent as sendUpdates all or none; none asks Google not to email guests, which Google does not fully promise, and Google warns that guests outside Google Calendar may then not receive the event. calendar_id refuses a dot, a double dot and any slash. An attendee address follows the Gmail address rule, at most 254 characters and 254 bytes.",
+          "description": "Creates a calendar event, asking Google to email guests only when notify_guests is true. start and end are each a YYYY-MM-DD date or an RFC 3339 date-time; given together they must be the same kind, and an all-day end is exclusive. A date-time with no offset needs an IANA time_zone such as America/Denver, never a bare offset, and time_zone is accepted only with start or end. Google, not this connector, refuses an end that is not after start. notify_guests defaults to false and is sent as sendUpdates all or none; none asks Google not to email guests, which Google does not fully promise, and Google warns that guests outside Google Calendar may then not receive the event. calendar_id refuses a dot, a double dot and any slash. An attendee address follows the Gmail address rule, at most 254 characters and 254 bytes. add_google_meet is an optional boolean defaulting to false; true sends conferenceDataVersion=1 and a conferenceData Meet create request with a fresh UUID. With false or the field absent, neither conferenceDataVersion nor conferenceData is sent, and the request is the one sent before this field existed. With true the event keeps every original field and adds google_meet with status, link and video_entry_point. A pending result says Google is still creating the Meet link and names google.calendar.get_event to read it back; nothing retries or makes a second request.",
           "risk": "medium",
           "confirmation": "always",
           "execution": {
@@ -672,6 +672,10 @@
               },
               "notify_guests": {
                 "type": "boolean"
+              },
+              "add_google_meet": {
+                "type": "boolean",
+                "default": false
               }
             },
             "required": [
@@ -684,7 +688,7 @@
           }
         },
         "update_event": {
-          "description": "Patches only the given fields of a calendar event, replaces the attendee list when attendees is sent, and clears the date or date-time a changed start or end leaves behind. At least one of summary, description, location, start, end and attendees is required. start and end are each a YYYY-MM-DD date or an RFC 3339 date-time; given together they must be the same kind, and an all-day end is exclusive. A date-time with no offset needs an IANA time_zone such as America/Denver, never a bare offset, and time_zone is accepted only with start or end. Google, not this connector, refuses an end that is not after start. notify_guests defaults to false and is sent as sendUpdates all or none; none asks Google not to email guests, which Google does not fully promise, and Google warns that guests outside Google Calendar may then not receive the event. calendar_id refuses a dot, a double dot and any slash. An attendee address follows the Gmail address rule, at most 254 characters and 254 bytes.",
+          "description": "Patches only the given fields of a calendar event, replaces the attendee list when attendees is sent, and clears the date or date-time a changed start or end leaves behind. At least one of summary, description, location, start, end and attendees, or add_google_meet: true, is required; add_google_meet: false alone is not a change and is refused. start and end are each a YYYY-MM-DD date or an RFC 3339 date-time; given together they must be the same kind, and an all-day end is exclusive. A date-time with no offset needs an IANA time_zone such as America/Denver, never a bare offset, and time_zone is accepted only with start or end. Google, not this connector, refuses an end that is not after start. notify_guests defaults to false and is sent as sendUpdates all or none; none asks Google not to email guests, which Google does not fully promise, and Google warns that guests outside Google Calendar may then not receive the event. calendar_id refuses a dot, a double dot and any slash. An attendee address follows the Gmail address rule, at most 254 characters and 254 bytes. add_google_meet is an optional boolean defaulting to false; true sends conferenceDataVersion=1 and a conferenceData Meet create request with a fresh UUID. With false or the field absent, neither conferenceDataVersion nor conferenceData is sent, so Google's version-0 behaviour leaves any existing Meet link untouched. With true the event keeps every original field and adds google_meet with status, link and video_entry_point. A pending result says Google is still creating the Meet link and names google.calendar.get_event to read it back; nothing retries or makes a second request. On update_event, add_google_meet: true on an event that already has a conference asks Google for a new one; whether Google replaces the existing link is Google's behaviour, not verified here, so read the event with google.calendar.get_event first.",
           "risk": "high",
           "confirmation": "always",
           "execution": {
@@ -740,6 +744,10 @@
               },
               "notify_guests": {
                 "type": "boolean"
+              },
+              "add_google_meet": {
+                "type": "boolean",
+                "default": false
               }
             },
             "required": [
@@ -777,6 +785,18 @@
                 "required": [
                   "attendees"
                 ]
+              },
+              {
+                "required": [
+                  "add_google_meet"
+                ],
+                "properties": {
+                  "add_google_meet": {
+                    "enum": [
+                      true
+                    ]
+                  }
+                }
               }
             ]
           }
