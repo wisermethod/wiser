@@ -98,6 +98,40 @@ for (const kinds of [['send'], ['change'], ['send', 'change']]) {
   });
 }
 
+test('adding a grant compacts revoked no-end send grants and retains active no-end grants', async (t) => {
+  const f = await fixture(t);
+  const revokedRecipient = 'revoked@example.com';
+  const retainedRecipient = 'retained@example.com';
+  const saved = await grant(f, { ...scope(['send']), where: { recipient: [revokedRecipient] } });
+  const retained = await grant(f, { ...scope(['send']), where: { recipient: [retainedRecipient] } });
+  const req = call('send', { input: { recipient: revokedRecipient } });
+  assert.equal((await f.gw.callTool('execute', req)).standing_approval.id, saved.id);
+  assert.equal((await tool(f, { mode: 'revoke', id: saved.id })).status, 'ok');
+
+  const file = `${f.home}/standing-approvals.jsonl`;
+  const before = readFileSync(file, 'utf8');
+  const revokedEntries = before.trim().split('\n').map(JSON.parse)
+    .filter((entry) => (entry.grant?.id ?? entry.revoke?.id) === saved.id);
+  assert.deepEqual(revokedEntries.map((entry) => Object.keys(entry)[0]), ['grant', 'revoke']);
+  assert.ok(before.includes(revokedRecipient));
+  await tool(f, { mode: 'list' });
+  assert.equal(readFileSync(file, 'utf8'), before, 'list must not compact');
+
+  const added = await grant(f, { actions: ['probe.items.change'], root: ROOT, days: 1 });
+  const after = readFileSync(file, 'utf8');
+  const entries = after.trim().split('\n').map(JSON.parse);
+  assert.equal(after.includes(saved.id), false, 'remove both the grant and its revoke');
+  assert.equal(after.includes(revokedRecipient), false, 'remove the revoked where values');
+  assert.deepEqual(entries.map((entry) => entry.grant?.id ?? entry.revoke?.id), [retained.id, added.id]);
+  assert.equal(entries[0].grant.expires_at, null);
+  assert.deepEqual(entries[0].grant.where, { recipient: [retainedRecipient] });
+  assert.equal((await f.gw.callTool('execute', req)).status, 'needs_confirmation');
+  assert.equal(f.calls.length, 1, 'the revoked send must not execute after compaction');
+  const ran = await f.gw.callTool('execute', call('send', { input: { recipient: retainedRecipient } }));
+  assert.deepEqual(ran.standing_approval, { id: retained.id, expires_at: null });
+  assert.equal(f.calls.length, 2);
+});
+
 test('null days are published and validated while dated defaults and ceilings stay unchanged', async (t) => {
   const f = await fixture(t);
   assert.deepEqual(f.gw.listTools().find((t) => t.name === 'standing_approvals').inputSchema.properties.days.type, ['integer', 'null']);

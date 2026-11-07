@@ -176,10 +176,12 @@ export function createStandingApprovals(home, now = Date.now) {
 
   function compact(entries, at) {
     const { file } = paths();
-    const expired = new Set(entries.filter(({ grant }) => grant && Date.parse(grant.expires_at) <= at)
+    const revoked = new Set(entries.filter(({ revoke }) => revoke).map(({ revoke }) => revoke.id));
+    const removable = new Set(entries.filter(({ grant }) => grant && (Date.parse(grant.expires_at) <= at
+      || (grant.expires_at === null && revoked.has(grant.id))))
       .map(({ grant }) => grant.id));
-    if (!expired.size) return;
-    const kept = entries.filter(({ grant, revoke }) => !expired.has(grant?.id ?? revoke?.id));
+    if (!removable.size) return;
+    const kept = entries.filter(({ grant, revoke }) => !removable.has(grant?.id ?? revoke?.id));
     const payload = kept.map(encode).join('');
     const tmp = `${file}.${randomUUID()}.tmp`;
     try {
