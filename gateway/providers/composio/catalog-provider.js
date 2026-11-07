@@ -2,7 +2,14 @@ import { readFileSync } from 'node:fs';
 import { fromSlug, toSlug as mappedToSlug, toolkitsFor } from './mapping.js';
 import { CURATED } from './curated.js';
 
-const curatedSlugs = new Map(CURATED.map((row) => [row.id, row.tool]));
+/** An ambiguous id has no curated mapping, even when one copy looks valid. */
+export function curatedSlugMap(rows) {
+  const counts = new Map();
+  for (const row of rows) counts.set(row.id, (counts.get(row.id) ?? 0) + 1);
+  return new Map(rows.filter((row) => counts.get(row.id) === 1).map((row) => [row.id, row.tool]));
+}
+
+const curatedSlugs = curatedSlugMap(CURATED);
 const toSlug = (actionId) => mappedToSlug(actionId) ?? curatedSlugs.get(actionId) ?? null;
 
 const BASE = 'https://backend.composio.dev/api/v3.1';
@@ -23,7 +30,7 @@ function parseEnvText(text) {
   return map;
 }
 
-function readApiKey(envPath) {
+export function readApiKey(envPath) {
   if (!envPath) return null;
   let text;
   try {

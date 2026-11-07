@@ -14,8 +14,8 @@ import { JsonFileStore } from '../src/store.js';
 import { createFakeProviders, DEFAULT_CONNECTORS, DEFAULT_POLICY, makeHome, putActive } from './fake-provider.js';
 
 const CONNECTORS = await loadConnectors([DEFAULT_CONNECTORS]);
-const READ = CURATED.find((row) => row.kind === 'read');
-const CHANGE = CURATED.find((row) => row.kind === 'change');
+const READ = CURATED.find((row) => row.id === 'google.gmail.list_labels');
+const CHANGE = CURATED.find((row) => row.id === 'google.gmail.create_label');
 
 /** Same unknown-method pass-through used by the service's provider proxies. */
 function passThrough(provider) {
@@ -82,29 +82,41 @@ function fixtureRow(kind) {
   };
 }
 
-test('curated data preserves the two recorded schemas and hint tags, with provider-local slugs', () => {
+function providerForRows(rows) {
+  const slugs = new Map(rows.map((row) => [row.id, row.tool]));
+  return { curated: () => rows, toSlug: (id) => slugs.get(id) ?? null };
+}
+
+test('48 curated rows include the two narrowed Solve schemas and hint tags, with provider-local slugs', () => {
   const provider = createCatalogProvider({ envPath: null });
   assert.ok(Object.isFrozen(CURATED));
   assert.equal(provider.curated(), CURATED);
-  assert.deepEqual(CURATED.map((row) => row.id), ['google.gmail.list_labels', 'google.gmail.create_label']);
-  // Hashes of JSON.stringify(input_parameters) in the recorded definitions, including annotations.
-  const hashes = [
-    'd399ed197c2ac063fa7f9c80898592a4507a2da8ee4ac42a2794c630376b360a',
-    '01f0fb933fde836e1a110289e9f4fbe9e8af4564b1b0d02ba061e5164d8de5ea',
-  ];
-  for (const [index, row] of CURATED.entries()) {
+  assert.equal(CURATED.length, 48);
+  assert.deepEqual([READ, CHANGE].map((row) => row?.id), ['google.gmail.list_labels', 'google.gmail.create_label']);
+  for (const row of CURATED) {
     assert.equal(Object.getPrototypeOf(row), Object.prototype);
-    assert.equal(createHash('sha256').update(JSON.stringify(row.input_schema)).digest('hex'), hashes[index]);
     assert.equal(provider.toSlug(row.id), row.tool);
   }
-  assert.deepEqual(READ.hint, ['readOnlyHint', 'openWorldHint']);
-  assert.deepEqual(CHANGE.hint, ['openWorldHint', 'createHint']);
+  // Hashes of the recorded schemas after narrowing user_id, including annotations.
+  const hashes = [
+    '311b755cbea6baa8c0f64de35c22486fd1dc9c0ac14ea5004e2817f12aace684',
+    '1db5a3e2602f116368515e8062b0d3070e61500fbaa5fe4179784253875ca9b2',
+  ];
+  for (const [index, row] of [READ, CHANGE].entries()) {
+    assert.equal(createHash('sha256').update(JSON.stringify(row.input_schema)).digest('hex'), hashes[index]);
+    assert.deepEqual(row.narrowed, ['user_id']);
+    assert.equal(Object.hasOwn(row.input_schema.properties, 'user_id'), false);
+  }
+  assert.equal(READ.tool, 'GMAIL_LIST_LABELS');
+  assert.equal(CHANGE.tool, 'GMAIL_CREATE_LABEL');
+  assert.deepEqual(READ.hint, ['openWorldHint', 'readOnlyHint']);
+  assert.deepEqual(CHANGE.hint, ['createHint', 'openWorldHint']);
   assert.equal(provider.toSlug('github.repos.get'), 'GITHUB_GET_A_REPOSITORY');
 });
 
 test('curated read runs without a stop, maps the slug and arguments, and audits catalog', async () => {
   const { gw, calls, record, audit, reads } = await fixture();
-  const input = { user_id: 'me', include_details: true };
+  const input = { include_details: true };
   assert.deepEqual(await gw.callTool('execute', { action: READ.id, input }), { ok: true, arguments: input });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].actionId, READ.id);
@@ -127,7 +139,7 @@ test('curated read runs without a stop, maps the slug and arguments, and audits 
 for (const row of [CHANGE, fixtureRow('send'), fixtureRow('delete')]) {
   test(`curated ${row.kind} discloses its fields, binds confirmation and consumes it once`, async () => {
     const { gw, calls, audit } = await fixture([row]);
-    const input = row.kind === 'change' ? { label_name: 'Work/Projects', user_id: 'me' } : { target: 'item-1' };
+    const input = row.kind === 'change' ? { label_name: 'Work/Projects' } : { target: 'item-1' };
     const call = { action: row.id, input };
     const stopped = await gw.callTool('execute', call);
     assert.equal(stopped.status, 'needs_confirmation');
@@ -172,6 +184,8 @@ for (const [name, action, input, field] of [
   ['wrong boolean type', READ.id, { include_details: 'true' }, 'include_details'],
   ['enum', CHANGE.id, { label_name: 'Work', message_list_visibility: 'labelShow' }, 'message_list_visibility'],
   ['undeclared', READ.id, { extra: 'never sent' }, 'extra'],
+  ['narrowed read account selector', READ.id, { user_id: 'me' }, 'user_id'],
+  ['narrowed change account selector', CHANGE.id, { label_name: 'Work', user_id: 'me' }, 'user_id'],
 ]) test(`curated input refuses ${name} before the provider`, async () => {
   const { gw, calls } = await fixture();
   assert.deepEqual(await gw.execute({ action, input }), { status: 'invalid_arguments', field });
@@ -189,7 +203,10 @@ test('describe exposes curated metadata while search and standing approval eligi
   assert.deepEqual(described.input, CHANGE.input_schema);
   described.input.required.length = 0;
   assert.deepEqual(gw.describeAction(CHANGE.id).input, CHANGE.input_schema, 'description cannot mutate the loaded schema');
-  assert.deepEqual(gw.searchActions({ query: 'list_labels' }).actions, []);
+  assert.deepEqual(gw.searchActions({ query: 'list_labels' }).actions, [{
+    action: READ.id, privilege: 'write', risk: 'low', confirmation: 'none',
+    description: READ.summary, curated: true, kind: READ.kind, summary: READ.summary,
+  }]);
   assert.equal(gw.standingApprovalScope({ mode: 'propose', actions: [CHANGE.id], root: 'Test' }).refusal.reason, 'not_eligible');
 });
 
@@ -245,7 +262,7 @@ const INVALID = [
 ];
 for (const [name, patch, reason] of INVALID) test(`invalid curated row is skipped and check reports it: ${name}`, async () => {
   const row = { ...structuredClone(READ), ...patch };
-  const checked = loadCuratedActions({ curated: () => [row] }, CONNECTORS);
+  const checked = loadCuratedActions(providerForRows([row]), CONNECTORS);
   assert.deepEqual(checked.rows, []);
   assert.deepEqual(checked.errors, [{ id: row.id, reason }]);
   const { gw, calls } = await fixture([row]);
@@ -264,7 +281,7 @@ for (const kind of ['change', 'send', 'delete']) test(`a read-privilege module r
   const connectors = CONNECTORS.map((c) => ({ ...c, manifest: structuredClone(c.manifest) }));
   connectors.find((c) => c.service === 'google').manifest.modules.gmail.auth.privilege = 'read';
   const row = fixtureRow(kind);
-  assert.deepEqual(loadCuratedActions({ curated: () => [row] }, connectors).errors,
+  assert.deepEqual(loadCuratedActions(providerForRows([row]), connectors).errors,
     [{ id: row.id, reason: 'insufficient_privilege' }]);
   const { gw, calls } = await fixture([row], { connectors });
   assert.equal((await gw.execute({ action: row.id, input: { target: 'item-1' } })).status, 'needs_connector');
@@ -274,11 +291,29 @@ for (const kind of ['change', 'send', 'delete']) test(`a read-privilege module r
 test('a module with non-catalog auth rejects a curated row', async () => {
   const connectors = CONNECTORS.map((c) => ({ ...c, manifest: structuredClone(c.manifest) }));
   connectors.find((c) => c.service === 'google').manifest.modules.gmail.auth.provider = 'local-file';
-  assert.deepEqual(loadCuratedActions({ curated: () => [READ] }, connectors).errors,
+  assert.deepEqual(loadCuratedActions(providerForRows([READ]), connectors).errors,
     [{ id: READ.id, reason: 'module_auth_mismatch' }]);
   const { gw, calls } = await fixture([READ], { connectors });
   assert.equal((await gw.execute({ action: READ.id })).status, 'needs_connector');
   assert.equal(calls.length, 0);
+});
+
+for (const [name, property, value] of [
+  ['numeric bound', { type: 'number', minimum: 0, maximum: 10, exclusiveMinimum: -1, exclusiveMaximum: 11, multipleOf: 0.5 }, 2.5],
+  ['string bound', { type: 'string', maxLength: 5 }, 'hello'],
+  ['array bound', { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 2 }, ['hello']],
+]) test(`curated schema accepts ${name} and preserves it for execution`, async () => {
+  const schema = { type: 'object', properties: { value: property } };
+  const row = { ...READ, input_schema: schema, key_fields: [] };
+  assert.deepEqual(loadCuratedActions(providerForRows([row]), CONNECTORS), { rows: [row], errors: [] });
+  const { gw, calls } = await fixture([row]);
+  assert.deepEqual(gw.describeAction(row.id).input, schema);
+  const input = { value };
+  assert.deepEqual(await gw.execute({ action: row.id, input }), { ok: true, arguments: input });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].slug, row.tool);
+  assert.deepEqual(calls[0].arguments, input);
+  assert.equal(gw.pendingConfirmations.size, 0);
 });
 
 for (const [name, schema] of [
@@ -286,9 +321,10 @@ for (const [name, schema] of [
   ['reference', { type: 'object', $ref: '#/$defs/input' }],
   ['union', { type: 'object', properties: { value: { type: ['string', 'null'] } } }],
   ['nested constraint', { type: 'object', properties: { value: { type: 'object', required: ['id'] } } }],
-  ['numeric bound', { type: 'object', properties: { value: { type: 'number', minimum: 0 } } }],
-  ['string bound', { type: 'object', properties: { value: { type: 'string', maxLength: 5 } } }],
-  ['array bound', { type: 'object', properties: { value: { type: 'array', maxItems: 2 } } }],
+  ['object property', { type: 'object', properties: { value: { type: 'object' } } }],
+  ['untyped property', { type: 'object', properties: { value: {} } }],
+  ['untyped array items', { type: 'object', properties: { value: { type: 'array', maxItems: 2 } } }],
+  ['array of arrays', { type: 'object', properties: { value: { type: 'array', items: { type: 'array', items: { type: 'string' } } } } }],
   ['array item constraint', { type: 'object', properties: { value: { type: 'array', items: { type: 'string', format: 'email' } } } }],
   ['open input', { type: 'object', additionalProperties: true }],
   ['invalid pattern', { type: 'object', properties: { value: { type: 'string', pattern: '[' } } }],
@@ -297,7 +333,7 @@ for (const [name, schema] of [
   ['boolean schema', true],
 ]) test(`unsupported curated schema is skipped and check reports it: ${name}`, async () => {
   const row = { ...READ, input_schema: schema, key_fields: [] };
-  assert.deepEqual(loadCuratedActions({ curated: () => [row] }, CONNECTORS).errors,
+  assert.deepEqual(loadCuratedActions(providerForRows([row]), CONNECTORS).errors,
     [{ id: row.id, reason: 'unsupported_input_schema' }]);
   const { gw, calls } = await fixture([row]);
   assert.equal((await gw.execute({ action: row.id, input: {} })).status, 'needs_connector');
@@ -314,7 +350,9 @@ test('invalid rows do not hide valid siblings, and loaded data is a snapshot', a
   assert.equal((await gw.execute({ action: CHANGE.id, input: { label_name: 'Work' } })).status, 'needs_confirmation');
   assert.equal(calls.length, 0);
   assert.equal(reads(), 1);
-  assert.equal(loadCuratedActions({ curated: () => [READ, { ...CHANGE, kind: 'unknown' }] }, CONNECTORS).rows.length, 1);
+  const checked = loadCuratedActions(providerForRows([READ, { ...CHANGE, kind: 'unknown' }]), CONNECTORS);
+  assert.deepEqual(checked.rows, [READ]);
+  assert.deepEqual(checked.errors, [{ id: CHANGE.id, reason: 'invalid_kind' }]);
 });
 
 test('hosted construction with bound proxies preserves rows and hydrated pending confirmations across requests', async () => {
@@ -324,12 +362,14 @@ test('hosted construction with bound proxies preserves rows and hydrated pending
   assert.equal(Object.hasOwn(opts, 'inputFileAccess'), false);
   assert.equal(Object.hasOwn(opts, 'authConfigured'), false);
   assert.equal(gw.pendingConfirmations, pendingConfirmations);
-  assert.equal((await gw.execute({ action: READ.id, input: { user_id: 'me' } })).ok, true);
+  assert.equal(gw.listActions().filter((row) => row.curated).length, 48);
+  assert.equal((await gw.execute({ action: READ.id, input: {} })).ok, true);
   const call = { action: CHANGE.id, input: { label_name: 'Across requests' } };
   assert.equal((await gw.execute(call)).status, 'needs_confirmation');
   assert.equal(pendingConfirmations.size, 1);
   const nextRequest = new ConnectionGateway(opts);
   assert.equal(nextRequest.pendingConfirmations, pendingConfirmations);
+  assert.equal(nextRequest.listActions().filter((row) => row.curated).length, 48);
   assert.equal((await nextRequest.execute({ ...call, confirm: true })).ok, true);
   assert.equal(calls.length, 2);
   assert.equal(pendingConfirmations.size, 0);

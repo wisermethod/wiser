@@ -6,7 +6,7 @@ import { FIRST_PARTY_ACTIONS, firstPartyDef, parseActionId, resolveAction } from
 /** The lowest classifier confidence at which a search pick is accepted. */
 export const SEARCH_PICK_BAND = 0.51;
 
-/** Minimum module privilege and action metadata, derived only from the reviewed kind. */
+/** Reviewed policy: reads run, changes/sends stop, deletes always stop and never match a grant. */
 export const CURATED_KINDS = Object.freeze({
   read: Object.freeze({ privilege: 'read', risk: 'low', confirmation: 'none' }),
   change: Object.freeze({ privilege: 'write', risk: 'medium', confirmation: 'always' }),
@@ -18,20 +18,40 @@ const PRIVILEGE_LEVEL = { read: 0, write: 1, admin: 2 };
 const ANNOTATIONS = new Set([
   'title', 'description', 'default', 'examples', 'human_parameter_name', 'human_parameter_description',
 ]);
-const TYPES = new Set(['string', 'boolean', 'number', 'integer', 'array', 'object']);
+const TYPES = new Set(['string', 'boolean', 'number', 'integer', 'array']);
+const ACCOUNT_SELECTORS = new Set(['user_id', 'userId', 'user_principal_name']);
 const plain = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
   && [Object.prototype, null].includes(Object.getPrototypeOf(value));
 
 /**
- * Fail closed on constraints validateInput/matches do not enforce. Metadata is
- * retained verbatim. Nested object constraints, composition, references, unions
- * and numeric/array bounds need a different validator before they can be curated.
+ * Fail closed on any property whose shape validateInput cannot check: no type, an
+ * object, an array of arrays, composition, references or unions. Metadata is
+ * retained verbatim. Numeric and length bounds (`maximum`, `maxLength`, `maxItems`
+ * and the like) are accepted on the same terms as a manifest action's, which uses
+ * them 74 times: validateInput does not read them, the stop's disclosure checks a
+ * number's bounds and a string's maxLength, and the provider enforces them.
  */
+const BOUNDS = new Set(['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'maxLength', 'minItems', 'maxItems']);
+const NUMERIC_TYPES = new Set(['number', 'integer']);
+
+function boundsFit(schema) {
+  for (const key of BOUNDS) {
+    if (schema[key] === undefined) continue;
+    const value = schema[key];
+    if (typeof value !== 'number' || !Number.isFinite(value)) return false;
+    if (['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf'].includes(key) && !NUMERIC_TYPES.has(schema.type)) return false;
+    if (key === 'multipleOf' && value <= 0) return false;
+    if (key === 'maxLength' && (schema.type !== 'string' || !Number.isSafeInteger(value) || value < 0)) return false;
+    if ((key === 'minItems' || key === 'maxItems') && (schema.type !== 'array' || !Number.isSafeInteger(value) || value < 0)) return false;
+  }
+  return true;
+}
+
 export function supportsCuratedSchema(schema, root = true, depth = 0) {
   if (!plain(schema) || depth > 32) return false;
   const allowed = root
     ? new Set(['type', 'properties', 'required', 'additionalProperties'])
-    : new Set(['type', 'enum', 'pattern', 'minLength', 'items']);
+    : new Set(['type', 'enum', 'pattern', 'minLength', 'items', ...BOUNDS]);
   if (Object.keys(schema).some((key) => !allowed.has(key) && !ANNOTATIONS.has(key))) return false;
   if (root) {
     if (schema.type !== 'object' || (schema.additionalProperties !== undefined && schema.additionalProperties !== false)) return false;
@@ -41,7 +61,9 @@ export function supportsCuratedSchema(schema, root = true, depth = 0) {
       || schema.required.some((field) => typeof field !== 'string' || !Object.hasOwn(properties, field)))) return false;
     return true;
   }
-  if (schema.type !== undefined && !TYPES.has(schema.type)) return false;
+  if (!TYPES.has(schema.type)) return false;
+  if (!boundsFit(schema)) return false;
+  if (schema.type === 'array' && (!plain(schema.items) || schema.items.type === 'array')) return false;
   if (schema.enum !== undefined && (!Array.isArray(schema.enum) || schema.enum.length === 0
     || schema.enum.some((value) => value !== null && !['string', 'boolean', 'number'].includes(typeof value))
     || schema.enum.some((value) => typeof value === 'number' && !Number.isFinite(value)))) return false;
@@ -72,7 +94,14 @@ export function loadCuratedActions(catalogProvider, connectors = []) {
     return { rows, errors: [{ id: null, reason: 'curated_unavailable' }] };
   }
   if (!Array.isArray(supplied)) return { rows, errors: [{ id: null, reason: 'curated_not_array' }] };
-  const seen = new Set();
+  // Count all copies, including malformed ones. No duplicate may supply metadata
+  // while another copy supplies the tool slug in the provider.
+  const counts = new Map();
+  for (const entry of supplied) {
+    try {
+      if (typeof entry?.id === 'string') counts.set(entry.id, (counts.get(entry.id) ?? 0) + 1);
+    } catch { /* An unreadable entry is diagnosed in the validation pass. */ }
+  }
   for (const entry of supplied) {
     let row;
     let reason;
@@ -80,6 +109,7 @@ export function loadCuratedActions(catalogProvider, connectors = []) {
       row = structuredClone(entry);
       if (!plain(row) || typeof row.id !== 'string'
         || !/^[a-z0-9][a-z0-9-]*\.[a-z0-9][a-z0-9-]*\.[a-z0-9][a-z0-9_-]*$/.test(row.id)) reason = 'invalid_id';
+      else if (counts.get(row.id) !== 1) reason = 'duplicate_id';
       else {
         const [service, module, action] = row.id.split('.');
         const connector = connectors.find((c) => c.id === service || c.service === service);
@@ -89,16 +119,20 @@ export function loadCuratedActions(catalogProvider, connectors = []) {
         else if (typeof row.kind !== 'string' || !Object.hasOwn(CURATED_KINDS, row.kind)) reason = 'invalid_kind';
         else if (!(PRIVILEGE_LEVEL[mod.auth.privilege] >= PRIVILEGE_LEVEL[CURATED_KINDS[row.kind].privilege])) reason = 'insufficient_privilege';
         else if (!supportsCuratedSchema(row.input_schema)) reason = 'unsupported_input_schema';
+        else if (Object.keys(row.input_schema.properties ?? {}).some((field) => ACCOUNT_SELECTORS.has(field))) reason = 'account_selector';
         else if (typeof row.tool !== 'string' || !row.tool || typeof row.summary !== 'string' || !row.summary
           || !Array.isArray(row.key_fields) || row.key_fields.some((field) => typeof field !== 'string'
-            || !Object.hasOwn(row.input_schema.properties ?? {}, field)) || !Object.hasOwn(row, 'hint')) reason = 'invalid_row';
-        else if (seen.has(row.id)) reason = 'duplicate_id';
+            || !Object.hasOwn(row.input_schema.properties ?? {}, field))
+          || !Array.isArray(row.hint) || row.hint.some((hint) => typeof hint !== 'string')) reason = 'invalid_row';
+        else if ((row.kind === 'read' && row.hint.some((hint) => ['createHint', 'updateHint', 'destructiveHint'].includes(hint)))
+          || (row.hint.includes('destructiveHint') && row.kind !== 'delete')) reason = 'kind_hint_mismatch';
+        else if (typeof catalogProvider.toSlug !== 'function' || catalogProvider.toSlug(row.id) !== row.tool) reason = 'slug_mismatch';
       }
     } catch {
       reason = 'invalid_row';
     }
     if (reason) errors.push({ id: typeof row?.id === 'string' ? row.id : null, reason });
-    else { seen.add(row.id); rows.push(row); }
+    else rows.push(row);
   }
   return { rows, errors };
 }
@@ -189,6 +223,24 @@ export function listActions(gateway, { query, service } = {}) {
         description: description || null,
       });
     }
+  }
+  // Append in reviewed order. Existing matches keep their relative rank and
+  // remain ahead of new matches; the same substring filter and classifier apply.
+  for (const { row, def } of catalogs.get(gateway).actions.values()) {
+    const [rowService, module] = row.id.split('.');
+    if (seen.has(row.id) || (service && service !== rowService)) continue;
+    if (q && !row.id.toLowerCase().includes(q) && !row.summary.toLowerCase().includes(q)) continue;
+    const found = gateway.lookupModule(rowService, module);
+    actions.push({
+      action: row.id,
+      privilege: found.auth.privilege,
+      risk: def.risk,
+      confirmation: def.confirmation,
+      description: row.summary,
+      curated: true,
+      kind: row.kind,
+      summary: row.summary,
+    });
   }
   return actions;
 }
@@ -288,6 +340,7 @@ export function describeAction(gateway, id) {
       curated: true,
       kind: curated.row.kind,
       summary: curated.row.summary,
+      key_fields: [...curated.row.key_fields],
       privilege: found.auth.privilege,
       risk: curated.def.risk,
       confirmation: curated.def.confirmation,
@@ -296,7 +349,9 @@ export function describeAction(gateway, id) {
       description: curated.row.summary,
     };
   }
-  if (isInvalidCuratedId(gateway, id)) return statusObject(STATUS.NEEDS_CONNECTOR, { action: id, reason: 'undeclared' });
+  if (isInvalidCuratedId(gateway, id) && !firstPartyDef(id)) {
+    return statusObject(STATUS.NEEDS_CONNECTOR, { action: id, reason: 'undeclared' });
+  }
   const resolved = resolveAction(id, {
     connectors: gateway.connectors,
     catalogProvider: gateway.catalogProvider,

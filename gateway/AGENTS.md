@@ -52,7 +52,7 @@ A module is `connectors/<service>/index.js`, exporting `modules`, a map of modul
 
 A curated row is reviewed plain data supplied by the catalog provider's optional synchronous `curated()` method. At construction the gateway snapshots the rows and skips any invalid entry. `--check` uses the same validation and fails on any invalid row, leaving its existing connector listing unchanged and adding the valid curated ids under `curated`. A manifest action always wins over a curated id.
 
-`src/curated.js` derives action metadata from this fixed table. Privilege here is the minimum the module must grant; execution policy and audit retain the module's manifest privilege, as they do for its hand-written actions.
+`src/catalog.js` derives action metadata from this fixed table, re-exported through `src/curated.js`. Privilege here is the minimum the module must grant; execution policy and audit retain the module's manifest privilege, as they do for its hand-written actions. A read runs; a change or send stops for confirmation; a delete always stops and no standing approval may cover it.
 
 | Kind | Minimum module privilege | Risk | Confirmation |
 |------|--------------------------|------|--------------|
@@ -61,7 +61,11 @@ A curated row is reviewed plain data supplied by the catalog provider's optional
 | `send` | `write` | `high` | `always` |
 | `delete` | `write` | `destructive` | `always` |
 
-Valid rows use the existing module connection and the `catalog` execution path, including policy, input validation, pending confirmations, disclosure and audit. After policy allows the call, curated input is validated before any provider call, including account hydration. Only schema constraints `src/input-schema.js` enforces are accepted; provider annotations remain intact, and unsupported constraints reject the row rather than being silently ignored. The gateway still refuses undeclared input keys. `describe_action` exposes the summary, kind, schema and `curated: true`; `search_actions` is unchanged. Curated actions have no standing approval eligibility.
+Valid rows use the existing module connection and the `catalog` execution path, including policy, input validation, pending confirmations, disclosure and audit. After policy allows the call, curated input is validated before any provider call, including account hydration. Only schema constraints `src/input-schema.js` enforces are accepted; provider annotations remain intact, and unsupported constraints reject the row rather than being silently ignored. Every property has a scalar type or an array of typed scalars; objects, untyped properties, nested arrays and account selectors (`user_id`, `userId`, `user_principal_name`) are refused. Every copy of a duplicate id is invalid, and the provider's `toSlug(id)` must equal the reviewed row's tool. A read with a write hint, or a destructive hint on any kind other than delete, is invalid.
+
+The gateway still refuses undeclared input keys. `describe_action` exposes `curated: true`, kind, summary, key fields and input schema. `search_actions` includes curated rows with the same id/description substring filter and classifier ranking, appended after existing matches so their relative order is preserved. Curated actions have no standing approval eligibility. They execute once through the same provider seam as hand-written catalog actions, retaining the service and module in policy and audit; the host applies that service's plan and counts the call at its existing boundary. The local gateway has no subscription tier or quota counter of its own.
+
+To add a row, follow `providers/AGENTS.md` CatalogProvider: copy the provider definition, narrow only optional properties, and have a person confirm the kind against the description and the delete rule. Run `node gateway/providers/composio/curated-drift.mjs --env <absolute provider-key file>` before shipping; `--fixture <listing.json>` runs the same comparison offline. The provider contract lists the fields, listing format and exit codes.
 
 `ctx` carries `service`, `module`, `action`, `input`, and the capabilities below:
 
