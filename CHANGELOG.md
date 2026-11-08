@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.08, November 8, 2026
+
+- The warning you answer before approving something in advance is now short enough to read: what it lets your assistant do without asking each time and for which work, how long it lasts, and "Yes or no?". For example: "Create a new Gmail label without asking you each time, for the "client-launch" Playbook in "My Work". No end date: it lasts until you revoke it. Yes or no?" (5b23e665, 5a269d8f)
+- Approving sending adds one sentence: each send goes out without you seeing it first and cannot be called back, and where the sends take lists of people, such as Gmail's to, cc and bcc, those lists can't be limited. Approving spending money, publishing or giving someone access adds one sentence saying it can happen with nobody looking first and can't be called back. A connector's own warning, such as ElevenLabs credits or HeyGen prices, is still shown word for word. Gmail sending's own warning is gone, since the send sentence now says it; an approval you made with it keeps working. (5b23e665, 5a269d8f, 3cf83260)
+- If what an approval covers changes between the warning and your yes, even where the warning reads the same, Wiser asks again with the new warning. (5a269d8f, 8c2ed886)
+
 ## v2026.11.07.3, November 7, 2026
 
 - When you approve one of Composio's Gmail, Google Calendar or Google Drive tools in advance, its warning and the line that lists the approval now read as one sentence, such as "lets your assistant create a new Gmail label", instead of breaking off at a full stop. Three of those tools are described more plainly: changing an unsent Gmail draft, moving an event between your calendars, and creating a Google Drive file from text. (7edb9e70, 5bf18d70)
