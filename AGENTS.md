@@ -1,5 +1,6 @@
 ---
 root: wiser
+layout: 2
 apps:
   - claude-cowork steps
   - claude-code steps
