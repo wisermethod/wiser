@@ -115,7 +115,8 @@ test('propose, grant and execute use one warning and one module call, with audit
   assert.equal(proposal.status, 'standing_approval_proposed');
   assert.equal(Object.hasOwn(proposal, 'reason'), false);
   assert.equal(proposal.expires_on, '2027-01-20');
-  assert.equal(f.gw.pendingConfirmations.has(confirmationDigest(['standing_approval', proposal.scope, proposal.warning])), true);
+  const { summaries, cautions } = f.gw.standingApprovalScope(SCOPE);
+  assert.equal(f.gw.pendingConfirmations.has(confirmationDigest(['standing_approval', proposal.scope, proposal.warning, summaries, cautions])), true);
   assert.equal((await f.gw.standingApprovals.list()).length, 0);
   const answer = await tool(f, { ...SCOPE, mode: 'grant', confirmed: true });
   const saved = answer.standing_approval;
@@ -446,7 +447,7 @@ for (const limited of [false, true]) {
     const proposal = await tool(f, { ...scope, mode: 'propose' });
     assert.equal(proposal.scope.days, 90);
     assert.deepEqual(proposal.kinds, ['send']);
-    const expected = `Send messages and send other messages without asking you each time, for the "2026-10-22-send-messages.plan.md" Playbook in "wiser-memory"${limited ? ', only where channel is "email"' : ''}. It lasts 90 days, until 2027-01-20, or until you revoke it. Each send goes out without you seeing it first, and recipients given as a list cannot be limited. These messages may start a workflow. Yes or no?`;
+    const expected = `Send messages and send other messages without asking you each time, for the "2026-10-22-send-messages.plan.md" Playbook in "wiser-memory"${limited ? ', only where channel is "email"' : ''}. It lasts 90 days, until 2027-01-20, or until you revoke it. Each send goes out without you seeing it first and cannot be called back. These messages may start a workflow. Yes or no?`;
     assert.equal(proposal.warning, expected);
     assert.equal(proposal.warning.split(SEND_CAUTION).length - 1, 1);
     const saved = await grant(f, scope);
@@ -562,7 +563,7 @@ test('a host adapter supplied to the constructor owns grant storage', async (t) 
 });
 
 const ORDINARY_WARNING = 'Create records in Twenty and change fields on existing Twenty records without asking you each time, on your connection labelled "acme", for the "CRM Work" Playbook in "wiser-memory", only where id is "id-a" or "id-b" and object is "company" or "person". It lasts 90 days, until 2027-01-20, or until you revoke it. Yes or no?';
-const HEIGHTENED_WARNING = 'Send messages without asking you each time, for work in "wiser-memory". It lasts 7 days, until 2026-10-29, or until you revoke it. Each send goes out without you seeing it first, and recipients given as a list cannot be limited. It can spend money, publish where others can see and give someone access with nobody looking first, and once done it cannot be called back. Yes or no?';
+const HEIGHTENED_WARNING = 'Send messages without asking you each time, for work in "wiser-memory". It lasts 7 days, until 2026-10-29, or until you revoke it. Each send goes out without you seeing it first and cannot be called back. It can spend money, publish where others can see and give someone access with nobody looking first, and once done it cannot be called back. Yes or no?';
 
 test('the ordinary and heightened warnings are exactly the fixed text', async (t) => {
   const f = await fixture(t);
@@ -984,7 +985,7 @@ test('covered cautions are distinct and follow action order before the heightene
   actions.update.standing_approval.caution = 'Second caution.';
   actions.update.standing_approval.kind = 'send';
   const result = await tool(f, { mode: 'propose', actions: [UPDATE, CREATE], root: SCOPE.root });
-  assert.match(result.warning, /Each send goes out without you seeing it first, and recipients given as a list cannot be limited\. First caution\. Second caution\. Yes or no\?/);
+  assert.match(result.warning, /Each send goes out without you seeing it first and cannot be called back\. First caution\. Second caution\. Yes or no\?/);
 });
 
 

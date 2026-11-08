@@ -279,9 +279,9 @@ function warningScopeWords(scope) {
 
 /**
  * Fixed warning shown word for word before a grant can exist.
- * @param {{ scope: object, summaries: string[], cautions?: string[], kinds: string[], heightened: boolean, expiresOn: string | null }} proposal
+ * @param {{ scope: object, summaries: string[], cautions?: string[], listFields?: string[], kinds: string[], heightened: boolean, expiresOn: string | null }} proposal
  */
-export function buildStandingApprovalWarning({ scope, summaries, cautions = [], kinds, heightened, expiresOn }) {
+export function buildStandingApprovalWarning({ scope, summaries, cautions = [], listFields = [], kinds, heightened, expiresOn }) {
   const summary = joinWords(summaries);
   const sentences = [
     `${summary.charAt(0).toUpperCase()}${summary.slice(1)} without asking you each time${warningScopeWords(scope)}.`,
@@ -290,7 +290,10 @@ export function buildStandingApprovalWarning({ scope, summaries, cautions = [], 
       : `It lasts ${scope.days} ${scope.days === 1 ? 'day' : 'days'}, until ${expiresOn}, or until you revoke it.`,
   ];
   if (kinds.includes('send')) {
-    sentences.push('Each send goes out without you seeing it first, and recipients given as a list cannot be limited.');
+    const lists = listFields.length
+      ? `, and its ${joinWords(listFields)} ${listFields.length === 1 ? 'list' : 'lists'} cannot be limited`
+      : '';
+    sentences.push(`Each send goes out without you seeing it first and cannot be called back${lists}.`);
   }
   const heightenedPhrases = Object.entries(HEIGHTENED_PHRASES)
     .filter(([kind]) => ['pay', 'publish', 'grant_access'].includes(kind) && kinds.includes(kind))

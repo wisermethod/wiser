@@ -217,11 +217,11 @@ export async function standingApprovalsTool(gateway, args = {}) {
     }
     const checked = gateway.standingApprovalScope(args);
     if (checked.refusal) return checked.refusal;
-    const { scope, summaries, cautions, kinds, heightened } = checked;
+    const { scope, summaries, cautions, listFields, kinds, heightened } = checked;
     const at = gateway.now();
     const expiresOn = scope.days === null ? null : new Date(at + scope.days * STANDING_APPROVAL_DAY_MS).toISOString().slice(0, 10);
-    const warning = buildStandingApprovalWarning({ scope, summaries, cautions, kinds, heightened, expiresOn });
-    const key = confirmationDigest(['standing_approval', scope, warning]);
+    const warning = buildStandingApprovalWarning({ scope, summaries, cautions, listFields, kinds, heightened, expiresOn });
+    const key = confirmationDigest(['standing_approval', scope, warning, summaries, cautions]);
     const proposalExpiry = mode === 'grant' && args.confirmed === true ? gateway.takePendingConfirmationExpiry(key) : null;
     if (proposalExpiry === null) {
       gateway.recordPendingConfirmation(key);
@@ -339,6 +339,11 @@ export function standingApprovalScope(gateway, args) {
     scope, kinds, heightened,
     summaries: covered.map(({ def }) => def.standing_approval.summary),
     cautions: [...new Set(covered.map(({ def }) => def.standing_approval.caution).filter((caution) => caution !== undefined))],
+    listFields: [...new Set(covered.filter(({ def }) => def.standing_approval.kind === 'send')
+      .flatMap(({ def }) => Object.entries(def.input?.properties ?? {})
+        .filter(([field, schema]) => field !== def.input_files?.field
+          && (Array.isArray(schema.type) ? schema.type : [schema.type]).includes('array'))
+        .map(([field]) => field)))],
   };
 }
 

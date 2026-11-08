@@ -10,7 +10,7 @@ const NOW = Date.parse('2026-11-07T12:00:00Z');
 const ROOT = 'Scheduled Work';
 const PLAYBOOK = 'scheduled-writes.plan.md';
 const GOOGLE = fileURLToPath(new URL('../../connectors/google', import.meta.url));
-const LIMIT_WARNING = 'Each send goes out without you seeing it first, and recipients given as a list cannot be limited.';
+const LIMIT_WARNING = 'Each send goes out without you seeing it first and cannot be called back.';
 const schema = {
   type: 'object', properties: { recipient: { type: 'string' } },
   required: ['recipient'], additionalProperties: false,
@@ -84,7 +84,8 @@ for (const kinds of [['send'], ['change'], ['send', 'change']]) {
     assert.equal(proposal.scope.days, null);
     assert.equal(proposal.expires_on, null);
     assert.ok(proposal.warning.includes('No end date: it lasts until you revoke it.'));
-    assert.ok(proposal.warning.includes(kinds.includes('send') ? LIMIT_WARNING : 'without asking you each time'));
+    if (kinds.includes('send')) assert.ok(proposal.warning.includes(LIMIT_WARNING));
+    else assert.doesNotMatch(proposal.warning, /Each send goes out/);
     assert.ok(!/at most|For \d+ days|until 20\d\d-/.test(proposal.warning));
     const answer = await tool(f, { ...args, mode: 'grant', confirmed: true });
     assert.equal(answer.status, 'ok', 'one yes to the warning grants it');
