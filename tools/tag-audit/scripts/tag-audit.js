@@ -17,66 +17,14 @@ import { accessSync, constants, existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { destinationReason, destinationReasonText } from './lib/destination.js';
+import { lookup } from './lib/destination.js';
+import { auditPage, resolveTarget, screenDestination as screen } from './audit-core.js';
 import { INSTALL_HELP, installQuestion, formatInstallSize, INSTALL_BYTES, installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
 
 const HERE = fileURLToPath(import.meta.url);
 const TOOL_DIR = resolve(dirname(HERE), '..');
 
-// Detection patterns. Each tag is present when any of its patterns matches the
-// served HTML; the first capturing match supplies the id, where one exists.
-const DETECTORS = [
-  {
-    key: 'clarity',
-    label: 'Microsoft Clarity',
-    patterns: [
-      /clarity\.ms\/tag\/([a-z0-9]+)/i,
-      /["']clarity["']\s*,\s*["']script["']\s*,\s*["']([a-z0-9]+)["']/i
-    ]
-  },
-  {
-    key: 'ga4',
-    label: 'Google Analytics 4',
-    patterns: [
-      /gtag\/js\?id=(G-[A-Z0-9]+)/i,
-      /gtag\(\s*["']config["']\s*,\s*["'](G-[A-Z0-9]+)["']/i
-    ]
-  },
-  {
-    key: 'gtm',
-    label: 'Google Tag Manager',
-    patterns: [
-      /gtm\.js\?id=(GTM-[A-Z0-9]+)/i,
-      /(GTM-[A-Z0-9]+)/
-    ]
-  },
-  {
-    key: 'hotjar',
-    label: 'Hotjar',
-    patterns: [/hjid\s*[:=]\s*(\d+)/i, /static\.hotjar\.com/i]
-  },
-  {
-    key: 'plausible',
-    label: 'Plausible',
-    patterns: [/plausible\.io\/js\/[^"']*/i]
-  },
-  {
-    key: 'metaPixel',
-    label: 'Meta Pixel',
-    patterns: [/fbq\(\s*["']init["']\s*,\s*["'](\d+)["']/i, /connect\.facebook\.net\/[^"']*fbevents\.js/i]
-  },
-  {
-    key: 'segment',
-    label: 'Segment',
-    patterns: [/cdn\.segment\.com\/analytics\.js\/v1\/([a-z0-9]+)/i, /cdn\.segment\.com/i]
-  }
-];
-
 const TIMEOUT_MS = 20000;
-
-// A compatibility prefix so naive user-agent sniffing serves the same markup a
-// browser would get. It names this tool and nothing about who is running it.
-const USER_AGENT = 'Mozilla/5.0 (compatible; tag-audit; instrumentation audit)';
 
 const COMMANDS = new Set(['audit']);
 
@@ -272,6 +220,10 @@ const install = parsedInstallFlag(argv, VALUE_FLAGS);
 // `flag()` refuses a value beginning with `--`, which is exactly that case. It
 // is a function declaration and imports nothing, so calling it here runs before
 // the packages do.
+// The preflight check has its own deadline. The run's deadline starts after any
+// first-run install below, since `execFileSync` blocks the event loop and a timer
+// armed before it would fire, overdue, the moment the install returned.
+const preflightSignal = AbortSignal.timeout(TIMEOUT_MS);
 {
   const raw = flag('--url');
   if (!raw) {
@@ -290,7 +242,8 @@ const install = parsedInstallFlag(argv, VALUE_FLAGS);
   // name here, before the install, so it never buys one; main() applies the
   // same screen again before the fetch. This resolves the hostname, which is a
   // question to the resolver and not a connection to the address.
-  await screenDestination(resolveTarget(raw));
+  try { await screenDestination(resolveTarget(raw)); }
+  catch (error) { fail(error.message); }
 }
 
 
@@ -327,6 +280,7 @@ if (!existsSync(UNDICI_MARKER)) {
     }
   }
 }
+const runSignal = AbortSignal.timeout(TIMEOUT_MS);
 
 function flag(name) {
   const index = argv.indexOf(name);
@@ -338,108 +292,17 @@ function flag(name) {
   return value;
 }
 
-// Target. Validated before any network call, and restricted to the two schemes
-// this tool fetches: it reads web pages and never a path on this machine.
-function resolveTarget(raw) {
-  const candidate = /^[a-z][a-z0-9+.-]*:/i.test(raw) ? raw : `https://${raw}`;
-  let parsed;
-  try {
-    parsed = new URL(candidate);
-  } catch {
-    fail(`Error: --url is not a valid URL: "${raw}". Pass a page address such as https://example.com/pricing.`);
-  }
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    fail(`Error: --url must be http or https; got "${parsed.protocol}". This tool fetches web pages only.`);
-  }
-  return parsed;
-}
-
-function detect(html) {
-  const found = {};
-  for (const detector of DETECTORS) {
-    let present = false;
-    let id = null;
-    for (const pattern of detector.patterns) {
-      const match = html.match(pattern);
-      if (match) {
-        present = true;
-        if (match[1] && !id) id = match[1];
-      }
-    }
-    found[detector.key] = { label: detector.label, present, id };
-  }
-  return found;
-}
-
-// The address boundary, the same screen and the same sentence as sitemap-fetch:
-// loopback, private-range, link-local, unique-local, and cloud-metadata
-// addresses are refused in every spelling, and a hostname is resolved first so
-// an ordinary-looking name pointing inward is refused too. A hostname that
-// resolves nowhere is not refused here; the fetch reports that on its own.
+// Preflight stays above installation; the core applies the same screen again.
 async function screenDestination(target) {
-  const destination = await destinationReason(target.hostname);
-  if (destination && destination !== 'unresolvable') {
-    fail(`Error: --url ${target.href} points at ${destinationReasonText(destination)}, which this tool does not fetch.`);
-  }
-  return target;
-}
-
-async function fetchHtml(url) {
-  const response = await fetch(url, {
-    redirect: 'follow',
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-    headers: { 'User-Agent': USER_AGENT }
-  });
-  return { status: response.status, finalUrl: response.url, html: await response.text() };
+  try { return await screen(target, lookup, false, preflightSignal); }
+  catch (error) { fail(error.message); }
 }
 
 async function main() {
-  const raw = flag('--url');
-
-  if (!raw) {
-    fail('Error: --url is required. Run "node scripts/tag-audit.js help" for usage.');
-  }
-
-  const target = await screenDestination(resolveTarget(raw));
-
-  let fetched;
-
-  try {
-    fetched = await fetchHtml(target.href);
-  } catch (error) {
-    // The cause is named, never the runtime's or the host's own message.
-    const reason = error && error.name === 'TimeoutError'
-      ? `no response within ${TIMEOUT_MS / 1000} seconds`
-      : 'the request did not complete';
-    fail(`Error: could not fetch ${target.href}: ${reason}. Confirm the host is reachable from this machine, then re-run.`);
-  }
-
-  if (fetched.status < 200 || fetched.status >= 300) {
-    fail(`Error: ${target.href} returned HTTP ${fetched.status} (landed on ${fetched.finalUrl}). Auditing an error page would report every tag absent, so this is a failure rather than a result.`);
-  }
-
-  const tags = detect(fetched.html);
-  const entries = Object.values(tags);
-  const present = entries.filter((tag) => tag.present).map((tag) => tag.label);
-  const missing = entries.filter((tag) => !tag.present).map((tag) => tag.label);
-
-  const result = {
-    url: target.href,
-    final_url: fetched.finalUrl,
-    http_status: fetched.status,
-    method: 'served-html',
-    html_bytes: fetched.html.length,
-    tags,
-    summary: { present },
-    missing_note: missing.length
-      ? `Not detected in served HTML: ${missing.join(', ')}. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.`
-      : null
-  };
-
+  const result = await auditPage({ url: flag('--url') }, globalThis.fetch, lookup, {
+    maxRedirects: 20, signal: runSignal
+  });
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }
 
-main().catch((error) => {
-  // This message is ours; the fetch path reports its own cause above.
-  fail(`Error: audit failed unexpectedly: ${error && error.message ? error.message : 'no detail available'}`);
-});
+main().catch((error) => fail(error.message));

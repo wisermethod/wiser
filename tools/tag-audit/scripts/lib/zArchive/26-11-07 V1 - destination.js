@@ -1,12 +1,13 @@
+import dns from 'node:dns';
+
 /**
  * What this tool is willing to send a request to.
  *
- * A run's first address comes from the caller, every address after it comes
- * from a document this tool fetched: a robots.txt line, a sitemap index entry,
- * a Location header. All of them are inputs from outside, so all of them are
- * screened here: an address inside the machine or its network is not a sitemap
- * host, and the addresses cloud platforms answer instance credentials on are
- * the reason that matters.
+ * The address the caller names is an input from outside, so it is screened
+ * here before anything is fetched: an address inside the machine or its network
+ * is not a page this tool audits, and the addresses cloud platforms answer
+ * instance credentials on are the reason that matters. Copied from
+ * sitemap-fetch, which applies the same screen with the same wording.
  *
  * Every hostname reaching this file has been through the URL parser, which
  * already folds the decimal, octal, and hexadecimal spellings of an IPv4
@@ -62,7 +63,7 @@ export function destinationReasonText(reason) {
  * `lookup` is the resolver, injected so the screen can be exercised over
  * addresses no test machine has. Nothing in this tool passes a second argument.
  */
-export async function destinationReason(hostname, lookup) {
+export async function destinationReason(hostname, lookup = defaultLookup) {
   const host = String(hostname || '').toLowerCase();
 
   if (host === '') return 'unroutable';
@@ -86,7 +87,6 @@ export async function destinationReason(hostname, lookup) {
 
   for (const entry of addresses) {
     const reason = classifyLiteral(String(entry?.address ?? entry).toLowerCase());
-    if (reason === undefined) return 'unresolvable';
     if (reason) return reason;
   }
 
@@ -144,10 +144,6 @@ function classifyIpv6(groups) {
   if (groups[0] === 0x0064 && groups[1] === 0xff9b && isZeroRange(groups, 2, 6)) {
     return classifyIpv4(embeddedIpv4(groups, 6));
   }
-
-  // RFC 8215's local-use NAT64 prefix can use several RFC 6052
-  // embeddings, so refuse the whole /48 rather than guess its prefix length.
-  if (groups[0] === 0x0064 && groups[1] === 0xff9b && groups[2] === 1) return 'unroutable';
 
   if (groups[0] === 0x2002) return classifyIpv4(embeddedIpv4(groups, 1));
 
@@ -260,4 +256,10 @@ function readIpv6Side(side) {
   }
 
   return groups;
+}
+
+// Read through the module object rather than bound at import, so the screen can
+// be exercised against a stub resolver without a flag in the shipped path.
+function defaultLookup(hostname) {
+  return dns.promises.lookup(hostname, { all: true, verbatim: true });
 }

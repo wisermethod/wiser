@@ -2,7 +2,7 @@
  * Hosts supply fetch, an all-address DNS lookup and a gzip decoder.
  * Hosts may bound those capabilities without changing parsing or traversal.
  */
-import { destinationReason, destinationReasonText } from './lib/destination-core.js';
+import { destinationReason, destinationReasonText } from '../../lib/destination-core.js';
 
 // Names this tool and nothing about who is running it.
 const USER_AGENT = 'sitemap-fetch/0.1.1 (sitemap snapshot)';

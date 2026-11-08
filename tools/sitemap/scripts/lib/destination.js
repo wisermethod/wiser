@@ -1,8 +1,8 @@
 import dns from 'node:dns';
-import { destinationReason as reason } from './destination-core.js';
-export { classifyLiteral, destinationReasonText } from './destination-core.js';
+import { destinationReason as reason } from '../../../lib/destination-core.js';
+export { classifyLiteral, destinationReasonText } from '../../../lib/destination-core.js';
 
-// Keep Node's resolver here; the snapshot engine receives its host's resolver.
+// Keep Node's resolver here; portable cores receive their host's resolver.
 export function lookup(hostname) {
   return dns.promises.lookup(hostname, { all: true, verbatim: true });
 }

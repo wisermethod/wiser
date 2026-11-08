@@ -4,7 +4,8 @@ import { existsSync, readFileSync, realpathSync, statSync, writeFileSync } from 
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { INSTALL_HELP, installQuestion, installAuthorised, writeConsent } from '../../lib/consent.js';
-import { SETS, WEIGHTS, assetPath, buildSvg, nearestNames, searchIcons } from './lib/icons.js';
+import { SETS, WEIGHTS, assetPath, buildSvg, nearestNames } from './lib/icons.js';
+import { searchCatalog, normalizeCatalog, licenceLine } from './lib/search-core.js';
 import { parseFlags, readOptions } from './lib/options.js';
 
 const HERE = fileURLToPath(import.meta.url);
@@ -73,7 +74,7 @@ async function packageState(set) {
     try { await catalog(set); } catch { missing.push(catalogPath); }
   }
   if (!missing.includes('LICENSE')) {
-    try { licenceLine(set); } catch { missing.push('LICENSE'); }
+    try { packageLicence(set); } catch { missing.push('LICENSE'); }
   }
   if (data.license !== 'MIT') missing.push('package.json (license must be MIT)');
   return { state: missing.length ? 'incomplete' : 'ready', installed: missing.length === 0, version: data.version, missing };
@@ -120,8 +121,7 @@ async function catalog(set) {
       new Set(rows.map(icon => icon.path)).size !== rows.length) {
       throw new Error(`the ${pkg} catalog is incomplete; remove this tool's node_modules and run ${INSTALL}`);
     }
-    return rows.map(({ id, title, category, tags, path }) => ({ name: id, title, category,
-      tags: tags.filter(tag => !/^dhis2:/i.test(tag)), path }));
+    return rows;
   }
   const { icons } = await import(pathToFileURL(source).href);
   if (!Array.isArray(icons) || !icons.length || icons.some(icon => !/^[a-z0-9-]+$/.test(icon.name) ||
@@ -132,14 +132,8 @@ async function catalog(set) {
   return icons;
 }
 
-function licenceLine(set) {
-  const { package: pkg, version } = SETS[set];
-  const licence = readFileSync(join(packageDir(set), 'LICENSE'), 'utf8');
-  const copyright = licence.split(/\r?\n/).find(line => /^Copyright \(c\)/.test(line));
-  if (!/^MIT License\r?\n/.test(licence) || !copyright) throw new Error(`the ${pkg} licence is unreadable; restore the pinned package with ${INSTALL}`);
-  return set === 'health'
-    ? `Health Icons ${version}: icons CC0 1.0 (healthicons.org); package MIT License, ${copyright}`
-    : `Phosphor Icons ${version}, MIT License, ${copyright}`;
+function packageLicence(set) {
+  return licenceLine(set, readFileSync(join(packageDir(set), 'LICENSE'), 'utf8'));
 }
 
 export async function main(argv = process.argv.slice(2)) {
@@ -174,10 +168,12 @@ export async function main(argv = process.argv.slice(2)) {
   } else {
     const { set } = options;
     await ensurePackages(flags['--install'], [set]);
-    const icons = await catalog(set);
-    const licence = licenceLine(set);
-    if (command === 'search') result = { results: searchIcons(icons, options.query, options.limit, set), license: licence };
+    const rows = await catalog(set);
+    const licenceText = readFileSync(join(packageDir(set), 'LICENSE'), 'utf8');
+    if (command === 'search') result = searchCatalog(set, rows, options.query, options.limit, licenceText);
     else {
+      const icons = normalizeCatalog(set, rows);
+      const licence = licenceLine(set, licenceText);
       // A Health name may be `<category>/<id>`, the catalog's own path, which settles an id two categories share.
       const matches = set === 'health' && options.name.includes('/')
         ? icons.filter(entry => entry.path === options.name)
