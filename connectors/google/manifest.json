@@ -1177,8 +1177,7 @@
           },
           "standing_approval": {
             "kind": "send",
-            "summary": "send Gmail messages",
-            "caution": "This grant sends messages your assistant writes, to any recipient, with no look at each one before it is sent. It never covers a message with a local file attached."
+            "summary": "send Gmail messages"
           }
         }
       },

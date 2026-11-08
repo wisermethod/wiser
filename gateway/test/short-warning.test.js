@@ -190,8 +190,8 @@ const variants = [
   {
     name: 'Gmail send_message names its lists but excludes attachments', service: 'google',
     args: { actions: ['google.gmail.send_message'], root: ROOT, days: 7 },
-    expected: 'Send Gmail messages without asking you each time, for work in "WISER Plugins". It lasts 7 days, until 2026-11-14, or until you revoke it. Each send goes out without you seeing it first and cannot be called back, and its to, cc, bcc and references lists cannot be limited. This grant sends messages your assistant writes, to any recipient, with no look at each one before it is sent. It never covers a message with a local file attached. Yes or no?',
-    sentences: 6,
+    expected: 'Send Gmail messages without asking you each time, for work in "WISER Plugins". It lasts 7 days, until 2026-11-14, or until you revoke it. Each send goes out without you seeing it first and cannot be called back, and its to, cc, bcc and references lists cannot be limited. Yes or no?',
+    sentences: 4,
   },
   {
     name: 'Calendar create_event names its attendees list', service: 'google', module: 'calendar',
