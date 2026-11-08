@@ -280,7 +280,7 @@ test('a curated row reads as a phrase inside the warning and the summary line, a
   const { gw } = await fixture();
   const scope = { actions: [CHANGE.id], root: 'Test', playbook: 'Test writes', days: null };
   const proposed = await gw.callTool('standing_approvals', { ...scope, mode: 'propose' });
-  assert.ok(proposed.warning.startsWith('This standing approval lets your assistant create a new Gmail label on your connection'));
+  assert.ok(proposed.warning.startsWith('Create a new Gmail label without asking you each time'));
   const granted = await gw.callTool('standing_approvals', { ...scope, mode: 'grant', confirmed: true });
   assert.ok(granted.summary.startsWith('Lets your assistant create a new Gmail label on your connection'));
   assert.ok(granted.summary.endsWith(', with no end date, until you revoke it.'));

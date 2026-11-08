@@ -263,21 +263,43 @@ function scopeWords(scope) {
   return `on your connection ${connectionWords(scope.label)} without asking you first, for work done from the root ${JSON.stringify(scope.root)}${playbook}${where}`;
 }
 
+/** Scope wording for the warning only; list and account summaries keep scopeWords. */
+function warningScopeWords(scope) {
+  const label = scope.label === null ? '' : `, on your connection labelled ${JSON.stringify(scope.label)}`;
+  const work = scope.playbook
+    ? `, for the ${JSON.stringify(scope.playbook)} Playbook in ${JSON.stringify(scope.root)}`
+    : `, for work in ${JSON.stringify(scope.root)}`;
+  const fields = Object.keys(scope.where ?? {}).sort();
+  const where = fields.length
+    ? `, only where ${fields.map((field) =>
+      `${field} is ${scope.where[field].map((value) => JSON.stringify(value)).join(' or ')}`).join(' and ')}`
+    : '';
+  return `${label}${work}${where}`;
+}
+
 /**
  * Fixed warning shown word for word before a grant can exist.
  * @param {{ scope: object, summaries: string[], cautions?: string[], kinds: string[], heightened: boolean, expiresOn: string | null }} proposal
  */
 export function buildStandingApprovalWarning({ scope, summaries, cautions = [], kinds, heightened, expiresOn }) {
-  const cautionText = [...new Set(cautions)].map((caution) => `${caution} `).join('');
-  if (scope.days === null) {
-    return `This standing approval lets your assistant ${joinWords(summaries)} ${scopeWords(scope)}. It lasts until you revoke it. Under this approval nobody looks at each send or change before it happens. Every call that matches runs straight away, with no approval step for you to see or refuse. Anything outside it still asks you, as today. ${cautionText}To limit recipients, use where to restrict declared recipient string fields to exact allowed values. Fields that are arrays, including Gmail recipients and Calendar attendees, cannot be limited with where. You can end it at any time: ask your assistant to revoke it, or remove it on your Wiser account page. Answer yes to grant it, or no to leave things as they are.`;
+  const summary = joinWords(summaries);
+  const sentences = [
+    `${summary.charAt(0).toUpperCase()}${summary.slice(1)} without asking you each time${warningScopeWords(scope)}.`,
+    scope.days === null
+      ? 'No end date: it lasts until you revoke it.'
+      : `It lasts ${scope.days} ${scope.days === 1 ? 'day' : 'days'}, until ${expiresOn}, or until you revoke it.`,
+  ];
+  if (kinds.includes('send')) {
+    sentences.push('Each send goes out without you seeing it first, and recipients given as a list cannot be limited.');
   }
-  const heightenedText = heightened
-    ? maxStandingApprovalDays(kinds, scope.playbook) === 90
-      ? `This approval sends messages to other people, ${Object.keys(scope.where ?? {}).length ? 'to any recipient the limits above allow' : 'to any recipient'}, and nobody looks at each one before it is sent; once sent, a message cannot be called back. Because it covers only sending, and only in one Playbook, it lasts at most 90 days. `
-      : `Some of these actions ${joinWords(Object.entries(HEIGHTENED_PHRASES).filter(([kind]) => kinds.includes(kind)).map(([, phrase]) => phrase))}. Under this approval nobody looks at each one before it happens, and once done it cannot be called back. It lasts at most 7 days. `
-    : '';
-  return `This standing approval lets your assistant ${joinWords(summaries)} ${scopeWords(scope)}. For ${scope.days} ${scope.days === 1 ? 'day' : 'days'}, until ${expiresOn}, every call that matches runs straight away, with no approval step for you to see or refuse. Anything outside it still asks you, as today. ${cautionText}${heightenedText}You can end it at any time: ask your assistant to revoke it, or remove it on your Wiser account page. Answer yes to grant it, or no to leave things as they are.`;
+  const heightenedPhrases = Object.entries(HEIGHTENED_PHRASES)
+    .filter(([kind]) => ['pay', 'publish', 'grant_access'].includes(kind) && kinds.includes(kind))
+    .map(([, phrase]) => phrase);
+  if (heightenedPhrases.length) {
+    sentences.push(`It can ${joinWords(heightenedPhrases)} with nobody looking first, and once done it cannot be called back.`);
+  }
+  sentences.push(...new Set(cautions), 'Yes or no?');
+  return sentences.join(' ');
 }
 
 /**
