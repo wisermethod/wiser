@@ -21,7 +21,7 @@ learn. Say more after it if this connector needs it; do not state the rule diffe
 
 ## Only on the local gateway
 
-Keep this section only when an action reads or writes a file on the person's computer, or the whole connector runs only on the local gateway; otherwise delete it. The Wiser endpoint cannot reach the person's computer. List each such action by its exact id in backticks, one line each, with what it reads or writes there; for a connector that runs only locally, say why in a sentence instead.
+Keep this section only when an action always reads or writes a file on the person's computer, or the whole connector runs only on the local gateway; otherwise delete it. The Wiser endpoint cannot reach the person's computer. List each such action by its exact id in backticks, one line each, with what it reads or writes there; for a connector that runs only locally, say why in a sentence instead, whatever the reason. An action whose file field is optional, refused on the endpoint only when the call sends it, is not listed.
 
 ## The other route
 

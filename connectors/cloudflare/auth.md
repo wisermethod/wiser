@@ -49,11 +49,12 @@ Use the **Cloudflare Api Key** blueprint. Do not make **Cloudflare** (email plus
 
 The Wiser endpoint cannot reach your computer, so these actions run only on the local gateway:
 
-- `cloudflare.dns.import_zone`: reads the zone file from your computer.
 - `cloudflare.pages.deploy`: reads the site's built folder from your computer.
 - `cloudflare.pages.deploy_static`: reads the built folder from your computer.
 - `cloudflare.pages.deploy_with_functions`: reads the built folder and its Functions bundle from your computer.
 - `cloudflare.pages.d1_apply_migration`: reads the migration file from your computer.
+
+The Wiser endpoint does not offer `cloudflare.dns.import_zone` either, though it reads nothing on your computer: its `zone_file` is the zone's BIND text itself, never a path.
 
 ## The route this connector does not use
 

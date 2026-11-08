@@ -22,7 +22,7 @@ Create a Vercel API token limited to the intended account or team. **One bluepri
 
 The Wiser endpoint cannot reach your computer, so these actions run only on the local gateway:
 
-- `vercel.deployments.create`: reads the files it publishes from your computer.
+- `vercel.deployments.create`: reads the folder it publishes from your computer when the call names a `dir`; a `git_source` or an inline `files` list reads nothing there, though the Wiser endpoint withholds the action whichever it uses.
 - `vercel.deployments.upload_file`: reads the file it uploads from your computer.
 
 ## The route this connector does not use

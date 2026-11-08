@@ -18,7 +18,7 @@ Obtain an API key from Bouncer. In a file outside this plugin, set the variable 
 
 ## Only on the local gateway
 
-This connector runs only on the local gateway. It reads its API key from a file on your own computer, which the Wiser endpoint cannot reach.
+This connector runs only on the local gateway. Its key is bound to a file on your own computer, which the local gateway reads and the Wiser endpoint cannot reach; the module never sees it.
 
 ## The route this connector does not use
 
