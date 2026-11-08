@@ -3,7 +3,10 @@ name: tag-audit
 type: tool
 category: marketing
 description: One JSON report of which analytics and behavior tags a live page serves, with each tag's id where the served HTML exposes it
-version: 0.1.5
+version: 0.1.6
+runs: both
+hosted:
+  - audit 2MiB 15s
 ---
 
 # tag-audit
@@ -51,6 +54,8 @@ Anything else, see Troubleshooting.
 A tag reports `present: true` whether or not an id came with it; the id is what the markup happens to expose, not the test. The Google Tag Manager check also matches a bare container id anywhere in the document, so a page that merely prints one in prose or in a comment reads as instrumented. Nothing outside this table is looked for, and a tag the list does not name is not reported missing; it is simply not covered.
 
 ## Usage
+
+The `audit` command also runs on Wiser's side, as declared by `hosted:` in this file's frontmatter.
 
 | Command | Purpose | Needs configuration |
 |---------|---------|---------------------|

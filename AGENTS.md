@@ -1,5 +1,12 @@
 ---
 root: wiser
+apps:
+  - claude-cowork steps
+  - claude-code steps
+  - codex steps
+  - chatgpt-desktop steps
+  - grok steps
+  - cursor steps
 ---
 
 # Wiser

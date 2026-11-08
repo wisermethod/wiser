@@ -4,6 +4,7 @@ type: tool
 category: media
 description: Write one self-contained HTML page of numbered options to pick from or whole brand boards, from local assets and licensed fonts
 version: 0.4.0
+runs: local
 ---
 
 # Contact Sheet

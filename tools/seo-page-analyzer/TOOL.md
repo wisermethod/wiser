@@ -4,6 +4,7 @@ type: tool
 category: seo
 description: Reports one page's on-page SEO elements from caller-supplied HTML, each element with its measurements and the checks it failed
 version: 0.1.3
+runs: local
 ---
 
 # seo-page-analyzer

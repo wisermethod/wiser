@@ -4,6 +4,7 @@ type: tool
 category: media
 description: Renders a local HTML file to a PNG or JPEG, an SVG or a Mermaid diagram to a PNG, and captures a PNG of a live web page
 version: 0.2.5
+runs: local
 ---
 
 # render

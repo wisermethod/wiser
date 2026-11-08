@@ -4,6 +4,7 @@ type: tool
 category: media
 description: Applies local edits to an existing image or composites an overlay over a base image, and writes the result as a PNG, JPEG, or WEBP
 version: 0.3.4
+runs: local
 ---
 
 # image

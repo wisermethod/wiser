@@ -4,6 +4,7 @@ type: tool
 category: documents
 description: Writes a new reveal.js deck project on disk, from a brand template or as a self-contained starter, and renders a finished deck to a PDF or to one PNG per slide
 version: 0.2.8
+runs: local
 ---
 
 # deck-export

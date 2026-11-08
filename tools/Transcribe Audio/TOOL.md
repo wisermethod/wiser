@@ -4,6 +4,7 @@ type: tool
 category: media
 description: Transcribes an audio file or aligns known English words to its sample clock on this machine
 version: 0.3.3
+runs: local
 gaps:
   - Speaker labeling, which would say which speaker said each turn
 ---

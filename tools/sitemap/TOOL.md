@@ -3,7 +3,10 @@ name: sitemap
 type: tool
 category: seo
 description: One deterministic snapshot of the URLs a site publishes in its sitemaps, and one JSON report of what changed between two snapshots of the same site
-version: 0.2.4
+version: 0.2.5
+runs: both
+hosted:
+  - fetch 1MiB 15s
 ---
 
 # sitemap
@@ -61,6 +64,8 @@ Every script in this tool follows `system/templates/Script Contract.md`; what a 
 No command takes `--env`.
 
 ## fetch
+
+The `fetch` command also runs on Wiser's side, as declared by `hosted:` in this file's frontmatter.
 
 One JSON object listing every URL a site publishes in its sitemaps, each with its path, slug, first path segment, and last modified date, plus which sitemaps were read and which failed.
 
