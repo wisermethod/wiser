@@ -45,6 +45,16 @@ Use the **Cloudflare Api Key** blueprint. Do not make **Cloudflare** (email plus
 3. Open the link. The page asks for the API token only. Paste it there.
 4. `connect_status`. On `ACTIVE`, that module's actions run, and the other modules bind as above; a key page accepts whatever is pasted, so a read through each module is what proves it.
 
+## Only on the local gateway
+
+The Wiser endpoint cannot reach your computer, so these actions run only on the local gateway:
+
+- `cloudflare.dns.import_zone`: reads the zone file from your computer.
+- `cloudflare.pages.deploy`: reads the site's built folder from your computer.
+- `cloudflare.pages.deploy_static`: reads the built folder from your computer.
+- `cloudflare.pages.deploy_with_functions`: reads the built folder and its Functions bundle from your computer.
+- `cloudflare.pages.d1_apply_migration`: reads the migration file from your computer.
+
 ## The route this connector does not use
 
 A credential file or token in chat is not a route. Use the API-token-only hosted page through the gateway's provider; [gateway/SETUP.md](../../gateway/SETUP.md) links its setup.

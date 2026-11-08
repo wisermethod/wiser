@@ -19,6 +19,10 @@ learn. Say more after it if this connector needs it; do not state the rule diffe
 3. For a link: open it in your own browser and approve at the platform, or paste the token into the provider's hosted page. For a file: write the named variables into that file yourself. In neither case does anything get typed into the conversation, and a skill that asks for that is wrong.
 4. The skill runs `connect_status`. On `ACTIVE`, the gateway writes a connection record and the module's actions run from then on.
 
+## Only on the local gateway
+
+Keep this section only when an action reads or writes a file on the person's computer, or the whole connector runs only on the local gateway; otherwise delete it. The Wiser endpoint cannot reach the person's computer. List each such action by its exact id in backticks, one line each, with what it reads or writes there; for a connector that runs only locally, say why in a sentence instead.
+
 ## The other route
 
 This template covers both: a hosted link (`catalog`) and a bound file (`local-file`). Keep the steps for the one this connector uses. Rewrite this heading as "The route this connector does not use" and name the unused path, so a person is not offered it. A personal token in chat is never a route. The GitHub connector is the worked example.

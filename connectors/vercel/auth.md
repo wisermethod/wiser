@@ -18,6 +18,13 @@ Create a Vercel API token limited to the intended account or team. **One bluepri
 - `projects`: separate connect, write privilege. `list_domains` and `remove_domain` use this grant. `remove_domain` confirms every call and does not change the DNS record. When one domain redirects to another, remove the domain that redirects first. `CONNECTOR.md` says what the call sends.
 - `deployments`: separate connect, write privilege.
 
+## Only on the local gateway
+
+The Wiser endpoint cannot reach your computer, so these actions run only on the local gateway:
+
+- `vercel.deployments.create`: reads the files it publishes from your computer.
+- `vercel.deployments.upload_file`: reads the file it uploads from your computer.
+
 ## The route this connector does not use
 
 A local credential file or a key pasted into chat is not a route. Use the hosted page through the gateway's provider.
