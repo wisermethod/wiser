@@ -44,8 +44,12 @@ check_file() {
     /^  - .+/ {
       if (key == "" || shape[key] != "list") { refuse("list item has no list key"); next }
       item = value(substr($0, 5)); count[key]++
-      if (key == "hosted" && item !~ /^[a-z0-9-]+ [0-9]+(B|KiB|MiB|GiB) [0-9]+s$/)
-        refuse("malformed hosted: item; expected <command> <size> <time>")
+      if (key == "hosted") {
+        if (item !~ /^[a-z0-9-]+ [0-9]+(B|KiB|MiB|GiB) [0-9]+s$/)
+          refuse("malformed hosted: item; expected <command> <size> <time>")
+        command = item; sub(/ .*/, "", command)
+        if (seen_command[command]++) refuse("hosted command listed twice: " command)
+      }
       if (key == "apps") {
         app = item; sub(/ .*/, "", app)
         rest = substr(item, length(app) + 2)
@@ -93,9 +97,17 @@ check_file() {
   check_real=$(cd "$3" && pwd -P) || return 2
   while IFS= read -r check_cite; do
     [ -n "$check_cite" ] || continue
-    check_dir=$(cd "$(dirname -- "$3/$check_cite")" 2>/dev/null && pwd -P) || check_dir=
+    # Follow a linked citation to the file it names; only where that lands counts.
+    check_target="$3/$check_cite"
+    check_hops=0
+    while [ -L "$check_target" ] && [ "$check_hops" -lt 40 ]; do
+      check_link=$(readlink "$check_target") || break
+      case $check_link in /*) check_target=$check_link ;; *) check_target=$(dirname -- "$check_target")/$check_link ;; esac
+      check_hops=$((check_hops + 1))
+    done
+    check_dir=$(cd "$(dirname -- "$check_target")" 2>/dev/null && pwd -P) || check_dir=
     case $check_dir/ in "$check_real"/*) ;; *) check_dir= ;; esac
-    if [ -z "$check_dir" ] || [ -L "$3/$check_cite" ] || [ ! -f "$3/$check_cite" ]; then
+    if [ -z "$check_dir" ] || [ -L "$check_target" ] || [ ! -f "$check_target" ]; then
       echo "REFUSED: $1: apps: citation $check_cite is not a file inside the plugin" >&2
       check_rc=1
     fi
@@ -156,6 +168,7 @@ self_test() {
   mkdir -p "$test_root/tools/fixture" "$test_root/records" "$test_root/placeholder" || die "cannot build fixtures"
   : > "$test_root/records/run.md" && : > "$test_root/records/run with spaces.md" || die "cannot build fixtures"
   ln -s /etc/hosts "$test_root/records/link.md" || die "cannot build fixtures"
+  ln -s run.md "$test_root/records/inside.md" || die "cannot build fixtures"
   refusals=0
   passes=0
   tool() {
@@ -175,13 +188,14 @@ self_test() {
       passes=$((passes + 1))
     fi
   }
-  for test_case in no-runs both-without-hosted malformed-hosted local-with-hosted unknown-runs no-apps type-beside-root unknown-app unknown-state run-without-citation missing-citation linked-citation duplicate-app blank-line duplicate-key single-quotes comment inline-list nesting unclosed-block outside-citation; do
+  for test_case in no-runs both-without-hosted malformed-hosted duplicate-hosted local-with-hosted unknown-runs no-apps type-beside-root unknown-app unknown-state run-without-citation missing-citation linked-citation duplicate-app blank-line duplicate-key single-quotes comment inline-list nesting unclosed-block outside-citation; do
     tool 'runs: local'
     plugin 'apps:' '  - claude-code steps'
     case $test_case in
       no-runs) tool ;;
       both-without-hosted) tool 'runs: both' ;;
       malformed-hosted) tool 'runs: both' 'hosted:' '  - search 2048chars none' ;;
+      duplicate-hosted) tool 'runs: both' 'hosted:' '  - fetch 1MiB 15s' '  - fetch 4MiB 15s' ;;
       local-with-hosted) tool 'runs: local' 'hosted:' '  - fetch 1MiB 15s' ;;
       unknown-runs) tool 'runs: remote' ;;
       no-apps) plugin ;;
@@ -205,7 +219,7 @@ self_test() {
     tool 'runs: local'
     plugin 'apps:' '  - claude-code steps'
     case $test_case in
-      both-without-hosted|malformed-hosted|local-with-hosted)
+      both-without-hosted|malformed-hosted|duplicate-hosted|local-with-hosted)
         tool 'runs: both' 'hosted:' '  - fetch 1MiB 15s' ;;
       type-beside-root) plugin 'type: personal' 'apps:' '  - claude-code steps' ;;
       run-without-citation|missing-citation|linked-citation) plugin 'apps:' '  - codex run records/run.md' ;;
@@ -222,8 +236,8 @@ self_test() {
   expect 2 run_over "$test_root"
   echo 'self-test: a blank first line and a missing root: CANNOT MEASURE (2)'
   # Positive controls reach all vocabulary items, units, citations, quoting and a placeholder.
-  tool 'runs: both' 'hosted:' '  - fetch 1B 1s' '  - fetch-2 2KiB 2s' '  - fetch 3MiB 3s' '  - fetch 4GiB 4s'
-  plugin 'apps:' '  - claude-cowork steps' '  - claude-code run ./records/run with spaces.md' '  - codex steps' '  - "chatgpt-desktop run https://example.com/record"' '  - grok steps' '  - cursor steps'
+  tool 'runs: both' 'hosted:' '  - fetch 1B 1s' '  - fetch-2 2KiB 2s' '  - fetch-3 3MiB 3s' '  - fetch-4 4GiB 4s'
+  plugin 'apps:' '  - claude-cowork steps' '  - claude-code run ./records/run with spaces.md' '  - codex run records/inside.md' '  - "chatgpt-desktop run https://example.com/record"' '  - grok steps' '  - cursor steps'
   expect 0 run_over "$test_root"
   tool 'runs: "local"' 'memory:' '  - "secrets:slack"' 'gaps:' '  - A missing capability'
   plugin 'apps:' '  - claude-code steps'
