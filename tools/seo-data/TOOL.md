@@ -4,6 +4,7 @@ type: tool
 category: seo
 description: Consolidates Search Console and Analytics results for one site and date range into one audit dataset, and turns Search Console query rows into a keyword report of top performers, opportunities, trends, cannibalization, and target-keyword standings
 version: 0.2.3
+runs: local
 ---
 
 # seo-data

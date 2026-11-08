@@ -1,6 +1,5 @@
 // Named response headers through the provider's proxy, held to System Expert Job 1's
-// conditions 1 to 4 for the YouTube connector (zBuilds playbooks/gates/production-studio/
-// 2026-10-21-m3-youtube-job1.md): a closed set an action declares, returned on success
+// conditions 1 to 4 for the YouTube connector: a closed set an action declares, returned on success
 // only, and a delivered upload address that never leaves the call. Written apart from the
 // implementation, against its specification. Invented data only.
 import assert from 'node:assert/strict';

@@ -3,7 +3,10 @@ name: icon-set
 type: tool
 category: media
 description: Searches two pinned open-source sets, Phosphor 2.1.1 (MIT) and Health Icons 2.0.0 (CC0 icons, MIT package), and writes one icon recoloured at the caller's size as an SVG file or a fragment to place inside a drawing
-version: 0.2.1
+version: 0.2.2
+runs: both
+hosted:
+  - search 2KiB 15s
 ---
 
 # icon-set
@@ -86,6 +89,8 @@ One JSON object, exit 0 for ready, absent or incomplete packages. A wrong versio
 | `remediation` | The install command when the package is absent or incomplete |
 
 ## search
+
+The `search` command also runs on Wiser's side, as declared by `hosted:` in this file's frontmatter.
 
 Search the selected local catalog. All query words must match, case-insensitively, across Phosphor's name, tags and categories, or Health's metadata `id`, `title`, `tags` and `category`. Whole-name matches rank above name segments, then name substrings, then exact other fields, then their substrings. Health name segments include underscores as well as hyphens. Scores add across words; ties sort by name. Health tags starting with `dhis2:` are neither returned nor matched. Results default to 20; no matches is an empty list.
 

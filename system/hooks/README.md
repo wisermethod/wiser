@@ -6,8 +6,9 @@ the plugin root:
     cp system/hooks/pre-commit .git/hooks/pre-commit
     chmod +x .git/hooks/pre-commit
 
-The check scans the staged set, except the typed-file gate, which reads the
-working tree, as the hook says where it runs it. It refuses operator build-workspace
+The check scans the staged set, except the typed-file and tool-frontmatter
+gates, which read the whole working tree, as the hook says where it runs
+them. It refuses operator build-workspace
 paths, the lanes directory among them, so a reader who installs this plugin
 is not sent to a directory that does not ship. It accepts the user-root
 homonym declared by `standards/user-root.md` C3 and C8.
@@ -41,6 +42,24 @@ Run it by hand at any time:
 
 `--self-test` proves the gate can fail as well as pass, by building a fixture
 whose typed file omits a flag and asserting the refusal.
+
+## The tool frontmatter check
+
+When the staged set touches `tools/` or the root `AGENTS.md`, the hook runs
+`system/gates/tool-frontmatter.sh` over every `tools/*/TOOL.md` and the root
+constitution. It checks tool declarations under `standards/primitives.md`
+Frontmatter and plugin app declarations under `standards/plugin-root.md` C10.
+It reads the working tree, with the same index gap as the typed-file check.
+Exit 0 passes, 1 refuses a declaration, and 2 could not measure; the hook
+refuses either nonzero result and a missing or non-executable gate.
+
+Run it by hand from the plugin root:
+
+    sh system/gates/tool-frontmatter.sh
+    sh system/gates/tool-frontmatter.sh --self-test
+
+The self-test checks refusals and repairs on temporary fixtures and checks
+that the app vocabulary agrees with C10.
 
 ## The classifier seam check
 

@@ -4,6 +4,7 @@ type: tool
 category: research
 description: Turns one harvest request into a timeboxed, deduplicated, ranked bundle of source candidates with a record of what was rejected and what failed
 version: 0.1.5
+runs: local
 ---
 
 # Content Harvester

@@ -1,6 +1,6 @@
 ---
 standard: primitives
-version: 0.17.0
+version: 0.18.0
 description: The four typed primitives, how they invoke and sequence one another, the frontmatter every typed file carries, and the classifier seam a new typed file declares, and any file whose seam changes
 ---
 
@@ -77,7 +77,7 @@ The New generation is a module the root's gateway loads. The gateway runs in one
 
 A module holds no credential. Vendor grants live with the auth provider. A local-file module's key is `--secret <service>=<abs file>` or a Provides `secrets:<platform>` path the root names, never a default directory in a root, and never `memory/secrets/`. The module receives a context whose capabilities and optional action declarations, including `ctx.inputFiles(field)` and `input_files`, are defined in `gateway/AGENTS.md` **What a connector module receives, and may do**, and never a provider client. It imports Node built-ins and files inside its own directory only. It never reads a credential file, never writes a file, and never names a provider slug. Agent-facing ids are `service.module.action`. A grant is per module: two modules are two `needs_connect` stops.
 
-`CONNECTOR.md` uses the same five required frontmatter keys as the other types, with `type: connector`. Risk, confirmation, privilege, and execution live in `manifest.json`, not in that block. An action no manifest declares never runs. An action that stops for confirmation may also declare `standing_approval: { kind, summary }`, with an optional `caution`, which makes it one a person can approve ahead of time; an action without it never is. `gateway/AGENTS.md` **Standing approvals** owns what each kind means, what the summary and the caution are for, and how a grant matches a call.
+`CONNECTOR.md` carries the common frontmatter keys in Frontmatter, with `type: connector`; the tool-only keys do not apply. Risk, confirmation, privilege, and execution live in `manifest.json`, not in that block. An action no manifest declares never runs. An action that stops for confirmation may also declare `standing_approval: { kind, summary }`, with an optional `caution`, which makes it one a person can approve ahead of time; an action without it never is. `gateway/AGENTS.md` **Standing approvals** owns what each kind means, what the summary and the caution are for, and how a grant matches a call.
 
 ## Placement
 
@@ -111,7 +111,9 @@ version: <semantic version, starting at 0.1.0>
 | `description` | One line stating what invoking it yields, plain prose with no vertical bar; indexes display it verbatim |
 | `version` | A digits-only triple, `MAJOR.MINOR.PATCH`, no suffix, starting at 0.1.0; raise it when behavior changes, and a behavior change requires re-verification. A keyed skill's reuse key includes its frontmatter version. Changing what it writes counts even when every kept output would stay the same: an unchanged key reuses existing files on resume |
 
-All five are required. Two keys are optional. `memory` is a non-empty dash-list of the abstract keys the primitive requests, bound per the constitution's Workspace Model; never a scalar. `gaps` is a non-empty dash-list of short one-line descriptions of capabilities this root does not yet provide that the primitive's body names as missing; The **owning root's own** `system/GAPS.md` collects every declared gap, by hand: a primitive's gaps are collected in the root that ships that primitive, and a domain plugin's gaps never project into the base's, which `standards/plugin-root.md` C4 scores misfiled as a base file naming a domain plugin. A root whose primitives declare no gap needs no such file, and the first primitive that declares one creates it. A body that says no primitive in this root covers something carries a matching `gaps` entry; omit the key when there is nothing to declare. Nothing else belongs in the block; a fact that fits none of these keys belongs in the body. An optional key with nothing to declare is omitted, never written empty.
+These five keys are required for every type. Tools also carry the tool-only keys below; skills, experts and connectors do not. Two keys are optional for every type. `memory` is a non-empty dash-list of the abstract keys the primitive requests, bound per the constitution's Workspace Model; never a scalar. `gaps` is a non-empty dash-list of short one-line descriptions of capabilities this root does not yet provide that the primitive's body names as missing; The **owning root's own** `system/GAPS.md` collects every declared gap, by hand: a primitive's gaps are collected in the root that ships that primitive, and a domain plugin's gaps never project into the base's, which `standards/plugin-root.md` C4 scores misfiled as a base file naming a domain plugin. A root whose primitives declare no gap needs no such file, and the first primitive that declares one creates it. A body that says no primitive in this root covers something carries a matching `gaps` entry; omit the key when there is nothing to declare. Only the common keys and, on tools, the tool-only keys below belong in the block; a fact that fits none of them belongs in the body. An optional key with nothing to declare is omitted, never written empty.
+
+**Tool-only keys.** Every tool carries `runs: local` or `runs: both`. `local` means it runs only on the member's side; `both` means it also runs on Wiser's side. With `both`, `hosted:` is a non-empty dash-list naming every command that runs hosted, each item `<command> <size> <time>`: the command uses lowercase letters, digits and hyphens; size is the largest input, an integer followed by `B`, `KiB`, `MiB` or `GiB`; time is the time limit, an integer followed by `s`. With `local`, `hosted:` is forbidden. Adding `runs: local` alone changes no behaviour and requires no tool version bump; the version rises when the hosted mode ships. `system/gates/tool-frontmatter.sh` checks these declarations.
 
 The block is a flat map in exactly this grammar, deliberately small so that every host reads it identically:
 
@@ -132,7 +134,7 @@ Each family directory's AGENTS.md carries an index of that family, grouped by `c
 A primitive is done when all of the following hold:
 
 - Its directory name, its typed file, and its `name` agree, and that name collides with no other primitive in its root.
-- Its frontmatter carries the five required keys in the flat shape above, and its `description` matches what invoking it actually yields.
+- Its frontmatter carries every key Frontmatter requires for its type, in that flat shape, and its `description` matches what invoking it actually yields.
 - Its body passes `standards/instruction-quality.md`.
 - A skill, expert or tool carries its classifier seam declaration in its Context, in the form Classifier Seam states. A typed file first written under an earlier version of this standard may carry none until a change adds or alters a seam in it. A file that carries the line is held to the form.
 

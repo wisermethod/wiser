@@ -4,6 +4,7 @@ type: tool
 category: documents
 description: Count and match page copy against a ledger, a fact map, patterns, and a corpus, and return one JSON object
 version: 0.1.0
+runs: local
 ---
 
 # copy-check

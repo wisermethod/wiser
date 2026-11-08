@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.08.2, November 8, 2026
+
+- Each of Wiser's tools now says on its own page whether it runs only on your computer or can also run through the Wiser connector, and for a command that can, the largest input it takes there and its time limit. Sitemap's `fetch`, tag-audit's `audit` and icon-set's `search` are the first three; the connector does not offer them to members yet. (bee3ec18, cf1fe3cd, 1a96d348)
+- Tag-audit no longer follows a redirect to your own computer, your local network or another reserved address, or to an address that is not a web page: it stops before requesting it and names the reason. A redirect carrying a user name or password now gets its own named error, which leaves them out. Sitemap and tag-audit also refuse the local-use address range `64:ff9b:1::/48`. (c45a940d, b11bd900)
+- Wiser now lists the apps it publishes install steps for, and its README's Install follows that list. A plugin set up with Onboard Plugin Root gets such a list, and Housekeeping proposes one for a plugin without it. (bee3ec18, cf1fe3cd, 1a96d348, 078a179d)
+
 ## v2026.11.08, November 8, 2026
 
 - The warning you answer before approving something in advance is now short enough to read: what it lets your assistant do without asking each time and for which work, how long it lasts, and "Yes or no?". For example: "Create a new Gmail label without asking you each time, for the "client-launch" Playbook in "My Work". No end date: it lasts until you revoke it. Yes or no?" (5b23e665, 5a269d8f)

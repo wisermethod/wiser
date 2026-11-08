@@ -4,6 +4,7 @@ type: tool
 category: automation
 description: Check and fill Wiser forms and draw their questions in a page that returns answers to the chat
 version: 0.7.0
+runs: local
 ---
 
 # Form

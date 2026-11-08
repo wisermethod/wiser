@@ -4,6 +4,7 @@ type: tool
 category: seo
 description: One JSON inventory of the URLs a bounded polite crawl can reach from one start URL
 version: 0.1.2
+runs: local
 ---
 
 # site-crawl

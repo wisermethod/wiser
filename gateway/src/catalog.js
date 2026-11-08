@@ -221,6 +221,12 @@ export function listActions(gateway, { query, service } = {}) {
       }
     }
   }
+  for (const { definition: def } of gateway.hostedActions.values()) {
+    if (service && def.service !== service) continue;
+    if (q && !`${def.action} ${def.description || ''}`.toLowerCase().includes(q)) continue;
+    const { action, privilege, risk, confirmation, description } = def;
+    actions.push({ action, privilege, risk, confirmation, description: description || null });
+  }
   const seen = new Set(actions.map((a) => a.action));
   for (const c of gateway.classifiers()) {
     if (typeof c.actions !== 'function') continue;
@@ -326,6 +332,8 @@ export async function rankSearch(gateway, actions, args) {
 }
 
 export function describeAction(gateway, id) {
+  const hosted = gateway.hostedActions.get(id);
+  if (hosted) return structuredClone(hosted.definition);
   const parsed = parseActionId(id);
   if (!parsed) return statusObject(STATUS.NEEDS_CONNECTOR, { action: id ?? null });
   const found = gateway.lookupModule(parsed.service, parsed.module);

@@ -13,11 +13,11 @@ Not a primitive. Skills and experts invoke connectors by action id, `service.mod
 | Part | File | Job |
 |------|------|-----|
 | Tools | `src/tools.js` | Tool definitions, argument validation and dispatch |
-| Catalog | `src/catalog.js` | Action lookup, listing, search, description and curated-row loading and validation |
-| Safety | `src/safety.js` | Policy and execution checks, pending confirmations and file snapshots, disclosure, standing-approval proposals and scopes |
+| Catalog | `src/catalog.js` | Action lookup, listing, search, description, hosted definitions and curated-row loading and validation |
+| Safety | `src/safety.js` | Policy and execution checks, grant-free schema validation and confirmation, pending confirmations and file snapshots, disclosure, standing-approval proposals and scopes |
 | Connections | `src/connections.js` | Connection flows, provider account listings, labels and module bindings |
-| Runner | `src/runner.js`, with `src/first-party.js` for the classifier | Approved connector and catalog calls, files in and out and audit; the classifier helper keeps identity, session binding, subscription checks and execution |
-| Host | `src/host.js` | Constructor options, private local file access, user identity and output cleanup |
+| Runner | `src/runner.js`, with `src/first-party.js` for the classifier | Approved connector, catalog and hosted calls, files in and out and audit; the classifier helper keeps identity, session binding, subscription checks and execution |
+| Host | `src/host.js` | Constructor options and hosted registration, private local file access, user identity and output cleanup |
 
 `src/curated.js` preserves its existing imports by re-exporting the catalog's curated helpers. The public `pendingConfirmations` map remains host-hydratable; private file snapshots stay in Safety. `execute` prepares the call synchronously, checks its connection and approval, continues into Runner without an extra await before execution, then adds any standing-approval result stamp after the audit.
 
@@ -120,9 +120,13 @@ An address longer than 8,192 characters is `invalid_url`, even after execution h
 
 Chunk storage uses 64 KiB slabs, at most the declared cap per in-flight download; empty chunks retain nothing and tiny chunks share a slab. Concatenation temporarily adds at most another cap; the writer's byte snapshot adds one more cap while a module may still hold the original chunks or buffer. Budget conservatively for three caps for one download and its output, plus transport/chunk and object overhead (192 MiB for a 64 MiB declaration, 768 MiB for 256 MiB). Concurrent helpers and buffers retained by the module multiply that budget; there is no global concurrency or memory reservation. A single over-cap transport chunk is rejected before retention, but is already allocated by Node. Allocation failures are sanitized; these per-call limits are resource choices, not vendor maxima or duration guarantees.
 
+## Hosted actions
+
+A host may pass `hostedActions`, entries `{ definition, execute }` whose definition names `action`, `service`, `module`, privilege, risk, confirmation, input and `execution: 'hosted'`. Host snapshots definitions and refuses invalid ids, duplicate entries or a connector-module collision at construction. Catalog lists, searches and describes only the supplied entries. Safety checks policy, schema, disclosure and input-bound confirmation before Runner calls the executor and audits `hosted_tool`; these actions take no vendor grant, label or standing approval. Hosts own entitlement filtering, resource limits and admission after tool-specific input checks. With no entries, local discovery, execution and audit are unchanged.
+
 ## The resolution order
 
-Code, in `src/resolve.js`: a connector module that declares the action; else a registered first-party classifier loaded by `--classifier`; else the catalog through the mapping; else `needs_connector`. A `wiser.*` id with no classifier loaded answers `needs_subscription` rather than `needs_connector`. The order is not configurable, because a person reading a status needs to know which step answered.
+Host-supplied actions dispatch after policy and before connector resolution. Otherwise, in `src/resolve.js`: a connector module that declares the action; else a registered first-party classifier loaded by `--classifier`; else the catalog through the mapping; else `needs_connector`. A `wiser.*` id with no classifier loaded answers `needs_subscription` rather than `needs_connector`. The order is not configurable, because a person reading a status needs to know which step answered.
 
 ## First-party classifier
 

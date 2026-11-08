@@ -1,31 +1,6 @@
-// The pinned catalogs and their path-only SVG formats; Node built-ins only.
-export const PACKAGE = '@phosphor-icons/core';
-export const VERSION = '2.1.1';
-export const WEIGHTS = ['thin', 'light', 'regular', 'bold', 'fill', 'duotone'];
-export const SETS = {
-  phosphor: { package: PACKAGE, version: VERSION, weights: WEIGHTS, catalog: 'dist/index.mjs' },
-  health: { package: 'healthicons', version: '2.0.0', weights: ['filled', 'outline'], catalog: 'public/icons/meta-data.json' }
-};
-
-export function searchIcons(icons, query, limit = 20, set = 'phosphor') {
-  const words = query.toLowerCase().trim().split(/\s+/);
-  return icons.map(icon => {
-    const { name, tags, categories, title, category } = icon;
-    const fields = [name, ...tags, ...(set === 'health' ? [title, category] : categories)].map(s => s.toLowerCase());
-    const scores = words.map(word => {
-      if (fields[0] === word) return 100;
-      if (fields[0].split(set === 'health' ? /[-_]/ : '-').includes(word)) return 60;
-      if (fields[0].includes(word)) return 40;
-      if (fields.slice(1).some(field => field === word)) return 20;
-      return fields.slice(1).some(field => field.includes(word)) ? 10 : 0;
-    });
-    return { ...icon, score: scores.every(Boolean) ? scores.reduce((a, b) => a + b, 0) : 0 };
-  }).filter(icon => icon.score > 0)
-    .sort((a, b) => b.score - a.score || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
-    .slice(0, limit).map(({ name, tags, categories, title, category }) => set === 'health'
-      ? { name, path: `${category}/${name}`, title, category, tags, weights: SETS.health.weights }
-      : { name, tags, categories });
-}
+// The pinned catalogs and their path-only SVG formats; no Node imports.
+import { SETS } from './search-core.js';
+export { PACKAGE, VERSION, WEIGHTS, SETS, searchIcons } from './search-core.js';
 
 function distance(a, b) {
   let row = Array.from({ length: b.length + 1 }, (_, i) => i);

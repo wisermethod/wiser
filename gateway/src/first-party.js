@@ -2,8 +2,6 @@
 import { isAncestorPid, rescanRefusal, verify } from '../../hooks/lib/binding.mjs';
 import { isRefused } from '../../hooks/lib/presence.mjs';
 import { STATUS, statusObject, vendorErrorFrom } from './errors.js';
-import { composeSummary } from './disclosure.js';
-import { validateInput } from './input-schema.js';
 import { readClassifierKey } from './paths.js';
 import { firstPartyDef, validateFirstPartyAnswer } from './resolve.js';
 
@@ -215,66 +213,15 @@ export function needsSubscriptionResult(gateway, kind) {
   });
 }
 
-export async function executeFirstParty(gateway, { action, input, confirm, label, parsed, decision, resolved, line }, { canonicalJson, confirmationDigest, approvalDisclosure, inputValueEntries, projectStatus }) {
+export async function executeFirstParty(gateway, { action, input, confirm, label, parsed, decision, resolved, line }, { prepareUnboundAction, projectStatus }) {
   const session = gateway.classifierSession();
   if (!session.ok) return statusObject(STATUS.CLASSIFIER_UNBOUND, { reason: session.reason });
 
   const def = resolved.def || firstPartyDef(action) || {};
   line.privilege = def.privilege ?? line.privilege ?? null;
 
-  const invalidField = validateInput(def.input, input === undefined ? {} : input);
-  if (invalidField !== null) return statusObject(STATUS.INVALID_ARGUMENTS, { field: invalidField });
-
-  const confirmation = def.confirmation || 'none';
-  const onceKey = label === undefined ? action : canonicalJson([action, label]);
-  const needsConfirm =
-    decision.effect === 'confirm' ||
-    confirmation === 'always' ||
-    (confirmation === 'once' && !gateway.confirmedOnce.has(onceKey));
-  // Same rule as the connector path: disclosure first, and the key only when
-  // a stop or a match is needed and nothing was withheld.
-  if (needsConfirm) {
-    const approval = approvalDisclosure(def, input);
-    if (approval.refusal) return approval.refusal;
-    const confirmKey = confirmationDigest([
-      'execute',
-      action,
-      approval.inputForKey,
-      null,
-      ...(label === undefined ? [] : [label]),
-    ]);
-    const matched = confirm === true && gateway.takePendingConfirmation(confirmKey);
-    if (!matched) {
-      gateway.recordPendingConfirmation(confirmKey);
-      const disclosure = approval.disclosure;
-      const summary = composeSummary({
-        action,
-        service: parsed.service,
-        module: parsed.module,
-        risk: def.risk,
-        description: def.description,
-        disclosure,
-      });
-      return statusObject(STATUS.NEEDS_CONFIRMATION, {
-        action,
-        service: parsed.service,
-        module: parsed.module,
-        risk: def.risk ?? null,
-        confirmation,
-        label: label ?? null,
-        input_fields: disclosure.fields,
-        undeclared_fields: disclosure.undeclared,
-        input_values: inputValueEntries(disclosure.shown),
-        withheld_fields: disclosure.withheld,
-        summary,
-        description: def.description ?? null,
-        ...(confirm === true ? { reason: 'unmatched_confirm' } : {}),
-      });
-    }
-  }
-  if (confirm === true && confirmation === 'once') {
-    gateway.confirmedOnce.add(onceKey);
-  }
+  const refusal = prepareUnboundAction({ action, input, confirm, label, parsed, decision, def });
+  if (refusal) return refusal;
 
   try {
     const key = readClassifierKey(gateway.envPath);

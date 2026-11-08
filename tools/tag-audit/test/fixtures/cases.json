@@ -1,0 +1,651 @@
+[
+  {
+    "name": "all tags absent",
+    "url": "https://page.test/",
+    "responses": {
+      "https://page.test/": {
+        "body": "<html><p>plain page café 🙂</p></html>"
+      }
+    },
+    "requests": [
+      "https://page.test/"
+    ],
+    "main": {
+      "status": 0,
+      "stdout": "{\"url\":\"https://page.test/\",\"final_url\":\"https://page.test/\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":38,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":false,\"id\":null},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":false,\"id\":null},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":false,\"id\":null},\"hotjar\":{\"label\":\"Hotjar\",\"present\":false,\"id\":null},\"plausible\":{\"label\":\"Plausible\",\"present\":false,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":false,\"id\":null},\"segment\":{\"label\":\"Segment\",\"present\":false,\"id\":null}},\"summary\":{\"present\":[]},\"missing_note\":\"Not detected in served HTML: Microsoft Clarity, Google Analytics 4, Google Tag Manager, Hotjar, Plausible, Meta Pixel, Segment. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.\"}\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "clarity URL",
+    "url": "https://page.test/",
+    "responses": {
+      "https://page.test/": {
+        "body": "<script src=\"https://www.clarity.ms/tag/abc123\"></script>"
+      }
+    },
+    "requests": [
+      "https://page.test/"
+    ],
+    "main": {
+      "status": 0,
+      "stdout": "{\"url\":\"https://page.test/\",\"final_url\":\"https://page.test/\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":57,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":true,\"id\":\"abc123\"},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":false,\"id\":null},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":false,\"id\":null},\"hotjar\":{\"label\":\"Hotjar\",\"present\":false,\"id\":null},\"plausible\":{\"label\":\"Plausible\",\"present\":false,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":false,\"id\":null},\"segment\":{\"label\":\"Segment\",\"present\":false,\"id\":null}},\"summary\":{\"present\":[\"Microsoft Clarity\"]},\"missing_note\":\"Not detected in served HTML: Google Analytics 4, Google Tag Manager, Hotjar, Plausible, Meta Pixel, Segment. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.\"}\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "clarity inline",
+    "url": "https://page.test/",
+    "responses": {
+      "https://page.test/": {
+        "body": "(window,document,'clarity','script','abc123');"
+      }
+    },
+    "requests": [
+      "https://page.test/"
+    ],
+    "main": {
+      "status": 0,
+      "stdout": "{\"url\":\"https://page.test/\",\"final_url\":\"https://page.test/\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":46,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":true,\"id\":\"abc123\"},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":false,\"id\":null},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":false,\"id\":null},\"hotjar\":{\"label\":\"Hotjar\",\"present\":false,\"id\":null},\"plausible\":{\"label\":\"Plausible\",\"present\":false,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":false,\"id\":null},\"segment\":{\"label\":\"Segment\",\"present\":false,\"id\":null}},\"summary\":{\"present\":[\"Microsoft Clarity\"]},\"missing_note\":\"Not detected in served HTML: Google Analytics 4, Google Tag Manager, Hotjar, Plausible, Meta Pixel, Segment. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.\"}\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "ga4 URL",
+    "url": "https://page.test/",
+    "responses": {
+      "https://page.test/": {
+        "body": "<script src=\"https://www.googletagmanager.com/gtag/js?id=G-ABC123\"></script>"
+      }
+    },
+    "requests": [
+      "https://page.test/"
+    ],
+    "main": {
+      "status": 0,
+      "stdout": "{\"url\":\"https://page.test/\",\"final_url\":\"https://page.test/\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":76,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":false,\"id\":null},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":true,\"id\":\"G-ABC123\"},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":false,\"id\":null},\"hotjar\":{\"label\":\"Hotjar\",\"present\":false,\"id\":null},\"plausible\":{\"label\":\"Plausible\",\"present\":false,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":false,\"id\":null},\"segment\":{\"label\":\"Segment\",\"present\":false,\"id\":null}},\"summary\":{\"present\":[\"Google Analytics 4\"]},\"missing_note\":\"Not detected in served HTML: Microsoft Clarity, Google Tag Manager, Hotjar, Plausible, Meta Pixel, Segment. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.\"}\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "ga4 config",
+    "url": "https://page.test/",
+    "responses": {
+      "https://page.test/": {
+        "body": "gtag('config', 'G-ABC123');"
+      }
+    },
+    "requests": [
+      "https://page.test/"
+    ],
+    "main": {
+      "status": 0,
+      "stdout": "{\"url\":\"https://page.test/\",\"final_url\":\"https://page.test/\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":27,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":false,\"id\":null},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":true,\"id\":\"G-ABC123\"},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":false,\"id\":null},\"hotjar\":{\"label\":\"Hotjar\",\"present\":false,\"id\":null},\"plausible\":{\"label\":\"Plausible\",\"present\":false,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":false,\"id\":null},\"segment\":{\"label\":\"Segment\",\"present\":false,\"id\":null}},\"summary\":{\"present\":[\"Google Analytics 4\"]},\"missing_note\":\"Not detected in served HTML: Microsoft Clarity, Google Tag Manager, Hotjar, Plausible, Meta Pixel, Segment. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.\"}\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "gtm URL",
+    "url": "https://page.test/",
+    "responses": {
+      "https://page.test/": {
+        "body": "<script src=\"https://www.googletagmanager.com/gtm.js?id=GTM-ABC123\"></script>"
+      }
+    },
+    "requests": [
+      "https://page.test/"
+    ],
+    "main": {
+      "status": 0,
+      "stdout": "{\"url\":\"https://page.test/\",\"final_url\":\"https://page.test/\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":77,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":false,\"id\":null},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":false,\"id\":null},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":true,\"id\":\"GTM-ABC123\"},\"hotjar\":{\"label\":\"Hotjar\",\"present\":false,\"id\":null},\"plausible\":{\"label\":\"Plausible\",\"present\":false,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":false,\"id\":null},\"segment\":{\"label\":\"Segment\",\"present\":false,\"id\":null}},\"summary\":{\"present\":[\"Google Tag Manager\"]},\"missing_note\":\"Not detected in served HTML: Microsoft Clarity, Google Analytics 4, Hotjar, Plausible, Meta Pixel, Segment. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.\"}\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "gtm bare id",
+    "url": "https://page.test/",
+    "responses": {
+      "https://page.test/": {
+        "body": "<!-- GTM-ABC123 -->"
+      }
+    },
+    "requests": [
+      "https://page.test/"
+    ],
+    "main": {
+      "status": 0,
+      "stdout": "{\"url\":\"https://page.test/\",\"final_url\":\"https://page.test/\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":19,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":false,\"id\":null},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":false,\"id\":null},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":true,\"id\":\"GTM-ABC123\"},\"hotjar\":{\"label\":\"Hotjar\",\"present\":false,\"id\":null},\"plausible\":{\"label\":\"Plausible\",\"present\":false,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":false,\"id\":null},\"segment\":{\"label\":\"Segment\",\"present\":false,\"id\":null}},\"summary\":{\"present\":[\"Google Tag Manager\"]},\"missing_note\":\"Not detected in served HTML: Microsoft Clarity, Google Analytics 4, Hotjar, Plausible, Meta Pixel, Segment. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.\"}\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "hotjar id",
+    "url": "https://page.test/",
+    "responses": {
+      "https://page.test/": {
+        "body": "<script>hjid: 12345</script>"
+      }
+    },
+    "requests": [
+      "https://page.test/"
+    ],
+    "main": {
+      "status": 0,
+      "stdout": "{\"url\":\"https://page.test/\",\"final_url\":\"https://page.test/\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":28,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":false,\"id\":null},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":false,\"id\":null},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":false,\"id\":null},\"hotjar\":{\"label\":\"Hotjar\",\"present\":true,\"id\":\"12345\"},\"plausible\":{\"label\":\"Plausible\",\"present\":false,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":false,\"id\":null},\"segment\":{\"label\":\"Segment\",\"present\":false,\"id\":null}},\"summary\":{\"present\":[\"Hotjar\"]},\"missing_note\":\"Not detected in served HTML: Microsoft Clarity, Google Analytics 4, Google Tag Manager, Plausible, Meta Pixel, Segment. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.\"}\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "hotjar no id",
+    "url": "https://page.test/",
+    "responses": {
+      "https://page.test/": {
+        "body": "<script src=\"https://static.hotjar.com/loader.js\"></script>"
+      }
+    },
+    "requests": [
+      "https://page.test/"
+    ],
+    "main": {
+      "status": 0,
+      "stdout": "{\"url\":\"https://page.test/\",\"final_url\":\"https://page.test/\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":59,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":false,\"id\":null},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":false,\"id\":null},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":false,\"id\":null},\"hotjar\":{\"label\":\"Hotjar\",\"present\":true,\"id\":null},\"plausible\":{\"label\":\"Plausible\",\"present\":false,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":false,\"id\":null},\"segment\":{\"label\":\"Segment\",\"present\":false,\"id\":null}},\"summary\":{\"present\":[\"Hotjar\"]},\"missing_note\":\"Not detected in served HTML: Microsoft Clarity, Google Analytics 4, Google Tag Manager, Plausible, Meta Pixel, Segment. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.\"}\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "plausible no id",
+    "url": "https://page.test/",
+    "responses": {
+      "https://page.test/": {
+        "body": "<script src=\"https://plausible.io/js/script.js\"></script>"
+      }
+    },
+    "requests": [
+      "https://page.test/"
+    ],
+    "main": {
+      "status": 0,
+      "stdout": "{\"url\":\"https://page.test/\",\"final_url\":\"https://page.test/\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":57,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":false,\"id\":null},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":false,\"id\":null},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":false,\"id\":null},\"hotjar\":{\"label\":\"Hotjar\",\"present\":false,\"id\":null},\"plausible\":{\"label\":\"Plausible\",\"present\":true,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":false,\"id\":null},\"segment\":{\"label\":\"Segment\",\"present\":false,\"id\":null}},\"summary\":{\"present\":[\"Plausible\"]},\"missing_note\":\"Not detected in served HTML: Microsoft Clarity, Google Analytics 4, Google Tag Manager, Hotjar, Meta Pixel, Segment. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.\"}\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "meta id",
+    "url": "https://page.test/",
+    "responses": {
+      "https://page.test/": {
+        "body": "fbq('init', '12345');"
+      }
+    },
+    "requests": [
+      "https://page.test/"
+    ],
+    "main": {
+      "status": 0,
+      "stdout": "{\"url\":\"https://page.test/\",\"final_url\":\"https://page.test/\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":21,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":false,\"id\":null},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":false,\"id\":null},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":false,\"id\":null},\"hotjar\":{\"label\":\"Hotjar\",\"present\":false,\"id\":null},\"plausible\":{\"label\":\"Plausible\",\"present\":false,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":true,\"id\":\"12345\"},\"segment\":{\"label\":\"Segment\",\"present\":false,\"id\":null}},\"summary\":{\"present\":[\"Meta Pixel\"]},\"missing_note\":\"Not detected in served HTML: Microsoft Clarity, Google Analytics 4, Google Tag Manager, Hotjar, Plausible, Segment. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.\"}\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "meta no id",
+    "url": "https://page.test/",
+    "responses": {
+      "https://page.test/": {
+        "body": "<script src=\"https://connect.facebook.net/en_US/fbevents.js\"></script>"
+      }
+    },
+    "requests": [
+      "https://page.test/"
+    ],
+    "main": {
+      "status": 0,
+      "stdout": "{\"url\":\"https://page.test/\",\"final_url\":\"https://page.test/\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":70,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":false,\"id\":null},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":false,\"id\":null},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":false,\"id\":null},\"hotjar\":{\"label\":\"Hotjar\",\"present\":false,\"id\":null},\"plausible\":{\"label\":\"Plausible\",\"present\":false,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":true,\"id\":null},\"segment\":{\"label\":\"Segment\",\"present\":false,\"id\":null}},\"summary\":{\"present\":[\"Meta Pixel\"]},\"missing_note\":\"Not detected in served HTML: Microsoft Clarity, Google Analytics 4, Google Tag Manager, Hotjar, Plausible, Segment. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.\"}\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "segment id",
+    "url": "https://page.test/",
+    "responses": {
+      "https://page.test/": {
+        "body": "<script src=\"https://cdn.segment.com/analytics.js/v1/abc123/analytics.min.js\"></script>"
+      }
+    },
+    "requests": [
+      "https://page.test/"
+    ],
+    "main": {
+      "status": 0,
+      "stdout": "{\"url\":\"https://page.test/\",\"final_url\":\"https://page.test/\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":87,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":false,\"id\":null},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":false,\"id\":null},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":false,\"id\":null},\"hotjar\":{\"label\":\"Hotjar\",\"present\":false,\"id\":null},\"plausible\":{\"label\":\"Plausible\",\"present\":false,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":false,\"id\":null},\"segment\":{\"label\":\"Segment\",\"present\":true,\"id\":\"abc123\"}},\"summary\":{\"present\":[\"Segment\"]},\"missing_note\":\"Not detected in served HTML: Microsoft Clarity, Google Analytics 4, Google Tag Manager, Hotjar, Plausible, Meta Pixel. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.\"}\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "segment no id",
+    "url": "https://page.test/",
+    "responses": {
+      "https://page.test/": {
+        "body": "<script src=\"https://cdn.segment.com/loader.js\"></script>"
+      }
+    },
+    "requests": [
+      "https://page.test/"
+    ],
+    "main": {
+      "status": 0,
+      "stdout": "{\"url\":\"https://page.test/\",\"final_url\":\"https://page.test/\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":57,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":false,\"id\":null},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":false,\"id\":null},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":false,\"id\":null},\"hotjar\":{\"label\":\"Hotjar\",\"present\":false,\"id\":null},\"plausible\":{\"label\":\"Plausible\",\"present\":false,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":false,\"id\":null},\"segment\":{\"label\":\"Segment\",\"present\":true,\"id\":null}},\"summary\":{\"present\":[\"Segment\"]},\"missing_note\":\"Not detected in served HTML: Microsoft Clarity, Google Analytics 4, Google Tag Manager, Hotjar, Plausible, Meta Pixel. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.\"}\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "all tags with exposed ids",
+    "url": "https://page.test/",
+    "responses": {
+      "https://page.test/": {
+        "body": "<script src=\"https://www.clarity.ms/tag/abc123\"></script>\n(window,document,'clarity','script','abc123');\n<script src=\"https://www.googletagmanager.com/gtag/js?id=G-ABC123\"></script>\ngtag('config', 'G-ABC123');\n<script src=\"https://www.googletagmanager.com/gtm.js?id=GTM-ABC123\"></script>\n<!-- GTM-ABC123 -->\n<script>hjid: 12345</script>\n<script src=\"https://static.hotjar.com/loader.js\"></script>\n<script src=\"https://plausible.io/js/script.js\"></script>\nfbq('init', '12345');\n<script src=\"https://connect.facebook.net/en_US/fbevents.js\"></script>\n<script src=\"https://cdn.segment.com/analytics.js/v1/abc123/analytics.min.js\"></script>\n<script src=\"https://cdn.segment.com/loader.js\"></script>"
+      }
+    },
+    "requests": [
+      "https://page.test/"
+    ],
+    "main": {
+      "status": 0,
+      "stdout": "{\"url\":\"https://page.test/\",\"final_url\":\"https://page.test/\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":693,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":true,\"id\":\"abc123\"},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":true,\"id\":\"G-ABC123\"},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":true,\"id\":\"GTM-ABC123\"},\"hotjar\":{\"label\":\"Hotjar\",\"present\":true,\"id\":\"12345\"},\"plausible\":{\"label\":\"Plausible\",\"present\":true,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":true,\"id\":\"12345\"},\"segment\":{\"label\":\"Segment\",\"present\":true,\"id\":\"abc123\"}},\"summary\":{\"present\":[\"Microsoft Clarity\",\"Google Analytics 4\",\"Google Tag Manager\",\"Hotjar\",\"Plausible\",\"Meta Pixel\",\"Segment\"]},\"missing_note\":null}\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "public redirect chain",
+    "url": "https://page.test/",
+    "responses": {
+      "https://page.test/": {
+        "status": 301,
+        "headers": {
+          "location": "/step"
+        }
+      },
+      "https://page.test/step": {
+        "status": 307,
+        "headers": {
+          "location": "https://landing.test/final"
+        }
+      },
+      "https://landing.test/final": {
+        "body": "gtag('config', 'G-ABC123');"
+      }
+    },
+    "requests": [
+      "https://page.test/",
+      "https://page.test/step",
+      "https://landing.test/final"
+    ],
+    "main": {
+      "status": 0,
+      "stdout": "{\"url\":\"https://page.test/\",\"final_url\":\"https://landing.test/final\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":27,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":false,\"id\":null},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":true,\"id\":\"G-ABC123\"},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":false,\"id\":null},\"hotjar\":{\"label\":\"Hotjar\",\"present\":false,\"id\":null},\"plausible\":{\"label\":\"Plausible\",\"present\":false,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":false,\"id\":null},\"segment\":{\"label\":\"Segment\",\"present\":false,\"id\":null}},\"summary\":{\"present\":[\"Google Analytics 4\"]},\"missing_note\":\"Not detected in served HTML: Microsoft Clarity, Google Tag Manager, Hotjar, Plausible, Meta Pixel, Segment. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.\"}\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "redirect to loopback refused",
+    "url": "https://page.test/",
+    "responses": {
+      "https://page.test/": {
+        "status": 302,
+        "headers": {
+          "location": "http://127.0.0.1/private"
+        }
+      },
+      "http://127.0.0.1/private": {
+        "body": "private"
+      }
+    },
+    "requests": [
+      "https://page.test/"
+    ],
+    "mainRequests": [
+      "https://page.test/",
+      "http://127.0.0.1/private"
+    ],
+    "change": "Every redirect hop is screened before requesting it.",
+    "error": "Error: the redirect to http://127.0.0.1/private was not followed: it points at a loopback address, which this tool does not fetch.",
+    "main": {
+      "status": 0,
+      "stdout": "{\"url\":\"https://page.test/\",\"final_url\":\"http://127.0.0.1/private\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":7,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":false,\"id\":null},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":false,\"id\":null},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":false,\"id\":null},\"hotjar\":{\"label\":\"Hotjar\",\"present\":false,\"id\":null},\"plausible\":{\"label\":\"Plausible\",\"present\":false,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":false,\"id\":null},\"segment\":{\"label\":\"Segment\",\"present\":false,\"id\":null}},\"summary\":{\"present\":[]},\"missing_note\":\"Not detected in served HTML: Microsoft Clarity, Google Analytics 4, Google Tag Manager, Hotjar, Plausible, Meta Pixel, Segment. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.\"}\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "private literal",
+    "url": "http://10.1.2.3/",
+    "responses": {},
+    "requests": [],
+    "main": {
+      "status": 1,
+      "stdout": "",
+      "stderr": "Error: --url http://10.1.2.3/ points at a private-range address, which this tool does not fetch.\n"
+    }
+  },
+  {
+    "name": "embedded private IPv6",
+    "url": "http://[::ffff:10.1.2.3]/",
+    "responses": {},
+    "requests": [],
+    "main": {
+      "status": 1,
+      "stdout": "",
+      "stderr": "Error: --url http://[::ffff:a01:203]/ points at a private-range address, which this tool does not fetch.\n"
+    }
+  },
+  {
+    "name": "private DNS answer",
+    "url": "https://page.test/",
+    "responses": {},
+    "requests": [],
+    "dns": {
+      "page.test": [
+        "93.184.216.34",
+        "192.168.1.1"
+      ]
+    },
+    "main": {
+      "status": 1,
+      "stdout": "",
+      "stderr": "Error: --url https://page.test/ points at a private-range address, which this tool does not fetch.\n"
+    }
+  },
+  {
+    "name": "non HTTP caller",
+    "url": "file:///page.html",
+    "responses": {},
+    "requests": [],
+    "main": {
+      "status": 1,
+      "stdout": "",
+      "stderr": "Error: --url must be http or https; got \"file:\". This tool fetches web pages only.\n"
+    }
+  },
+  {
+    "name": "HTTP 403",
+    "url": "https://page.test/",
+    "responses": {
+      "https://page.test/": {
+        "status": 403,
+        "body": "Access denied"
+      }
+    },
+    "requests": [
+      "https://page.test/"
+    ],
+    "main": {
+      "status": 1,
+      "stdout": "",
+      "stderr": "Error: https://page.test/ returned HTTP 403 (landed on https://page.test/). Auditing an error page would report every tag absent, so this is a failure rather than a result.\n"
+    }
+  },
+  {
+    "name": "body over hosted byte cap",
+    "url": "https://page.test/",
+    "responses": {
+      "https://page.test/": {
+        "body": "<p>prefix</p>gtag('config', 'G-ABC123');"
+      }
+    },
+    "requests": [
+      "https://page.test/"
+    ],
+    "options": {
+      "maxBytes": 13
+    },
+    "main": {
+      "status": 0,
+      "stdout": "{\"url\":\"https://page.test/\",\"final_url\":\"https://page.test/\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":40,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":false,\"id\":null},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":true,\"id\":\"G-ABC123\"},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":false,\"id\":null},\"hotjar\":{\"label\":\"Hotjar\",\"present\":false,\"id\":null},\"plausible\":{\"label\":\"Plausible\",\"present\":false,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":false,\"id\":null},\"segment\":{\"label\":\"Segment\",\"present\":false,\"id\":null}},\"summary\":{\"present\":[\"Google Analytics 4\"]},\"missing_note\":\"Not detected in served HTML: Microsoft Clarity, Google Tag Manager, Hotjar, Plausible, Meta Pixel, Segment. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.\"}\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "local use NAT64 refused",
+    "url": "http://[64:ff9b:1::a00:1]/",
+    "responses": {
+      "http://[64:ff9b:1::a00:1]/": {
+        "body": "formerly allowed"
+      }
+    },
+    "requests": [],
+    "mainRequests": [
+      "http://[64:ff9b:1::a00:1]/"
+    ],
+    "change": "Shared screen refuses all of 64:ff9b:1::/48.",
+    "error": "Error: --url http://[64:ff9b:1::a00:1]/ points at an address that is not routable on the public internet, which this tool does not fetch.",
+    "main": {
+      "status": 0,
+      "stdout": "{\"url\":\"http://[64:ff9b:1::a00:1]/\",\"final_url\":\"http://[64:ff9b:1::a00:1]/\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":16,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":false,\"id\":null},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":false,\"id\":null},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":false,\"id\":null},\"hotjar\":{\"label\":\"Hotjar\",\"present\":false,\"id\":null},\"plausible\":{\"label\":\"Plausible\",\"present\":false,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":false,\"id\":null},\"segment\":{\"label\":\"Segment\",\"present\":false,\"id\":null}},\"summary\":{\"present\":[]},\"missing_note\":\"Not detected in served HTML: Microsoft Clarity, Google Analytics 4, Google Tag Manager, Hotjar, Plausible, Meta Pixel, Segment. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.\"}\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "redirect to non HTTP refused",
+    "url": "https://page.test/",
+    "responses": {
+      "https://page.test/": {
+        "status": 302,
+        "headers": {
+          "location": "ftp://page.test/data"
+        }
+      }
+    },
+    "requests": [
+      "https://page.test/"
+    ],
+    "change": "Every redirect scheme is screened before requesting it.",
+    "error": "Error: the redirect to ftp://page.test/data was not followed: it uses ftp://, and this tool fetches http and https web pages only.",
+    "main": {
+      "status": 1,
+      "stdout": "",
+      "stderr": "Error: could not fetch https://page.test/: the request did not complete. Confirm the host is reachable from this machine, then re-run.\n"
+    }
+  },
+  {
+    "name": "redirect inherits request fragment",
+    "url": "https://page.test/start#section",
+    "responses": {
+      "https://page.test/start": {
+        "status": 301,
+        "headers": {
+          "location": "/land"
+        }
+      },
+      "https://page.test/land": {
+        "body": "ok"
+      }
+    },
+    "requests": [
+      "https://page.test/start#section",
+      "https://page.test/land#section"
+    ],
+    "main": {
+      "status": 0,
+      "stdout": "{\"url\":\"https://page.test/start#section\",\"final_url\":\"https://page.test/land\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":2,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":false,\"id\":null},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":false,\"id\":null},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":false,\"id\":null},\"hotjar\":{\"label\":\"Hotjar\",\"present\":false,\"id\":null},\"plausible\":{\"label\":\"Plausible\",\"present\":false,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":false,\"id\":null},\"segment\":{\"label\":\"Segment\",\"present\":false,\"id\":null}},\"summary\":{\"present\":[]},\"missing_note\":\"Not detected in served HTML: Microsoft Clarity, Google Analytics 4, Google Tag Manager, Hotjar, Plausible, Meta Pixel, Segment. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.\"}\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "redirect replaces request fragment",
+    "url": "https://page.test/start#section",
+    "responses": {
+      "https://page.test/start": {
+        "status": 302,
+        "headers": {
+          "location": "/land#new"
+        }
+      },
+      "https://page.test/land": {
+        "body": "ok"
+      }
+    },
+    "requests": [
+      "https://page.test/start#section",
+      "https://page.test/land#new"
+    ],
+    "main": {
+      "status": 0,
+      "stdout": "{\"url\":\"https://page.test/start#section\",\"final_url\":\"https://page.test/land\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":2,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":false,\"id\":null},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":false,\"id\":null},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":false,\"id\":null},\"hotjar\":{\"label\":\"Hotjar\",\"present\":false,\"id\":null},\"plausible\":{\"label\":\"Plausible\",\"present\":false,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":false,\"id\":null},\"segment\":{\"label\":\"Segment\",\"present\":false,\"id\":null}},\"summary\":{\"present\":[]},\"missing_note\":\"Not detected in served HTML: Microsoft Clarity, Google Analytics 4, Google Tag Manager, Hotjar, Plausible, Meta Pixel, Segment. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.\"}\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "redirect repairs binary UTF-8 Location",
+    "url": "https://page.test/",
+    "responses": {
+      "https://page.test/": {
+        "status": 302,
+        "headers": {
+          "location": "/cafÃ©"
+        }
+      },
+      "https://page.test/caf%C3%A9": {
+        "body": "ok"
+      }
+    },
+    "requests": [
+      "https://page.test/",
+      "https://page.test/caf%C3%A9"
+    ],
+    "main": {
+      "status": 0,
+      "stdout": "{\"url\":\"https://page.test/\",\"final_url\":\"https://page.test/caf%C3%A9\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":2,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":false,\"id\":null},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":false,\"id\":null},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":false,\"id\":null},\"hotjar\":{\"label\":\"Hotjar\",\"present\":false,\"id\":null},\"plausible\":{\"label\":\"Plausible\",\"present\":false,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":false,\"id\":null},\"segment\":{\"label\":\"Segment\",\"present\":false,\"id\":null}},\"summary\":{\"present\":[]},\"missing_note\":\"Not detected in served HTML: Microsoft Clarity, Google Analytics 4, Google Tag Manager, Hotjar, Plausible, Meta Pixel, Segment. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.\"}\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "protocol-relative public redirect",
+    "url": "https://page.test/",
+    "responses": {
+      "https://page.test/": {
+        "status": 302,
+        "headers": {
+          "location": "//93.184.216.34/x"
+        }
+      },
+      "https://93.184.216.34/x": {
+        "body": "ok"
+      }
+    },
+    "requests": [
+      "https://page.test/",
+      "https://93.184.216.34/x"
+    ],
+    "main": {
+      "status": 0,
+      "stdout": "{\"url\":\"https://page.test/\",\"final_url\":\"https://93.184.216.34/x\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":2,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":false,\"id\":null},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":false,\"id\":null},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":false,\"id\":null},\"hotjar\":{\"label\":\"Hotjar\",\"present\":false,\"id\":null},\"plausible\":{\"label\":\"Plausible\",\"present\":false,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":false,\"id\":null},\"segment\":{\"label\":\"Segment\",\"present\":false,\"id\":null}},\"summary\":{\"present\":[]},\"missing_note\":\"Not detected in served HTML: Microsoft Clarity, Google Analytics 4, Google Tag Manager, Hotjar, Plausible, Meta Pixel, Segment. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.\"}\n",
+      "stderr": ""
+    }
+  },
+  {
+    "name": "redirect userinfo refused",
+    "url": "https://page.test/",
+    "responses": {
+      "https://page.test/": {
+        "status": 302,
+        "headers": {
+          "location": "http://user:pass@public.test/a"
+        }
+      }
+    },
+    "requests": [
+      "https://page.test/"
+    ],
+    "main": {
+      "status": 1,
+      "stdout": "",
+      "stderr": "Error: could not fetch https://page.test/: the request did not complete. Confirm the host is reachable from this machine, then re-run.\n"
+    },
+    "change": "redirect credentials get a named refusal before any second request",
+    "error": "Error: the redirect to http://public.test/a was not followed: it carries an embedded username or password, and this tool sends no credentials."
+  },
+  {
+    "name": "protocol-relative loopback redirect refused",
+    "url": "https://page.test/",
+    "responses": {
+      "https://page.test/": {
+        "status": 302,
+        "headers": {
+          "location": "//127.0.0.1/"
+        }
+      },
+      "https://127.0.0.1/": {
+        "body": "ok"
+      }
+    },
+    "requests": [
+      "https://page.test/"
+    ],
+    "main": {
+      "status": 0,
+      "stdout": "{\"url\":\"https://page.test/\",\"final_url\":\"https://127.0.0.1/\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":2,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":false,\"id\":null},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":false,\"id\":null},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":false,\"id\":null},\"hotjar\":{\"label\":\"Hotjar\",\"present\":false,\"id\":null},\"plausible\":{\"label\":\"Plausible\",\"present\":false,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":false,\"id\":null},\"segment\":{\"label\":\"Segment\",\"present\":false,\"id\":null}},\"summary\":{\"present\":[]},\"missing_note\":\"Not detected in served HTML: Microsoft Clarity, Google Analytics 4, Google Tag Manager, Hotjar, Plausible, Meta Pixel, Segment. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.\"}\n",
+      "stderr": ""
+    },
+    "change": "protocol-relative loopback is refused before the second request",
+    "error": "Error: the redirect to https://127.0.0.1/ was not followed: it points at a loopback address, which this tool does not fetch.",
+    "mainRequests": [
+      "https://page.test/",
+      "https://127.0.0.1/"
+    ]
+  },
+  {
+    "name": "malformed DNS before private address refused",
+    "url": "https://page.test/",
+    "dns": {
+      "page.test": [
+        "not-an-address",
+        "10.0.0.1"
+      ]
+    },
+    "responses": {},
+    "requests": [],
+    "main": {
+      "status": 1,
+      "stdout": "",
+      "stderr": "Error: --url https://page.test/ points at a private-range address, which this tool does not fetch.\n"
+    }
+  },
+  {
+    "name": "empty redirect Location reaches Fetch ceiling",
+    "url": "https://page.test/",
+    "responses": {
+      "https://page.test/": {
+        "status": 302,
+        "headers": {
+          "location": ""
+        }
+      }
+    },
+    "requests": [
+      "https://page.test/",
+      "https://page.test/",
+      "https://page.test/",
+      "https://page.test/",
+      "https://page.test/",
+      "https://page.test/",
+      "https://page.test/",
+      "https://page.test/",
+      "https://page.test/",
+      "https://page.test/",
+      "https://page.test/",
+      "https://page.test/",
+      "https://page.test/",
+      "https://page.test/",
+      "https://page.test/",
+      "https://page.test/",
+      "https://page.test/",
+      "https://page.test/",
+      "https://page.test/",
+      "https://page.test/",
+      "https://page.test/"
+    ],
+    "main": {
+      "status": 1,
+      "stdout": "",
+      "stderr": "Error: could not fetch https://page.test/: the request did not complete. Confirm the host is reachable from this machine, then re-run.\n"
+    }
+  }
+]
