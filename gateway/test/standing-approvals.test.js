@@ -115,8 +115,8 @@ test('propose, grant and execute use one warning and one module call, with audit
   assert.equal(proposal.status, 'standing_approval_proposed');
   assert.equal(Object.hasOwn(proposal, 'reason'), false);
   assert.equal(proposal.expires_on, '2027-01-20');
-  const { summaries, cautions } = f.gw.standingApprovalScope(SCOPE);
-  assert.equal(f.gw.pendingConfirmations.has(confirmationDigest(['standing_approval', proposal.scope, proposal.warning, summaries, cautions])), true);
+  const { summaries, cautions, kinds } = f.gw.standingApprovalScope(SCOPE);
+  assert.equal(f.gw.pendingConfirmations.has(confirmationDigest(['standing_approval', proposal.scope, proposal.warning, summaries, cautions, kinds])), true);
   assert.equal((await f.gw.standingApprovals.list()).length, 0);
   const answer = await tool(f, { ...SCOPE, mode: 'grant', confirmed: true });
   const saved = answer.standing_approval;

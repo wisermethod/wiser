@@ -221,7 +221,7 @@ export async function standingApprovalsTool(gateway, args = {}) {
     const at = gateway.now();
     const expiresOn = scope.days === null ? null : new Date(at + scope.days * STANDING_APPROVAL_DAY_MS).toISOString().slice(0, 10);
     const warning = buildStandingApprovalWarning({ scope, summaries, cautions, listFields, kinds, heightened, expiresOn });
-    const key = confirmationDigest(['standing_approval', scope, warning, summaries, cautions]);
+    const key = confirmationDigest(['standing_approval', scope, warning, summaries, cautions, kinds]);
     const proposalExpiry = mode === 'grant' && args.confirmed === true ? gateway.takePendingConfirmationExpiry(key) : null;
     if (proposalExpiry === null) {
       gateway.recordPendingConfirmation(key);

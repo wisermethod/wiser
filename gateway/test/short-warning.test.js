@@ -266,3 +266,18 @@ test('short warning: a first-summary case-only change requires a fresh proposal 
   assert.equal(answer.warning, proposal.warning, 'capitalizing the first summary hides this raw change in the warning');
   assert.deepEqual(await f.gw.standingApprovals.list(), []);
 });
+
+test('short warning: a kind change that leaves the warning unchanged requires a fresh proposal and grants nothing', async (t) => {
+  const f = await fixture(t);
+  const args = { ...scope('a_change', 'c_send'), days: 7 };
+  const proposal = await f.gw.callTool('standing_approvals', { ...args, mode: 'propose' });
+  assert.equal(proposal.status, 'standing_approval_proposed');
+  assert.deepEqual(proposal.kinds, ['change', 'send']);
+  f.connectors[0].manifest.modules.items.actions.a_change.standing_approval.kind = 'send';
+  const answer = await f.gw.callTool('standing_approvals', { ...args, mode: 'grant', confirmed: true });
+  assert.equal(answer.status, 'standing_approval_proposed');
+  assert.equal(answer.reason, 'unmatched_confirm');
+  assert.deepEqual(answer.kinds, ['send']);
+  assert.equal(answer.warning, proposal.warning, 'a change becoming a send leaves this warning unchanged');
+  assert.deepEqual(await f.gw.standingApprovals.list(), []);
+});
