@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.09, November 9, 2026
+
+- Wiser can now connect X: it reads your account, one post and your account's own recent posts, and deletes a post after you confirm. Posting comes in a later release. X bills every call to the developer account that owns the app, so you connect X through an X developer app of your own; the Wiser connector offers X only to the accounts it is set up for. (eb8085ec, 3d74f9ad, 2fb82052, 78a0e3b6)
+- Connect Account no longer stops on the Wiser connector for a service whose guide gives the connector a route of its own, as vm's, twenty's and X's do, just because the same guide also explains a route with your own app on the local gateway. When the connector does not offer a service to your account, it now tells you the route to take instead. (837608d6, 2fb82052, 78a0e3b6)
+
 ## v2026.11.08.2, November 8, 2026
 
 - Each of Wiser's tools now says on its own page whether it runs only on your computer or can also run through the Wiser connector, and for a command that can, the largest input it takes there and its time limit. Sitemap's `fetch`, tag-audit's `audit` and icon-set's `search` are the first three; the connector does not offer them to members yet. (bee3ec18, cf1fe3cd, 1a96d348)
