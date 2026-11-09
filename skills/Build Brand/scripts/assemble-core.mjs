@@ -66,8 +66,21 @@ export function assembleCore(selection, library, { resolveFont = (face) => copy(
     if (!MODES.includes(b.primaryMode)) fail(`${at}.primaryMode`, 'use light or dark');
     num(b.buttonRadius, 0, 100, `${at}.buttonRadius`);
     if (has(b, 'recommendation')) { text(b.recommendation, `${at}.recommendation`); if (++recommendations > 2) fail(`${at}.recommendation`, 'at most two recommendations'); }
-    object(b.palette, ['id', 'overrides'], `${at}.palette`);
+    object(b.palette, ['id', 'overrides', 'names', 'energy'], `${at}.palette`);
     const recipe = lookup(library, 'palettes', b.palette.id, `${at}.palette.id`);
+    if (has(b.palette, 'energy')) text(b.palette.energy, `${at}.palette.energy`);
+    let memberNames;
+    if (has(b.palette, 'names')) {
+      list(b.palette.names, `${at}.palette.names`);
+      memberNames = b.palette.names.map(entry => {
+        if (typeof entry !== 'string' || !/^#(?:[a-f\d]{3}|[a-f\d]{6}) [^\r\n]+$/i.test(entry)) fail(`${at}.palette.names`, 'use an opaque hex, a space and member words');
+        const split = entry.indexOf(' '), value = entry.slice(0,split), name = entry.slice(split+1);
+        text(name, `${at}.palette.names.name`); return {value,name};
+      });
+      if (!has(b.palette, 'overrides') || !has(b.palette, 'energy')) fail(`${at}.palette.names`, 'member names need overrides and energy wording');
+    }
+    const colourKey = v => (v.length === 4 ? '#'+[...v.slice(1)].map(c=>c+c).join('') : v).toUpperCase();
+    const swatchName = value => memberNames ? memberNames.find(v=>colourKey(v.value)===colourKey(value))?.name ?? value : keptColourName(value, library);
     const palette = Object.fromEntries(['light', 'dark', 'swatches', 'modeSwatches', 'chips'].filter((k) => has(recipe, k)).map((k) => [k, copy(recipe[k])]));
     if (has(b.palette, 'overrides')) {
       object(b.palette.overrides, MODES, `${at}.palette.overrides`);
@@ -82,7 +95,7 @@ export function assembleCore(selection, library, { resolveFont = (face) => copy(
       palette.modeSwatches ??= Object.fromEntries(MODES.map(mode => [mode, copy(palette.swatches)]));
       for (const mode of MODES) {
         for (const swatches of [palette.modeSwatches[mode], palette.chips?.[mode] ?? []]) {
-          for (const swatch of swatches) if (has(b.palette.overrides[mode] ?? {}, swatch.key)) swatch.name = keptColourName(palette[mode][swatch.key], library);
+          for (const swatch of swatches) if (has(b.palette.overrides[mode] ?? {}, swatch.key)) swatch.name = swatchName(palette[mode][swatch.key]);
           const names = new Set();
           for (const swatch of swatches) {
             const base = swatch.name; let number = 2;
@@ -162,7 +175,7 @@ export function assembleCore(selection, library, { resolveFont = (face) => copy(
     list(b.closingExamples, `${at}.closingExamples`);
     if (![2,3].includes(b.closingExamples.length)) fail(`${at}.closingExamples`, 'supply two or three examples');
     b.closingExamples.forEach((s) => text(s, `${at}.closingExamples`));
-    return { ...Object.fromEntries(['number','name','group','energy','why','recommendation','zero','primaryMode','buttonRadius'].filter((k) => has(b,k)).map((k) => [k,b[k]])), ...(has(b, 'depth') ? { depth: copy(b.depth) } : {}), palette, type, tags: { paletteLoudness: recipe.paletteLoudness, typeLoudness: heading.tags.typeLoudness, typeCut: heading.tags.typeCut }, graphics, monogram, content: copy(b.content), ...(has(b, 'words') ? { words: copy(b.words) } : {}), note: {...b.note, svg: set.noteArrow}, sample: {...copy(b.sample), ...copy(set.sample), rule: set.bannerRule}, items: copy(b.items), closingExamples: copy(b.closingExamples) };
+    return { ...Object.fromEntries(['number','name','group','energy','why','recommendation','zero','primaryMode','buttonRadius'].filter((k) => has(b,k)).map((k) => [k,b[k]])), ...(has(b.palette, 'energy') ? {energy:b.palette.energy} : {}), ...(has(b, 'depth') ? { depth: copy(b.depth) } : {}), palette, type, tags: { paletteLoudness: recipe.paletteLoudness, typeLoudness: heading.tags.typeLoudness, typeCut: heading.tags.typeCut }, graphics, monogram, content: copy(b.content), ...(has(b, 'words') ? { words: copy(b.words) } : {}), note: {...b.note, svg: set.noteArrow}, sample: {...copy(b.sample), ...copy(set.sample), rule: set.bannerRule}, items: copy(b.items), closingExamples: copy(b.closingExamples) };
   });
   // A lock keeps one board from a page and may retain that page's group list.
   // Validate every group above, then omit only unused groups for that one pick.

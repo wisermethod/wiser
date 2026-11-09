@@ -1,0 +1,49 @@
+[
+  {
+    "name": "default Phosphor",
+    "query": "person"
+  },
+  {
+    "name": "Phosphor words case and limit",
+    "query": "PEDESTRIAN PEOPLE",
+    "limit": 3,
+    "set": "phosphor"
+  },
+  {
+    "name": "Phosphor no match",
+    "query": "no-such-keyword-xyz"
+  },
+  {
+    "name": "Health set",
+    "set": "health",
+    "query": "doctor"
+  },
+  {
+    "name": "Health several words",
+    "set": "health",
+    "query": "female people",
+    "limit": 4
+  },
+  {
+    "name": "Health ambiguous ids",
+    "set": "health",
+    "query": "diabetes",
+    "limit": 10
+  },
+  {
+    "name": "Health hidden tags",
+    "set": "health",
+    "query": "dhis2"
+  },
+  {
+    "name": "Health no match",
+    "set": "health",
+    "query": "no-such-keyword-xyz"
+  },
+  {
+    "name": "Phosphor single result",
+    "set": "phosphor",
+    "query": "person walking",
+    "limit": 1
+  }
+]

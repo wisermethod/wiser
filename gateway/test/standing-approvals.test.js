@@ -115,7 +115,8 @@ test('propose, grant and execute use one warning and one module call, with audit
   assert.equal(proposal.status, 'standing_approval_proposed');
   assert.equal(Object.hasOwn(proposal, 'reason'), false);
   assert.equal(proposal.expires_on, '2027-01-20');
-  assert.equal(f.gw.pendingConfirmations.has(confirmationDigest(['standing_approval', proposal.scope, proposal.warning])), true);
+  const { summaries, cautions, kinds } = f.gw.standingApprovalScope(SCOPE);
+  assert.equal(f.gw.pendingConfirmations.has(confirmationDigest(['standing_approval', proposal.scope, proposal.warning, summaries, cautions, kinds])), true);
   assert.equal((await f.gw.standingApprovals.list()).length, 0);
   const answer = await tool(f, { ...SCOPE, mode: 'grant', confirmed: true });
   const saved = answer.standing_approval;
@@ -264,7 +265,7 @@ test('durations enforce 365 and seven day maxima and choose the right defaults',
   assert.equal((await grant(f, { ...SCOPE, days: 365 })).expires_at, '2027-10-22T12:00:00.000Z');
   // One day reads as a day, so the warning a person approves is grammatical at the smallest grant.
   const oneDay = await tool(f, { ...SCOPE, mode: 'propose', days: 1 });
-  assert.match(oneDay.warning, / For 1 day, until 2026-10-23, /);
+  assert.match(oneDay.warning, / It lasts 1 day, until 2026-10-23, or until you revoke it\./);
 });
 
 const SEND_PLAYBOOK = '2026-10-22-send-messages.plan.md';
@@ -339,7 +340,6 @@ for (const name of [
 
 for (const [kinds, playbook, days] of [
   [['send'], undefined, 8], [['send'], SEND_PLAYBOOK, 91],
-  [['delete'], undefined, 8], [['delete'], SEND_PLAYBOOK, 8],
   [['pay'], undefined, 8], [['pay'], SEND_PLAYBOOK, 8],
   [['publish'], SEND_PLAYBOOK, 8], [['grant_access'], SEND_PLAYBOOK, 8],
   [['send', 'change'], SEND_PLAYBOOK, 8],
@@ -363,6 +363,24 @@ for (const [kinds, playbook, days] of [
       const saved = await grant(f, { ...scope, days: 7 });
       assert.equal((await f.gw.callTool('execute', { ...f.call, ...(playbook ? { playbook } : {}) })).standing_approval?.id, saved.id);
     }
+  });
+}
+
+for (const playbook of [undefined, SEND_PLAYBOOK]) {
+  test(`delete scope ${playbook ? 'with' : 'without'} a Playbook is refused at every duration`, async (t) => {
+    const f = await probe(t, { kind: 'delete' });
+    const scope = { ...f.scope, ...(playbook ? { playbook } : {}) };
+    for (const days of [undefined, 1, 7, 8, 90, 365, null]) {
+      for (const mode of ['propose', 'grant']) {
+        const refused = await tool(f, { ...scope, days, mode, ...(mode === 'grant' ? { confirmed: true } : {}) });
+        assert.deepEqual(refused, {
+          status: 'invalid_arguments', field: 'actions', reason: 'Delete actions cannot be covered by a standing approval.',
+        });
+      }
+    }
+    assert.equal(f.gw.pendingConfirmations.size, 0);
+    assert.deepEqual(await f.gw.standingApprovals.list(), []);
+    assert.equal(f.calls.length, 0);
   });
 }
 
@@ -429,7 +447,7 @@ for (const limited of [false, true]) {
     const proposal = await tool(f, { ...scope, mode: 'propose' });
     assert.equal(proposal.scope.days, 90);
     assert.deepEqual(proposal.kinds, ['send']);
-    const expected = `This standing approval lets your assistant send messages and send other messages on your connection with no label without asking you first, for work done from the root "wiser-memory", in the Playbook "2026-10-22-send-messages.plan.md"${limited ? ', and only where channel is "email"' : ''}. For 90 days, until 2027-01-20, every call that matches runs straight away, with no approval step for you to see or refuse. Anything outside it still asks you, as today. These messages may start a workflow. This approval sends messages to other people, ${limited ? 'to any recipient the limits above allow' : 'to any recipient'}, and nobody looks at each one before it is sent; once sent, a message cannot be called back. Because it covers only sending, and only in one Playbook, it lasts at most 90 days. You can end it at any time: ask your assistant to revoke it, or remove it on your Wiser account page. Answer yes to grant it, or no to leave things as they are.`;
+    const expected = `Send messages and send other messages without asking you each time, for the "2026-10-22-send-messages.plan.md" Playbook in "wiser-memory"${limited ? ', only where channel is "email"' : ''}. It lasts 90 days, until 2027-01-20, or until you revoke it. Each send goes out without you seeing it first and cannot be called back. These messages may start a workflow. Yes or no?`;
     assert.equal(proposal.warning, expected);
     assert.equal(proposal.warning.split(SEND_CAUTION).length - 1, 1);
     const saved = await grant(f, scope);
@@ -544,8 +562,8 @@ test('a host adapter supplied to the constructor owns grant storage', async (t) 
   assert.ok(rows[0].revoked_at);
 });
 
-const ORDINARY_WARNING = 'This standing approval lets your assistant create records in Twenty and change fields on existing Twenty records on your connection labelled "acme" without asking you first, for work done from the root "wiser-memory", in the Playbook "CRM Work", and only where id is "id-a" or "id-b", and only where object is "company" or "person". For 90 days, until 2027-01-20, every call that matches runs straight away, with no approval step for you to see or refuse. Anything outside it still asks you, as today. You can end it at any time: ask your assistant to revoke it, or remove it on your Wiser account page. Answer yes to grant it, or no to leave things as they are.';
-const HEIGHTENED_WARNING = 'This standing approval lets your assistant send messages on your connection with no label without asking you first, for work done from the root "wiser-memory". For 7 days, until 2026-10-29, every call that matches runs straight away, with no approval step for you to see or refuse. Anything outside it still asks you, as today. Some of these actions delete things, send messages to other people, spend money, publish where others can see and give someone access. Under this approval nobody looks at each one before it happens, and once done it cannot be called back. It lasts at most 7 days. You can end it at any time: ask your assistant to revoke it, or remove it on your Wiser account page. Answer yes to grant it, or no to leave things as they are.';
+const ORDINARY_WARNING = 'Create records in Twenty and change fields on existing Twenty records without asking you each time, on your connection labelled "acme", for the "CRM Work" Playbook in "wiser-memory", only where id is "id-a" or "id-b" and object is "company" or "person". It lasts 90 days, until 2027-01-20, or until you revoke it. Yes or no?';
+const HEIGHTENED_WARNING = 'Send messages without asking you each time, for work in "wiser-memory". It lasts 7 days, until 2026-10-29, or until you revoke it. Each send goes out without you seeing it first and cannot be called back. It can spend money, publish where others can see and give someone access with nobody looking first, and once done it cannot be called back. Yes or no?';
 
 test('the ordinary and heightened warnings are exactly the fixed text', async (t) => {
   const f = await fixture(t);
@@ -947,7 +965,7 @@ for (const [field, value] of [['summary', 'change records in Twenty'], ['caution
 }
 
 const TWENTY_CAUTION = "Creating or changing a Twenty record can start your workspace's own workflows, and a workflow may send email from a connected mailbox, so under this approval nobody looks at the record before that happens.";
-const TWENTY_WARNING = 'This standing approval lets your assistant create records in Twenty and change fields on existing Twenty records on your connection with no label without asking you first, for work done from the root "Wiser Memory". For 90 days, until 2027-01-20, every call that matches runs straight away, with no approval step for you to see or refuse. Anything outside it still asks you, as today. ' + TWENTY_CAUTION + ' You can end it at any time: ask your assistant to revoke it, or remove it on your Wiser account page. Answer yes to grant it, or no to leave things as they are.';
+const TWENTY_WARNING = 'Create records in Twenty and change fields on existing Twenty records without asking you each time, for work in "Wiser Memory". It lasts 90 days, until 2027-01-20, or until you revoke it. ' + TWENTY_CAUTION + ' Yes or no?';
 
 test('the exact Twenty warning includes the shared create and update caution once', async (t) => {
   const f = await fixture(t);
@@ -967,7 +985,7 @@ test('covered cautions are distinct and follow action order before the heightene
   actions.update.standing_approval.caution = 'Second caution.';
   actions.update.standing_approval.kind = 'send';
   const result = await tool(f, { mode: 'propose', actions: [UPDATE, CREATE], root: SCOPE.root });
-  assert.match(result.warning, /Anything outside it still asks you, as today\. First caution\. Second caution\. Some of these actions send messages/);
+  assert.match(result.warning, /Each send goes out without you seeing it first and cannot be called back\. First caution\. Second caution\. Yes or no\?/);
 });
 
 

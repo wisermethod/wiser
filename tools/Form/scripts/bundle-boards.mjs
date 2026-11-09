@@ -35,12 +35,14 @@ export function generateBoardsLibrary() {
     `const depth = ${wrap(read('../../Contact Sheet/scripts/board-depth.js'),'depthOptions,depthColour,depthLch,depthInset,depthSchema')};\nif (typeof window !== 'undefined') globalThis.WiserBoardDepth = depth;\n`+
     `const core = ${wrap(read('../../../skills/Build Brand/scripts/assemble-core.mjs'),'assembleCore,AXES,partPositions')};\n`+
     `const model = ${wrap(read('../../Contact Sheet/scripts/board-model.js'),'createBoardModel,PUBLIC_FONT_FILES,BOARD_LAYOUT,BOARD_LABELS,DEFAULT_MARK_CAPTION')};\n`+
+    `const thumbnail = ${wrap(read('../../Contact Sheet/scripts/board-thumbnail.js'),'fitBoardThumbnails')};\n`+
     `const svg = ${wrap("const fail = message => { throw Error(message); };\n"+read('../../Contact Sheet/scripts/svg.js'),'checkSvg')};\n`+
     `const validation = ${wrap("const fail = message => { throw Error(message); };\nconst checkSvg = svg.checkSvg;\nconst depthOptions = depth.depthOptions;\n"+validation,'validateBrandBoards,wcag')};\n`+
     `export const {depthOptions,depthColour,depthLch,depthInset,depthSchema} = depth;\n`+
     `export const BOARD_PARTS = ${JSON.stringify(library)};\n`+
     `export const BOARD_CSS = ${JSON.stringify(scoped(BRAND_BOARD_CSS))};\n`+
     `export const {assembleCore} = core;\nexport const {createBoardModel,PUBLIC_FONT_FILES,BOARD_LAYOUT,BOARD_LABELS,DEFAULT_MARK_CAPTION} = model;\n`+
+    `export const {fitBoardThumbnails} = thumbnail;\n`+
     `export const {validateBrandBoards,wcag} = validation;\nexport const {checkSvg} = svg;\n`;
 }
 export function main(argv=process.argv.slice(2)) {

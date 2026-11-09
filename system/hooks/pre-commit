@@ -1,5 +1,5 @@
 #!/bin/sh
-# Three checks, on the staged set only.
+# Four checks, triggered by the staged set.
 #
 # Why these and not the others: over the 52 commits of the Close-out range, the
 # em-dash sweep fired zero times, the retired-word sweep fired zero times, and
@@ -54,7 +54,8 @@ staged=$(git -c core.quotePath=false diff --cached --name-only --diff-filter=ACM
 # core.quotePath=false: a path with a non-ASCII name, which the conventions
 # allow, is printed as it is rather than quoted, so the trigger below sees it.
 seam_staged=$(git -c core.quotePath=false diff --cached --name-only --diff-filter=ACMRT)
-[ -n "$staged" ] || [ -n "$seam_staged" ] || exit 0
+frontmatter_staged=$(git -c core.quotePath=false diff --cached --name-only --diff-filter=ACDMRT)
+[ -n "$staged" ] || [ -n "$seam_staged" ] || [ -n "$frontmatter_staged" ] || exit 0
 
 # Both paths physical, so one repository spelled two ways compares equal.
 ROOT=$(git rev-parse --show-toplevel) && ROOT=$(cd "$ROOT" && pwd -P) || {
@@ -130,6 +131,17 @@ if printf '%s\n' "$staged" | $GREP -q '^tools/'; then
   # to run a script against, and the window is one commit wide in a repo whose
   # tools are edited by one person at a time.
   "$GATE" "$ROOT/tools" || exit 1
+fi
+
+# Tool and plugin declarations, measured on the whole working tree.
+if printf '%s\n' "$frontmatter_staged" | $GREP -q -E '^(tools/|AGENTS\.md$)'; then
+  FRONTMATTER=$(gate_path tool-frontmatter.sh)
+  if [ ! -x "$FRONTMATTER" ]; then
+    echo "pre-commit: $FRONTMATTER is missing or not executable, so the" >&2
+    echo "frontmatter check could not run. That is a failure to measure and not a pass." >&2
+    exit 1
+  fi
+  "$FRONTMATTER" "$ROOT" || exit 1
 fi
 
 # Every typed file added in this commit declares its classifier seam,

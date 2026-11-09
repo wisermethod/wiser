@@ -19,7 +19,9 @@ const BASE = { to: ['casey@example.test'], subject: 'Project Cedar', body: 'Inve
 const REPLY = { thread_id: 'thread-example_1', in_reply_to: '<parent.1@example.test>', references: ['<ancestor.1@example.test>', '<parent.1@example.test>'] };
 const MESSAGE = { id: 'message-example', threadId: REPLY.thread_id, labelIds: ['SENT'] };
 const DRAFT = { id: 'r-example-17', message: { ...MESSAGE, labelIds: ['DRAFT'] } };
-const CAUTION = 'This grant sends messages your assistant writes, to any recipient, with no look at each one before it is sent. It never covers a message with a local file attached.';
+const SEND_SENTENCE = 'Each send goes out without you seeing it first and cannot be called back, and its to, cc, bcc and references lists cannot be limited.';
+// Gmail send declared a caution until 2026-11-08; the short warning's send sentence says what it said.
+const OLD_CAUTION = 'This grant sends messages your assistant writes, to any recipient, with no look at each one before it is sent. It never covers a message with a local file attached.';
 const sha = (data) => createHash('sha256').update(data).digest('hex');
 
 async function fixture(t, options = {}) {
@@ -56,14 +58,14 @@ async function grant(f) {
   assert.equal(proposal.status, 'standing_approval_proposed');
   assert.deepEqual(proposal.kinds, ['send']);
   assert.equal(proposal.scope.days, 90);
-  assert.ok(proposal.warning.includes(CAUTION));
-  assert.match(proposal.warning, /to any recipient/);
+  assert.ok(proposal.warning.includes(SEND_SENTENCE));
+  assert.equal(proposal.warning.includes('This grant sends messages'), false);
   assert.match(proposal.warning, /90 days/);
   const answer = await f.gw.callTool('standing_approvals', { ...SCOPE, mode: 'grant', confirmed: true });
   assert.equal(answer.status, 'ok');
   const saved = answer.standing_approval;
   assert.equal(Date.parse(saved.expires_at) - NOW, 90 * DAY);
-  assert.deepEqual(saved.cautions, [CAUTION]);
+  assert.deepEqual(saved.cautions, []);
   return saved;
 }
 
@@ -100,6 +102,21 @@ function mime(raw) {
   };
   return { text, tree: parse(text) };
 }
+
+test('a send grant warned with Gmail send\'s old caution still runs once the caution is gone', async (t) => {
+  const f = await fixture(t);
+  f.actions.send_message.standing_approval.caution = OLD_CAUTION;
+  const proposal = await f.gw.callTool('standing_approvals', { ...SCOPE, mode: 'propose' });
+  assert.ok(proposal.warning.includes(OLD_CAUTION));
+  const answer = await f.gw.callTool('standing_approvals', { ...SCOPE, mode: 'grant', confirmed: true });
+  assert.equal(answer.status, 'ok');
+  const saved = answer.standing_approval;
+  assert.deepEqual(saved.cautions, [OLD_CAUTION]);
+  delete f.actions.send_message.standing_approval.caution;
+  const result = await f.execute(SEND, BASE, scope);
+  assert.deepEqual(result, { ...MESSAGE, standing_approval: { id: saved.id, expires_at: saved.expires_at } });
+  assert.equal(f.calls.length, 1);
+});
 
 test('F16 send_draft is ungrantable and always stops under a matching Playbook send grant', async (t) => {
   const f = await fixture(t);

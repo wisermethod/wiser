@@ -1,5 +1,5 @@
 // Brand-board composition only. The caller supplies every choice; no inference,
-// primitive, model, network, clock or script in the generated page.
+// primitive, model, network or clock; the page's local fitter only sets layout.
 import { fail } from './paths.js';
 import { depthOptions } from './board-depth.js';
 import { checkSvg } from './svg.js';

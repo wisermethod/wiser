@@ -1,0 +1,320 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { test } from 'node:test';
+import { CURATED } from '../providers/composio/curated.js';
+import { createCatalogProvider, curatedSlugMap } from '../providers/composio/catalog-provider.js';
+import { loadCuratedActions } from '../src/curated.js';
+import { CURATED_FORBIDDEN_INPUT_FIELDS } from '../src/catalog.js';
+import { loadConnectors } from '../src/manifest.js';
+import { createFakeProviders, createTestGateway, DEFAULT_CONNECTORS, putActive } from './fake-provider.js';
+
+const CONNECTORS = await loadConnectors([DEFAULT_CONNECTORS]);
+const READ = CURATED.find((row) => row.id === 'google.gmail.list_labels');
+const CHANGE = CURATED.find((row) => row.id === 'google.gmail.create_label');
+
+function provider(rows, toSlug = (id) => rows.find((row) => row.id === id)?.tool ?? null) {
+  return { curated: () => rows, toSlug };
+}
+
+async function fixture(rows = [READ, CHANGE], options = {}) {
+  const fake = createFakeProviders();
+  const calls = [];
+  fake.catalog.curated = () => rows;
+  for (const row of rows) {
+    fake.catalog.setSlug(row.id, row.tool);
+    fake.catalog.setResult(row.tool, (args) => ({ ok: true, arguments: args }));
+  }
+  const execute = fake.catalog.execute.bind(fake.catalog);
+  fake.catalog.execute = async (call) => { calls.push(call); return execute(call); };
+  const result = await createTestGateway({ ...options, fake, session: false });
+  for (const row of rows) {
+    const [service, module] = row.id.split('.');
+    if (service === 'wiser') continue;
+    await putActive(result.store, fake, { service, module });
+  }
+  return { ...result, calls };
+}
+
+const schema = (value) => ({ type: 'object', properties: { value } });
+const rowWithSchema = (input_schema) => ({ ...READ, key_fields: [], input_schema });
+
+test('the curated data holds all 46 rows, recorded narrowing and exact provider mappings', () => {
+  assert.equal(CURATED.length, 46);
+  assert.equal(new Set(CURATED.map((row) => row.id)).size, 46);
+  const catalog = createCatalogProvider();
+  for (const row of CURATED) {
+    assert.equal(catalog.toSlug(row.id), row.tool, row.id);
+    assert.ok(Array.isArray(row.narrowed), row.id);
+    assert.ok(Object.keys(row.input_schema.properties).every((key) => !CURATED_FORBIDDEN_INPUT_FIELDS.has(key)), row.id);
+    for (const key of row.narrowed) {
+      assert.equal(Object.hasOwn(row.input_schema.properties, key), false, `${row.id}: ${key}`);
+      assert.equal(row.input_schema.required?.includes(key) ?? false, false, `${row.id}: ${key}`);
+    }
+  }
+  for (const id of ['google.gmail.add_label_to_email', 'google.gmail.modify_thread_labels']) {
+    assert.equal(CURATED.some((row) => row.id === id), false, id);
+    assert.equal(catalog.toSlug(id), null, id);
+  }
+  for (const name of ['quick_add', 'patch_event', 'events_move']) {
+    assert.equal(CURATED.find((row) => row.id === `google.calendar.${name}`).kind, 'send');
+  }
+  for (const name of ['create_comment', 'create_reply']) {
+    assert.equal(CURATED.find((row) => row.id === `google.drive.${name}`).kind, 'send');
+  }
+  assert.equal(Object.hasOwn(CURATED.find((row) => row.id === 'google.calendar.patch_event').input_schema.properties, 'status'), false);
+});
+
+for (const [name, value] of [
+  ['missing property type', {}],
+  ['object property', { type: 'object' }],
+  ['array without items', { type: 'array' }],
+  ['untyped array items', { type: 'array', items: {} }],
+  ['object array items', { type: 'array', items: { type: 'object' } }],
+  ['array array items', { type: 'array', items: { type: 'array', items: { type: 'string' } } }],
+]) test(`unconstrained curated input is rejected before any provider call: ${name}`, async () => {
+  const row = rowWithSchema(schema(value));
+  assert.deepEqual(loadCuratedActions(provider([row]), CONNECTORS), {
+    rows: [], errors: [{ id: row.id, reason: 'unsupported_input_schema' }],
+  });
+  const { gw, calls } = await fixture([row]);
+  assert.equal((await gw.execute({ action: row.id, input: { value: { arbitrary: true } } })).status, 'needs_connector');
+  assert.equal(calls.length, 0);
+});
+
+for (const key of [
+  'user_id', 'userId', 'user_principal_name', 'access_token', 'oauth_token', 'key',
+  'callback', 'quotaUser', 'alt', 'xgafv', '$.xgafv', 'uploadType', 'upload_protocol',
+  'prettyPrint', 'useDomainAdminAccess', 'supportsAllDrives', 'includeItemsFromAllDrives', 'corpora',
+]) {
+  test(`a curated schema refuses account, credential, transport or admin field ${key}`, async () => {
+    assert.equal(CURATED_FORBIDDEN_INPUT_FIELDS.has(key), true);
+    const row = rowWithSchema({ type: 'object', properties: { [key]: { type: 'string' } } });
+    assert.deepEqual(loadCuratedActions(provider([row]), CONNECTORS).errors,
+      [{ id: row.id, reason: 'forbidden_input_field' }]);
+    const { gw, calls } = await fixture([row]);
+    assert.equal((await gw.execute({ action: row.id, input: { [key]: 'other@example.com' } })).status, 'needs_connector');
+    assert.equal(calls.length, 0);
+  });
+}
+
+test('a removed selector is refused on the shipped read and never reaches the provider', async () => {
+  const { gw, calls } = await fixture();
+  assert.deepEqual(await gw.execute({ action: READ.id, input: { user_id: 'other@example.com' } }),
+    { status: 'invalid_arguments', field: 'user_id' });
+  assert.equal(calls.length, 0);
+});
+
+for (const [id, input, field] of [
+  ['google.drive.list_children_v2', { folderId: 'folder', access_token: 'fixture-token' }, 'access_token'],
+  ['google.drive.list_children_v2', { folderId: 'folder', oauth_token: 'fixture-token' }, 'oauth_token'],
+  ['google.drive.list_children_v2', { folderId: 'folder', key: 'fixture-key' }, 'key'],
+  ['google.drive.list_shared_drives', { useDomainAdminAccess: true }, 'useDomainAdminAccess'],
+  ['google.calendar.patch_event', { calendar_id: 'primary', event_id: 'event', status: 'cancelled' }, 'status'],
+]) test(`shipped ${id} refuses narrowed ${field} before the provider`, async () => {
+  const row = CURATED.find((item) => item.id === id);
+  const { gw, calls } = await fixture([row]);
+  assert.deepEqual(await gw.execute({ action: id, input }), { status: 'invalid_arguments', field });
+  assert.equal(calls.length, 0);
+  assert.equal(gw.pendingConfirmations.size, 0);
+});
+
+for (const patch of [{}, { kind: 'unknown' }]) test(`all duplicate id copies are invalid, including a later ${patch.kind ?? 'valid'} tool swap`, async () => {
+  const rows = [READ, { ...READ, ...patch, tool: 'GMAIL_SEND_EMAIL' }];
+  assert.deepEqual(loadCuratedActions(provider(rows), CONNECTORS), {
+    rows: [], errors: rows.map((row) => ({ id: row.id, reason: 'duplicate_id' })),
+  });
+  assert.equal(curatedSlugMap(rows).has(READ.id), false);
+  const { gw, calls } = await fixture(rows);
+  assert.equal((await gw.execute({ action: READ.id, input: {} })).status, 'needs_connector');
+  assert.equal(calls.length, 0, 'neither duplicate tool may reach execute');
+});
+
+for (const [name, toSlug] of [
+  ['different slug', () => 'GMAIL_SEND_EMAIL'],
+  ['no slug', () => null],
+  ['no mapping method', undefined],
+]) test(`a curated row requires its exact mapped slug: ${name}`, () => {
+  const catalog = { curated: () => [READ], toSlug };
+  assert.deepEqual(loadCuratedActions(catalog, CONNECTORS), {
+    rows: [], errors: [{ id: READ.id, reason: 'slug_mismatch' }],
+  });
+});
+
+test('provider curated slug registration keeps unique siblings and rejects every ambiguous id', () => {
+  const map = curatedSlugMap([READ, { ...READ, tool: 'OTHER' }, CHANGE]);
+  assert.equal(map.has(READ.id), false);
+  assert.equal(map.get(CHANGE.id), CHANGE.tool);
+});
+
+for (const [kind, hint] of [
+  ['read', 'createHint'], ['read', 'updateHint'], ['read', 'destructiveHint'],
+  ['change', 'destructiveHint'], ['send', 'destructiveHint'],
+]) test(`contradictory kind ${kind} and ${hint} are rejected`, () => {
+  const row = { ...READ, kind, hint: [hint] };
+  assert.deepEqual(loadCuratedActions(provider([row]), CONNECTORS), {
+    rows: [], errors: [{ id: row.id, reason: 'kind_hint_mismatch' }],
+  });
+});
+
+test('an invalid curated id cannot hide a declared first-party description', async () => {
+  const id = 'wiser.decide.choice';
+  const row = { ...READ, id };
+  const classifier = { actions: () => [id], describe: () => ({ answer: { chosen: 'test' } }) };
+  const { gw } = await fixture([row], { classifier, envPath: null });
+  const described = gw.describeAction(id);
+  assert.equal(described.action, id);
+  assert.equal(described.source, 'first_party_mcp');
+  assert.equal(described.confirmation, 'none');
+  assert.equal(described.curated, undefined);
+});
+
+test('an invalid curated collision leaves a hand-written description in place', async () => {
+  const row = { ...READ, id: 'google.gmail.list_messages' };
+  const { gw } = await fixture([row]);
+  assert.equal(gw.describeAction(row.id).curated, undefined);
+  assert.equal(gw.describeAction(row.id).description, 'List or search messages');
+});
+
+test('an invalid curated id cannot hide a mapping-only catalog description', async () => {
+  const id = 'github.repos.get';
+  const row = { ...READ, id };
+  const catalog = createCatalogProvider({ envPath: null });
+  const { gw, calls } = await fixture([row], {
+    connectors: CONNECTORS.filter((connector) => connector.service !== 'github'),
+  });
+  // Keep the rejected row and resolve through the shipped mapping.js table.
+  gw.catalogProvider.toSlug = catalog.toSlug;
+  assert.deepEqual(gw.describeAction(id), {
+    action: id, service: 'github', module: 'repos', source: 'catalog', input: null,
+  });
+  assert.equal((await gw.execute({ action: id, input: {} })).status, 'needs_connector');
+  assert.equal(calls.length, 0);
+});
+
+test('search preserves hand-written matches, applies the same filter, and describes copied key fields', async () => {
+  const { gw, connectors } = await fixture();
+  const previous = await createTestGateway({ connectors, session: false });
+  for (const query of ['send_message', 'github', 'a query with no results']) {
+    assert.deepEqual(gw.searchActions({ query }), previous.gw.searchActions({ query }));
+  }
+  const old = previous.gw.searchActions({ query: 'gmail' }).actions;
+  const added = gw.searchActions({ query: 'gmail' }).actions;
+  assert.deepEqual(added.slice(0, old.length), old);
+  assert.deepEqual(added.slice(old.length).map((row) => row.action), [READ.id, CHANGE.id]);
+  for (const row of added.slice(old.length)) {
+    assert.equal(row.curated, true);
+    assert.equal(typeof row.kind, 'string');
+    assert.equal(row.description, row.summary);
+  }
+  assert.deepEqual(gw.searchActions({ service: 'microsoft', query: 'gmail' }).actions, []);
+  const described = gw.describeAction(CHANGE.id);
+  assert.deepEqual(described.key_fields, CHANGE.key_fields);
+  assert.deepEqual(described.input, CHANGE.input_schema);
+  described.key_fields.push('not_in_the_schema');
+  assert.deepEqual(gw.describeAction(CHANGE.id).key_fields, CHANGE.key_fields);
+});
+
+for (const choice of ['google.gmail.list_messages', READ.id]) {
+  test(`curated search uses the existing classifier ranking for ${choice}`, async () => {
+    const { gw } = await fixture();
+    gw.classifierSearchAttempt = () => ({ call: true });
+    gw.execute = async ({ action, input }) => {
+      assert.equal(action, 'wiser.decide.choice');
+      assert.ok(input.options.some((option) => option.id === READ.id));
+      assert.ok(input.options.some((option) => option.id === 'google.gmail.list_messages'));
+      return { choice, confidence: 0.9 };
+    };
+    const result = await gw.searchActions({ query: 'gmail' });
+    assert.equal(result.actions[0].action, choice);
+    assert.equal(result.actions[0].classifier, true);
+    assert.equal(result.classifier.path, 'classifier');
+    assert.equal(result.actions.filter((row) => row.action === choice).length, 1);
+  });
+}
+
+test('supported scalar arrays still enforce each item before the provider', async () => {
+  const row = rowWithSchema(schema({ type: 'array', items: { type: 'string' } }));
+  assert.equal(loadCuratedActions(provider([row]), CONNECTORS).rows.length, 1);
+  const { gw, calls } = await fixture([row]);
+  assert.deepEqual(await gw.execute({ action: row.id, input: { value: ['ok', {}] } }),
+    { status: 'invalid_arguments', field: 'value' });
+  assert.equal(calls.length, 0);
+  assert.equal((await gw.execute({ action: row.id, input: { value: ['ok'] } })).ok, true);
+  assert.equal(calls.length, 1);
+});
+
+for (const kind of ['read', 'change', 'send', 'delete']) {
+  test(`curated ${kind} follows the kind policy and uses one provider call and audit per execution`, async () => {
+    const row = {
+      ...READ, id: `google.gmail.policy_${kind}`, tool: `FIXTURE_${kind}`, kind,
+      hint: [kind === 'read' ? 'readOnlyHint' : kind === 'delete' ? 'destructiveHint' : 'createHint'],
+      key_fields: ['value'], input_schema: schema({ type: 'string' }),
+    };
+    const { gw, calls, audit, store } = await fixture([row]);
+    const call = { action: row.id, input: { value: 'item' }, root: 'Test' };
+    const first = await gw.execute(call);
+    if (kind === 'read') assert.equal(first.ok, true);
+    else {
+      assert.equal(first.status, 'needs_confirmation');
+      assert.equal(first.confirmation, 'always');
+      assert.equal(calls.length, 0);
+      const scope = { actions: [row.id], root: 'Test' };
+      const explicit = gw.standingApprovalScope({ ...scope, mode: 'propose' });
+      const moduleGrant = gw.standingApprovalScope({ mode: 'propose', module: 'google.gmail', root: 'Test' });
+      if (kind === 'delete') {
+        const refusal = { status: 'invalid_arguments', field: 'actions', reason: 'Delete actions cannot be covered by a standing approval.' };
+        assert.deepEqual(explicit.refusal, refusal);
+        assert.deepEqual(moduleGrant.refusal, refusal);
+        assert.deepEqual(await gw.callTool('standing_approvals', { ...scope, mode: 'grant', confirmed: true }), refusal);
+        await gw.standingApprovals.add({
+          id: 'sa_injected_delete', actions: [row.id], kinds: ['delete'], summaries: [row.summary], cautions: [],
+          root: 'Test', playbook: null, label: null, where: null, heightened: true,
+          provider_account_id: store.getConnection({ service: 'google', module: 'gmail' }).provider_account_id,
+          created_at: new Date(gw.now()).toISOString(), expires_at: new Date(gw.now() + 86_400_000).toISOString(), revoked_at: null,
+        });
+        assert.equal((await gw.execute(call)).status, 'needs_confirmation', 'an injected delete grant cannot remove the stop');
+        assert.equal(calls.length, 0);
+        assert.equal((await gw.execute({ ...call, confirm: true })).ok, true);
+      } else {
+        assert.equal(explicit.refusal, undefined);
+        assert.deepEqual(explicit.scope.actions, [row.id]);
+        assert.equal(moduleGrant.scope.actions.includes(row.id), true);
+        assert.equal((await gw.callTool('standing_approvals', { ...scope, mode: 'propose' })).status, 'standing_approval_proposed');
+        const granted = await gw.callTool('standing_approvals', { ...scope, mode: 'grant', confirmed: true });
+        assert.equal(granted.status, 'ok');
+        const ran = await gw.execute(call);
+        assert.equal(ran.ok, true);
+        assert.equal(ran.standing_approval.id, granted.standing_approval.id);
+        assert.equal((await gw.callTool('standing_approvals', { mode: 'revoke', id: granted.standing_approval.id })).status, 'ok');
+      }
+      assert.equal((await gw.execute(call)).status, 'needs_confirmation', 'revoked writes and one-time approved deletes stop again');
+    }
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].providerAccountId, store.getConnection({ service: 'google', module: 'gmail' }).provider_account_id);
+    const lines = readFileSync(audit.file, 'utf8').trim().split('\n').map(JSON.parse).filter((line) => line.op === 'execute');
+    assert.equal(lines.filter((line) => line.status === 'ok').length, 1);
+    assert.ok(lines.every((line) => line.service === 'google' && line.path === 'catalog'));
+  });
+}
+
+for (const id of ['google.gmail.list_labels', 'google.calendar.get_calendar', 'google.drive.get_about', 'microsoft.outlook.count_messages', 'microsoft.calendar.find_meeting_times']) {
+  test(`curated service identity reaches host wrappers once: ${id}`, async () => {
+    const row = CURATED.find((item) => item.id === id);
+    const { gw, calls, policy } = await fixture([row]);
+    const input = Object.fromEntries((row.input_schema.required ?? []).map((key) => [key, 'test']));
+    const [service] = id.split('.');
+    const original = gw.catalogProvider.execute;
+    let counted = 0;
+    gw.catalogProvider.execute = (call) => {
+      assert.equal(call.actionId.split('.')[0], service);
+      counted += 1;
+      return original(call);
+    };
+    assert.equal((await gw.execute({ action: id, input })).ok, true);
+    assert.equal(counted, 1);
+    assert.equal(calls.length, 1);
+    gw.policy = { ...policy, rules: [{ service, op: 'execute', effect: 'deny' }] };
+    assert.equal((await gw.execute({ action: id, input })).status, 'denied');
+    assert.equal(counted, 1);
+  });
+}

@@ -19,12 +19,12 @@ for(const name of ['chatgpt','Claude'])test(`${name}: board tiles draw brand wor
   assert.ok(noteId);assert.equal(await h.f.locator(`[id="${noteId}"]`).innerText(),expected);
   const second=await inputs.nth(1).getAttribute('aria-describedby');assert.equal(await h.f.locator(`[id="${second}"]`).innerText(),'Only this note');
   assert.equal(await inputs.nth(2).getAttribute('aria-describedby'),null);
-  await h.f.locator('.boards-tile').first().click();assert.deepEqual(await h.frame.evaluate(()=>WiserForm.readAnswers()[0].value),['board-1']);
-  await h.f.locator('.see-board').first().click();
+  await h.f.locator('.tile-input').first().click();assert.deepEqual(await h.frame.evaluate(()=>WiserForm.readAnswers()[0].value),['board-1']);
+  await h.f.locator('.board-thumbnail').first().click();
   assert.ok(await h.f.locator('.board-viewer').getByText('Shared drawing text',{exact:true}).count()>0);
   assert.equal(await h.f.locator('.board-viewer').getByText('Specific drawing text',{exact:true}).count(),0);
   await h.f.getByText('Close this board',{exact:true}).first().click();
-  await h.f.locator('.see-board').nth(1).click();
+  await h.f.locator('.board-thumbnail').nth(1).click();
   assert.ok(await h.f.locator('.board-viewer').getByText('Specific drawing text',{exact:true}).count()>0);
   assert.equal(await h.f.locator('.board-viewer').getByText('Shared drawing text',{exact:true}).count(),0);
   assert.ok(onlyFonts(h.requests));assert.deepEqual(h.errors,[]);

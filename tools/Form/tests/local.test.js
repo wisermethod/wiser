@@ -277,7 +277,7 @@ test('local window uses the same boards engine and accepts picks plus action; li
   const page=await context.newPage();await page.goto(s.url);await page.locator('#form').waitFor();
   const body={form:form.title,answers:{boards:[]},action:'lock',shown:[{id:'boards',question:form.questions[0].label,shown:'(none)'}]};
   for(const count of [0,2,3]){body.answers.boards=form.questions[0].options.slice(0,count).map(o=>o.value);assert.equal((await http(s,'answers',{method:'POST',body})).status,400);}
-  await page.locator('.boards-tile').first().click();await page.locator('button[data-action=lock]').click();await page.locator('#status.ok').waitFor();
+  await page.locator('.looks-tile, .boards-tile:not(.looks-tile) .tile-input').first().click();await page.locator('button[data-action=lock]').click();await page.locator('#status.ok').waitFor();
   const result=await wait(s);assert.deepEqual(result.answers,{boards:['board-1']});assert.equal(result.action,'lock');
   assert.ok(requests.every(url=>url.startsWith(s.url)||onlyFonts([url])));
  }finally{await context.close();await stop(s);}
@@ -317,12 +317,12 @@ for(const actions of [false,true])test(`local boards over pick: listener refuses
  const body={form:form.title,answers:{boards:form.questions[0].options.slice(0,4).map(o=>o.value)},...(actions?{action:'more'}:{}),shown:[{id:'boards',question:form.questions[0].label,shown:'Four boards'}]};
  try{
   assert.equal((await http(s,'answers',{method:'POST',body})).status,400,'a matching any action cannot bypass pick');
-  for(let i=0;i<4;i++)await h.page.locator('.boards-tile').nth(i).click();
+  for(let i=0;i<4;i++)await h.page.locator('.looks-tile, .boards-tile:not(.looks-tile) .tile-input').nth(i).click();
   const button=h.page.locator(actions?'[data-action=more]':'#submit');assert.equal(await button.isDisabled(),true);
   assert.equal(await h.page.locator(actions?'[data-action=more] small':'#send-limit').innerText(),'You picked 4 boards. Pick up to three to go on.');
   let posts=0;h.page.on('request',req=>{if(req.method()==='POST'&&req.url().endsWith('/answers'))posts++;});
   await button.evaluate(n=>{n.click();n.form.requestSubmit(n);});assert.equal(posts,0);
-  await h.page.locator('.boards-tile').nth(3).click();assert.equal(await button.isDisabled(),false);
+  await h.page.locator('.looks-tile, .boards-tile:not(.looks-tile) .tile-input').nth(3).click();assert.equal(await button.isDisabled(),false);
   await button.click();await h.page.locator('#status.ok').waitFor();
   assert.deepEqual((await wait(s)).answers.boards,form.questions[0].options.slice(0,3).map(o=>o.value));
   await locked(h.page);assert.deepEqual(h.errors,[]);

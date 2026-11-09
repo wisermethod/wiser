@@ -23,7 +23,7 @@ for(const id of [undefined,'business-blue-bold'])for(const view of ['look','boar
   assert.equal(await h.f.locator(`.boards-tiles ${art}`).first().isVisible(),true);
   assert.equal(await h.f.getByRole('button',{name:'More muted',exact:true}).count(),0);
   assert.equal(await h.f.getByRole('button',{name:'More bold',exact:true}).count(),0);
-  await h.f.locator('.boards-tile').first().click();
+  await h.f.locator('.looks-tile, .boards-tile:not(.looks-tile) .tile-input').first().click();
   const input=h.f.locator('.tile-input').first(),value=await input.inputValue();
   assert.equal(value,q.options[0].value);
   await h.frame.evaluate(view=>{

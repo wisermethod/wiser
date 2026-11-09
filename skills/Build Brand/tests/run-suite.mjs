@@ -34,7 +34,7 @@ try{
   if(process.argv.includes('--baseline')){
     const read=path=>readFileSync(join(skill,path),'utf8');
     const sections=comparePartsSplit(read('parts/zArchive/26-10-31 V1 - parts.md'),read('parts/parts.md'),read('parts/catalogue.md'));
-    process.stdout.write(`Parts split baseline: ${sections.length} archived sections match.\n`);
+    process.stdout.write(`Parts split baseline: ${sections.length} sections match their archive or dated contract pins.\n`);
   }
   const tmp=join(scratch,'tmp');mkdirSync(tmp);
   const journey=process.env.BUILD_BRAND_JOURNEY||resolve(plugin,'../journey.md');

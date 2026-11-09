@@ -90,12 +90,19 @@ button:disabled{opacity:.6;cursor:progress}
 .looks-tile .tile-label{padding:10px 8px}
 .board-option{min-width:0}
 .boards-tile{display:block;width:100%}
-.board-crop{height:280px;overflow:hidden;pointer-events:none}
+.boards-tiles>.board-option{display:flex}
+.boards-tile:not(.looks-tile){cursor:default;display:flex;flex-direction:column}
+.boards-tile:not(.looks-tile) .tile-label{position:relative;flex:1;align-content:start;grid-template-columns:minmax(0,1fr) 44px;column-gap:16px}
+.boards-tile:not(.looks-tile) .tile-label small{grid-column:1}
+.boards-tile:not(.looks-tile) .tile-input{top:2px;right:0;z-index:2;width:44px;height:44px;cursor:pointer}
+.boards-tile:not(.looks-tile) .mark{position:absolute;right:10px;top:12px;margin:0}
+.board-thumbnail{display:block;width:100%;max-width:none;min-height:44px;padding:0;border:0;border-radius:0;background:transparent;color:inherit;text-align:left;container-type:inline-size}
+.board-thumbnail>.board-art{pointer-events:none}
+.board-thumbnail:focus-visible{outline-offset:-4px}
 .boards-tile .tile-label{padding:12px}
 .board-recommendation{padding-top:6px}
 .board-recommendation b{display:inline-block;background:var(--fg);color:var(--card);border-radius:4px;padding:2px 6px}
-.see-board{display:block;min-height:44px;margin-top:0;padding:2px 4px 18px;line-height:24px;background:transparent;color:var(--accent);text-align:left;text-decoration:underline;text-underline-offset:3px}
-@media(hover:hover){.see-board:hover:not(:disabled):not(:active){background:transparent;color:var(--fg)}}
+.board-recommendation .thumbnail-badge+.recommendation-reason::before{content:' · '}
 .board-actions{display:flex;flex-wrap:wrap;gap:12px}
 .board-actions button{flex:1 1 0;min-width:0;min-height:80px;padding:16px 20px;text-align:left;font-size:18px}
 .board-actions small{display:block;font-weight:400;font-size:14px;margin-top:5px;line-height:1.4;color:var(--on-accent)}
@@ -118,8 +125,6 @@ button.over-limit:disabled{background:var(--card);color:var(--muted);box-shadow:
 .board-art .business-card.back{color:var(--cardBackText)}
 .board-art .board-button{pointer-events:none}
 
-.board-crop{container-type:inline-size}
-@container(max-width:400px){.board-crop .board-art .board-preview .brand-headline{font-size:calc(var(--display-size) * .36)!important}.board-crop .board-art .board-preview .tile-top{grid-template-columns:minmax(0,1fr) 105px;gap:12px}.board-crop .board-art .board-preview{padding:22px 18px 18px}}
 
 .board-controls{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin:0 0 16px}
 .board-strength{display:flex;gap:8px}

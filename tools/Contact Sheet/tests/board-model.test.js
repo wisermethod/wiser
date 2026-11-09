@@ -9,6 +9,7 @@ import { wcag, validateBrandBoards } from '../scripts/brand-boards.js';
 import { BRAND_BOARD_CSS } from '../scripts/brand-board-style.js';
 import { renderBrandBoards } from '../scripts/brand-board-view.js';
 import { BOARD_LAYOUT, createBoardModel, DEFAULT_MARK_CAPTION, PUBLIC_FONT_FILES } from '../scripts/board-model.js';
+import { fitBoardThumbnails } from '../scripts/board-thumbnail.js';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const fixture = () => JSON.parse(readFileSync(new URL('fixtures/brand-boards.json', import.meta.url)));
@@ -30,7 +31,8 @@ test('Model is detached, JSON data with every fixture block, face setting and re
       const m = b.modes[mode];
       assert.deepEqual(m.roles, b.palette[mode]);
       assert.deepEqual(m.blocks.map((v) => v.kind), ['hero', 'palette', 'type', 'graphicLanguage', 'cards', 'banner', 'otherMode', 'rules']);
-      assert.deepEqual(m.tile.map((v) => v.kind), ['tileTop', 'type', 'tileItems', 'open']);
+      assert.ok(m.tile.every(v=>v.kind==='row'));
+      assert.deepEqual(m.tile.flatMap(v=>v.blocks),m.blocks);
       assert.match(m.drawings.hero, /xmlns="http:\/\/www.w3.org\/2000\/svg"/);
       assert.doesNotMatch(JSON.stringify(m.drawings), /currentColor|\{\{/);
       for (const [role, face] of Object.entries(b.type)) for (const scale of ['display', 'middle', 'small']) {
@@ -151,7 +153,7 @@ test('Recommended line replaces an identical why in all three presentations', ()
   assert.equal(html.split(b.why).length - 1, 2); // tile and primary whole; alternate has no recommendation
 });
 
-test('Existing fixture page bytes survive model extraction, apart from approved words and responsive CSS', () => {
+test('Existing full-view bytes survive the thumbnail change', () => {
   const spec = fixture(); spec.showChecks = true;
   for (const b of spec.boards) {
     b.content.markCaption = 'The monogram is a placeholder, not a logo. The real mark is drawn after a board is locked.';
@@ -159,8 +161,103 @@ test('Existing fixture page bytes survive model extraction, apart from approved 
   }
   // Recorded from the pre-extraction page writer. Restore the old words above;
   // exclude only the stylesheet, whose card geometry is intentionally changing.
-  const html = renderBrandBoards(validate(spec)).replace(/<style>[\s\S]*?<\/style>/, '<style></style>');
-  assert.equal(createHash('sha256').update(html).digest('hex'), '28021cd00f21d4c903f46f490c3f7bbedb14f07885166d71bac4fa4c0130c356');
+  const html = renderBrandBoards(validate(spec));
+  const wholes = html.slice(html.indexOf('<section class="whole-view"'));
+  assert.equal(createHash('sha256').update(wholes).digest('hex'), '25031fb4fff5586db080fa0917caa740ca70fe3ac6b8a4a139212f3b7c22ce35');
+});
+
+test('Own-page thumbnails contain every full section once in two balanced columns without clipping, in either mode and width',async t=>{
+  const {launch}=await import('../../lib/browser-runtime/browser-runtime.js');
+  const browser=await launch({headless:true});t.after(()=>browser.close());
+  const page=await browser.newPage();await page.route('**/*',route=>route.abort());
+  for(const width of [734,390])for(const mode of ['light','dark']){
+    const spec=fixture();for(const b of spec.boards)b.primaryMode=mode;
+    await page.evaluate(()=>{location.hash='';});
+    await page.setViewportSize({width,height:900});await page.setContent(renderBrandBoards(validate(spec)));
+    await page.evaluate(()=>document.fonts.ready);
+    const thumbs=await page.locator('.board-thumbnail').evaluateAll(nodes=>nodes.map(n=>{
+      const b=n.querySelector('.brand-board'),r=n.getBoundingClientRect();
+      const rows=[...b.querySelectorAll('.board-row')].map(s=>{const box=s.getBoundingClientRect();return {x:box.x-r.x,y:box.y-r.y,right:box.right-r.x,bottom:box.bottom-r.y};});
+      const walker=document.createTreeWalker(b,NodeFilter.SHOW_TEXT),clipped=[];
+      while(walker.nextNode()){
+        const text=walker.currentNode;if(!text.textContent.trim())continue;
+        const range=document.createRange();range.selectNode(text);
+        if([...range.getClientRects()].some(box=>box.left<r.left-.5||box.right>r.right+.5||box.top<r.top-.5||box.bottom>r.bottom+.5))clipped.push(text.textContent.slice(0,60));
+      }
+      return {columns:b.querySelectorAll('.thumbnail-column').length,mode:b.dataset.mode,boards:n.querySelectorAll('.brand-board').length,
+        sections:[...b.querySelectorAll('section')].map(n=>n.className),rows,clipped,width:r.width,height:r.height,href:n.getAttribute('href'),name:n.getAttribute('aria-label')};
+    }));
+    assert.equal(thumbs.length,spec.boards.length);
+    for(const b of thumbs){
+      assert.equal(b.columns,2);assert.equal(b.mode,mode);assert.equal(b.boards,1);
+      for(const name of ['brand-hero','palette','face-sample heading-face','face-sample body-face','graphic-language','items','banner-section','other-mode','rules'])assert.equal(b.sections.filter(s=>s===name).length,1,name);
+      assert.ok(b.rows.some(r=>r.x>b.width/2),JSON.stringify(b));
+      assert.ok(b.rows.every(r=>r.x>=0&&r.y>=0&&r.right<=b.width+1&&r.bottom<=b.height+1),JSON.stringify(b));
+      assert.deepEqual(b.clipped,[]);
+      assert.match(b.name,/Open the whole board:/);assert.match(b.href,/^#whole-/);
+    }
+    await page.locator('.board-thumbnail').first().click();
+    assert.equal(await page.locator('.whole-view:visible').count(),1);
+  }
+});
+
+test('Own-page patches share the fixed row split, top-right badge and ordered real-size colours in both modes',async t=>{
+  const {launch}=await import('../../lib/browser-runtime/browser-runtime.js');
+  const browser=await launch({headless:true});t.after(()=>browser.close());
+  const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.route('**/*',route=>route.abort());
+  for(const width of [734,390])for(const mode of ['light','dark']){
+    const spec=fixture();for(const b of spec.boards)b.primaryMode=mode;
+    await page.setViewportSize({width,height:900});await page.setContent(renderBrandBoards(validate(spec)));
+    await page.evaluate(()=>document.fonts.ready);
+    const boards=await page.locator('.board-option').evaluateAll(nodes=>nodes.map(n=>{
+      const surface=n.querySelector('.thumbnail-surface');if(!surface)return null;
+      const board=surface.querySelector('.brand-board'),columns=[...board.querySelectorAll('.thumbnail-column')],rows=columns.flatMap(c=>[...c.children]);
+      const scale=board.getBoundingClientRect().width/board.offsetWidth,gap=parseFloat(getComputedStyle(columns[0]).gap)*scale;
+      const patch=surface.querySelector('.thumbnail-patch'),badge=n.querySelector('.thumbnail-badge'),box=patch.getBoundingClientRect();
+      return {heights:rows.map(n=>n.getBoundingClientRect().height),gap,split:columns[0].children.length,
+        height:surface.getBoundingClientRect().height,boardHeight:board.getBoundingClientRect().height,overlayOnly:getComputedStyle(patch).position==='absolute',
+        swatches:[...patch.querySelectorAll('.thumbnail-swatch')].map(s=>({key:s.dataset.swatch,value:s.dataset.colour,shown:!s.hidden,width:s.getBoundingClientRect().width,height:s.getBoundingClientRect().height})),
+        badge:badge?{top:badge.getBoundingClientRect().top-surface.getBoundingClientRect().top,right:surface.getBoundingClientRect().right-badge.getBoundingClientRect().right,inSurface:badge.parentElement===surface,inPatch:patch.contains(badge),inCaption:!!n.querySelector('.board-meta .recommendation b'),width:badge.getBoundingClientRect().width,height:badge.getBoundingClientRect().height}:null,
+        sentence:board.querySelector('.banner-copy>p').getClientRects().length,accessible:n.querySelector('.board-meta .visually-hidden')?.textContent,hidden:n.querySelector('.board-meta .visually-hidden')?.closest('[aria-hidden="true"],[inert]')!==null,
+        patch:{width:box.width,height:box.height},reason:n.querySelector('.recommendation-reason')?.textContent};
+    }));
+    assert.equal(await page.getByRole('link',{name:/Recommended/}).count(),spec.boards.filter(b=>b.recommendation).length);
+    for(const [i,b]of boards.entries()){
+      assert.ok(b,'own-page has the same patch');assert.ok(b.boardHeight<=b.height+.5);assert.ok(b.overlayOnly);
+      assert.equal(b.split,2);assert.ok(b.sentence>0);
+      assert.deepEqual(b.swatches.map(s=>s.key),['panel','pop','deep']);
+      assert.deepEqual(b.swatches.map(s=>s.value),['panel','pop','deep'].map(k=>spec.boards[i].palette[mode][k]));
+      const shown=b.swatches.filter(s=>s.shown);assert.deepEqual(shown,b.swatches.slice(0,shown.length));
+      assert.ok(shown.every(s=>s.width===24&&s.height===20));
+      if(b.badge){assert.equal(b.reason,spec.boards[i].recommendation);assert.ok(b.badge.inSurface&&!b.badge.inPatch&&!b.badge.inCaption);
+        assert.ok(Math.abs(b.badge.top-8)<.5&&Math.abs(b.badge.right-8)<.5);assert.equal(b.accessible,'Recommended');assert.equal(b.hidden,false);
+      }
+    }
+  }
+  assert.deepEqual(errors,[]);
+});
+
+test('Own-page small patches retain the swatch prefix without moving the top-right badge',async t=>{
+  const {launch}=await import('../../lib/browser-runtime/browser-runtime.js');
+  const browser=await launch({headless:true});t.after(()=>browser.close());
+  const page=await browser.newPage();await page.route('**/*',route=>route.abort());
+  const spec=fixture();spec.boards[0].recommendation='Existing recommendation reason.';
+  await page.setContent(renderBrandBoards(validate(spec)));await page.evaluate(()=>document.fonts.ready);
+  for(const [pixels,width,badge,swatches]of [[100,350,true,3],[40,350,true,3],[10,350,true,0],[100,120,true,1],[100,180,true,2],[100,350,true,3]]){
+    await page.locator('.board-option').first().evaluate((n,{pixels,width})=>{
+      const surface=n.querySelector('.thumbnail-surface'),board=surface.querySelector('.brand-board'),cols=[...board.querySelectorAll('.thumbnail-column')],rows=cols.flatMap(c=>[...c.children]);
+      rows.slice(3).forEach(n=>n.remove());rows.slice(0,3).forEach(n=>{n.replaceChildren();n.style.height='100px';});
+      surface.style.width=width+'px';const scale=width/parseFloat(getComputedStyle(board).width);
+      rows[2].style.height=(224+pixels/scale)+'px';
+    },{pixels,width});
+    await page.evaluate(fitBoardThumbnails);
+    const tile=page.locator('.board-option').first();
+    assert.equal(await tile.locator('.thumbnail-surface>.thumbnail-badge').count(),Number(badge));
+    assert.equal(await tile.locator('.board-meta .recommendation b').count(),0);
+    assert.equal(await tile.locator('.recommendation-reason').textContent(),spec.boards[0].recommendation);
+    assert.deepEqual(await tile.locator('.thumbnail-swatch:not([hidden])').evaluateAll(ns=>ns.map(n=>n.dataset.swatch)),['panel','pop','deep'].slice(0,swatches));
+  }
 });
 
 test('Rendered fixtures agree with the model, without overflow at card and phone widths in both modes', async (t) => {

@@ -55,8 +55,44 @@ Serves a provider's own tools behind our action ids. Exporting `createCatalogPro
 |--------|---------|
 | `search({ service, module, query })` | our action ids the provider can serve, from the adapter's mapping |
 | `execute({ actionId, userId, providerAccountId, arguments })` | the tool's result, or `{ status, error }` with no body |
+| `curated()` (optional, synchronous) | a frozen array of reviewed plain-data tool rows; absence means no curated actions |
 
-The mapping between our ids and the provider's slugs is a table inside the adapter, `mapping.js`, in both directions. A slug appears there and in a manifest's `auth.toolkit`, and nowhere else.
+A curated row needs no connector function. The gateway snapshots and validates the rows once, skips invalid entries at runtime and reports every invalid row in `--check`; `gateway/AGENTS.md` owns their safety table. Provider wrappers must pass this optional method through bound and synchronously. No id appearing more than once may enter the provider's curated slug map; every copy is invalid in the gateway. The gateway also requires `toSlug(row.id) === row.tool`, so rejected metadata cannot select a different tool to run.
+
+The mapping between our ids and the provider's slugs is a table inside the adapter, `mapping.js`, in both directions. Curated rows live in that adapter's `curated.js`; `toSlug` and `execute` also serve their ids. The provider's `search` remains mapping-only; the gateway adds validated curated rows to `search_actions` locally. Slugs stay inside the adapter, apart from a manifest's `auth.toolkit`.
+
+### Adding a curated row
+
+Keep `curated.js` data only, in reviewed order. Each row carries:
+
+| Field | Source and meaning |
+|-------|--------------------|
+| `id` | A unique `service.module.action` under an existing catalog-authenticated module, with no manifest action collision |
+| `toolkit`, `tool` | The provider listing's toolkit and exact tool slug; toolkit must match the module's auth declaration |
+| `kind` | `read`, `change`, `send` or `delete`, selected from the tool's description and hints and confirmed by a person |
+| `summary` | One plain sentence describing what the call does |
+| `key_fields` | Names in the retained input properties that a person needs to see first |
+| `input_schema` | The listing's `input_parameters`, preserving constraints and annotations apart from the explicit narrowing below |
+| `narrowed` | An array of optional top-level property names removed from the provider schema, empty when none |
+| `hint` | The listing's recorded hint tags (`tags`), including the read and write hints |
+
+For Composio, read every page of `GET https://backend.composio.dev/api/v3.1/tools?toolkit_slug=<TOOLKIT>&limit=1000`, passing `next_cursor` as the next request's `cursor`. Copy the definition rather than inferring a schema from a successful call. Remove user/mailbox selectors and properties the gateway cannot constrain, recording their names in `narrowed`. At load, `src/catalog.js` rejects any input property in its exported `CURATED_FORBIDDEN_INPUT_FIELDS` set: `user_id`, `userId`, `user_principal_name`, `access_token`, `oauth_token`, `key`, `callback`, `quotaUser`, `alt`, `xgafv`, `$.xgafv`, `uploadType`, `upload_protocol`, `prettyPrint`, `useDomainAdminAccess`, `supportsAllDrives`, `includeItemsFromAllDrives` and `corpora`. These account, credential, transport and admin fields cannot be caller input. A row may narrow the provider schema by removing optional properties; it never adds properties, relaxes constraints or removes a required property. A required field that cannot be safely exposed excludes that tool. Widening would let gateway validation approve inputs the reviewed provider contract never allowed.
+
+The module must grant the minimum privilege in the gateway's kind table. A tool that trashes, deletes, permanently removes or purges, or carries `destructiveHint`, is `delete` regardless of other hints; it always stops and can never be covered by a standing approval. A person checks and confirms the kind before shipping. Run the gateway tests and `node gateway/server.js --check`; invalid rows are findings to fix, never rows to silently remove.
+
+### Checking drift
+
+Run from the plugin root:
+
+```sh
+node gateway/providers/composio/curated-drift.mjs --env <absolute provider-key file>
+node gateway/providers/composio/curated-drift.mjs --fixture <listing.json>
+node gateway/providers/composio/curated-drift.mjs --help
+```
+
+The explicit `--env` file is parsed like `catalog-provider.js` (`WISER_AUTH_PROVIDER_KEY`, then `COMPOSIO_API_KEY`); nothing is read from a default key path or printed. The checker lists tools, never executes them, follows every page, and compares canonical JSON including annotations after removing each row's `narrowed` properties and required entries. A narrowed field becoming required is drift even if that comparison otherwise matches. Missing or duplicate slugs, changed input schemas and changed read/write hint sets are reported by row id. Listing tags also receive the load-time kind check: a read with a create, update or destructive hint, or any non-delete with a destructive hint, reports `kind`, even when the recorded hints match. Other hint tags do not change the read/write comparison.
+
+`--fixture` takes a complete JSON array of tool definitions, or `{ "items": [...] }` with no outstanding `next_cursor`; each definition has `slug`, `input_parameters` and `tags`. It needs no key and makes no network request. Help works without configuration; unknown flags are refused before any work. Success writes one JSON object to stdout, failures only to stderr. Exit codes: 0 all match; 1 drift or listing failure; 2 usage, fixture or key error. This script has no dependencies to install and writes no files.
 
 ## The adapters here
 

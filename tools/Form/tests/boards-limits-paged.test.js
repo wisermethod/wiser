@@ -14,7 +14,7 @@ const placement=h=>h.f.locator('#send-limit').evaluate(n=>({hidden:n.classList.c
 test('paged boards form with the shipped actions: the warning never takes the paging row',async()=>{
  const h=await kit.open(paged(),734,'light',{name:'Claude',autoSize:true});
  try{
-  for(let i=0;i<4;i++)await h.f.locator('.boards-tile').nth(i).click();
+  for(let i=0;i<4;i++)await h.f.locator('.tile-input').nth(i).click();
   let p=await placement(h);
   assert.equal(p.inPaging,false);assert.equal(p.hidden,true);assert.equal(p.text,line);
   await h.f.getByRole('button',{name:'Next'}).click();
@@ -31,7 +31,7 @@ test('paged boards form with the shipped actions: the warning never takes the pa
 test('paged boards form with only none and one: the visible line follows the action row on the last page alone',async()=>{
  const h=await kit.open(paged([{value:'none',label:'None of these work',needs:'none'},{value:'one',label:'Only this one',needs:'one'}]),734,'light',{name:'Claude',autoSize:true});
  try{
-  for(let i=0;i<4;i++)await h.f.locator('.boards-tile').nth(i).click();
+  for(let i=0;i<4;i++)await h.f.locator('.tile-input').nth(i).click();
   let p=await placement(h);
   assert.equal(p.hidden,true,'off the action page the line stays out of view');assert.equal(p.inPaging,false);
   await h.f.getByRole('button',{name:'Next'}).click();

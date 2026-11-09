@@ -6,7 +6,7 @@ const read = path => readFileSync(new URL(`../parts/${path}`, import.meta.url), 
 const archive = read('zArchive/26-10-31 V1 - parts.md'), contract = read('parts.md'), catalogue = read('catalogue.md');
 
 test('catalogue matches the replaced library and retained contracts match their explicit pins', () => {
-  assert.equal(comparePartsSplit(archive, contract, catalogue).length, 12);
+  assert.equal(comparePartsSplit(archive, contract, catalogue).length, 13);
 });
 test('parts comparison rejects a gutted catalogue even when the archive still has all ids', () => {
   assert.throws(() => comparePartsSplit(archive, archive, catalogue.replace(/^\|.*\n/gm, '')), /catalogue: Pairings/);
@@ -26,4 +26,9 @@ test('parts comparison pins catalogue settings and extension text even when leng
     assert.throws(()=>comparePartsSplit(archive,contract,catalogue.slice(0,start)+changed+catalogue.slice(start+section.length)),
       new RegExp('catalogue: '+heading));
   }
+});
+
+test('dated own-colour contract pins reject a changed derivation or controls promise', () => {
+  assert.throws(()=>comparePartsSplit(archive,contract.replace('0.0001 L','0.001 L'),catalogue), /script contract: Own colours/);
+  assert.throws(()=>comparePartsSplit(archive,contract.replace('at one strength; see Own colours','at three strengths; see Own colours'),catalogue), /script contract: Selection from answers/);
 });

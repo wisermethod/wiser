@@ -256,7 +256,7 @@ function validate(value, template = false) {
             if(step.value===o.value&&palette?.id===o.board?.palette?.id)matching++;
             if(step.value!==o.value&&!values.has(step.value))values.set(step.value,j);
             if(o.steps.slice(0,k).some(s=>s?.value===step.value))add(`${at}.value`,"Step value must be unique.");
-            if(own(step,"palette")&&object(step.palette,`${at}.palette`,["id","overrides"],["id"]))strings(step.palette,`${at}.palette`,[["id",1,60]]);
+            if(own(step,"palette")&&object(step.palette,`${at}.palette`,["id","overrides","names","energy"],["id"]))strings(step.palette,`${at}.palette`,[["id",1,60]]);
             const position=palettePosition(palette?.id);
             if(!position||position.family!==family||position.index<=previous)add(`${at}.palette`,"Expected this colour family's steps in muted, balanced, bold order.");
             if(position)previous=position.index;
@@ -366,7 +366,7 @@ export function formJsonSchema() {
   const content=obj({smallPrint:line(),photoRules:line(),never:arr(line(),0,L.formBytesMax),markCaption:line(),closing:{type:["string","null"],description:"Optional closing text; null hides it."}},[],"Only board-specific text; shared member words are in brand.");
   const board=obj({
     pairing:obj({id:line(60),headingFrom:line(60),bodyFrom:line(60)},["id"],"Bundled pairing ids only, including donors; no font files."),
-    palette:obj({id:line(60),overrides:obj({light:colours,dark:colours},[],"Mode overrides.")},["id"],"Bundled palette id."),
+    palette:obj({id:line(60),overrides:obj({light:colours,dark:colours},[],"Mode overrides."),names:arr(line(2008),1,1000,"Each entry is an opaque hex, one space and member colour words, for example #B22234 red. Requires overrides and energy wording. Matching hex uses their words, otherwise the hex is shown."),energy:line(2025)},["id"],"Bundled palette id."),
     graphicSet:obj({id:line(60),pattern:obj({angle:{type:"number",minimum:-180,maximum:180},strength},[],"Pattern settings."),texture:obj({strength},[],"Texture settings.")},["id"],"Bundled graphic-set id."),
     container:line(60),primaryMode:{type:"string",enum:["light","dark"]},handwriting:{type:["string","null"],description:"An offered public note family or null."},buttonRadius:{type:"number",minimum:0,maximum:100},heroPhrase:line(300),content,
     note:obj({text:line(),direction:{type:"string",enum:["left","right","up","down"]}},["text","direction"],"Margin note."),

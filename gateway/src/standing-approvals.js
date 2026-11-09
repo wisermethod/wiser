@@ -27,6 +27,28 @@ export function maxStandingApprovalDays(kinds, playbook) {
   return 7;
 }
 
+/** Only Playbook-scoped sending and changing may have an explicit null end. */
+export function canHaveNoEnd(kinds, playbook) {
+  return typeof playbook === 'string' && playbook.length > 0
+    && Array.isArray(kinds) && kinds.length > 0
+    && kinds.every((kind) => kind === 'send' || kind === 'change');
+}
+
+/** A destructive risk is a delete even when its declaration says otherwise. */
+export function isDeleteAction(action) {
+  return action?.standing_approval?.kind === 'delete' || action?.risk === 'destructive';
+}
+
+function hasNoEnd(grant) {
+  return grant.expires_at === null && canHaveNoEnd(grant.kinds, grant.playbook);
+}
+
+function validHeightenedLifetime(grant) {
+  if (hasNoEnd(grant)) return Number.isFinite(Date.parse(grant.created_at));
+  const lifetime = Date.parse(grant.expires_at) - Date.parse(grant.created_at);
+  return lifetime > 0 && lifetime <= maxStandingApprovalDays(grant.kinds, grant.playbook) * STANDING_APPROVAL_DAY_MS;
+}
+
 /** @param {string[]} parts */
 function joinWords(parts) {
   if (parts.length < 2) return parts.join('');
@@ -35,7 +57,7 @@ function joinWords(parts) {
 
 /** @param {object} grant @param {number} now */
 export function isActiveStandingApproval(grant, now) {
-  return Boolean(grant && !grant.revoked_at && Date.parse(grant.expires_at) > now);
+  return Boolean(grant && !grant.revoked_at && (hasNoEnd(grant) || Date.parse(grant.expires_at) > now));
 }
 
 /**
@@ -74,7 +96,7 @@ export function createStandingApprovals(home, now = Date.now) {
 
   function grantsFrom(entries, at) {
     const revokes = new Map(entries.filter((entry) => entry.revoke).map(({ revoke }) => [revoke.id, revoke.at]));
-    return entries.filter((entry) => entry.grant && Date.parse(entry.grant.expires_at) > at)
+    return entries.filter((entry) => entry.grant && (hasNoEnd(entry.grant) || Date.parse(entry.grant.expires_at) > at))
       .map(({ grant }) => revokes.has(grant.id) ? { ...grant, revoked_at: revokes.get(grant.id) } : grant);
   }
 
@@ -154,10 +176,12 @@ export function createStandingApprovals(home, now = Date.now) {
 
   function compact(entries, at) {
     const { file } = paths();
-    const expired = new Set(entries.filter(({ grant }) => grant && Date.parse(grant.expires_at) <= at)
+    const revoked = new Set(entries.filter(({ revoke }) => revoke).map(({ revoke }) => revoke.id));
+    const removable = new Set(entries.filter(({ grant }) => grant && (Date.parse(grant.expires_at) <= at
+      || (grant.expires_at === null && revoked.has(grant.id))))
       .map(({ grant }) => grant.id));
-    if (!expired.size) return;
-    const kept = entries.filter(({ grant, revoke }) => !expired.has(grant?.id ?? revoke?.id));
+    if (!removable.size) return;
+    const kept = entries.filter(({ grant, revoke }) => !removable.has(grant?.id ?? revoke?.id));
     const payload = kept.map(encode).join('');
     const tmp = `${file}.${randomUUID()}.tmp`;
     try {
@@ -206,18 +230,16 @@ export function createStandingApprovals(home, now = Date.now) {
 export function matchStandingApproval(grants, { action, manifestAction, label, providerAccountId, root, playbook, input, now }) {
   if (manifestAction?.input_files && input !== null && typeof input === 'object' &&
       !Array.isArray(input) && Object.hasOwn(input, manifestAction.input_files.field)) return null;
-  if (!manifestAction?.standing_approval || !root) return null;
+  if (!manifestAction?.standing_approval || isDeleteAction(manifestAction) || !root) return null;
   const kind = manifestAction.standing_approval.kind;
   const matches = grants.filter((grant) => isActiveStandingApproval(grant, now)
     && Array.isArray(grant.actions) && grant.actions.includes(action)
     && Array.isArray(grant.kinds) && grant.kinds.includes(kind)
+    && !grant.kinds.includes('delete')
     && Array.isArray(grant.summaries) && grant.summaries.includes(manifestAction.standing_approval.summary)
     && (manifestAction.standing_approval.caution === undefined
       || (Array.isArray(grant.cautions) && grant.cautions.includes(manifestAction.standing_approval.caution)))
-    && (!isHeightened(grant.kinds) || (grant.heightened === true
-      && Date.parse(grant.expires_at) - Date.parse(grant.created_at) > 0
-      && Date.parse(grant.expires_at) - Date.parse(grant.created_at)
-        <= maxStandingApprovalDays(grant.kinds, grant.playbook) * STANDING_APPROVAL_DAY_MS))
+    && (!isHeightened(grant.kinds) || (grant.heightened === true && validHeightenedLifetime(grant)))
     && grant.label === (label ?? null)
     && grant.provider_account_id === providerAccountId
     && grant.root === root
@@ -241,18 +263,46 @@ function scopeWords(scope) {
   return `on your connection ${connectionWords(scope.label)} without asking you first, for work done from the root ${JSON.stringify(scope.root)}${playbook}${where}`;
 }
 
+/** Scope wording for the warning only; list and account summaries keep scopeWords. */
+function warningScopeWords(scope) {
+  const label = scope.label === null ? '' : `, on your connection labelled ${JSON.stringify(scope.label)}`;
+  const work = scope.playbook
+    ? `, for the ${JSON.stringify(scope.playbook)} Playbook in ${JSON.stringify(scope.root)}`
+    : `, for work in ${JSON.stringify(scope.root)}`;
+  const fields = Object.keys(scope.where ?? {}).sort();
+  const where = fields.length
+    ? `, only where ${fields.map((field) =>
+      `${field} is ${scope.where[field].map((value) => JSON.stringify(value)).join(' or ')}`).join(' and ')}`
+    : '';
+  return `${label}${work}${where}`;
+}
+
 /**
  * Fixed warning shown word for word before a grant can exist.
- * @param {{ scope: object, summaries: string[], cautions?: string[], kinds: string[], heightened: boolean, expiresOn: string }} proposal
+ * @param {{ scope: object, summaries: string[], cautions?: string[], listFields?: string[], kinds: string[], heightened: boolean, expiresOn: string | null }} proposal
  */
-export function buildStandingApprovalWarning({ scope, summaries, cautions = [], kinds, heightened, expiresOn }) {
-  const cautionText = [...new Set(cautions)].map((caution) => `${caution} `).join('');
-  const heightenedText = heightened
-    ? maxStandingApprovalDays(kinds, scope.playbook) === 90
-      ? `This approval sends messages to other people, ${Object.keys(scope.where ?? {}).length ? 'to any recipient the limits above allow' : 'to any recipient'}, and nobody looks at each one before it is sent; once sent, a message cannot be called back. Because it covers only sending, and only in one Playbook, it lasts at most 90 days. `
-      : `Some of these actions ${joinWords(Object.entries(HEIGHTENED_PHRASES).filter(([kind]) => kinds.includes(kind)).map(([, phrase]) => phrase))}. Under this approval nobody looks at each one before it happens, and once done it cannot be called back. It lasts at most 7 days. `
-    : '';
-  return `This standing approval lets your assistant ${joinWords(summaries)} ${scopeWords(scope)}. For ${scope.days} ${scope.days === 1 ? 'day' : 'days'}, until ${expiresOn}, every call that matches runs straight away, with no approval step for you to see or refuse. Anything outside it still asks you, as today. ${cautionText}${heightenedText}You can end it at any time: ask your assistant to revoke it, or remove it on your Wiser account page. Answer yes to grant it, or no to leave things as they are.`;
+export function buildStandingApprovalWarning({ scope, summaries, cautions = [], listFields = [], kinds, heightened, expiresOn }) {
+  const summary = joinWords(summaries);
+  const sentences = [
+    `${summary.charAt(0).toUpperCase()}${summary.slice(1)} without asking you each time${warningScopeWords(scope)}.`,
+    scope.days === null
+      ? 'No end date: it lasts until you revoke it.'
+      : `It lasts ${scope.days} ${scope.days === 1 ? 'day' : 'days'}, until ${expiresOn}, or until you revoke it.`,
+  ];
+  if (kinds.includes('send')) {
+    const lists = listFields.length
+      ? `, and its ${joinWords(listFields)} ${listFields.length === 1 ? 'list' : 'lists'} cannot be limited`
+      : '';
+    sentences.push(`Each send goes out without you seeing it first and cannot be called back${lists}.`);
+  }
+  const heightenedPhrases = Object.entries(HEIGHTENED_PHRASES)
+    .filter(([kind]) => ['pay', 'publish', 'grant_access'].includes(kind) && kinds.includes(kind))
+    .map(([, phrase]) => phrase);
+  if (heightenedPhrases.length) {
+    sentences.push(`It can ${joinWords(heightenedPhrases)} with nobody looking first, and once done it cannot be called back.`);
+  }
+  sentences.push(...new Set(cautions), 'Yes or no?');
+  return sentences.join(' ');
 }
 
 /**
@@ -263,7 +313,8 @@ export function buildStandingApprovalWarning({ scope, summaries, cautions = [], 
  */
 export function standingApprovalSummary(grant) {
   const named = Array.isArray(grant.summaries) && grant.summaries.length ? grant.summaries : grant.actions;
-  return `Lets your assistant ${joinWords(named)} ${scopeWords(grant)}, until ${grant.expires_at.slice(0, 10)}.`;
+  const end = hasNoEnd(grant) ? 'with no end date, until you revoke it' : `until ${grant.expires_at.slice(0, 10)}`;
+  return `Lets your assistant ${joinWords(named)} ${scopeWords(grant)}, ${end}.`;
 }
 
 /**

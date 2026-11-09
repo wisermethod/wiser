@@ -13,7 +13,7 @@ const ACTION = 'elevenlabs.speech.synthesize';
 const SCOPE = { module: 'elevenlabs.speech', root: 'narration-project' };
 const SUMMARY = 'synthesize ElevenLabs narration charged to your own ElevenLabs plan';
 const CAUTION = "Each call under this approval spends credits from your ElevenLabs plan, or money if pay-as-you-go or overage is on, without asking each time. The gateway does not know your account's maximum charge.";
-const WARNING = `This standing approval lets your assistant ${SUMMARY} on your connection with no label without asking you first, for work done from the root "narration-project". For 7 days, until 2026-11-03, every call that matches runs straight away, with no approval step for you to see or refuse. Anything outside it still asks you, as today. ${CAUTION} Some of these actions spend money. Under this approval nobody looks at each one before it happens, and once done it cannot be called back. It lasts at most 7 days. You can end it at any time: ask your assistant to revoke it, or remove it on your Wiser account page. Answer yes to grant it, or no to leave things as they are.`;
+const WARNING = `${SUMMARY.charAt(0).toUpperCase()}${SUMMARY.slice(1)} without asking you each time, for work in "narration-project". It lasts 7 days, until 2026-11-03, or until you revoke it. It can spend money with nobody looking first, and once done it cannot be called back. ${CAUTION} Yes or no?`;
 const MP3 = Buffer.from([0x49, 0x44, 0x33, 1, 2, 3]);
 
 async function fixture(t) {
@@ -51,7 +51,7 @@ test('ElevenLabs speech proposal renders the exact heightened pay warning and se
   const proposal = await tool(f, { ...SCOPE, mode: 'propose' });
   assert.equal(proposal.status, 'standing_approval_proposed');
   assert.equal(proposal.warning, WARNING);
-  assert.equal(proposal.warning.includes(SUMMARY), true);
+  assert.equal(proposal.warning.includes(SUMMARY.charAt(0).toUpperCase() + SUMMARY.slice(1)), true);
   assert.equal(proposal.warning.split(CAUTION).length - 1, 1);
   assert.equal(proposal.heightened, true);
   assert.deepEqual(proposal.kinds, ['pay']);

@@ -592,6 +592,254 @@ test('calendar leaves end-after-start to Google and sends the span as given', as
   assert.deepEqual(requests[0].body.end, { date: '2026-09-20' });
 });
 
+const MEET_CREATE = {
+  calendar_id: 'primary', summary: 'Research call', description: 'A note', location: 'Room',
+  start: '2026-11-10T12:00:00', end: '2026-11-10T13:00:00', time_zone: 'America/Denver',
+  attendees: ['person@example.com'], notify_guests: true,
+};
+const MEET_UPDATE = { calendar_id: 'primary', event_id: 'event-example', summary: 'Research call' };
+const MEET_INPUTS = [
+  ['google.calendar.create_event', MEET_CREATE],
+  ['google.calendar.update_event', MEET_UPDATE],
+];
+// Pinned to the request before add_google_meet existed, including field order.
+const PRE_MEET_BODY = '{"summary":"Research call","description":"A note","location":"Room","start":{"dateTime":"2026-11-10T12:00:00","timeZone":"America/Denver"},"end":{"dateTime":"2026-11-10T13:00:00","timeZone":"America/Denver"},"attendees":[{"email":"person@example.com"}]}';
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+test('calendar.create_event adds a Meet request with a fresh UUID and keeps all other fields', async () => {
+  const { gw, requests } = await harness('calendar');
+  for (const notify_guests of [true, false]) {
+    await confirmed(gw, requests, 'google.calendar.create_event', {
+      ...MEET_CREATE, notify_guests, add_google_meet: true,
+    });
+    const request = requests.at(-1);
+    assert.equal(request.method, 'POST');
+    assert.equal(request.endpoint, notify_guests
+      ? 'https://www.googleapis.com/calendar/v3/calendars/primary/events?sendUpdates=all&conferenceDataVersion=1'
+      : 'https://www.googleapis.com/calendar/v3/calendars/primary/events?sendUpdates=none&conferenceDataVersion=1');
+    const { conferenceData, ...otherFields } = request.body;
+    assert.equal(JSON.stringify(otherFields), PRE_MEET_BODY);
+    assert.match(conferenceData.createRequest.requestId, UUID_V4);
+    assert.deepEqual(conferenceData, {
+      createRequest: {
+        requestId: conferenceData.createRequest.requestId,
+        conferenceSolutionKey: { type: 'hangoutsMeet' },
+      },
+    });
+  }
+  assert.equal(requests.length, 2);
+  assert.notEqual(requests[0].body.conferenceData.createRequest.requestId, requests[1].body.conferenceData.createRequest.requestId);
+});
+
+test('calendar.create_event without Meet sends byte-identical pre-Meet endpoints and bodies', async () => {
+  const { gw, requests } = await harness('calendar');
+  for (const meet of [{}, { add_google_meet: false }]) {
+    await confirmed(gw, requests, 'google.calendar.create_event', { ...MEET_CREATE, ...meet });
+    const request = requests.at(-1);
+    assert.equal(request.method, 'POST');
+    assert.equal(request.endpoint, 'https://www.googleapis.com/calendar/v3/calendars/primary/events?sendUpdates=all');
+    assert.equal(JSON.stringify(request.body), PRE_MEET_BODY);
+    assert.equal(Object.hasOwn(request.body, 'conferenceData'), false);
+  }
+  assert.equal(requests.length, 2);
+});
+
+test('calendar.update_event accepts Meet as its only change and patches only conferenceData', async () => {
+  const { gw, requests } = await harness('calendar');
+  await confirmed(gw, requests, 'google.calendar.update_event', {
+    calendar_id: 'person@example.com', event_id: 'event-example', add_google_meet: true,
+  });
+  assert.equal(requests.length, 1);
+  const request = requests[0];
+  assert.equal(request.method, 'PATCH');
+  assert.equal(request.endpoint, 'https://www.googleapis.com/calendar/v3/calendars/person%40example.com/events/event-example?sendUpdates=none&conferenceDataVersion=1');
+  assert.match(request.body.conferenceData.createRequest.requestId, UUID_V4);
+  assert.deepEqual(request.body, {
+    conferenceData: {
+      createRequest: {
+        requestId: request.body.conferenceData.createRequest.requestId,
+        conferenceSolutionKey: { type: 'hangoutsMeet' },
+      },
+    },
+  });
+});
+
+test('calendar.update_event without Meet leaves conference data out of the request', async () => {
+  const { gw, requests } = await harness('calendar');
+  for (const meet of [{}, { add_google_meet: false }]) {
+    await confirmed(gw, requests, 'google.calendar.update_event', { ...MEET_UPDATE, ...meet });
+    const request = requests.at(-1);
+    assert.equal(request.method, 'PATCH');
+    assert.equal(request.endpoint, 'https://www.googleapis.com/calendar/v3/calendars/primary/events/event-example?sendUpdates=none');
+    assert.equal(JSON.stringify(request.body), '{"summary":"Research call"}');
+    assert.equal(Object.hasOwn(request.body, 'conferenceData'), false);
+  }
+});
+
+test('calendar.update_event refuses add_google_meet false as its only change without transport', async () => {
+  const { gw, requests } = await harness('calendar');
+  await refused(gw, requests, 'google.calendar.update_event', {
+    calendar_id: 'primary', event_id: 'event-example', add_google_meet: false,
+  }, 'summary');
+  assert.equal(requests.length, 0);
+});
+
+test('both calendar writes refuse a non-boolean add_google_meet before the stop or transport', async () => {
+  const { gw, requests } = await harness('calendar');
+  for (const [action, input] of MEET_INPUTS) {
+    for (const add_google_meet of ['true', 1, null]) {
+      const result = await gw.execute({ action, input: { ...input, add_google_meet } });
+      assert.deepEqual(result, { status: 'invalid_arguments', field: 'add_google_meet' });
+      assert.equal(requests.length, 0);
+    }
+  }
+});
+
+test('both calendar stops always show add_google_meet with the other input values', async () => {
+  const { gw, requests } = await harness('calendar');
+  const manifest = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'));
+  const actions = manifest.modules.calendar.actions;
+  // Calendar create and update are grantable as sends (the operator's decision of 2026-11-07,
+  // gateway upgrade Milestone 4); every other calendar action declares no standing approval.
+  for (const [name, action] of Object.entries(actions)) {
+    if (name === 'create_event' || name === 'update_event') assert.equal(action.standing_approval?.kind, 'send');
+    else assert.equal(Object.hasOwn(action, 'standing_approval'), false);
+  }
+  for (const [action, input] of MEET_INPUTS) {
+    const name = action.split('.')[2];
+    assert.equal(actions[name].confirmation, 'always');
+    assert.equal(actions[name].risk, name === 'create_event' ? 'medium' : 'high');
+    for (const add_google_meet of [true, false]) {
+      const { stop } = await confirmed(gw, requests, action, { ...input, add_google_meet });
+      assert.equal(stop.risk, actions[name].risk);
+      assert.deepEqual([...stop.input_fields].sort(), [...Object.keys(input), 'add_google_meet'].sort());
+      assert.deepEqual(stop.input_values.find((entry) => entry.name === 'add_google_meet'), {
+        name: 'add_google_meet', value: String(add_google_meet), truncated: false,
+      });
+      assert.match(stop.summary, new RegExp(`add_google_meet=${add_google_meet}`));
+      assert.deepEqual(stop.withheld_fields, []);
+    }
+  }
+});
+
+test('both calendar writes add Meet success details and preserve every original event field', async () => {
+  const video = { entryPointType: 'video', uri: 'https://meet.google.com/video-link', label: 'Video', pin: '123' };
+  const event = {
+    id: 'event-example', status: 'confirmed', summary: 'Research call', arbitrary: { keep: ['all', 'fields'] },
+    hangoutLink: 'https://meet.google.com/preferred-link',
+    conferenceData: {
+      conferenceId: 'conference-example', createRequest: { status: { statusCode: 'success' } },
+      entryPoints: [{ entryPointType: 'phone', uri: 'tel:+15555550100' }, video],
+    },
+  };
+  const original = structuredClone(event);
+  for (const [action, input] of MEET_INPUTS) {
+    const { gw, requests } = await harness('calendar', () => ({ status: 200, data: event, headers: {} }));
+    const { result } = await confirmed(gw, requests, action, { ...input, add_google_meet: true });
+    assert.deepEqual(result, {
+      ...original,
+      google_meet: { status: 'success', link: event.hangoutLink, video_entry_point: video },
+    });
+    assert.deepEqual(event, original, 'the provider event is not mutated');
+    assert.equal(requests.length, 1);
+  }
+});
+
+test('both calendar writes return a pending Meet result with a get_event instruction and no retry', async () => {
+  const event = {
+    id: 'event-example', status: 'tentative',
+    conferenceData: { createRequest: { status: { statusCode: 'pending' } } },
+  };
+  for (const [action, input] of MEET_INPUTS) {
+    const { gw, requests } = await harness('calendar', () => ({ status: 200, data: event, headers: {} }));
+    const { result } = await confirmed(gw, requests, action, { ...input, add_google_meet: true });
+    assert.equal(result.google_meet.status, 'pending');
+    assert.equal(result.google_meet.link, null);
+    assert.equal(result.google_meet.video_entry_point, null);
+    assert.match(result.google_meet.next, /Google is still creating.*google\.calendar\.get_event/);
+    const { google_meet, ...originalFields } = result;
+    assert.deepEqual(originalFields, event);
+    assert.equal(requests.length, 1);
+  }
+});
+
+test('Meet results use video links as fallback, infer success or absence, and preserve explicit failure', async () => {
+  const video = { entryPointType: 'video', uri: 'https://meet.google.com/video-link', label: 'Video' };
+  const cases = [
+    [{ hangoutLink: 'https://meet.google.com/hangout-link' }, { status: 'success', link: 'https://meet.google.com/hangout-link', video_entry_point: null }],
+    [{ conferenceData: { entryPoints: [video] } }, { status: 'success', link: video.uri, video_entry_point: video }],
+    [{ conferenceData: { entryPoints: [{ entryPointType: 'phone', uri: 'tel:+15555550100' }] } }, { status: 'absent', link: null, video_entry_point: null }],
+    [{}, { status: 'absent', link: null, video_entry_point: null }],
+    [{ conferenceData: { createRequest: { status: { statusCode: 'failure' } }, entryPoints: [video] } }, { status: 'failure', link: video.uri, video_entry_point: video }],
+  ];
+  for (const [action, input] of MEET_INPUTS) {
+    for (const [fields, expected] of cases) {
+      const event = { id: 'event-example', status: 'cancelled', ...fields };
+      const { gw, requests } = await harness('calendar', () => ({ status: 200, data: event, headers: {} }));
+      const { result } = await confirmed(gw, requests, action, { ...input, add_google_meet: true });
+      assert.deepEqual(result, { ...event, google_meet: expected });
+      assert.equal(requests.length, 1);
+    }
+  }
+});
+
+test('both calendar writes without Meet return the provider event unchanged, including its existing conference', async () => {
+  const event = {
+    id: 'event-example', status: 'confirmed', hangoutLink: 'https://meet.google.com/existing-link',
+    conferenceData: { entryPoints: [{ entryPointType: 'video', uri: 'https://meet.google.com/existing-link' }] },
+  };
+  for (const [action, input] of MEET_INPUTS) {
+    const { gw, requests } = await harness('calendar', () => ({ status: 200, data: event, headers: {} }));
+    for (const meet of [{}, { add_google_meet: false }]) {
+      const { result } = await confirmed(gw, requests, action, { ...input, ...meet });
+      assert.deepEqual(result, event);
+      assert.equal(Object.hasOwn(result, 'google_meet'), false);
+    }
+    assert.equal(requests.length, 2);
+  }
+});
+
+test('both calendar writes requesting Meet pass a gateway vendor error through unchanged', async () => {
+  for (const [action, input] of MEET_INPUTS) {
+    const error = { status: 'vendor_error', http_status: 409, endpoint: '/invented-calendar', method: 'PATCH' };
+    const { gw, requests } = await harness('calendar', () => error);
+    const { result } = await confirmed(gw, requests, action, { ...input, add_google_meet: true });
+    assert.deepEqual(result, error);
+    assert.equal(Object.hasOwn(result, 'google_meet'), false);
+    assert.equal(requests.length, 1);
+  }
+});
+
+test('both calendar writes requesting Meet surface a refused Google answer as vendor_error with no google_meet', async () => {
+  for (const [action, input] of MEET_INPUTS) {
+    // The provider reports a refused call as an error record; the gateway turns it into vendor_error.
+    const { gw, requests } = await harness('calendar', (request) => ({
+      status: 409, error: { code: 'vendor_error', endpoint: request.endpoint, method: request.method },
+    }));
+    const { result } = await confirmed(gw, requests, action, { ...input, add_google_meet: true });
+    assert.equal(result.status, 'vendor_error');
+    assert.equal(Object.hasOwn(result, 'google_meet'), false);
+    assert.equal(requests.length, 1);
+  }
+});
+
+test('calendar.update_event with Meet, notify_guests and other changes sends them all in one patch', async () => {
+  const { gw, requests } = await harness('calendar');
+  await confirmed(gw, requests, 'google.calendar.update_event', {
+    calendar_id: 'primary', event_id: 'event-example', summary: 'Research call',
+    attendees: ['person@example.com'], notify_guests: true, add_google_meet: true,
+  });
+  assert.equal(requests.length, 1);
+  assert.equal(
+    requests[0].endpoint,
+    'https://www.googleapis.com/calendar/v3/calendars/primary/events/event-example?sendUpdates=all&conferenceDataVersion=1',
+  );
+  const { conferenceData, ...rest } = requests[0].body;
+  assert.equal(JSON.stringify(rest), '{"summary":"Research call","attendees":[{"email":"person@example.com"}]}');
+  assert.match(conferenceData.createRequest.requestId, UUID_V4);
+  assert.deepEqual(conferenceData.createRequest.conferenceSolutionKey, { type: 'hangoutsMeet' });
+});
+
 test('published schemas refuse an undeclared key, a mistyped field, a missing field, and a non-object', async () => {
   const byModule = new Map();
   for (const action of Object.keys(valid)) {

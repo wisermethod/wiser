@@ -9,7 +9,7 @@ for(const [name,get]of Object.entries(tapSets))for(const width of [390,734])for(
  try{
   const tiles=h.f.locator('.looks-tile'),send=h.f.locator('#submit'),minimum=h.f.locator('.board-minimum');
   assert.equal(await tiles.count(),form.questions[0].options.length);assert.equal(await h.f.locator('h1.progress').innerText(),form.title);
-  assert.equal(await h.f.locator('.see-board,.board-recommendation,.board-viewer,.brand-board').count(),0);
+  assert.equal(await h.f.locator('.board-thumbnail,.board-recommendation,.board-viewer,.brand-board').count(),0);
   assert.equal(await send.isDisabled(),true);assert.equal(await minimum.innerText(),'Pick at least two.');
   const geometry=await h.frame.evaluate(()=>({
    columns:getComputedStyle(document.querySelector('.looks-tiles')).gridTemplateColumns.split(' ').length,
@@ -59,8 +59,8 @@ test('whole boards use a progress title and honour an explicit minimum too',asyn
  const form=boardForm();delete form.actions;form.questions[0].min=2;
  const h=await kit.open(form);try{
   assert.equal(await h.f.locator('h1.progress').innerText(),form.title);assert.equal(await h.f.locator('#submit').isDisabled(),true);
-  await h.f.locator('.boards-tile').nth(0).click();assert.equal(await h.f.locator('#submit').isDisabled(),true);
-  await h.f.locator('.boards-tile').nth(1).click();assert.equal(await h.f.locator('#submit').isDisabled(),false);
+  await h.f.locator('.tile-input').nth(0).click();assert.equal(await h.f.locator('#submit').isDisabled(),true);
+  await h.f.locator('.tile-input').nth(1).click();assert.equal(await h.f.locator('#submit').isDisabled(),false);
  }finally{await h.context.close();}
 });
 test('paged looks fit the name when their initially hidden question becomes visible',async()=>{

@@ -75,7 +75,7 @@ export function resolveBoards(brand,options,boardDefaults={},view) {
     const content=v.content??{};
     for(const k of Object.keys(content)) if(!['smallPrint','photoRules','never','markCaption','closing'].includes(k)) throw Error(`Unknown board content field ${k}.`);
     const label=o.label??`Look ${i+1}`;
-    const b={number:i+1,name:label,group:'boards',energy:BOARD_PARTS.palettes.find(p=>p.id===v.palette?.id)?.energy,
+    const b={number:i+1,name:label,group:'boards',energy:v.palette?.energy??BOARD_PARTS.palettes.find(p=>p.id===v.palette?.id)?.energy,
       why:o.note||label,...(o.recommendation?{recommendation:o.recommendation}:{}),buttonRadius:4,handwriting:null,
       initials:brand.initials,heroPhrase:brand.sentence,
       note:{text:brand.words[0]?.word??brand.name,direction:'left'},

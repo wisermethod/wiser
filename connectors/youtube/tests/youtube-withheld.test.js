@@ -1,5 +1,5 @@
 // The youtube connector, held to its approved plan's rules that a builder could most
-// easily miss (zBuilds playbooks/gates/production-studio/2026-10-21-m3-youtube-plan.md):
+// easily miss:
 // every write refused before any write call when the signed-in channel or the resource's
 // owner is not the caller's; a video never read more than one 3 MiB chunk at a time; the
 // upload session address in no result and no audit line; nothing written to the console.

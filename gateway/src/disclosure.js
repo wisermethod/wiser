@@ -463,8 +463,8 @@ export function discloseAttachmentFiles(descriptors) {
  * every reader outside the gateway's own tests reads this string.
  *
  * The budget is spent in safety order. The head, every warning clause and the
- * risk are reserved first and always survive; values fill what is left and the
- * summary says how many did not fit; the description takes the remainder. So a
+ * risk are reserved first and always survive. A curated summary leads, and key
+ * fields precede the other values; the description takes the remainder. So a
  * long description can never push out the sentence saying what is not shown.
  *
  * @param {object} parts
@@ -473,6 +473,8 @@ export function discloseAttachmentFiles(descriptors) {
  * @param {string} parts.module
  * @param {string|null} [parts.risk]
  * @param {string|null} [parts.description]
+ * @param {string} [parts.leadingSummary] the curated row's one-line summary
+ * @param {string[]} [parts.keyFields] supplied fields to show first, in this order
  * @param {ReturnType<typeof discloseInput>} parts.disclosure
  */
 /** Characters reserved for the action, service and module, which lead the summary. */
@@ -520,12 +522,15 @@ function fit(clauses, budget, more, join = '') {
   return { kept, dropped, text: kept.join(join) + (dropped ? more(dropped) : '') };
 }
 
-export function composeSummary({ action, service, module, risk, description, disclosure, attachmentFiles = [] }) {
+export function composeSummary({ action, service, module, risk, description, leadingSummary, keyFields = [], disclosure, attachmentFiles = [] }) {
   // Every part of the summary is escaped and budgeted, including the parts that come
   // from the manifest rather than from the caller. A field NAME reaching the output
   // raw is the same defect as a field value reaching it raw, one layer up: the
   // manifest is trusted input, but "trusted" is not a property the renderer can check.
-  const head = cap(`${esc(action)} on ${esc(service)}/${esc(module)}`, HEAD_BUDGET);
+  const actionHead = cap(`${esc(action)} on ${esc(service)}/${esc(module)}`, HEAD_BUDGET);
+  const head = leadingSummary === undefined ? actionHead : renderCapped(esc(leadingSummary)).text;
+  const contextClause = leadingSummary === undefined ? '' : `; ${actionHead}`;
+  const valueJoin = leadingSummary === undefined ? ' with ' : ' ';
   const riskClause = `; risk ${cap(esc(risk ?? 'unknown'), RISK_BUDGET)}`;
 
   // Warning clauses carry what is NOT being shown, and where a shortened value's
@@ -560,31 +565,48 @@ export function composeSummary({ action, service, module, risk, description, dis
   const warnings = fit(warningTexts, WARNING_BUDGET, moreWarnings);
 
   // Values, as many whole ones as fit. A field that does not fit is counted, not cut.
+  const byName = new Map(disclosure.shown.map((field) => [field.name, field]));
+  const keyNames = new Set(keyFields);
+  const renderField = (field) => `${esc(field.name)}=${field.text}`;
+  const keyValues = [...keyNames].filter((name) => byName.has(name)).map((name) => renderField(byName.get(name)));
   const rendered = [
-    ...disclosure.shown.map((f) => `${esc(f.name)}=${f.text}`),
+    ...disclosure.shown.filter((field) => !keyNames.has(field.name)).map(renderField),
     ...attachmentFiles.map((file) => `attachment ${file.name.value} at ${file.path.value}, ${file.size} bytes`),
   ];
   const moreValues = (n) => `; ${n} more field${n === 1 ? '' : 's'} not shown, because the summary reached its length limit`;
 
-  const spent = head.length + warnings.text.length + riskClause.length;
+  const spent = head.length + contextClause.length + warnings.text.length + riskClause.length;
+  const valueCount = keyValues.length + rendered.length;
   let valueClause = '';
   let omitted = 0;
-  if (rendered.length) {
+  if (valueCount) {
     // The clause announcing omissions is reserved at its worst case BEFORE any value
     // is fitted. Fitting first and appending it afterwards overran the cap.
-    const budget = SUMMARY_CAP - spent - moreValues(rendered.length).length - ' with '.length;
-    const chosen = fit(rendered, Math.max(0, budget), () => '', ', ');
-    if (chosen.kept.length) valueClause = ` with ${chosen.kept.join(', ')}`;
-    omitted = chosen.dropped;
+    const budget = Math.max(0, SUMMARY_CAP - spent - moreValues(valueCount).length - valueJoin.length);
+    // Keep a prefix of keys: a short later key must not leapfrog one that did not fit.
+    const keys = [];
+    let keysLength = 0;
+    for (const key of keyValues) {
+      const cost = key.length + (keys.length ? ', '.length : 0);
+      if (keysLength + cost > budget) break;
+      keys.push(key);
+      keysLength += cost;
+    }
+    // Dropped keys consume no budget, so ordinary fields may still fit.
+    const remaining = Math.max(0, budget - keysLength - (keys.length ? ', '.length : 0));
+    const chosen = fit(rendered, remaining, () => '', ', ');
+    const kept = [...keys, ...chosen.kept];
+    if (kept.length) valueClause = `${valueJoin}${kept.join(', ')}`;
+    omitted = keyValues.length - keys.length + chosen.dropped;
   } else if (disclosure.fields.length) {
     // Nothing was eligible; name the fields as the summary always has.
     const names = ` with ${disclosure.fields.map(esc).join(', ')}`;
     if (spent + names.length <= SUMMARY_CAP) valueClause = names;
   }
 
-  let summary = `${head}${valueClause}${warnings.text}${omitted ? moreValues(omitted) : ''}${riskClause}`;
+  let summary = `${head}${valueClause}${contextClause}${warnings.text}${omitted ? moreValues(omitted) : ''}${riskClause}`;
 
-  if (description) {
+  if (description && leadingSummary === undefined) {
     // Budget for the `; ` that introduces it and the ellipsis that may end it, so a
     // truncated description lands exactly on the cap rather than one past it.
     const remaining = SUMMARY_CAP - summary.length - '; '.length - 1;

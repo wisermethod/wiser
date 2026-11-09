@@ -37,7 +37,7 @@ export async function capture(boardsPath,looksPath,output){
      Element.prototype.scrollIntoView=function(options){__scrolls.push({bar:this.classList.contains('board-viewer-bar'),block:options?.block});return original.call(this,options);};
     });
     const count=state==='tile-row'?0:Number(state.at(-1));
-    for(let i=0;i<count;i++)await h.f.locator('.boards-tile').nth(i).click();
+    for(let i=0;i<count;i++)await h.f.locator('.looks-tile, .boards-tile:not(.looks-tile) .tile-input').nth(i).click();
     await h.frame.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
     const measured=await h.frame.evaluate(()=>({
      height:document.getElementById('root').getBoundingClientRect().height,
@@ -48,9 +48,9 @@ export async function capture(boardsPath,looksPath,output){
      actions:[...document.querySelectorAll('.board-actions button')].filter(n=>n.getClientRects().length).map(n=>n.innerText),
      disabledActions:[...document.querySelectorAll('.board-actions button')].filter(n=>n.getClientRects().length).map(n=>n.disabled),
      picks:document.querySelectorAll('.tile-input:checked').length,
-     links:[...document.querySelectorAll('.see-board')].map(n=>{
-      const range=document.createRange();range.selectNodeContents(n);
-      return {gap:range.getBoundingClientRect().top-n.previousElementSibling.getBoundingClientRect().bottom,height:n.getBoundingClientRect().height};
+     thumbnails:[...document.querySelectorAll('.board-thumbnail')].map(n=>{
+      const box=n.getBoundingClientRect(),tick=n.parentElement.querySelector('.tile-input').getBoundingClientRect();
+      return {gap:tick.top-box.bottom,height:box.height};
      }),
      minimum:document.querySelector('.board-minimum:not([hidden])')?.textContent??null,
      scrolls:__scrolls
@@ -58,7 +58,7 @@ export async function capture(boardsPath,looksPath,output){
     assert.ok(measured.scrollWidth<=measured.clientWidth);
     assert.equal(measured.picks,count);
     if(board){
-     assert.equal(measured.visibleTiles,12);assert.ok(measured.links.every(n=>n.gap>=0&&n.gap<=8&&n.height>=44));
+     assert.equal(measured.visibleTiles,12);assert.ok(measured.thumbnails.every(n=>n.gap>=0&&n.gap<=8&&n.height>=44));
      assert.deepEqual(measured.actions,state==='boards-4'?['Show me more\nYou picked 4 boards. Pick up to three to go on.']:['Show me more\nNone of these work']);
     }else assert.deepEqual(measured.actions,state==='looks-1'?['Only this one works for me\nand make my boards']:['Use these\nYou picked 4 looks. Pick up to three to go on.']);
     assert.deepEqual(measured.disabledActions,[count===4]);assert.equal(measured.minimum,null);

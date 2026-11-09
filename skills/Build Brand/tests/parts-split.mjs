@@ -12,6 +12,12 @@ const CONTRACT_PINS={
   "Assembly": "4287bc83f4ec6b0eb7c1189bc666baea1c5173af6a6b253c511a2faad0a80f62",
   "Selection from answers": "46a780d4dd7b2bb86575b650372c56867a3a5995cc29cafe432070865c2cb125"
 };
+// Approved own-colour source and single-strength selection contract, 2026-11-06.
+export const CONTRACT_EDITS = [{date: '2026-11-06', reason: 'M7.4: member colours, reading derivation, fixed controls and J1c lock evidence; then "Tone it a touch"; round 2 fixes role visibility, single near-whites, input-only disclosures, parsing and steer, derived/composite reading, guide precedence, member labels in a closed array within the form budget, no board zero or recipe energies, and grey strength controls; round 4 preserves full palette metadata in replayed records, normalises comment punctuation and newlines, gates request remainders on known colours, permits short own-colour pages with explicit exhaustion, and keeps single near-whites off buttons in both modes', contract: {
+  "Locking a board": "f988424a3e1663c11f839e466e1358642f24fc9f7a9233d640e45894d9bc6de9",
+  "Selection from answers": "2bc5ab710101715abb8ea7b769c90db50ea1b239378bbe595e4fc6f83d70c3f9",
+  "Own colours": "466cbbd064f1e0c36112ea92b99625fb45fab8f36d107906fa739c2a2ef29a6a"
+}}];
 const CATALOGUE_PINS={
   'Settings and use': '15853880b2650344881e894c98c00cd796493dc1a6f3d390f91bc088287f4dca',
   'Extension seam': 'c67cea0a32be88d06cc00ff1bbacc17ab45028f4c648cf37f3fc3c8881b5843c'
@@ -42,8 +48,8 @@ export function comparePartsSplit(archive, contract, catalogue) {
   assert.match(licences,/Every licence is SIL Open Font License 1\.1/,'catalogue: font licences');
   assert.deepEqual(rows('Font licences and provenance').slice(1),Object.entries(library.fonts).map(([name,f])=>[name,f.licence,f.reservedFontNames.length?f.reservedFontNames.join(', '):'None declared',String(f.files.reduce((n,v)=>n+v.bytes,0))]),'catalogue: font licences');
   compared.push('catalogue: font licences');
-  for(const heading of ['Locking a board','Opening taps as data','Assembly','Selection from answers']) {
-    assert.equal(hash(section(contract,heading)),CONTRACT_PINS[heading],`script contract: ${heading}`);
+  for(const [heading,expected] of Object.entries({...CONTRACT_PINS,...Object.assign({},...CONTRACT_EDITS.map(edit=>edit.contract))})) {
+    assert.equal(hash(section(contract,heading)),expected,`script contract: ${heading}`);
     compared.push('script contract: '+heading);
   }
   const archivedFonts=section(archive,'Font files'),licenceStart=archivedFonts.indexOf('All families are');

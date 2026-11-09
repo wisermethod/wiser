@@ -15,6 +15,45 @@ const library = JSON.parse(readFileSync(join(parts, 'parts.json')));
 const sandbox = realpathSync(mkdtempSync(join(tmpdir(), 'brand-lock-')));
 test.after(() => rmSync(sandbox, { recursive: true, force: true }));
 let serial = 0;
+test('own colours lock names the member words, used values and shade moves, citing J1c for colour claims', async () => {
+  const {buildOwnColours}=await import('../scripts/own-colours.mjs');
+  const f=fixture(),ownColours=buildOwnColours('green and gold');
+  f.answers.ownColours=ownColours;
+  Object.assign(f.spec.boards[0].palette,ownColours.kept.palette.overrides);
+  f.save();const result=f.result(),design=f.read(),color=design.split('## Color\n')[1].split('\n## ')[0];
+  assert.ok(color.includes('green and gold'));
+  assert.ok(ownColours.moves.some(m=>m.colour===null),'derived repairs have no invented member name');
+  assert.ok(!color.includes('null '),'derived repairs file their role');
+  assert.ok(color.split('\n').filter(line=>line.startsWith('- ')).every(line=>line.includes('J1c')));
+  for(const v of ownColours.values)assert.ok(color.includes(v.value));
+  for(const move of ownColours.moves){assert.ok(color.includes(move.from));assert.ok(color.includes(move.to));assert.ok(color.includes(move.direction));}
+  assert.ok(!result.unusedAnswerFields.includes('ownColours'));
+});
+test('own colours lock refuses a changed palette or fabricated derivation before writes', async () => {
+  const {buildOwnColours}=await import('../scripts/own-colours.mjs');
+  for(const tamper of [false,true]) {
+    const f=fixture();f.answers.ownColours=buildOwnColours('red, white and blue');
+    if(tamper){Object.assign(f.spec.boards[0].palette,f.answers.ownColours.kept.palette.overrides);f.answers.ownColours.values[0].value='#FF0000';}
+    f.save();assert.throws(f.result,/ownColours/);assert.equal(existsSync(f.design),false);
+  }
+});
+test('own colours end to end: distinct checked looks and Round 1 assemble into a J1c-cited design', async () => {
+  const {buildOwnColours}=await import('../scripts/own-colours.mjs');
+  const {select,selectionForAssembly}=await import('../scripts/select.mjs');
+  const {assemble}=await import('../scripts/assemble.mjs');
+  const f=fixture(),ownColours=buildOwnColours('red, white and blue');
+  const a={...Object.fromEntries(['type','name','sentence','words','taps','off'].map(k=>[k,f.answers[k]])),looks:[],ownColours,photoRules:f.spec.boards[0].content.photoRules};
+  const looks=select('looks',a,{check:true,selectionDir:f.root});assert.equal(looks.options.length,Math.min(12,library.styles.length));
+  const picks=looks.options.slice(0,3).map(o=>o.value);
+  const round=select('round1',{...a,looks:picks,looksShown:looks.options},{check:true,selectionDir:f.root});
+  Object.assign(f.spec,assemble(selectionForAssembly(round.selection),library,{selectionDir:f.root}));
+  f.answers.ownColours=ownColours;f.answers.looks=picks;f.answers.answerNumbers.looks=['L1','L1','L1'];
+  f.answers.lock.board=1;f.save();const result=f.result();
+  assert.equal(result.state,'complete');
+  const color=f.read().split('## Color\n')[1].split('\n## ')[0];
+  assert.match(color,/red, white and blue/);assert.match(color,/J1c/);
+  for(const mode of ['light','dark'])for(const value of Object.values(ownColours.kept.palette.overrides[mode]))assert.ok(color.includes(value));
+});
 function fixture(type = 'personal') {
   const root = join(sandbox, String(++serial)); mkdirSync(root);
   const palette = library.palettes[0], pairing = library.pairings[0], graphics = library.graphics[0];

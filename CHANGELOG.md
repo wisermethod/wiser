@@ -4,6 +4,52 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.08.2, November 8, 2026
+
+- Each of Wiser's tools now says on its own page whether it runs only on your computer or can also run through the Wiser connector, and for a command that can, the largest input it takes there and its time limit. Sitemap's `fetch`, tag-audit's `audit` and icon-set's `search` are the first three; the connector does not offer them to members yet. (bee3ec18, cf1fe3cd, 1a96d348)
+- Tag-audit no longer follows a redirect to your own computer, your local network or another reserved address, or to an address that is not a web page: it stops before requesting it and names the reason. A redirect carrying a user name or password now gets its own named error, which leaves them out. Sitemap and tag-audit also refuse the local-use address range `64:ff9b:1::/48`. (c45a940d, b11bd900)
+- Wiser now lists the apps it publishes install steps for, and its README's Install follows that list. A plugin set up with Onboard Plugin Root gets such a list, and Housekeeping proposes one for a plugin without it. (bee3ec18, cf1fe3cd, 1a96d348, 078a179d)
+
+## v2026.11.08, November 8, 2026
+
+- The warning you answer before approving something in advance is now short enough to read: what it lets your assistant do without asking each time and for which work, how long it lasts, and "Yes or no?". For example: "Create a new Gmail label without asking you each time, for the "client-launch" Playbook in "My Work". No end date: it lasts until you revoke it. Yes or no?" (5b23e665, 5a269d8f)
+- Approving sending adds one sentence: each send goes out without you seeing it first and cannot be called back, and where the sends take lists of people, such as Gmail's to, cc and bcc, those lists can't be limited. Approving spending money, publishing or giving someone access adds one sentence saying it can happen with nobody looking first and can't be called back. A connector's own warning, such as ElevenLabs credits or HeyGen prices, is still shown word for word. Gmail sending's own warning is gone, since the send sentence now says it; an approval you made with it keeps working. (5b23e665, 5a269d8f, 3cf83260)
+- If what an approval covers changes between the warning and your yes, even where the warning reads the same, Wiser asks again with the new warning. (5a269d8f, 8c2ed886)
+
+## v2026.11.07.3, November 7, 2026
+
+- When you approve one of Composio's Gmail, Google Calendar or Google Drive tools in advance, its warning and the line that lists the approval now read as one sentence, such as "lets your assistant create a new Gmail label", instead of breaking off at a full stop. Three of those tools are described more plainly: changing an unsent Gmail draft, moving an event between your calendars, and creating a Google Drive file from text. (7edb9e70, 5bf18d70)
+- If an approval you have revoked is asked for again with the same yes, for example after a connection dropped mid-answer, Wiser now says it was revoked instead of answering as if it had just been made. Nothing runs under it either way. (5bf18d70)
+
+## v2026.11.07.2, November 7, 2026
+
+- Wiser can now use 46 of Composio's own tools for Gmail, Google Calendar, Google Drive and Outlook, with no connector written for them: labels, conversations, drafts and contacts in Gmail; calendars, free time, quick add and changing or moving an event in Google Calendar; folders, comments and saved versions in Google Drive; mail, people and calendars in Outlook. Reading runs straight away. The 10 that write stop for your yes first. Each call reaches only the account you connected. (59c7388b, bd89b3e8, 2b33060f, c7bfc6a3, a78e60ad)
+- When one of those tools stops for your yes, the stop now opens with one plain line saying what it will do, then the details that matter most, such as who an invite goes to and when. (f312b8d4, c7bfc6a3)
+- You can now approve a Playbook in advance to send and to create or change things until you revoke the approval, instead of for a set number of days, and the warning says so in plain words. Nothing can approve a delete in advance: a delete always stops for your yes. Creating and updating Google Calendar invites can now be approved in advance too, as sending. On the Wiser endpoint an approval with no end date can't be saved yet, so choose a number of days there for now. (2b33060f, 8727c784, 06df051e)
+
+## v2026.11.07, November 7, 2026
+
+- A calendar invite Wiser creates or updates in Google Calendar can now carry a Google Meet link: ask for one and Google adds it, so you no longer open the event in Google Calendar to click "Add Google Meet video conferencing". The answer shows the link. If Google is still making it, the answer says so and says to read the event again to get it. An update that doesn't ask for a link leaves an existing one as it was. (6bc31ee4)
+
+## v2026.11.06.7, November 6, 2026
+
+- Setting up Wiser now warns you about the request to reach your Desktop before it appears, and the voice coach asks each question once. (6cf02598, b3cbc9bf)
+
+## v2026.11.06.6, November 6, 2026
+
+- Each board on a page of your boards is now the whole board in small, its parts in two columns, so you can see its colours, lettering, mark and pieces before you open it. Every card is the same size, with the board's colours in its corner and "Recommended" at the top right of a recommended one. Tapping the picture opens the board full size, and only the tick box picks it. Before, a card showed only the top of its board, so the cards looked alike. (72755041, 10369a27, 691f7fac, 8f3ae341)
+- You can now use your own colours when building a brand. Choose "Type my colours instead" where Wiser asks for your brand files, or tell it in a comment on any page, such as "red, white and blue" or a colour code. Wiser makes a full set from them, readable on light and dark backgrounds, and shows your looks and boards in your colours. Where a shade had to change a little so words on it stay easy to read, Wiser tells you which. (50558419, 7f4011d8, f86efe3a, f166f87e, 78600113)
+- On a page in your own colours, "More muted" and "More bold" are greyed, so your colours stay as you gave them; "Light" and "Dark" still switch every card. (50558419, f166f87e)
+
+## v2026.11.06.5, November 6, 2026
+
+- When you tell the voice coach a kind of writing you'd hate to sound like, its follow-up now says so in your words: "You said you'd hate to sound [like that]. Here are three lines about your work written that way, on purpose. Which one sounds the worst?" Before, it asked which would make you wince most, which was easy to read as which line you liked. The last choice is now "None of these bother me". (16f35adf)
+- After you pick a line, the coach says "Got it. Nothing like that goes in your writing." If you meant a line you like, say so at any point before your voice is saved, and it is taken off the list. (16f35adf)
+
+## v2026.11.06.4, November 6, 2026
+
+- Typing "set up wiser", "onboard project", "set up connectors" or "update root" now works wherever Wiser runs, in Claude Cowork and in a chat working in your own folder too, as "wrap up" already does. Before, only a session that had read Wiser's own instructions knew these phrases. (d89f8177)
+
 ## v2026.11.06.3, November 6, 2026
 
 - Saying "wrap up" now ends a session with its hand-over message wherever Wiser runs, in Claude Cowork and in a chat working in your own folder too, whether or not the session worked a Playbook. Before, only a session that had read Wiser's own instructions knew the phrase. (202d053a)

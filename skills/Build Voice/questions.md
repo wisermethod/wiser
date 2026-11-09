@@ -1,6 +1,6 @@
 # The interview
 
-What the coach says and asks, in the order `paths/coach.md` runs it. A tapped question is asked with the app's question tool where it has one: each option a button, and where an option below has words after a colon, the words before it are the button and the words after it are the line under it. Where the app has none, one question per message, its options lettered, answered with a letter. A question that says pick any takes more than one of its options: with the question tool, as its multiple choice; with none, answered with one or more letters. A typed question is a plain message, one at a time. The codes (S, W, P, R, F, A) are the question numbers the answers file records and `voice.md` cites, and each sample the person gives is numbered E1 onward. Bank version for every row: `Build Voice bank 10`.
+What the coach says and asks, in the order `paths/coach.md` runs it. A tapped question is asked with the app's question tool where it has one: each option a button, and where an option below has words after a colon, the words before it are the button and the words after it are the line under it. Where the app has none, one question per message, its options lettered, answered with a letter. A question that says pick any takes more than one of its options: with the question tool, as its multiple choice; with none, answered with one or more letters. A typed question is a plain message, one at a time. The codes (S, W, P, R, F, A) are the question numbers the answers file records and `voice.md` cites, and each sample the person gives is numbered E1 onward. Bank version for every row: `Build Voice bank 11`.
 
 Each question says what it **feeds**. A line in quotation marks after a pick is the exact line that pick writes into `voice.md` `## How They Write`, copied word for word. A tap the person's samples settled is not asked, and a screen left with no question is not shown, nor the line said before it.
 
@@ -131,16 +131,22 @@ Feeds: `## Prohibitions`, as concrete phrases or moves; `about.md` `## Personali
 
 ### W4a (tapped)
 
-Asked only when W4 names a kind of writing, such as "corporate" or "a finance textbook", rather than quoting words of it. Write three lines of that kind, one short sentence each, about the person's own work from W1, each a different phrase. They show the fault on purpose, so the floor does not hold them to it, and none has an em or en dash.
+Asked only when W4 names a kind of writing, such as "corporate" or "a finance textbook", rather than quoting words of it. Write three lines of that kind, one short sentence each, about the person's own work from W1, each a different phrase. They show the fault on purpose, so the floor does not hold them to it, and none has an em or en dash, or a colon, which would split its button. Where W1 was skipped, they name no job, client or result of theirs.
 
-> Which of these would make you wince most?
+The question opens on the short phrase from W4 that names the kind, in their words, so no one can read the lines as ones to choose for themselves: a quality goes in as it is ("corporate", "too formal"); a thing gains "like" ("like a finance textbook"); a phrase that already begins with "like" gains nothing ("like a robot"); from a sentence, only that phrase ("like I'm trying too hard"). An em or en dash in it becomes a comma. Where no short phrase from their answer reads right after "sound", W4a is not asked.
 
-- the first line
-- the second line
-- the third line
-- None of these
+> You said you'd hate to sound [what W4 named]. Here are three lines about your work written that way, on purpose. Which one sounds the worst?
 
-Feeds: `## Prohibitions`, the line they tap as the example of what W4 names. None of these, or a skip, adds nothing beyond W4. The answers file records the three lines shown and the one tapped.
+- [the first line]
+- [the second line]
+- [the third line]
+- None of these bother me
+
+Each bracket stands for one of the three lines; the bracket itself is never shown. Once one of the three is picked, by its button or its letter, say this before the next question, in the same message; never after None of these bother me or a skip:
+
+> Got it. Nothing like that goes in your writing.
+
+Read every reply after it for a taking back first, until `paths/coach.md` step 9 writes the files. Where they say they meant a line they like, write that into the W4a row's answer cell in their words, and where it came as the answer to a later question, ask that question again. A line taken back is not their example, and nothing is drawn from it; W4 still writes its prohibition, the portrait and `## Personality` stay as they are, and the piece is not rewritten for it. Feeds: `## Prohibitions`, the line they pick as the example of what W4 names, unless they took it back. None of these bother me, or a skip, adds nothing beyond W4. The answers file records the three lines shown, the one picked, and any taking back, in their words.
 
 ## Screen 2 (tapped)
 

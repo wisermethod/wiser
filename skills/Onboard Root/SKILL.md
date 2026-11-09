@@ -2,8 +2,8 @@
 name: Onboard Root
 type: skill
 category: onboarding
-description: Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types
-version: 0.49.0
+description: Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types, and, on the ask onboard project, set up the one open empty folder as a personal root under that folder's name
+version: 0.49.1
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
 ---
@@ -12,7 +12,7 @@ gaps:
 
 ## Context
 
-Use when the workspace needs a new user root or an existing folder brought up to current specs. `existing-root.md` beside this file is the existing-folder companion; load it when the discriminator routes there. `system/templates/AGENTS.md` names the one template and five type-specific prompt sheets under `standards/user-root.md`.
+Use when the workspace needs a new user root or an existing folder brought up to current specs. The named ask **onboard project** enters here in any session, on the personal path: the destination is the one open folder the Destination discriminator classes `empty`, and its name is the person's, as Two paths and the personal path's Step 1 say; any other open folder is classed and routed by that discriminator, and where no folder or several are open, Step 1 asks. `existing-root.md` beside this file is the existing-folder companion; load it when the discriminator routes there. `system/templates/AGENTS.md` names the one template and five type-specific prompt sheets under `standards/user-root.md`.
 
 Not for updating a deployed copy of this plugin to a new release, which the plugin carries no procedure for. Not for authoring a primitive or a Play inside a root that already exists; that is `skills/Play Author/`, which carries its own format; the templates this plugin ships are root templates only. Not for writing `memory/voice.md`, which `skills/Build Voice/` owns on both paths, except `## From your brand`, which Build Brand writes at a lock under condition 6, each line citing design answers. Not for giving work a second home: when a composed root's scope already fits the request, that root owns it. A conformance request on a declared Wiser root needs no adoption request or identity production; `existing-root.md` handles remaining shelves work and any undefined memory key, preserving defined bound files. Whether a new root is the right change at all is judged first by `experts/System Expert/`, on the root's type, settled as Two paths below says, and the destination, handed the composed roots' `AGENTS.md` files by path as its `<root_state>`, before this skill copies anything, except on the first run, where it is all settled: `skills/Set Up Wiser/` hands over the folder it made, the type personal and the person's name, and under the named ask **onboard project** the type is personal, the place is the open empty folder, and the name is that folder's; that expert is not consulted then, and says nothing; that expert does not judge the produced files, and this skill's read-back, the full path's independent audit and harness, and the gates of the skills it invokes still apply. An edit to a bound file that a re-onboarding request calls for is a change to a root, judged by `experts/System Expert/` first.
 

@@ -1,6 +1,6 @@
 ---
 standard: script-contract
-version: 0.9.0
+version: 0.10.0
 description: The rules every script a tool ships follows, and the clauses that bind a connector module; users read tools/RUNNING.md
 ---
 
@@ -9,6 +9,8 @@ description: The rules every script a tool ships follows, and the clauses that b
 Fixed rules for every script a tool ships, in every runtime. Tools cite this file by the pointer at `system/templates/Script Contract.md`; none restate it. What a user meets when running a script is `tools/RUNNING.md`, which this file governs. Connector modules attach their clauses at the end of this file; they are not tools and they do not install.
 
 ## Rules for every script
+
+**App behaviour.** A tool script or connector module that must behave differently by the app it runs in asks one profile for the behaviour; it never compares the app's name itself. A name comparison is allowed only as a recorded fallback inside that profile. Comparing a name the caller chose, such as which command-line AI to run, is not app detection. The first script that needs the profile adds it; no profile file or gate is required before then. Per-app runtime facts stay in `tools/RUNNING.md`; hook behaviour stays in `hooks/AGENTS.md`.
 
 **Self-contained.** Scripts import Node built-ins, their own directory's `node_modules/`, and files inside their own tool directory. The allowed imports outside a tool directory are `tools/lib/` and a shared runtime's packages in its person-scoped runtime directory (`tools/AGENTS.md`). Nothing else. No other import reaches outside the directory and no path into another root is hardcoded.
 

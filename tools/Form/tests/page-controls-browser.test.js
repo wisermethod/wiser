@@ -35,7 +35,7 @@ for(const view of ['look','board'])for(const width of [390,734])for(const mode o
   assert.equal(await b[mode].getAttribute('aria-pressed'),'true');assert.equal(await b.muted.isDisabled(),false);assert.equal(await b.bold.isDisabled(),false);
   const layout=await h.frame.evaluate(()=>{const bar=document.querySelector('.board-controls').getBoundingClientRect(),tiles=document.querySelector('.boards-tiles').getBoundingClientRect();return {above:bar.bottom<=tiles.top,overflow:document.documentElement.scrollWidth-document.documentElement.clientWidth,targets:[...document.querySelectorAll('.board-controls button')].map(n=>n.getBoundingClientRect().height)};});
   assert.equal(layout.above,true);assert.equal(layout.overflow,0);assert.ok(layout.targets.every(n=>n>=44));
-  await tiles.nth(0).click();await tiles.nth(1).click();const notes=await h.f.locator('.tile-label small').allTextContents();
+  await (view==='look'?tiles:inputs).nth(0).click();await (view==='look'?tiles:inputs).nth(1).click();const notes=await h.f.locator('.tile-label small').allTextContents();
   await trackPalettes(h,view,q);
   await h.frame.evaluate(()=>{window.savedInputs=[...document.querySelectorAll('.tile-input')];window.resolutions=0;const original=WiserBoards.resolveBoards;WiserBoards.resolveBoards=(...args)=>{window.resolutions++;return original(...args);};});
   const initial=await pictures(h,view);await capture(h,`${view}-${width}-${mode}-before`);
@@ -68,7 +68,7 @@ for(const view of ['look','board'])for(const width of [390,734])for(const mode o
 for(const width of [390,734])test(`page controls ${width}: full-size board follows both controls and keeps mirrors`,async()=>{
  const form=startAt(withStepLabels(controlsForm('board'))),h=await kit.open(form,width,'light',{autoSize:true});
  try{
-  const b=buttons(h);await h.f.locator('.boards-tile').first().click();await h.f.locator('.see-board').first().click();
+  const b=buttons(h);await h.f.locator('.looks-tile, .boards-tile:not(.looks-tile) .tile-input').first().click();await h.f.locator('.board-thumbnail').first().click();
   assert.equal(await h.f.locator('.board-viewer .board-mode-switches').count(),0);assert.equal(await h.f.locator('.board-viewer .brand-board').getAttribute('data-mode'),'light');
   assert.equal(await h.f.locator('.board-viewer .locked-name').textContent(),form.questions[0].options[0].steps[1].label);
   const pop=await h.f.locator('.board-viewer .brand-board').evaluate(n=>n.style.getPropertyValue('--pop'));
@@ -78,13 +78,13 @@ for(const width of [390,734])test(`page controls ${width}: full-size board follo
   assert.equal(await h.f.locator('.board-viewer input:checked').count(),2);assert.equal(await h.f.locator('.tile-input:checked').count(),1);
   await h.f.getByRole('button',{name:'Close this board',exact:true}).first().click();
   assert.equal(await h.f.locator('.tile-input').first().inputValue(),form.questions[0].options[0].steps[2].value);assert.equal(await h.f.locator('.tile-input').first().isChecked(),true);
-  assert.equal(await h.f.locator('.see-board').first().evaluate(n=>n===document.activeElement),true);assert.deepEqual(h.errors,[]);
+  assert.equal(await h.f.locator('.board-thumbnail').first().evaluate(n=>n===document.activeElement),true);assert.deepEqual(h.errors,[]);
  }finally{await h.context.close();}
 });
 test('strength only retains the full-size board mode switch and its chosen mode',async()=>{
  const form=startAt(controlsForm('board'));delete form.questions[0].controls.mode;
  const h=await kit.open(form);try{
-  await h.f.locator('.see-board').first().click();await h.f.locator('.board-viewer [data-mode=dark].board-mode-switch').click();
+  await h.f.locator('.board-thumbnail').first().click();await h.f.locator('.board-viewer [data-mode=dark].board-mode-switch').click();
   await h.f.getByRole('button',{name:'More bold',exact:true}).click();
   assert.equal(await h.f.locator('.board-viewer .brand-board[data-mode=dark]').isVisible(),true);assert.equal(await h.f.locator('.board-viewer .brand-board[data-mode=light]').isHidden(),true);
   assert.equal(await h.f.locator('.board-controls .board-mode-switches').count(),0);assert.deepEqual(h.errors,[]);
@@ -116,7 +116,7 @@ test('one supplied step disables both strength directions and keeps default look
  for(const o of q.options){o.steps=o.steps.filter(s=>s.value===o.value);delete o.label;}
  const h=await kit.open(form);try{
   const b=buttons(h);assert.equal(await b.muted.isDisabled(),true);assert.equal(await b.bold.isDisabled(),true);
-  await h.f.locator('.boards-tile').nth(0).click();await h.f.locator('.boards-tile').nth(1).click();await b.dark.click();
+  await h.f.locator('.looks-tile, .boards-tile:not(.looks-tile) .tile-input').nth(0).click();await h.f.locator('.looks-tile, .boards-tile:not(.looks-tile) .tile-input').nth(1).click();await b.dark.click();
   assert.equal(await h.frame.evaluate(()=>WiserForm.readAnswers()[0].shown),'Look 1, Look 2');
   await h.f.locator('#submit').click();await h.f.locator('#status.ok').waitFor();
   const payload=await h.page.evaluate(()=>__log.find(e=>e.kind==='context').params.structuredContent);
@@ -126,7 +126,7 @@ test('one supplied step disables both strength directions and keeps default look
 // Compare actual serialized tiles to the committed renderer preceding this change.
 const baselineView=execFileSync('git',['show','05cb8f27:tools/Form/engine/boards.js'],{encoding:'utf8'});
 const baselineEngine=execFileSync('git',['show','05cb8f27:tools/Form/engine/engine.js'],{encoding:'utf8'});
-for(const view of ['look','board'])for(const width of [390,734])for(const theme of ['light','dark'])test(`without controls or steps ${view} ${width} ${theme}: byte-identical tiles to preceding tree`,async()=>{
+for(const view of ['look'])for(const width of [390,734])for(const theme of ['light','dark'])test(`without controls or steps ${view} ${width} ${theme}: byte-identical tiles to preceding tree`,async()=>{
  const form=lookForm();for(const option of form.questions[0].options)delete option.steps;form.questions[0].view=view;if(view==='board')for(const o of form.questions[0].options)delete o.board.depth;
  const h=await kit.open(form,width,theme);try{
   const tiles=()=>h.f.locator('.boards-tile').evaluateAll(ns=>ns.map(n=>n.outerHTML));const after=await tiles();assert.equal(await h.f.locator('.board-controls').count(),0);
@@ -164,7 +164,7 @@ test('unlabelled steps return to the option caption or the default look caption'
  const form=startAt(withStepLabels(controlsForm())),q=form.questions[0];
  for(const o of q.options)delete o.steps[0].label;delete q.options[0].label;
  const h=await kit.open(form);try{
-  await h.f.locator('.boards-tile').nth(0).click();await h.f.locator('.boards-tile').nth(1).click();
+  await h.f.locator('.looks-tile, .boards-tile:not(.looks-tile) .tile-input').nth(0).click();await h.f.locator('.looks-tile, .boards-tile:not(.looks-tile) .tile-input').nth(1).click();
   await h.f.getByRole('button',{name:'More muted',exact:true}).click();
   assert.deepEqual(await h.f.locator('.tile-label>span:first-child').allTextContents(),q.options.map((o,i)=>o.label??`Look ${i+1}`));
   assert.equal(await h.frame.evaluate(()=>WiserForm.readAnswers()[0].shown),`Look 1, ${q.options[1].label}`);

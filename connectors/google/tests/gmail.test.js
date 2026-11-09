@@ -217,7 +217,7 @@ test('manifest declarations and public reply/address rules match the approved co
   assert.equal(actions.send_draft.risk, 'high');
   assert.equal(actions.send_draft.confirmation, 'always');
   assert.equal(actions.send_message.risk, 'high');
-  assert.deepEqual(actions.send_message.standing_approval, { kind: 'send', summary: 'send Gmail messages', caution: 'This grant sends messages your assistant writes, to any recipient, with no look at each one before it is sent. It never covers a message with a local file attached.' });
+  assert.deepEqual(actions.send_message.standing_approval, { kind: 'send', summary: 'send Gmail messages' });
   assert.ok(actions.send_draft.description.startsWith("Send this saved draft only with the person's explicit go for this message. This action always asks for confirmation and cannot use a standing approval."));
   assert.ok(actions.send_message.description.startsWith("Send only with the person's explicit go for this message, or a standing approval the person granted for this action. A call naming local attachments always asks for confirmation and is never covered by a standing approval."));
 });

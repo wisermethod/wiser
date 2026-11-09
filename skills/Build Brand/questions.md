@@ -1,10 +1,10 @@
 # Build Brand's question bank
 
-Read by section. Member copy below is fixed: preserve every word, option order, progress and why line, filling brackets only from the member's material, with the industry Record my look exception in `paths/brief.md` for the Brand files progress line. Section headings, answer numbers, feeds and instructions are never shown. `SKILL.md` supplies the bank version, `Build Brand 0.4.0`; `records.md` supplies the C14 record. Retained brief-path sections at the end still govern that path alone.
+Read by section. Member copy below is fixed: preserve every word, option order, progress and why line, filling brackets only from the member's material, with the industry Record my look exception in `paths/brief.md` for the Brand files progress line. Section headings, answer numbers, feeds and instructions are never shown. `SKILL.md` supplies the bank version, `Build Brand 0.6.0`; `records.md` supplies the C14 record. Retained brief-path sections at the end still govern that path alone.
 
 ## Answer numbers
 
-B0 records a path choice only where one is actually needed; the sitting and the brand-folder entry do not ask it. R0 is the original ask; R1 onward are unasked comments, kept verbatim. For the sitting: J1 what to keep; J1a folder; O1 audience, O2 promise, O3 final say; J2a thin-record sentence, J2b drafted sentence and pairs, J2c each redraft with its pass; T1 to T9 the nine taste taps, with no T9 row where the place is carried from a voice answers file's P12; J3a taste description as shown, J3b off parts, J3c pull; L1 onward each page of whole looks and action; L<n>-S1 to S4 its steer and comment where none works; C1 onward each boards page, picks and action, C<n>-S1 to S4 its steer and comment; K1 the lock; K2 the optional voice note; K3 any checked wording correction. Within each S1 to S4 set, S1 is warmth, S2 quiet/bold with soft/strong, S3 classic/current and S4 the comment. That legend is bank Build Brand 0.4.0's. A row of bank Build Brand 0.3.0 keeps that bank's legend: S1 warmth, S2 quiet/bold, S3 soft/strong, S4 classic/current and S5 the comment. Read each row by its own bank version. Keep earlier answers on correction. Each page and each pick have their own numbered row within their round; save their unchanged full records with the work for selection and resume. Feed citations identify the question, page and pick, never just the current screen.
+B0 records a path choice only where one is actually needed; the sitting and the brand-folder entry do not ask it. R0 is the original ask; R1 onward are unasked comments, kept verbatim. For the sitting: J1 what to keep; J1a folder; J1c the member's own colours, verbatim, including colours named in a page comment; O1 audience, O2 promise, O3 final say; J2a thin-record sentence, J2b drafted sentence and pairs, J2c each redraft with its pass; T1 to T9 the nine taste taps, with no T9 row where the place is carried from a voice answers file's P12; J3a taste description as shown, J3b off parts, J3c pull; L1 onward each page of whole looks and action; L<n>-S1 to S4 its steer and comment where none works; C1 onward each boards page, picks and action, C<n>-S1 to S4 its steer and comment; K1 the lock; K2 the optional voice note; K3 any checked wording correction. Within each S1 to S4 set, S1 is warmth, S2 quiet/bold with soft/strong, S3 classic/current and S4 the comment. That legend is bank Build Brand 0.4.0's. A row of bank Build Brand 0.3.0 keeps that bank's legend: S1 warmth, S2 quiet/bold, S3 soft/strong, S4 classic/current and S5 the comment. Read each row by its own bank version. Keep earlier answers on correction. Each page and each pick have their own numbered row within their round; save their unchanged full records with the work for selection and resume. Feed citations identify the question, page and pick, never just the current screen.
 
 ## Opening
 
@@ -45,12 +45,25 @@ Use the same second sentence: "Put them there, or drop them here in the chat, th
 
 - Done
 - Skip this: build without them
+- Type my colours instead
 
 Done while empty:
 
 > The folder's still empty. Put them in, or tap Skip.
 
-Keep the same two options. Logo replaces initials everywhere; supplied values hold every board; board zero first. Feeds Source Assets and Templates, Color, Typography and Mark.
+Keep the same three options. Logo replaces initials everywhere; supplied values hold every board; board zero first for retained assets. A typed colour set adds no board zero, since every board already wears it. Feeds Source Assets and Templates, Color, Typography and Mark.
+
+## Own colours
+
+C1 is the folder's third option above. After C1, C2 is typed:
+
+> Which colours? Name them, like "red, white and blue", or type their codes.
+
+C5 for an unknown word, filling that word exactly:
+
+> I don't know the colour "[word]". Could you say it another way, or type its code?
+
+An entirely known colour phrase or an explicit request to use colours in either page comment is already the answer: ask no C2, use C3 to C5. Colour words under less, more, too, not or without stay steer and off; pass the whole comment to `coloursFromComment` before extracting a phrase. Save J1c verbatim and file the built set with the work. These C labels identify approved copy, not boards-page answer numbers.
 
 ## Organisation: Who it's for
 
@@ -273,6 +286,16 @@ No real source rule, no pull question. Feeds the selection, Visual Personality a
 
 ## Step 3: Whole looks
 
+C3 before the first looks or boards page in this set, filling the bracket verbatim:
+
+> These use your colours: [colours as they said them].
+
+C4 once per moved colour of the member's own, only when its from value equals a member input value and it moved for reading; derived shades move silently and are filed:
+
+> I deepened your [colour] a little, so words on it stay easy to read.
+
+Where it moved lighter, replace only "deepened" with "lightened". These lines also apply to a first boards page in a newly named set.
+
 Only when the lettering is not installed, before installing it:
 
 > Getting your looks ready. The first time takes a few minutes while I get set up.
@@ -305,7 +328,7 @@ On `ENOSPC` while saving the lettering:
 
 > Which of these feel like you? Pick up to three.
 
-Twelve tiles from `select.mjs looks`, its options unchanged, at least two on a plain ground and all five marks. The three actions, in order, have the following exact labels and lines. Conditions and `needs` are engine data, never shown as explanation.
+Up to twelve tiles from `select.mjs looks`, its options unchanged. Own-colour pages show the available distinct pairing and graphic-set combinations, even when fewer than twelve; say nothing extra. Library-colour pages keep twelve, at least two on a plain ground and all five marks. The three actions, in order, have the following exact labels and lines. Conditions and `needs` are engine data, never shown as explanation.
 
 | Picks | Label | Line | Needs |
 |-------|-------|------|-------|
@@ -315,9 +338,9 @@ Twelve tiles from `select.mjs looks`, its options unchanged, at least two on a p
 
 `pick: 3`, `min: 2`: one picked is allowed by its own action. Any number may be ticked. Above three the Use these button stays grey with "You picked [n] looks. Pick up to three to go on." Other unmet actions hide.
 
-None of these work uses Steering a round below with "What's missing from these?", on one screen of the question tool under step 3's progress line, then twelve unshown looks with the same buttons. Append every shown look unchanged to history. No wrong-look question.
+None of these work uses Steering a round below with "What's missing from these?", on one screen of the question tool under step 3's progress line, then up to twelve distinct unshown looks for own colours, or twelve unshown looks for library colours, with the same buttons. Append every shown look unchanged to history. No wrong-look question.
 
-When no new page of twelve can be made from looks not yet shown, the last page of looks comes back, not appended to history again, on the same card with the same buttons, after one message:
+When no unshown own-colour look remains, or no new page of twelve library-colour looks can be made from looks not yet shown, the last page of looks comes back, not appended to history again, on the same card with the same buttons, after one message:
 
 > That's every look I have. Pick the closest one, and I'll build your boards from there.
 

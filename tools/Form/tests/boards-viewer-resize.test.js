@@ -33,7 +33,7 @@ for(const name of ['chatgpt','Claude'])test(`last tile ${name} 390: open and clo
  const h=await kit.open(boardForm(),390,'light',{name,autoSize:true,containerDimensions:name==='Claude'?{maxHeight:cap,width:390}:undefined});
  try{
   await sized(h,0,cap);
-  const full=h.f.locator('.see-board').last();let since=await reports(h);
+  const full=h.f.locator('.board-thumbnail').last();let since=await reports(h);
   await full.click();await sized(h,since,cap);
   const close=h.f.getByText('Close this board',{exact:true}).first();
   assert.equal(await close.evaluate(n=>document.activeElement===n),true);await insideViewport(h,close);
@@ -49,8 +49,8 @@ for(const name of ['chatgpt','Claude'])test(`lower mirror ${name} 390: fourth ti
  const h=await kit.open(form,390,'light',{name,autoSize:true,containerDimensions:name==='Claude'?{maxHeight:cap,width:390}:undefined});
  try{
   await sized(h,0,cap);
-  for(let i=0;i<3;i++)await h.f.locator('.boards-tile').nth(i).click();
-  let since=await reports(h);await h.f.locator('.see-board').nth(3).click();await sized(h,since,cap);
+  for(let i=0;i<3;i++)await h.f.locator('.tile-input').nth(i).click();
+  let since=await reports(h);await h.f.locator('.board-thumbnail').nth(3).click();await sized(h,since,cap);
   const primary=form.questions[0].options[3].board.primaryMode;
   await h.f.locator(`.board-mode-switch[data-mode=${primary==='light'?'dark':'light'}]`).click();
   await settle(h);
@@ -67,7 +67,7 @@ for(const name of ['chatgpt','Claude'])test(`lower mirror ${name} 390: fourth ti
   assert.equal(await h.f.locator('[data-action=more]').isDisabled(),false);
   assert.equal(await h.f.locator('[data-action=more] small').innerText(),'Show me variations of these boards');
   since=await reports(h);await h.f.getByText('Close this board',{exact:true}).first().click();await sized(h,since,cap);
-  since=await reports(h);await h.f.locator('.see-board').nth(4).click();await sized(h,since,cap);
+  since=await reports(h);await h.f.locator('.board-thumbnail').nth(4).click();await sized(h,since,cap);
   const nextPrimary=form.questions[0].options[4].board.primaryMode;
   assert.equal(await h.f.locator('.board-mode-switch[aria-pressed=true]').getAttribute('data-mode'),nextPrimary);
   assert.deepEqual(await h.frame.evaluate(()=>[...new Set([...document.querySelectorAll('.board-viewer .board-art>*')].filter(n=>n.getClientRects().length).map(n=>n.dataset.mode))]),[nextPrimary]);
@@ -86,7 +86,7 @@ test('pending scroll repeats: a later open or close cancels the old target, and 
   await trackScrolls(h);
   for(const sequence of ['open-close','close-open','open-open']){
    await h.frame.evaluate(sequence=>{
-    const full=document.querySelectorAll('.see-board'),close=()=>document.querySelector('.board-viewer button').click();
+    const full=document.querySelectorAll('.board-thumbnail'),close=()=>document.querySelector('.board-viewer button').click();
     if(sequence==='close-open'){full[11].click();close();full[10].click();}
     else if(sequence==='open-open'){full[11].click();full[10].click();}
     else{full[11].click();close();}
@@ -106,7 +106,7 @@ test('pending scroll repeats: a later open or close cancels the old target, and 
 test('pending scroll repeat expires when the host never resizes',async()=>{
  const h=await kit.open(boardForm(),390);
  try{
-  await trackScrolls(h);await h.f.locator('.see-board').last().click();
+  await trackScrolls(h);await h.f.locator('.board-thumbnail').last().click();
   await h.frame.evaluate(()=>{__scrolls=[];return new Promise(resolve=>setTimeout(resolve,1700));});
   await h.page.locator('iframe').evaluate(n=>n.style.height='3000px');await settle(h);
   assert.deepEqual(await h.frame.evaluate(()=>__scrolls),[]);assert.deepEqual(h.errors,[]);

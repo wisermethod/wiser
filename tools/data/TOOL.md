@@ -4,6 +4,7 @@ type: tool
 category: data
 description: Parses, describes, aggregates, joins, and charts a CSV, JSON, or TSV file, and computes a percentage, difference, or rate from two numeric fields of a JSON object
 version: 0.3.3
+runs: local
 ---
 
 # data

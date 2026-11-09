@@ -620,9 +620,15 @@
           }
         },
         "create_event": {
-          "description": "Creates a calendar event, asking Google to email guests only when notify_guests is true. start and end are each a YYYY-MM-DD date or an RFC 3339 date-time; given together they must be the same kind, and an all-day end is exclusive. A date-time with no offset needs an IANA time_zone such as America/Denver, never a bare offset, and time_zone is accepted only with start or end. Google, not this connector, refuses an end that is not after start. notify_guests defaults to false and is sent as sendUpdates all or none; none asks Google not to email guests, which Google does not fully promise, and Google warns that guests outside Google Calendar may then not receive the event. calendar_id refuses a dot, a double dot and any slash. An attendee address follows the Gmail address rule, at most 254 characters and 254 bytes.",
+          "description": "Creates a calendar event, asking Google to email guests only when notify_guests is true. start and end are each a YYYY-MM-DD date or an RFC 3339 date-time; given together they must be the same kind, and an all-day end is exclusive. A date-time with no offset needs an IANA time_zone such as America/Denver, never a bare offset, and time_zone is accepted only with start or end. Google, not this connector, refuses an end that is not after start. notify_guests defaults to false and is sent as sendUpdates all or none; none asks Google not to email guests, which Google does not fully promise, and Google warns that guests outside Google Calendar may then not receive the event. calendar_id refuses a dot, a double dot and any slash. An attendee address follows the Gmail address rule, at most 254 characters and 254 bytes. add_google_meet is an optional boolean defaulting to false; true sends conferenceDataVersion=1 and a conferenceData Meet create request with a fresh UUID. With false or the field absent, neither conferenceDataVersion nor conferenceData is sent, and the request is the one sent before this field existed. With true the event keeps every original field and adds google_meet with status, link and video_entry_point. A pending result says Google is still creating the Meet link and names google.calendar.get_event to read it back; nothing retries or makes a second request.",
           "risk": "medium",
           "confirmation": "always",
+          "key_fields": [
+            "summary",
+            "start",
+            "end",
+            "attendees"
+          ],
           "execution": {
             "prefer": "proxy"
           },
@@ -672,6 +678,10 @@
               },
               "notify_guests": {
                 "type": "boolean"
+              },
+              "add_google_meet": {
+                "type": "boolean",
+                "default": false
               }
             },
             "required": [
@@ -681,10 +691,15 @@
               "end"
             ],
             "additionalProperties": false
+          },
+          "standing_approval": {
+            "kind": "send",
+            "summary": "create Google Calendar events",
+            "caution": "Calendar creates and updates may notify attendees. Both count as sending even when notifications are off, because approval kinds cannot depend on input."
           }
         },
         "update_event": {
-          "description": "Patches only the given fields of a calendar event, replaces the attendee list when attendees is sent, and clears the date or date-time a changed start or end leaves behind. At least one of summary, description, location, start, end and attendees is required. start and end are each a YYYY-MM-DD date or an RFC 3339 date-time; given together they must be the same kind, and an all-day end is exclusive. A date-time with no offset needs an IANA time_zone such as America/Denver, never a bare offset, and time_zone is accepted only with start or end. Google, not this connector, refuses an end that is not after start. notify_guests defaults to false and is sent as sendUpdates all or none; none asks Google not to email guests, which Google does not fully promise, and Google warns that guests outside Google Calendar may then not receive the event. calendar_id refuses a dot, a double dot and any slash. An attendee address follows the Gmail address rule, at most 254 characters and 254 bytes.",
+          "description": "Patches only the given fields of a calendar event, replaces the attendee list when attendees is sent, and clears the date or date-time a changed start or end leaves behind. At least one of summary, description, location, start, end and attendees, or add_google_meet: true, is required; add_google_meet: false alone is not a change and is refused. start and end are each a YYYY-MM-DD date or an RFC 3339 date-time; given together they must be the same kind, and an all-day end is exclusive. A date-time with no offset needs an IANA time_zone such as America/Denver, never a bare offset, and time_zone is accepted only with start or end. Google, not this connector, refuses an end that is not after start. notify_guests defaults to false and is sent as sendUpdates all or none; none asks Google not to email guests, which Google does not fully promise, and Google warns that guests outside Google Calendar may then not receive the event. calendar_id refuses a dot, a double dot and any slash. An attendee address follows the Gmail address rule, at most 254 characters and 254 bytes. add_google_meet is an optional boolean defaulting to false; true sends conferenceDataVersion=1 and a conferenceData Meet create request with a fresh UUID. With false or the field absent, neither conferenceDataVersion nor conferenceData is sent, so Google's version-0 behaviour leaves any existing Meet link untouched. With true the event keeps every original field and adds google_meet with status, link and video_entry_point. A pending result says Google is still creating the Meet link and names google.calendar.get_event to read it back; nothing retries or makes a second request. On update_event, add_google_meet: true on an event that already has a conference asks Google for a new one; whether Google replaces the existing link is Google's behaviour, not verified here, so read the event with google.calendar.get_event first.",
           "risk": "high",
           "confirmation": "always",
           "execution": {
@@ -740,6 +755,10 @@
               },
               "notify_guests": {
                 "type": "boolean"
+              },
+              "add_google_meet": {
+                "type": "boolean",
+                "default": false
               }
             },
             "required": [
@@ -777,8 +796,25 @@
                 "required": [
                   "attendees"
                 ]
+              },
+              {
+                "required": [
+                  "add_google_meet"
+                ],
+                "properties": {
+                  "add_google_meet": {
+                    "enum": [
+                      true
+                    ]
+                  }
+                }
               }
             ]
+          },
+          "standing_approval": {
+            "kind": "send",
+            "summary": "update Google Calendar events",
+            "caution": "Calendar creates and updates may notify attendees. Both count as sending even when notifications are off, because approval kinds cannot depend on input."
           }
         }
       },
@@ -1014,6 +1050,13 @@
           "description": "Send only with the person's explicit go for this message, or a standing approval the person granted for this action. A call naming local attachments always asks for confirmation and is never covered by a standing approval. Each recipient item is a single plain address with no display name, group or comment, at most 254 Unicode code points and 254 UTF-8 bytes. All input strings must be well-formed Unicode; lone surrogates are refused. Supply thread_id, in_reply_to and references together or omit all three. The last references entry must equal in_reply_to, the immediate parent's RFC Message-ID, not its Gmail resource id; match the parent's Message-Id header name from get_message case-insensitively. References are the ordered ancestor IDs including that parent last, at most 20 entries of at most 254 ASCII characters each; excluded Message-ID forms and longer ancestry must be reported, never rewritten or truncated. Google requires threadId to identify the existing thread, RFC 2822 compliant References and In-Reply-To, and matching Subject headers. Supply the existing subject unchanged; no Re: is added and no lookup verifies the thread, account, subject or parent. To/Cc/Bcc and RFC 2047 UTF-8 subjects are folded; text leaves use standard base64 wrapped at 76 characters and raw uses unpadded base64url. Local attachments require the local stdio gateway and 1 to 10 regular files totaling at most 2097152 bytes, counting duplicate paths once per occurrence. Omit attachments for no files. The gateway checks native absolute paths, actual byte sizes and integrity, refusing protected paths, environment files, memory ancestry, links including linked ancestors, multiply linked files, unreadable files and changes since approval; supply a real path. The module uses only prepared bytes, checks their count, metadata, length and SHA-256, and attaches them in the order the gateway prepared them, which is input order. Unknown extensions use application/octet-stream without content sniffing. With files MIME is multipart/mixed, body first, then attachments in input order; body_html, including empty HTML, makes a nested multipart/alternative. Attachment filenames use escaped ASCII or RFC 2231 UTF-8 parameters. No local path enters MIME. File bytes never appear in results; only selected Gmail resource fields are returned. A failed or malformed response is never automatically retried.",
           "risk": "high",
           "confirmation": "always",
+          "key_fields": [
+            "to",
+            "cc",
+            "bcc",
+            "subject",
+            "body"
+          ],
           "execution": {
             "prefer": "proxy"
           },
@@ -1134,8 +1177,7 @@
           },
           "standing_approval": {
             "kind": "send",
-            "summary": "send Gmail messages",
-            "caution": "This grant sends messages your assistant writes, to any recipient, with no look at each one before it is sent. It never covers a message with a local file attached."
+            "summary": "send Gmail messages"
           }
         }
       },

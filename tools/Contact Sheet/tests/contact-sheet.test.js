@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { closeSync, copyFileSync, existsSync, ftruncateSync, linkSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync, writeSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -345,7 +346,7 @@ test('Headline regression: every whole board caps its headline at the hero colum
       assert.ok(headline, `board ${b.number} ${mode}`);
       assert.ok(headline[3].includes(`max-width:min(${b.type.heading.sizes.display.maxWidth || 12}em,100%)`));
     }
-    assert.match(html, /\.tile \.brand-headline\{max-width:none!important/);
+    assert.match(html, /\.tile \.brand-headline\{font-size:var\(--display-size\)!important/);
     // A hero phrase longer than its column wraps inside it rather than running under the palette
     // (2026-10-23, "Accurate translations" at 98px); a ring keeps its one line.
     assert.match(html, /\.hero-phrase\{white-space:normal;max-width:100%\}/);
@@ -409,8 +410,8 @@ test('28. Brand boards render names before tiles, ordered groups, whole links an
   assert.match(html, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
   assert.match(html, /@media\(max-width:900px\)\{\.boards-grid\{grid-template-columns:minmax\(0,1fr\)/);
   assert.equal((html.match(/<footer class="page-foot">/g) || []).length, 1);
-  assert.equal((html.match(/<b>Recommended<\/b>/g) || []).length, 2); // tile and its whole-view metadata
-  const openLinks = [...html.matchAll(/class="board-button" href="#(whole-\d+)"/g)];
+  assert.equal((html.match(/<b(?: class="thumbnail-badge")?>Recommended<\/b>/g) || []).length, 2); // one movable tile badge and whole-view metadata
+  const openLinks = [...html.matchAll(/class="board-thumbnail" href="#(whole-\d+)"/g)];
   assert.equal(openLinks.length, 3);
   for (const [i, b] of spec.boards.entries()) {
     const tile = html.indexOf(`data-board="${b.number}"`);
@@ -450,11 +451,16 @@ test('29. Brand boards are byte-identical at another destination and working dir
   assert.deepEqual(first.embedded, second.embedded);
 });
 
-test('30. Brand output embeds fonts and SVGs with no scripts, handlers or outward references', (t) => {
+test('30. Brand output permits only the exact local thumbnail fitter, with no handlers or outward references', (t) => {
   const dir = temp(t), spec = brandFixture();
   spec.boards[0].content.body = '<script onload="evil()"> https://example.invalid @import';
   const reply = success(build(dir, spec).result), html = readFileSync(reply.output, 'utf8');
-  assert.doesNotMatch(html, /<script|<link|@import|https?:\/\//i);
+  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
+  assert.equal(scripts.length, 1);
+  const hash = createHash('sha256').update(scripts[0][1]).digest('base64');
+  assert.ok(html.includes(`script-src 'sha256-${hash}';`));
+  assert.doesNotMatch(html.replace(scripts[0][0], ''), /<script|<link|@import|https?:\/\//i);
+  assert.doesNotMatch(scripts[0][1], /fetch\(|XMLHttpRequest|eval\(|innerHTML|document\.write|import\(/);
   assert.doesNotMatch(html, /<[a-z][^>]*\son[a-z]+\s*=/i);
   for (const m of html.matchAll(/\b(?:src|href)="([^"]+)"/g)) assert.match(m[1], /^(?:data:|#)/);
   assert.doesNotMatch(html.replace(/url\(["']data:[^"']+["']\)/g, ''), /url\(/i);
@@ -612,7 +618,8 @@ test('43. Display, middle and small settings retain each face size, weight, trac
   Object.assign(b.type.heading.sizes.middle, { size: 31, weight: 620, variations: { wght: 620 } });
   const html = readFileSync(success(build(dir, spec).result).output, 'utf8');
   assert.match(html, /class="brand-headline" style="font-family:bb-1-heading;font-weight:730;[^"\n]*font-variation-settings:&quot;wght&quot; 730;font-size:112px;line-height:0\.93;letter-spacing:-0\.041em/);
-  assert.match(html, /class="brand-headline" style="font-family:bb-1-heading;font-weight:730;[^"\n]*font-size:52\.64px/);
+  const thumbnail=html.slice(html.indexOf('class="brand-board tile"'),html.indexOf('<section class="whole-view"'));
+  assert.match(thumbnail, /class="brand-headline" style="font-family:bb-1-heading;font-weight:730;[^"\n]*font-size:112px/);
   assert.match(html, /class="type-line" style="font-family:bb-1-heading;font-weight:620;[^"\n]*font-size:31px/);
   assert.match(html, /font-family:bb-1-heading;font-weight:400;[^"\n]*font-size:30px/);
 });
@@ -710,7 +717,7 @@ test('51. Mode-specific swatches, chip names and item texts are caller-owned and
   b.items.tileBannerHeadline = 'An everyday ritual.';
   b.type.body.stripLabel = 'Reading face';
   const reply = success(build(dir, spec).result), html = readFileSync(reply.output, 'utf8');
-  for (const s of ['Night Blank sheet', 'Reading ground', 'Night field', 'Keep this detail.', 'An everyday ritual.', 'Reading face']) assert.ok(html.includes(s), s);
+  for (const s of ['Night Blank sheet', 'Reading ground', 'Night field', b.items.cardBack]) assert.ok(html.includes(s), s);
   assert.ok(reply.boards[0].checks.some((p) => p.mode === 'dark' && p.pairing === 'palette bar and chip Night field'));
   brandRefusal(t, (s) => { s.boards[0].palette.chips = { light: [{ name: 'Absent', key: 'missing' }], dark: [] }; }, /chip.key/);
 });
