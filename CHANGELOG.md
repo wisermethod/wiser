@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.09.2, November 9, 2026
+
+- Wiser's install steps now match what each app does, measured on November 9. In the ChatGPT desktop app you install lowercase `wiser`, the one with the branch icon, from Browse directory; after adding Wiser's marketplace you go back there, since the Marketplace tab installs nothing itself. A server you add for Wiser yourself in the ChatGPT desktop app or Codex is named exactly `wiser`: they treat any other name as a second Wiser, with every tool twice. In Claude, a Wiser connector you added before installing the plugin is the one the plugin uses, so there is nothing more to press. ChatGPT on the web, which installs no plugins, has its own steps, and the README says Cursor cannot sign in to Wiser yet. (27b84bee)
+- Set up connectors and Set up Wiser now notice when one chat holds two Wiser servers. In the ChatGPT desktop app and Codex they say which one to remove; in Claude, where two are always two different Wiser endpoints, they ask which one the chat should use. (27b84bee)
+
 ## v2026.11.09, November 9, 2026
 
 - Wiser can now connect X: it reads your account, one post and your account's own recent posts, and deletes a post after you confirm. Posting comes in a later release. X bills every call to the developer account that owns the app, so you connect X through an X developer app of your own; the Wiser connector offers X only to the accounts it is set up for. (eb8085ec, 3d74f9ad, 2fb82052, 78a0e3b6)
