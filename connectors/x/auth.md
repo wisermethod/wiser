@@ -2,11 +2,11 @@
 
 What you do, on which side, to make `x.*` actions run. The Connect Account skill walks this in its own turn; this file is what it reads. Every route ends with you approving the app at X in your own browser. No credential is typed into the conversation.
 
-X bills every call to the developer account that owns the app, and its limits fall there too. So every account connects through an X app that is its own, never through one app shared by everyone who connects.
+X bills every call to the developer account that owns the app, and its limits fall there too. So no app is offered to everyone who connects: the Wiser endpoint offers its X app only to the accounts it names, and every other member brings their own.
 
 ## Which route
 
-- **The Wiser endpoint**, only for an account the service names for X. For that account the service already holds that account's own X app and the provider's auth config for it, so there is nothing to prepare, at X or at the provider: skip both sections below marked for your own X app and go straight to **Through the gateway**, where the only step is approving at X. Charges go to the developer account that owns that app. Any other account is told "This connector is not offered on the hosted endpoint. It works through the local gateway." and connects X with its own app instead, below.
+- **The Wiser endpoint**, only for an account the service names for X. For that account the service already holds its one X app and the provider's one auth config for it, so there is nothing to prepare, at X or at the provider: skip both sections below marked for your own X app and go straight to **Through the gateway**, where the only step is approving at X. Charges go to the developer account that owns that app. Any other account is told "This connector is not offered on the hosted endpoint. It works through the local gateway." and connects X with its own app instead, below.
 - **Your own X app**, on the local gateway, in a command-line harness, with a provider project of your own. You make the app, buy its credits and set its spending limit, and every call bills your developer account. Prepare both sides, below, before connecting.
 
 ## On X's side, first

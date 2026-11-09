@@ -37,7 +37,7 @@ Who can connect, and who pays, depends on the route (`auth.md`, Which route):
 
 | Route | Who can connect | Whose app, and who pays X |
 |-------|-----------------|---------------------------|
-| The Wiser endpoint | Only an account the service names for X; any other is told "This connector is not offered on the hosted endpoint. It works through the local gateway." | That account's own X app, which the service holds for it; the developer account that owns the app pays |
+| The Wiser endpoint | Only an account the service names for X; any other is told "This connector is not offered on the hosted endpoint. It works through the local gateway." | The service's one X app and auth config, offered only to the accounts it names; the developer account that owns the app pays |
 | Your own X app, on the local gateway | Anyone with an X developer account and a provider project of their own | Your own app, made with the provider's custom auth config as `auth.md` directs; your developer account pays |
 
 The requested scopes are exactly `tweet.read tweet.write users.read offline.access`. X's generated schema, version 2.174, describes their reach in these words:
