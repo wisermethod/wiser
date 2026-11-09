@@ -2,11 +2,11 @@
 
 What you do, on which side, to make `x.*` actions run. The Connect Account skill walks this in its own turn; this file is what it reads. Every route ends with you approving the app at X in your own browser. No credential is typed into the conversation.
 
-X bills every call to the developer account that owns the app, and its limits fall there too. So X runs on an app of your own, never on one app shared by everyone who connects.
+X bills every call to the developer account that owns the app, and its limits fall there too. So every account connects through an X app that is its own, never through one app shared by everyone who connects.
 
 ## Which route
 
-- **The Wiser endpoint**, only for an account the service names for X. For that account the service already holds its own X app and the provider's auth config for it, so there is nothing to prepare, at X or at the provider: go straight to **Through the gateway**, where the only step is approving at X. Charges go to the developer account that owns that app. Any other account is told "This connector is not offered on the hosted endpoint." and connects X with its own app instead, below.
+- **The Wiser endpoint**, only for an account the service names for X. For that account the service already holds that account's own X app and the provider's auth config for it, so there is nothing to prepare, at X or at the provider: skip both sections below marked for your own X app and go straight to **Through the gateway**, where the only step is approving at X. Charges go to the developer account that owns that app. Any other account is told "This connector is not offered on the hosted endpoint. It works through the local gateway." and connects X with its own app instead, below.
 - **Your own X app**, on the local gateway, in a command-line harness, with a provider project of your own. You make the app, buy its credits and set its spending limit, and every call bills your developer account. Prepare both sides, below, before connecting.
 
 ## On X's side, first
@@ -49,7 +49,7 @@ This permits creating posts and reposts as the account and reading every post an
 3. Open it in your own browser and consent at X. No secret enters the conversation.
 4. The skill runs `connect_status`. Only `ACTIVE` completes the grant.
 
-There is one module and one connect turn. The first live call must be `x.account.me`: whether the proxy attaches the user's token at `https://api.x.com` remains unverified. The write-route ordering probe and live captures remain separate from this fake-provider build.
+There is one module and one connect turn. Whether the proxy attaches the user's token at `https://api.x.com` is unverified until a first live call answers; `CONNECTOR.md` Status says how far the connector has been proved.
 
 ## Rate limits and unattended use
 
@@ -73,7 +73,7 @@ Local-file and app-only bearer authentication are not routes here. Every action 
 - **It removes nothing locally unless the provider confirms the credential is gone**, so a grant that is merely suspended keeps its records.
 - **A finished teardown says what it established, in `credential_revoked`.** `yes` means every step the provider reported succeeded. **`unknown` means the provider's record of the credential is gone and an earlier step failed**, so the credential may still work at the vendor even though nothing here points at it any more. Removing the local rows is right either way; **`unknown` is not a completed cutoff**, and the vendor route below is what finishes it.
 
-**At the vendor instead**, if you would rather, or if `disconnect` answers `needs_provider_capability`, meaning this provider will not revoke this credential for you. Revoke this app in X settings under Security and account access, Apps and sessions, Connected apps. To rotate the OAuth client credentials, update the custom auth config with the replacement credentials on the provider's page; if the config is deleted, recreate it by hand before connecting again. Afterwards run `connect_status` for each module you revoked and read what it returns: it asks the provider and records the answer, so the row stops reading ACTIVE only once the provider agrees, and a provider error leaves it unchanged. A `how` field on the gateway's answer is the adapter's own words; where it names a route this guide does not list, the two disagree and that is worth reporting rather than following.
+**At the vendor instead**, if you would rather, or if `disconnect` answers `needs_provider_capability`, meaning this provider will not revoke this credential for you. Revoke this app in X settings under Security and account access, Apps and sessions, Connected apps. On your own X app, to rotate the OAuth client credentials, update the custom auth config with the replacement credentials on the provider's page; if the config is deleted, recreate it by hand before connecting again. On the Wiser endpoint the auth config is the service's: revoking ends your grant and leaves that config alone. Afterwards run `connect_status` for each module you revoked and read what it returns: it asks the provider and records the answer, so the row stops reading ACTIVE only once the provider agrees, and a provider error leaves it unchanged. A `how` field on the gateway's answer is the adapter's own words; where it names a route this guide does not list, the two disagree and that is worth reporting rather than following.
 
 ## Last connected
 
