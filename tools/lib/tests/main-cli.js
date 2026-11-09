@@ -11,7 +11,7 @@ export function mainCli(t, tool) {
   t.after(() => rmSync(scratch, { recursive: true, force: true }));
   const paths = execFileSync('git', ['ls-tree', '-r', '--name-only', 'main', '--',
     `tools/${tool}/scripts`, `tools/${tool}/package.json`, 'tools/AGENTS.md',
-    'tools/lib/consent.js', 'tools/lib/user-config.js'], { cwd: root, encoding: 'utf8' })
+    'tools/lib/consent.js', 'tools/lib/user-config.js', 'tools/lib/destination-core.js'], { cwd: root, encoding: 'utf8' })
     .trim().split('\n').filter(p => p && !p.includes('/__tests__/') && !p.includes('/zArchive/'));
   for (const path of paths) {
     const dest = join(scratch, path);
