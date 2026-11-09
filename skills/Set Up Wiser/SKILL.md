@@ -3,7 +3,7 @@ name: Set Up Wiser
 type: skill
 category: onboarding
 description: Take a new member, in one chat, from no folder open to their own Wiser folder on their Desktop, set up and with their voice and look recorded, and then to a project in their app with that folder attached, checking their Wiser connection first, on the ask set up wiser (also setup wiser)
-version: 0.4.2
+version: 0.4.3
 ---
 
 # Set Up Wiser
@@ -44,7 +44,7 @@ Does this chat have a folder open? No: go to step 2. Yes, one or more: you canno
 
 Say: "Hi! I'm checking that Wiser is ready and getting a few things set up for you. We'll do it in three parts: your folder, how you write, and a look for your work. I'll walk you through each step."
 
-Call `whoami`. What came back? An account id: go to step 4. This session has no `whoami`: go to step 3. It is listed but the call failed or returned no account id: their sign-in to Wiser needs renewing, so go to step 3 and give them the renewal there.
+Call `whoami`. Where two or more servers offer `whoami`, do what `skills/Set Up Connectors/` step 3's two-servers branch for this app says. Where it carries on with one server, call that server's `whoami` and go on below. Where it asks which server this chat should use, ask it here and stop until they answer, then call the one they name. Where it stops, say: "Once that's done, open a new task and type Set up Wiser again, and we'll pick up from here." Stop: nothing from step 4 on runs in this chat. What came back? An account id: go to step 4. This session has no `whoami`: go to step 3. It is listed but the call failed or returned no account id: their sign-in to Wiser needs renewing, so go to step 3 and give them the renewal there.
 
 ### 3. Connect Wiser
 
