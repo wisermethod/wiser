@@ -1,8 +1,17 @@
 # Connecting X
 
-Prepare both sides before asking Connect Account to connect `x` / `account`. Hosted connect asks you to approve the app at X in your own browser. No credential is typed into the conversation.
+What you do, on which side, to make `x.*` actions run. The Connect Account skill walks this in its own turn; this file is what it reads. Every route ends with you approving the app at X in your own browser. No credential is typed into the conversation.
+
+X bills every call to the developer account that owns the app, and its limits fall there too. So X runs on an app of your own, never on one app shared by everyone who connects.
+
+## Which route
+
+- **The Wiser endpoint**, only for an account the service names for X. For that account the service already holds its own X app and the provider's auth config for it, so there is nothing to prepare, at X or at the provider: go straight to **Through the gateway**, where the only step is approving at X. Charges go to the developer account that owns that app. Any other account is told "This connector is not offered on the hosted endpoint." and connects X with its own app instead, below.
+- **Your own X app**, on the local gateway, in a command-line harness, with a provider project of your own. You make the app, buy its credits and set its spending limit, and every call bills your developer account. Prepare both sides, below, before connecting.
 
 ## On X's side, first
+
+For your own X app only. On the Wiser endpoint this side is already done for the accounts the service names.
 
 1. Create an X developer account, a project and an app in the X Developer Portal.
 2. Enable OAuth 2.0 user authentication as a confidential Web App and set app permission to **Read and write**.
@@ -10,6 +19,8 @@ Prepare both sides before asking Connect Account to connect `x` / `account`. Hos
 4. Buy API credits and set a spending limit on the developer account. Your app's account pays X's pay-per-use charges and supplies its quota. See `CONNECTOR.md` for each action's worst case and prices read on 2026-11-06.
 
 ## On the provider's side, before connecting
+
+For your own X app only. On the Wiser endpoint the provider project and its auth config are the service's, and you change nothing there.
 
 The shipped toolkit is named `TWITTER`, X's former service name. It is the X toolkit, separate from the xAI model service. The provider has no managed OAuth app for it, so you must supply your own OAuth app through a custom auth config on that existing toolkit. There is no custom toolkit to create.
 
@@ -33,16 +44,16 @@ This permits creating posts and reposts as the account and reading every post an
 
 ## Through the gateway
 
-1. After both sides are ready, say "Connect X" and name module `account`.
+1. On your own X app, once both sides are ready; on the Wiser endpoint, for an account the service names, at once: say "Connect X" and name module `account`.
 2. Connect Account runs `start_connect` and hands you a hosted link.
 3. Open it in your own browser and consent at X. No secret enters the conversation.
 4. The skill runs `connect_status`. Only `ACTIVE` completes the grant.
 
-There is one module and one connect turn. The scopes as saved by the provider still need readback before the later build step. The first live call must be `x.account.me`: whether the proxy attaches the user's token at `https://api.x.com` remains unverified. The write-route ordering probe and live captures remain separate from this fake-provider build.
+There is one module and one connect turn. The first live call must be `x.account.me`: whether the proxy attaches the user's token at `https://api.x.com` remains unverified. The write-route ordering probe and live captures remain separate from this fake-provider build.
 
 ## Rate limits and unattended use
 
-X's limits and charges apply to your developer app; every proxied request also counts against your provider project. That project's limit is unverified. A 429 is a stop: check both quotas before trying again. A refused request's billing and the minimum credit purchase are unpublished in the evidence.
+X's limits and charges apply to the developer app the connection uses, and its owner pays them; every proxied request also counts against the provider project that holds the auth config, yours on your own app and the service's on the Wiser endpoint. That project's limit is unverified. A 429 is a stop: check both quotas before trying again. A refused request's billing and the minimum credit purchase are unpublished in the evidence.
 
 The provider is expected to retain the refresh token and refresh access tokens. Unattended use remains unverified until a call succeeds more than an hour after consent. Do not rely on it before that measurement.
 

@@ -31,7 +31,14 @@ Results return the vendor's `data` unchecked. All fake answers are invented and 
 
 ## Credentials
 
-The gateway's provider holds the user OAuth grant and refresh token. No client secret, refresh token or access token enters this connector or Wiser. There is no credential file here and no `secrets:x` key. Prepare your own OAuth app and the provider's custom auth config as `auth.md` directs before connecting.
+The gateway's provider holds the user OAuth grant and refresh token. No client secret, refresh token or access token enters this connector or Wiser. There is no credential file here and no `secrets:x` key.
+
+Who can connect, and who pays, depends on the route (`auth.md`, Which route):
+
+| Route | Who can connect | Whose app, and who pays X |
+|-------|-----------------|---------------------------|
+| The Wiser endpoint | Only an account the service names for X; any other is told "This connector is not offered on the hosted endpoint." | The X app the service holds for that account; its developer account pays |
+| Your own X app, on the local gateway | Anyone with an X developer account and a provider project of their own | Your own app, made with the provider's custom auth config as `auth.md` directs; your developer account pays |
 
 The requested scopes are exactly `tweet.read tweet.write users.read offline.access`. X's generated schema, version 2.174, describes their reach in these words:
 
@@ -50,11 +57,11 @@ The actions are narrower than the grant. A leaked grant exposes creating posts a
 |--------|-----------|---------|
 | `account` | `write` | `me`, `get_post`, `recent_posts`, `delete_post` |
 
-One module means one connect turn. Its privilege reflects the grant's write scope, including on reads; confirmation and risk are set separately for each action. The configured scopes and privilege still require live readback from the provider.
+One module means one connect turn. Its privilege reflects the grant's write scope, including on reads; confirmation and risk are set separately for each action.
 
 ## Destructive Actions
 
-X's own API pricing page was read on 2026-11-06. Charges and X's limits fall on your developer app's account and credits; each proxied request also counts against your provider project. The provider project's limit is unverified.
+X's own API pricing page was read on 2026-11-06. Charges and X's limits fall on the account and credits of the developer app the connection uses, on either route (Credentials); each proxied request also counts against the provider project that holds the auth config. That project's limit is unverified.
 
 | Action | Effect and worst case of one invocation | Confirmation |
 |--------|-----------------------------------------|--------------|
@@ -71,7 +78,8 @@ Owned Reads cost $0.001 per resource when the user id matches the authenticated 
 
 ## Troubleshooting
 
-- `needs_connect`: connect the `account` module after preparing the custom auth config in `auth.md`.
+- `needs_connect`: connect the `account` module; on your own X app, after preparing the custom auth config in `auth.md`.
+- "This connector is not offered on the hosted endpoint.": the service does not name this account for X. Connect X with your own X app on the local gateway, as `auth.md` says.
 - `needs_confirmation`: check the exact post id and match the stop before deleting.
 - `invalid_arguments`: correct the named field; `max_results` must be an integer from 5 through 10.
 - `vendor_error` with 401 or 403: check the grant and app permissions; the gateway refreshes the provider's grant status and returns `needs_connect` if that grant is no longer usable.
