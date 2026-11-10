@@ -15,13 +15,14 @@ const ROLE_WEIGHTS = {
 
 const UNKNOWN_ROLE = 5;
 
-export function rankCandidates(candidates, request) {
+export function rankCandidates(candidates, request, check = () => {}) {
   // Recency is measured against the end of the timebox, not the wall clock, so
   // the same request over the same feeds ranks the same way on any day.
   const reference = new Date(request.timebox.to);
 
   return candidates
     .map((candidate) => {
+      check();
       const reasons = [];
       let score = 0;
 
@@ -66,5 +67,5 @@ export function rankCandidates(candidates, request) {
 
       return { ...candidate, score, score_reasons: reasons };
     })
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => { check(); return b.score - a.score; });
 }

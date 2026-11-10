@@ -1,4 +1,4 @@
-import { destinationReason, destinationReasonText } from './destination.js';
+import { destinationReason, destinationReasonText } from '../../../lib/destination-core.js';
 import { publicUrl } from './normalize.js';
 
 const ALLOWED_PROTOCOLS = new Set(['http:', 'https:']);
@@ -12,58 +12,129 @@ const MAX_REDIRECTS = 5;
  * Three rules hold here and are the reason the adapters do not call fetch
  * themselves. Only http and https are fetched, so a source can never turn this
  * tool into a reader of local files. Every destination is screened by
- * destination.js before a connection is opened, and a redirect is a new
+ * destination-core.js when its name is looked up, and a redirect is a new
  * destination, so redirects are followed one hop at a time here rather than
  * inside fetch: a chain that turns toward the machine's own network or a cloud
  * metadata service is stopped at the hop that turns, and that hop is never
- * requested. And no message quotes the response body, the provider's reason
+ * requested after a blocked lookup. The platform resolves the name again when it
+ * connects; the host transport must enforce connected-address policy. And no message quotes the response body, the provider's reason
  * phrase, or the full request URL: any of the three can carry a credential, the
  * third because a caller can embed one in a source URL.
  */
 export async function fetchText(target, accept, context) {
-  let current = await approvedUrl(target, null);
+  let current = await approvedUrl(target, null, context);
   let hops = 0;
 
   while (true) {
     const safeUrl = publicUrl(current.href);
-    let response;
-
+    const request = requestSignal(context);
     try {
-      response = await fetch(current, {
-        headers: { 'User-Agent': context.userAgent, Accept: accept },
-        signal: AbortSignal.timeout(context.timeoutMs),
-        redirect: 'manual'
-      });
-    } catch {
-      throw taggedError(`Request to ${safeUrl} got no response within ${context.timeoutMs}ms, or the connection failed.`, true);
-    }
-
-    if (REDIRECT_STATUSES.has(response.status)) {
-      const location = response.headers.get('location');
-
-      if (!location) {
-        throw taggedError(`Request to ${safeUrl} returned HTTP ${response.status} without a Location header.`, false);
+      let response;
+      try {
+        context.check?.();
+        response = await context.fetch(current, {
+          headers: { 'User-Agent': context.userAgent, Accept: accept },
+          signal: request.signal,
+          redirect: 'manual'
+        });
+      } catch (error) {
+        context.check?.();
+        if (error.fatal) throw error;
+        throw taggedError(`Request to ${safeUrl} got no response within ${context.timeoutMs}ms, or the connection failed.`, true);
       }
 
-      if (hops >= MAX_REDIRECTS) {
-        throw taggedError(`Request to ${safeUrl} redirected more than ${MAX_REDIRECTS} times without reaching a page.`, false);
+      if (REDIRECT_STATUSES.has(response.status)) {
+        const location = response.headers.get('location');
+        await cancelUnreadBody(response.body, context);
+        context.check?.();
+        if (!location) {
+          throw taggedError(`Request to ${safeUrl} returned HTTP ${response.status} without a Location header.`, false);
+        }
+        if (hops >= MAX_REDIRECTS) {
+          throw taggedError(`Request to ${safeUrl} redirected more than ${MAX_REDIRECTS} times without reaching a page.`, false);
+        }
+        current = await approvedUrl(location, current, context);
+        hops++;
+        continue;
       }
 
-      current = await approvedUrl(location, current);
-      hops++;
-      continue;
-    }
+      if (!response.ok) {
+        await cancelUnreadBody(response.body, context);
+        context.check?.();
+        throw taggedError(`Request to ${safeUrl} returned HTTP ${response.status}.`, RETRYABLE_STATUSES.has(response.status));
+      }
 
-    if (!response.ok) {
-      throw taggedError(`Request to ${safeUrl} returned HTTP ${response.status}.`, RETRYABLE_STATUSES.has(response.status));
-    }
-
-    try {
-      return await response.text();
-    } catch {
-      throw taggedError(`Request to ${safeUrl} returned HTTP ${response.status} but the body did not finish arriving.`, true);
-    }
+      try {
+        context.check?.();
+        if (!context.maxBodyBytes) return await response.text();
+        const reader = response.body?.getReader(), decoder = new TextDecoder();
+        if (!reader) return '';
+        let total = 0, text = '';
+        try {
+          for (;;) {
+            context.check?.();
+            const {done, value} = await reader.read();
+            if (done) break;
+            total = countBytes(value.byteLength, total, context);
+            context.check?.();
+            text += decoder.decode(value, {stream:true});
+          }
+          context.check?.();
+          return text + decoder.decode();
+        } catch (error) {
+          await reader.cancel().catch(() => {});
+          throw error;
+        } finally { reader.releaseLock(); }
+      } catch (error) {
+        context.check?.();
+        if (error.fatal) throw error;
+        throw taggedError(`Request to ${safeUrl} returned HTTP ${response.status} but the body did not finish arriving.`, true);
+      }
+    } finally { request.close(); }
   }
+}
+
+// Node 18.0 has AbortController but no AbortSignal.any. Keep the request timer
+// alive through the body read, then remove both the timer and the run listener.
+function requestSignal(context) {
+  const controller = new AbortController();
+  let timer;
+  const abort = () => { clearTimeout(timer); controller.abort(); };
+  if (context.signal?.aborted) abort();
+  else {
+    context.signal?.addEventListener('abort', abort, {once:true});
+    timer = setTimeout(abort, context.timeoutMs);
+  }
+  return {
+    signal:controller.signal,
+    close() { clearTimeout(timer); context.signal?.removeEventListener('abort', abort); controller.abort(); }
+  };
+}
+
+function countBytes(length, total, context) {
+  total += length;
+  context.receivedBytes = (context.receivedBytes || 0) + length;
+  if ((context.maxBodyBytes && total > context.maxBodyBytes) || context.receivedBytes > 4 * 1024 * 1024) {
+    const error = new Error('Error: fetched body exceeds 1 MiB or fetched total exceeds 4 MiB; refused whole.');
+    error.fatal = true;
+    throw error;
+  }
+  return total;
+}
+
+// Read only an already-available chunk, then cancel immediately. Calling cancel
+// right after read resolves a pending read as done when the body has no data;
+// it never waits for a failing server to start or finish sending. A buffered
+// body's chunk is charged to the same caps before the status error is thrown.
+async function cancelUnreadBody(body, context) {
+  if (!body) return;
+  const reader = body.getReader();
+  try {
+    const pending = reader.read();
+    const cancellation = reader.cancel();
+    const [first] = await Promise.allSettled([pending, cancellation]);
+    if (first.status === 'fulfilled' && !first.value.done) countBytes(first.value.value.byteLength, 0, context);
+  } finally { reader.releaseLock(); }
 }
 
 /**
@@ -73,9 +144,10 @@ export async function fetchText(target, accept, context) {
  * refusal on a redirect says which hop turned, because the address it turned to
  * is not one the request named.
  */
-async function approvedUrl(value, from) {
+async function approvedUrl(value, from, context) {
   const isRedirect = from !== null;
   const origin = isRedirect ? `the redirect from ${publicUrl(from.href)}` : 'the source URL';
+  context.check?.();
   let parsed;
 
   try {
@@ -113,7 +185,7 @@ async function approvedUrl(value, from) {
     );
   }
 
-  const reason = await destinationReason(parsed.hostname);
+  const reason = await destinationReason(parsed.hostname, context.lookup);
 
   if (reason === 'unresolvable') {
     throw taggedError(`Request to ${safeUrl} did not run: the host does not resolve.`, true, 'unresolvable');

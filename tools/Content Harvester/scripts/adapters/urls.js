@@ -5,8 +5,10 @@ const ACCEPT = 'text/html, application/xhtml+xml, */*;q=0.8';
 
 export async function collectUrl(source, context) {
   const html = await fetchText(source.url, ACCEPT, context);
+  context.check?.();
+  context.acceptItems?.(1);
 
-  return [normalizeCandidate(extractMetadata(html, source.url, source), {
+  return [await normalizeCandidate(extractMetadata(html, source.url, source), {
     ...context,
     source,
     sourceTopics: source.topics || []
@@ -18,10 +20,13 @@ export async function collectManualUrls(source, context) {
   const errors = [];
 
   for (const url of source.urls || []) {
+    context.check?.();
     try {
       const [candidate] = await collectUrl({ ...source, type: 'url', url }, context);
       candidates.push(candidate);
     } catch (error) {
+      context.check?.();
+      if (error.fatal) throw error;
       errors.push({
         source: source.source || source.name || 'Unnamed source',
         adapter_type: source.type,

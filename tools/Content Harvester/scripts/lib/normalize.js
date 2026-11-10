@@ -1,6 +1,6 @@
-import { createHash } from 'node:crypto';
 
-export function normalizeCandidate(input, context) {
+export async function normalizeCandidate(input, context) {
+  context.check?.();
   const url = recordUrl(input.url || '');
   const canonicalUrl = canonicalizeUrl(url);
   const title = cleanText(input.title || canonicalUrl || 'Untitled');
@@ -14,7 +14,7 @@ export function normalizeCandidate(input, context) {
   ]);
 
   return {
-    id: hashId(`${canonicalUrl || title}|${publishedAt || ''}`),
+    id: await context.hashId(`${canonicalUrl || title}|${publishedAt || ''}`),
     title,
     url,
     canonical_url: canonicalUrl || url,
@@ -27,7 +27,7 @@ export function normalizeCandidate(input, context) {
     summary,
     content,
     topics,
-    matched_topics: matchTopics({ title, summary, content, url: canonicalUrl }, topics),
+    matched_topics: matchTopics({ title, summary, content, url: canonicalUrl }, topics, context.check),
     score: 0,
     score_reasons: [],
     discovered_by: {
@@ -235,13 +235,14 @@ function normalizeDate(value) {
  * A topic matches on its own words. The request supplies the vocabulary; this
  * tool holds no subject knowledge of its own.
  */
-function matchTopics(fields, topics) {
+function matchTopics(fields, topics, check = () => {}) {
   const haystack = `${fields.title} ${fields.summary} ${fields.content} ${fields.url}`.toLowerCase();
 
   return topics.filter((topic) => {
+    check();
     const normalized = String(topic).toLowerCase().trim();
     if (!normalized) return false;
-    return [normalized, normalized.replace(/_/g, ' ')].some((term) => matchesTerm(haystack, term));
+    return [normalized, normalized.replace(/_/g, ' ')].some((term) => { check(); return matchesTerm(haystack, term); });
   });
 }
 
@@ -257,8 +258,4 @@ function escapeRegExp(value) {
 
 function uniqueValues(values) {
   return Array.from(new Set(values.filter(Boolean).map((value) => String(value))));
-}
-
-function hashId(value) {
-  return createHash('sha256').update(value).digest('hex').slice(0, 16);
 }

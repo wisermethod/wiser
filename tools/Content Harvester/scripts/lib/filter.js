@@ -1,4 +1,4 @@
-export function filterCandidates(candidates, request) {
+export function filterCandidates(candidates, request, check = () => {}) {
   const accepted = [];
   const rejected = [];
   const timebox = {
@@ -9,7 +9,8 @@ export function filterCandidates(candidates, request) {
   const perSource = new Map();
 
   for (const candidate of candidates) {
-    const reason = rejectionReason(candidate, filters, timebox, perSource);
+    check();
+    const reason = rejectionReason(candidate, filters, timebox, perSource, check);
 
     if (reason) {
       rejected.push(toRejected(candidate, reason));
@@ -24,7 +25,7 @@ export function filterCandidates(candidates, request) {
   return { accepted, rejected };
 }
 
-function rejectionReason(candidate, filters, timebox, perSource) {
+function rejectionReason(candidate, filters, timebox, perSource, check) {
   if (!candidate.url && !candidate.canonical_url) {
     return 'missing_url';
   }
@@ -39,12 +40,12 @@ function rejectionReason(candidate, filters, timebox, perSource) {
   const text = candidateText(candidate);
 
   if (Array.isArray(filters.exclude_terms)) {
-    const matched = filters.exclude_terms.find((term) => text.includes(String(term).toLowerCase()));
+    const matched = filters.exclude_terms.find((term) => { check(); return text.includes(String(term).toLowerCase()); });
     if (matched) return `excluded_term:${matched}`;
   }
 
   if (Array.isArray(filters.include_terms) && filters.include_terms.length > 0) {
-    const matched = filters.include_terms.some((term) => text.includes(String(term).toLowerCase()));
+    const matched = filters.include_terms.some((term) => { check(); return text.includes(String(term).toLowerCase()); });
     if (!matched) return 'missing_include_term';
   }
 

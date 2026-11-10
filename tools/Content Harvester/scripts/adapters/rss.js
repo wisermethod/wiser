@@ -1,7 +1,7 @@
 import { fetchText } from '../lib/fetch.js';
 import { decodeEntities, normalizeCandidate } from '../lib/normalize.js';
 
-const { XMLParser } = await import('fast-xml-parser');
+import { XMLParser } from 'fast-xml-parser';
 
 const ACCEPT = 'application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.8';
 
@@ -10,14 +10,26 @@ export async function collectFeed(source, context) {
   const parser = new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: '@_',
-    textNodeName: '#text'
+    textNodeName: '#text',
+    updateTag(name) { context.check?.(); return name; },
+    tagValueProcessor(_name, value) { context.check?.(); return value; },
+    attributeValueProcessor(_name, value) { context.check?.(); return value; },
+    isArray() { context.check?.(); return false; }
   });
 
-  return extractItems(parser.parse(xml)).map((item) => normalizeCandidate(mapItem(item, source), {
-    ...context,
-    source,
-    sourceTopics: source.topics || []
-  }));
+  context.check?.();
+  const items = extractItems(parser.parse(xml));
+  context.check?.();
+  context.acceptItems?.(items.length);
+  const candidates = [];
+  for (const item of items) {
+    context.check?.();
+    // Await each item so an abort never strands promises created by a map.
+    candidates.push(await normalizeCandidate(mapItem(item, source), {
+      ...context, source, sourceTopics: source.topics || []
+    }));
+  }
+  return candidates;
 }
 
 function extractItems(parsed) {

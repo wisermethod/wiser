@@ -1,13 +1,13 @@
-import { createHash } from 'node:crypto';
 import { normalizeTitle } from './normalize.js';
 
-export function dedupeCandidates(candidates) {
+export function dedupeCandidates(candidates, check = () => {}) {
   const seenUrls = new Map();
   const seenTitles = new Map();
   const accepted = [];
   const rejected = [];
 
   for (const candidate of candidates) {
+    check();
     const urlKey = candidate.canonical_url || candidate.url;
     const titleKey = normalizeTitle(candidate.title);
 
@@ -45,13 +45,14 @@ export function dedupeCandidates(candidates) {
  * deduplication, which drops those as duplicates by title. An item with neither
  * key joins nothing and stands alone.
  */
-export function clusterCandidates(candidates) {
+export async function clusterCandidates(candidates, {hashId, check = () => {}} = {}) {
   const parents = candidates.map((_, index) => index);
 
   const find = (index) => {
     let root = index;
-    while (parents[root] !== root) root = parents[root];
+    while (parents[root] !== root) { check(); root = parents[root]; }
     while (parents[index] !== root) {
+      check();
       const next = parents[index];
       parents[index] = root;
       index = next;
@@ -71,6 +72,7 @@ export function clusterCandidates(candidates) {
   const firstHolder = new Map();
 
   candidates.forEach((candidate, index) => {
+    check();
     for (const key of clusterKeys(candidate)) {
       if (firstHolder.has(key)) join(firstHolder.get(key), index);
       else firstHolder.set(key, index);
@@ -80,21 +82,22 @@ export function clusterCandidates(candidates) {
   const groups = new Map();
 
   candidates.forEach((candidate, index) => {
+    check();
     const root = find(index);
     if (!groups.has(root)) groups.set(root, []);
     groups.get(root).push(candidate);
   });
 
-  return Array.from(groups.values())
-    .map((items) => ({
-      cluster_id: hashId(items.map((item) => item.id).join('|')),
+  return (await Promise.all(Array.from(groups.values())
+    .map(async (items) => ({
+      cluster_id: await hashId(items.map((item) => item.id).join('|')),
       title: items[0].title,
       item_ids: items.map((item) => item.id),
       urls: unique(items.map((item) => item.canonical_url || item.url)),
       sources: unique(items.map((item) => item.source)),
       top_score: Math.max(...items.map((item) => item.score || 0))
-    }))
-    .sort((a, b) => b.top_score - a.top_score);
+    }))))
+    .sort((a, b) => { check(); return b.top_score - a.top_score; });
 }
 
 /**
@@ -125,8 +128,4 @@ function toRejected(candidate, reason, duplicateOf) {
 
 function unique(values) {
   return Array.from(new Set(values.filter(Boolean)));
-}
-
-function hashId(value) {
-  return createHash('sha256').update(value).digest('hex').slice(0, 16);
 }

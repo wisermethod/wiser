@@ -1,0 +1,56 @@
+{
+  "name": "blocked source and redirect",
+  "request": {
+    "name": "fixture-harvest",
+    "consumer": "fixture consumer",
+    "timebox": {
+      "to": "2026-07-08T23:59:59Z",
+      "from": "2026-07-01T00:00:00Z"
+    },
+    "topics": [
+      "solar"
+    ],
+    "output": {
+      "json": true,
+      "markdown": true
+    },
+    "sources": [
+      {
+        "type": "url",
+        "url": "http://127.0.0.1/",
+        "source": "Loopback"
+      },
+      {
+        "type": "url",
+        "url": "https://news.test/redirect",
+        "source": "Redirect"
+      },
+      {
+        "type": "future",
+        "source": "Unknown"
+      }
+    ]
+  },
+  "responses": {
+    "https://news.test/redirect": {
+      "status": 302,
+      "headers": {
+        "location": "http://169.254.169.254/"
+      }
+    }
+  },
+  "expected": {
+    "answer": {
+      "ok": true,
+      "candidate_count": 0,
+      "rejected_count": 1,
+      "error_count": 2,
+      "output_directory": "OUTPUT"
+    },
+    "files": {
+      "harvest-candidates.json": "{\n  \"schema_version\": 1,\n  \"run\": {\n    \"id\": \"2026-07-08T12-00-00-000Z\",\n    \"name\": \"fixture-harvest\",\n    \"consumer\": \"fixture consumer\",\n    \"timebox\": {\n      \"to\": \"2026-07-08T23:59:59Z\",\n      \"from\": \"2026-07-01T00:00:00Z\"\n    },\n    \"topics\": [\n      \"solar\"\n    ]\n  },\n  \"candidates\": [],\n  \"clusters\": [],\n  \"rejected\": [\n    {\n      \"reason\": \"unsupported_adapter_type\",\n      \"source\": \"Unknown\",\n      \"adapter_type\": \"future\"\n    }\n  ],\n  \"errors\": [\n    {\n      \"source\": \"Loopback\",\n      \"adapter_type\": \"url\",\n      \"message\": \"Refused http://127.0.0.1/: the destination is a loopback address, which this tool does not fetch.\",\n      \"retryable\": false,\n      \"reason\": \"blocked_destination:loopback\"\n    },\n    {\n      \"source\": \"Redirect\",\n      \"adapter_type\": \"url\",\n      \"message\": \"Refused the redirect from https://news.test/redirect to http://169.254.169.254/: the destination is a cloud instance metadata address, which this tool does not fetch. The redirect was not followed.\",\n      \"retryable\": false,\n      \"reason\": \"blocked_redirect:cloud_metadata\"\n    }\n  ]\n}\n",
+      "harvest-run-status.json": "{\n  \"ok\": true,\n  \"reason\": \"completed\",\n  \"started_at\": \"2026-07-08T12:00:00.000Z\",\n  \"finished_at\": \"2026-07-08T12:00:00.000Z\",\n  \"sources_requested\": 3,\n  \"sources_completed\": 1,\n  \"sources_failed\": 2,\n  \"candidate_count\": 0,\n  \"rejected_count\": 1,\n  \"error_count\": 2,\n  \"output_directory\": \"OUTPUT\"\n}\n",
+      "harvest-summary.md": "# Harvest Summary: fixture-harvest\n\nConsumer: fixture consumer\nTimebox: 2026-07-01T00:00:00Z to 2026-07-08T23:59:59Z\nTopics: solar\n\n## Run Status\n\n- Completed: true\n- Sources requested: 3\n- Sources completed: 1\n- Sources failed: 2\n- Candidates: 0\n- Rejected: 1\n- Errors: 2\n\n## Top Candidates\n\nNo candidates accepted.\n\n## Clusters\n\nNo clusters.\n\n## Rejections\n\n- unsupported_adapter_type: 1\n\n## Errors\n\n- Loopback (url): Refused http://127.0.0.1/: the destination is a loopback address, which this tool does not fetch.\n- Redirect (url): Refused the redirect from https://news.test/redirect to http://169.254.169.254/: the destination is a cloud instance metadata address, which this tool does not fetch. The redirect was not followed.\n\n## Handoff\n\nThese are source candidates, not verified claims, and the scores rank likely relevance, not truth. Whatever verifies claims in this workflow runs next, on the candidates selected from this list.\n"
+    }
+  }
+}

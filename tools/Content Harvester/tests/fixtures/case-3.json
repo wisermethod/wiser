@@ -1,0 +1,30 @@
+{
+  "name": "empty output selection",
+  "request": {
+    "name": "fixture-harvest",
+    "consumer": "fixture consumer",
+    "timebox": {
+      "to": "2026-07-08T23:59:59Z",
+      "from": "2026-07-01T00:00:00Z"
+    },
+    "topics": [
+      "solar"
+    ],
+    "output": {
+      "json": false,
+      "markdown": false
+    },
+    "sources": []
+  },
+  "responses": {},
+  "expected": {
+    "answer": {
+      "ok": true,
+      "candidate_count": 0,
+      "rejected_count": 0,
+      "error_count": 0,
+      "output_directory": "OUTPUT"
+    },
+    "files": {}
+  }
+}

@@ -14,6 +14,7 @@
 
 // Node built-ins, this tool's own files, and tools/lib/.
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { accessSync, constants, existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -222,11 +223,8 @@ function callerPath(name, value) {
 // run before the first-run install, or a caller who names this tool's own
 // directory pays for an install and only then gets refused. It is dynamic for
 // symmetry with the imports below, which cannot be static.
-const { loadRequest, sampleRequest, validateRequest } = await import('./lib/request.js');
-
-const FEED_TYPES = new Set(['rss', 'substack_rss', 'reddit_rss']);
-const DEFAULT_USER_AGENT = 'Content Harvester/0.1.0';
-const DEFAULT_TIMEOUT_MS = 15000;
+const { sampleRequest, validateRequest } = await import('./lib/request.js');
+const { loadRequest } = await import('./lib/request-cli.js');
 
 if (command === 'sample') {
   process.stdout.write(`${JSON.stringify(sampleRequest(), null, 2)}\n`);
@@ -403,123 +401,24 @@ if (DEP_MARKERS.some((marker) => !existsSync(marker))) {
   }
 }
 
-// The packages import only below this line, and only dynamically. A static
-// import would reach fast-xml-parser before the check above and crash instead
-// of installing.
-const { collectFeed } = await import('./adapters/rss.js');
-const { collectManualUrls, collectUrl } = await import('./adapters/urls.js');
-const { clusterCandidates, dedupeCandidates } = await import('./lib/dedupe.js');
-const { filterCandidates } = await import('./lib/filter.js');
-const { rankCandidates } = await import('./lib/rank.js');
-const { writeArtifacts } = await import('./lib/render.js');
-
-const context = {
-  requestTopics: request.topics || [],
-  discoveredAt: startedAt.toISOString(),
-  userAgent: request.user_agent || DEFAULT_USER_AGENT,
-  timeoutMs: Number(request.timeout_ms || DEFAULT_TIMEOUT_MS)
-};
-
-const collected = await collectSources(request, context);
-const ranked = rankCandidates(collected.candidates, request);
-const filtered = filterCandidates(ranked, request);
-const clusters = clusterCandidates(filtered.accepted);
-const deduped = dedupeCandidates(filtered.accepted);
-const finishedAt = new Date();
-
-const bundle = {
-  schema_version: 1,
-  run: {
-    id: runId,
-    name: request.name,
-    consumer: request.consumer,
-    timebox: request.timebox,
-    topics: request.topics || []
-  },
-  candidates: deduped.accepted,
-  clusters,
-  rejected: [...collected.rejected, ...filtered.rejected, ...deduped.rejected],
-  errors: collected.errors
-};
-
-const status = {
-  ok: true,
-  reason: 'completed',
-  started_at: startedAt.toISOString(),
-  finished_at: finishedAt.toISOString(),
-  sources_requested: activeSources(request).length,
-  sources_completed: collected.sourcesCompleted,
-  sources_failed: collected.sourcesFailed,
-  candidate_count: bundle.candidates.length,
-  rejected_count: bundle.rejected.length,
-  error_count: bundle.errors.length,
-  output_directory: outputDirectory
-};
-
-let writtenDir;
-
 try {
-  writtenDir = writeArtifacts(bundle, status, outputDirectory, request.output || {});
+  const { harvest } = await import('./harvest-core.js');
+  const { readZip } = await import('../../lib/archive-core.js');
+  const { mkdirSync, writeFileSync } = await import('node:fs');
+  const dns = await import('node:dns');
+  const result = await harvest({command:'run', request, outputDirectory}, [], globalThis.fetch,
+    host => dns.promises.lookup(host, {all:true, verbatim:true}), {
+      startedAt, hashId:value => createHash('sha256').update(value).digest('hex').slice(0, 16)
+    });
+  const files = await readZip(result.files[0].bytes, {maxBytes:4 * 1024 * 1024});
+  mkdirSync(outputDirectory, {recursive:true});
+  for (const file of files) writeFileSync(join(outputDirectory, file.name), file.bytes);
+  process.stdout.write(`${JSON.stringify(result.answer)}\n`);
 } catch (error) {
-  fail(`Error: could not write the bundle to ${outputDirectory}: ${error.code || 'write failed'}. Pass a writable work directory as --output.`);
+  fail(error.fatal || error.message.startsWith('ZIP refused:') ? error.message : `Error: could not write the bundle to ${outputDirectory}: ${error.code || 'write failed'}. Pass a writable work directory as --output.`);
 }
 
-process.stdout.write(`${JSON.stringify({
-  ok: true,
-  candidate_count: bundle.candidates.length,
-  rejected_count: bundle.rejected.length,
-  error_count: bundle.errors.length,
-  output_directory: writtenDir
-})}\n`);
-
-async function collectSources(harvestRequest, runContext) {
-  const candidates = [];
-  const rejected = [];
-  const errors = [];
-  let sourcesCompleted = 0;
-  let sourcesFailed = 0;
-
-  for (const source of activeSources(harvestRequest)) {
-    try {
-      if (FEED_TYPES.has(source.type)) {
-        candidates.push(...await collectFeed(source, runContext));
-      } else if (source.type === 'url') {
-        candidates.push(...await collectUrl(source, runContext));
-      } else if (source.type === 'manual_urls') {
-        const result = await collectManualUrls(source, runContext);
-        candidates.push(...result.candidates);
-        errors.push(...result.errors);
-      } else {
-        rejected.push({
-          reason: 'unsupported_adapter_type',
-          source: sourceLabel(source),
-          adapter_type: source.type
-        });
-      }
-      sourcesCompleted++;
-    } catch (error) {
-      sourcesFailed++;
-      errors.push({
-        source: sourceLabel(source),
-        adapter_type: source.type,
-        message: error.message,
-        retryable: Boolean(error.retryable),
-        ...(error.reason ? { reason: error.reason } : {})
-      });
-    }
-  }
-
-  return { candidates, rejected, errors, sourcesCompleted, sourcesFailed };
-}
-
-function activeSources(harvestRequest) {
-  return (harvestRequest.sources || []).filter((source) => source.enabled !== false);
-}
-
-function sourceLabel(source) {
-  return source.source || source.name || 'Unnamed source';
-}
-
+function activeSources(harvestRequest) { return (harvestRequest.sources || []).filter(source => source.enabled !== false); }
 function resolveOutputBase() {
   // A flag the caller typed, so it is held to the same absoluteness the help
   // text states and screened before it is joined with anything.

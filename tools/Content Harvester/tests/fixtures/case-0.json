@@ -1,0 +1,60 @@
+{
+  "name": "RSS deduplication and timebox",
+  "request": {
+    "name": "fixture-harvest",
+    "consumer": "fixture consumer",
+    "timebox": {
+      "to": "2026-07-08T23:59:59Z",
+      "from": "2026-07-01T00:00:00Z"
+    },
+    "topics": [
+      "solar"
+    ],
+    "output": {
+      "json": true,
+      "markdown": true
+    },
+    "sources": [
+      {
+        "type": "rss",
+        "url": "https://news.test/feed",
+        "source": "Feed",
+        "role": "independent_reporting"
+      },
+      {
+        "type": "manual_urls",
+        "source": "Curated",
+        "role": "curated",
+        "urls": [
+          "https://news.test/story",
+          "https://news.test/error"
+        ]
+      }
+    ]
+  },
+  "responses": {
+    "https://news.test/feed": {
+      "body": "<rss><channel><item><title>Solar news</title><link>https://news.test/story</link><pubDate>2026-07-08T00:00:00Z</pubDate><description>Solar report</description></item><item><title>Older story</title><link>https://news.test/old</link><pubDate>2020-01-01</pubDate></item></channel></rss>"
+    },
+    "https://news.test/story": {
+      "body": "<title>Solar news</title><meta name=\"date\" content=\"2026-07-08\"/>"
+    },
+    "https://news.test/error": {
+      "status": 503
+    }
+  },
+  "expected": {
+    "answer": {
+      "ok": true,
+      "candidate_count": 1,
+      "rejected_count": 2,
+      "error_count": 1,
+      "output_directory": "OUTPUT"
+    },
+    "files": {
+      "harvest-candidates.json": "{\n  \"schema_version\": 1,\n  \"run\": {\n    \"id\": \"2026-07-08T12-00-00-000Z\",\n    \"name\": \"fixture-harvest\",\n    \"consumer\": \"fixture consumer\",\n    \"timebox\": {\n      \"to\": \"2026-07-08T23:59:59Z\",\n      \"from\": \"2026-07-01T00:00:00Z\"\n    },\n    \"topics\": [\n      \"solar\"\n    ]\n  },\n  \"candidates\": [\n    {\n      \"id\": \"0747ab71a1106b93\",\n      \"title\": \"Solar news\",\n      \"url\": \"https://news.test/story\",\n      \"canonical_url\": \"https://news.test/story\",\n      \"source\": \"Feed\",\n      \"adapter_type\": \"rss\",\n      \"source_role\": \"independent_reporting\",\n      \"author\": \"\",\n      \"published_at\": \"2026-07-08T00:00:00.000Z\",\n      \"discovered_at\": \"2026-07-08T12:00:00.000Z\",\n      \"summary\": \"Solar report\",\n      \"content\": \"Solar report\",\n      \"topics\": [\n        \"solar\"\n      ],\n      \"matched_topics\": [\n        \"solar\"\n      ],\n      \"score\": 50,\n      \"score_reasons\": [\n        \"source_role:independent_reporting\",\n        \"topic_match\",\n        \"recent:24h\"\n      ],\n      \"discovered_by\": {\n        \"type\": \"rss\",\n        \"source\": \"Feed\",\n        \"url\": \"https://news.test/feed\"\n      },\n      \"raw\": {\n        \"title\": \"Solar news\",\n        \"link\": \"https://news.test/story\",\n        \"pubDate\": \"2026-07-08T00:00:00Z\",\n        \"description\": \"Solar report\"\n      }\n    }\n  ],\n  \"clusters\": [\n    {\n      \"cluster_id\": \"793ef5510d380ef2\",\n      \"title\": \"Solar news\",\n      \"item_ids\": [\n        \"0747ab71a1106b93\",\n        \"0747ab71a1106b93\"\n      ],\n      \"urls\": [\n        \"https://news.test/story\"\n      ],\n      \"sources\": [\n        \"Feed\",\n        \"Curated\"\n      ],\n      \"top_score\": 50\n    }\n  ],\n  \"rejected\": [\n    {\n      \"reason\": \"outside_timebox\",\n      \"title\": \"Older story\",\n      \"url\": \"https://news.test/old\",\n      \"source\": \"Feed\",\n      \"adapter_type\": \"rss\"\n    },\n    {\n      \"reason\": \"duplicate:url\",\n      \"duplicate_of\": \"0747ab71a1106b93\",\n      \"title\": \"Solar news\",\n      \"url\": \"https://news.test/story\",\n      \"source\": \"Curated\",\n      \"adapter_type\": \"url\"\n    }\n  ],\n  \"errors\": [\n    {\n      \"source\": \"Curated\",\n      \"adapter_type\": \"manual_urls\",\n      \"message\": \"Request to https://news.test/error returned HTTP 503.\",\n      \"retryable\": true\n    }\n  ]\n}\n",
+      "harvest-run-status.json": "{\n  \"ok\": true,\n  \"reason\": \"completed\",\n  \"started_at\": \"2026-07-08T12:00:00.000Z\",\n  \"finished_at\": \"2026-07-08T12:00:00.000Z\",\n  \"sources_requested\": 2,\n  \"sources_completed\": 2,\n  \"sources_failed\": 0,\n  \"candidate_count\": 1,\n  \"rejected_count\": 2,\n  \"error_count\": 1,\n  \"output_directory\": \"OUTPUT\"\n}\n",
+      "harvest-summary.md": "# Harvest Summary: fixture-harvest\n\nConsumer: fixture consumer\nTimebox: 2026-07-01T00:00:00Z to 2026-07-08T23:59:59Z\nTopics: solar\n\n## Run Status\n\n- Completed: true\n- Sources requested: 2\n- Sources completed: 2\n- Sources failed: 0\n- Candidates: 1\n- Rejected: 2\n- Errors: 1\n\n## Top Candidates\n\n### Solar news\n\n- Source: Feed (rss, independent_reporting)\n- URL: https://news.test/story\n- Published: 2026-07-08T00:00:00.000Z\n- Score: 50 (source_role:independent_reporting, topic_match, recent:24h)\n- Matched topics: solar\n- Summary: Solar report\n\n## Clusters\n\n- Solar news (2 items, top score 50)\n\n## Rejections\n\n- outside_timebox: 1\n- duplicate:url: 1\n\n## Errors\n\n- Curated (manual_urls): Request to https://news.test/error returned HTTP 503.\n\n## Handoff\n\nThese are source candidates, not verified claims, and the scores rank likely relevance, not truth. Whatever verifies claims in this workflow runs next, on the candidates selected from this list.\n"
+    }
+  }
+}

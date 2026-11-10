@@ -1,0 +1,45 @@
+{
+  "name": "Atom feed",
+  "request": {
+    "name": "fixture-harvest",
+    "consumer": "fixture consumer",
+    "timebox": {
+      "to": "2026-07-08T23:59:59Z",
+      "from": "2026-07-01T00:00:00Z"
+    },
+    "topics": [
+      "solar"
+    ],
+    "output": {
+      "json": true,
+      "markdown": true
+    },
+    "sources": [
+      {
+        "type": "rss",
+        "url": "https://news.test/atom",
+        "source": "Atom",
+        "role": "expert_analysis"
+      }
+    ]
+  },
+  "responses": {
+    "https://news.test/atom": {
+      "body": "<feed><entry><title>Solar analysis</title><link rel=\"alternate\" href=\"https://news.test/analysis\"/><published>2026-07-07</published><author><name>Fixture Author</name></author><summary>Solar topic</summary></entry></feed>"
+    }
+  },
+  "expected": {
+    "answer": {
+      "ok": true,
+      "candidate_count": 1,
+      "rejected_count": 0,
+      "error_count": 0,
+      "output_directory": "OUTPUT"
+    },
+    "files": {
+      "harvest-candidates.json": "{\n  \"schema_version\": 1,\n  \"run\": {\n    \"id\": \"2026-07-08T12-00-00-000Z\",\n    \"name\": \"fixture-harvest\",\n    \"consumer\": \"fixture consumer\",\n    \"timebox\": {\n      \"to\": \"2026-07-08T23:59:59Z\",\n      \"from\": \"2026-07-01T00:00:00Z\"\n    },\n    \"topics\": [\n      \"solar\"\n    ]\n  },\n  \"candidates\": [\n    {\n      \"id\": \"cfeb005e543185a6\",\n      \"title\": \"Solar analysis\",\n      \"url\": \"https://news.test/analysis\",\n      \"canonical_url\": \"https://news.test/analysis\",\n      \"source\": \"Atom\",\n      \"adapter_type\": \"rss\",\n      \"source_role\": \"expert_analysis\",\n      \"author\": \"Fixture Author\",\n      \"published_at\": \"2026-07-07T00:00:00.000Z\",\n      \"discovered_at\": \"2026-07-08T12:00:00.000Z\",\n      \"summary\": \"Solar topic\",\n      \"content\": \"Solar topic\",\n      \"topics\": [\n        \"solar\"\n      ],\n      \"matched_topics\": [\n        \"solar\"\n      ],\n      \"score\": 46,\n      \"score_reasons\": [\n        \"source_role:expert_analysis\",\n        \"topic_match\",\n        \"recent:72h\",\n        \"author_present\"\n      ],\n      \"discovered_by\": {\n        \"type\": \"rss\",\n        \"source\": \"Atom\",\n        \"url\": \"https://news.test/atom\"\n      },\n      \"raw\": {\n        \"title\": \"Solar analysis\",\n        \"link\": {\n          \"@_rel\": \"alternate\",\n          \"@_href\": \"https://news.test/analysis\"\n        },\n        \"published\": \"2026-07-07\",\n        \"author\": {\n          \"name\": \"Fixture Author\"\n        },\n        \"summary\": \"Solar topic\"\n      }\n    }\n  ],\n  \"clusters\": [\n    {\n      \"cluster_id\": \"b9e41e734fe49443\",\n      \"title\": \"Solar analysis\",\n      \"item_ids\": [\n        \"cfeb005e543185a6\"\n      ],\n      \"urls\": [\n        \"https://news.test/analysis\"\n      ],\n      \"sources\": [\n        \"Atom\"\n      ],\n      \"top_score\": 46\n    }\n  ],\n  \"rejected\": [],\n  \"errors\": []\n}\n",
+      "harvest-run-status.json": "{\n  \"ok\": true,\n  \"reason\": \"completed\",\n  \"started_at\": \"2026-07-08T12:00:00.000Z\",\n  \"finished_at\": \"2026-07-08T12:00:00.000Z\",\n  \"sources_requested\": 1,\n  \"sources_completed\": 1,\n  \"sources_failed\": 0,\n  \"candidate_count\": 1,\n  \"rejected_count\": 0,\n  \"error_count\": 0,\n  \"output_directory\": \"OUTPUT\"\n}\n",
+      "harvest-summary.md": "# Harvest Summary: fixture-harvest\n\nConsumer: fixture consumer\nTimebox: 2026-07-01T00:00:00Z to 2026-07-08T23:59:59Z\nTopics: solar\n\n## Run Status\n\n- Completed: true\n- Sources requested: 1\n- Sources completed: 1\n- Sources failed: 0\n- Candidates: 1\n- Rejected: 0\n- Errors: 0\n\n## Top Candidates\n\n### Solar analysis\n\n- Source: Atom (rss, expert_analysis)\n- URL: https://news.test/analysis\n- Published: 2026-07-07T00:00:00.000Z\n- Score: 46 (source_role:expert_analysis, topic_match, recent:72h, author_present)\n- Matched topics: solar\n- Summary: Solar topic\n\n## Clusters\n\n- Solar analysis (1 item, top score 46)\n\n## Rejections\n\nNo rejected items.\n\n## Errors\n\nNo source errors.\n\n## Handoff\n\nThese are source candidates, not verified claims, and the scores rank likely relevance, not truth. Whatever verifies claims in this workflow runs next, on the candidates selected from this list.\n"
+    }
+  }
+}

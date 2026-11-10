@@ -3,8 +3,10 @@ name: Content Harvester
 type: tool
 category: research
 description: Turns one harvest request into a timeboxed, deduplicated, ranked bundle of source candidates with a record of what was rejected and what failed
-version: 0.1.5
-runs: local
+version: 0.1.6
+runs: both
+hosted:
+  - run 1MiB 15s
 ---
 
 # Content Harvester
@@ -141,7 +143,17 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 - A run over reachable sources exits 0, prints one JSON object naming a directory, and that directory holds the three files `OUTPUT_SCHEMA.md` defines.
 - A run whose sources all fail still exits 0 and still writes a bundle, with one entry in `errors` per source and none of them quoting a provider's text or a full URL.
 - An output directory resolving inside this tool directory is refused before anything is fetched.
-- No run opens a connection to a loopback, private, link-local, unique-local, or cloud metadata address, on the first request or on any redirect hop, in any spelling of that address; a redirect toward one fails that item with the reason named and is never followed.
+- Each name is screened when it is looked up, on the first request and each redirect hop. A lookup returning a loopback, private, link-local, unique-local, or cloud metadata address fails that item with the reason named. The platform resolves the name again when it connects, so the core's lookup screen alone does not guarantee the connected address. On the Wiser service that residual is closed by its own transport, which refuses Wiser's domains and fetches only public addresses.
 - No file the run writes and no message it prints carries a URL with userinfo or a credential-bearing parameter, including the URLs inside titles, summaries, content, and `raw`.
 - Every candidate falls inside the timebox or carries no date, no two candidates share a canonical URL, and every `score_reasons` entry corresponds to a rule in `REQUEST_SCHEMA.md`.
 - Every set of candidates joined by a shared canonical URL or a shared normalized title, directly or through another member, appears as one cluster, and every candidate deduplication dropped sits in the same cluster as the candidate it duplicated.
+
+## Hosted
+
+`run` also runs on Wiser's side. `harvest(input, files, fetch, lookup, { hashId })` in `scripts/harvest-core.js` accepts `{ command: "run", request: <request object> }` or one JSON request file in `files`. The host supplies its own `fetch`, an all-address DNS lookup, and a `hashId(text)` function returning the first 16 lowercase hexadecimal characters of SHA-256, either directly or as a promise. The service can supply that function over `crypto.subtle`; the CLI uses `node:crypto`'s `createHash`, preserving its existing candidate and cluster ids. The core requires neither global `crypto` nor `AbortSignal.any`, including on the declared Node 18 range. The core and its feed-parser import graph use Web APIs only; `undici`, installs, disk path screens and writing the output directory remain on the command line. Both routes run the same ranking, filtering, deduplication, hashing and artifact creation. Hosted output is one `harvest.zip` containing exactly the JSON and Markdown files selected by the request, beside the usual JSON summary. `output_directory` identifies the bundle's run directory in hosted mode. The CLI unpacks those same bytes to its screened output directory.
+
+`sample`, `validate` and `run --dry-run` remain local request-preparation commands: they neither fetch nor write a bundle. Hosted callers submit a complete request directly to `run`; no recursive folder reader is hosted.
+
+The request file and serialized JSON arguments each have a 1 MiB cap. A run permits at most 25 active sources, 100 named public addresses, 100 topics total across the request and active sources, 100 exclude terms and 100 include terms, and 1,000 feed or page items accepted for processing across all sources, counted before ranking, filtering or deduplication. Exceeding a cap refuses the entire run rather than selecting a subset. At most 100 fetches are allowed including redirects. Every address and redirect uses `tools/lib/destination-core.js`; unresolved hosts, private/local/metadata lookup results, non-HTTP protocols and embedded credentials are refused before fetching that hop and recorded by the existing source-error schema. This is a lookup screen: the platform resolves the name again when it connects. On the Wiser service that residual is closed by its own transport, which refuses Wiser's domains and fetches only public addresses.
+
+A response body over 1 MiB or fetched bodies over 4 MiB total refuse the entire run. Redirect and non-2xx bodies are cancelled before reporting their status; any buffered chunk already read is counted against the same caps. The 15-second deadline covers request preparation, DNS, fetches, body reads, parsing, topic matching, ranking, filtering, clustering, deduplication and bundle creation. Synchronous XML parser callbacks and the match, rank and filter loops check a monotonic clock, so refusal does not depend on a timer getting a turn. Bounded native operations are checked at their boundaries. The timer aborts asynchronous work, and later failures from that work remain handled. Exceeding any work cap or the deadline refuses whole. The summary must stay below 48,000 serialized characters, and the complete stored ZIP, including headers, must fit within 4 MiB; otherwise nothing is returned or written. The CLI also enforces these caps. Candidate rejections and source failures within the caps keep their existing records; limits never silently trim a bundle.
