@@ -26,7 +26,9 @@ export function fixture(t) {
   mkdirSync(lib, { recursive: true });
   writeFileSync(join(copy, 'package.json'), '{"type":"module"}');
   writeFileSync(join(copy, 'tools/AGENTS.md'), '# Test plugin');
-  for (const name of ['user-config.js', 'consent.js']) cpSync(new URL(`../${name}`, import.meta.url), join(lib, name));
+  // The portable libs a tool's command line imports at load (render's destination screen, deck-export's ZIP reader):
+  // a package-free copy still carries the plugin's own files, only no installed packages.
+  for (const name of ['user-config.js', 'consent.js', 'destination-core.js', 'archive-core.js']) cpSync(new URL(`../${name}`, import.meta.url), join(lib, name));
   const runtime = join(lib, 'browser-runtime');
   mkdirSync(runtime);
   for (const name of ['browser-runtime.js', 'package.json', 'package-lock.json']) {
