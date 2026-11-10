@@ -14,7 +14,7 @@
  * system/templates/Script Contract.md.
  */
 
-import { parse as csvParse } from 'csv-parse/sync';
+import { parse as csvParse } from 'csv-parse/browser/esm/sync';
 
 // A column takes a type when at least this share of its non-null values agree.
 const TYPE_THRESHOLD = 0.8;

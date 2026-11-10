@@ -1,0 +1,12 @@
+{
+  "op": "rate",
+  "a": {
+    "field": "columns.n.mean",
+    "value": 2
+  },
+  "b": {
+    "field": "total",
+    "value": 3
+  },
+  "value": 0.667
+}

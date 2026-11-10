@@ -18,7 +18,7 @@
  * stated once, in system/templates/Script Contract.md.
  */
 
-import { parse as csvParse } from 'csv-parse/sync';
+import { parse as csvParse } from 'csv-parse/browser/esm/sync';
 
 // A column takes a type when at least this share of its non-null values agree;
 // below it the column reads as mixed, and only count will run on it.

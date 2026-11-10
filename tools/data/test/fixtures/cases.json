@@ -1,0 +1,231 @@
+[
+  {
+    "name": "profile-ragged",
+    "input": {
+      "command": "parse"
+    },
+    "args": [],
+    "file": "profile-ragged.input",
+    "expected": "profile-ragged.expected.json"
+  },
+  {
+    "name": "profile-no-header",
+    "input": {
+      "command": "parse",
+      "hasHeader": false,
+      "delimiter": ";"
+    },
+    "args": [
+      "--no-header",
+      "--delimiter",
+      ";"
+    ],
+    "file": "profile-no-header.input",
+    "expected": "profile-no-header.expected.json"
+  },
+  {
+    "name": "profile-unicode",
+    "input": {
+      "command": "parse",
+      "format": "json"
+    },
+    "args": [
+      "--format",
+      "json"
+    ],
+    "file": "profile-unicode.input",
+    "expected": "profile-unicode.expected.json"
+  },
+  {
+    "name": "profile-bom",
+    "input": {
+      "command": "parse"
+    },
+    "args": [],
+    "file": "profile-bom.input",
+    "expected": "profile-bom.expected.json"
+  },
+  {
+    "name": "profile-broken",
+    "input": {
+      "command": "parse",
+      "format": "json"
+    },
+    "args": [
+      "--format",
+      "json"
+    ],
+    "file": "profile-broken.input",
+    "expected": "profile-broken.expected.json"
+  },
+  {
+    "name": "describe-tsv",
+    "input": {
+      "command": "describe",
+      "columns": [
+        "value"
+      ]
+    },
+    "args": [
+      "--column",
+      "value"
+    ],
+    "file": "describe-tsv.input",
+    "expected": "describe-tsv.expected.json"
+  },
+  {
+    "name": "describe-missing",
+    "input": {
+      "command": "describe",
+      "columns": [
+        "missing"
+      ]
+    },
+    "args": [
+      "--column",
+      "missing"
+    ],
+    "file": "describe-missing.input",
+    "expected": "describe-missing.expected.json"
+  },
+  {
+    "name": "aggregate",
+    "input": {
+      "command": "aggregate",
+      "groupBy": [
+        "region"
+      ],
+      "metrics": [
+        {
+          "column": "value",
+          "function": "sum"
+        },
+        {
+          "column": "value",
+          "function": "mean"
+        }
+      ]
+    },
+    "args": [
+      "--group-by",
+      "region",
+      "--metric",
+      "value:sum",
+      "--metric",
+      "value:mean"
+    ],
+    "file": "aggregate.input",
+    "expected": "aggregate.expected.json"
+  },
+  {
+    "name": "chart-bar",
+    "input": {
+      "command": "chart",
+      "x": "region",
+      "y": "value",
+      "title": "A < B"
+    },
+    "args": [
+      "--x",
+      "region",
+      "--y",
+      "value",
+      "--title",
+      "A < B"
+    ],
+    "file": "chart-bar.input",
+    "expected": "chart-bar.expected.json",
+    "output": "chart-bar.html"
+  },
+  {
+    "name": "chart-line",
+    "input": {
+      "command": "chart",
+      "x": "region",
+      "y": "value",
+      "type": "line"
+    },
+    "args": [
+      "--x",
+      "region",
+      "--y",
+      "value",
+      "--type",
+      "line"
+    ],
+    "file": "chart-line.input",
+    "expected": "chart-line.expected.json",
+    "output": "chart-line.html"
+  },
+  {
+    "name": "compute-nested",
+    "input": {
+      "command": "compute",
+      "op": "rate",
+      "aField": "columns.n.mean",
+      "bField": "total",
+      "digits": 3
+    },
+    "args": [
+      "--op",
+      "rate",
+      "--a",
+      "columns.n.mean",
+      "--b",
+      "total",
+      "--digits",
+      "3"
+    ],
+    "file": "compute-nested.input",
+    "expected": "compute-nested.expected.json"
+  },
+  {
+    "name": "compute-zero",
+    "input": {
+      "command": "compute",
+      "op": "percentage",
+      "aField": "a",
+      "bField": "b"
+    },
+    "args": [
+      "--op",
+      "percentage",
+      "--a",
+      "a",
+      "--b",
+      "b"
+    ],
+    "file": "compute-zero.input",
+    "expected": "compute-zero.expected.json"
+  },
+  {
+    "name": "work-sparse",
+    "input": {
+      "command": "describe"
+    },
+    "args": [],
+    "file": "work-sparse.input",
+    "expected": "work-sparse.expected.json",
+    "change": true
+  },
+  {
+    "name": "work-rows",
+    "input": {
+      "command": "parse"
+    },
+    "args": [],
+    "file": "work-rows.input",
+    "expected": "work-rows.expected.json",
+    "change": true
+  },
+  {
+    "name": "work-columns",
+    "input": {
+      "command": "parse"
+    },
+    "args": [],
+    "file": "work-columns.input",
+    "expected": "work-columns.expected.json",
+    "change": true
+  }
+]

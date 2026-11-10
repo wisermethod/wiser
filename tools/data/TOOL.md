@@ -3,8 +3,14 @@ name: data
 type: tool
 category: data
 description: Parses, describes, aggregates, joins, and charts a CSV, JSON, or TSV file, and computes a percentage, difference, or rate from two numeric fields of a JSON object
-version: 0.3.3
-runs: local
+version: 0.3.4
+runs: both
+hosted:
+  - parse 8MiB 15s
+  - describe 8MiB 15s
+  - aggregate 8MiB 15s
+  - chart 8MiB 15s
+  - compute 8MiB 15s
 ---
 
 # data
@@ -20,6 +26,33 @@ Do not use it to transform, clean, or deduplicate data. It reads the files the c
 It authenticates to nothing, holds no credential, reaches no other primitive, and after the packages described in `tools/AGENTS.md` are installed it makes no network request.
 
 Classifier seam: none.
+
+## Hosted mode
+
+`parse`, `describe`, `aggregate`, `chart`, and `compute` also run on Wiser's side.
+`join` stays local because it reads two files. No command needs an archive.
+Each hosted command accepts one CSV, TSV, or JSON file of at most 8 MiB and has
+15 seconds. The same single-file core enforces the file cap on the command line.
+An answer over 48,000 serialized characters, or output files over 4 MiB in total,
+is refused whole, before any output file is written; nothing is silently truncated.
+Table commands also refuse more than 50,000 data rows, 2,048 columns, or
+250,000 row-by-column cells, before profiling. The cell count is rows times the
+union of JSON column names, or the delimited header width (first row width with
+`parse --no-header`). Before CSV parsing allocates fields, a quote-aware scan
+also refuses any delimited record wider than 2,048 fields, including ragged
+rows. The row-by-column cap bounds profiling work for sparse and dense tables;
+the per-record field cap bounds each delimited record's field allocation.
+Malformed file envelopes, unsupported commands and invalid argument types are refused.
+
+The portable entry is `scripts/data-core.js`'s `runData(input, files)`. `input.command`
+is one of the hosted commands; other keys use the calculation cores' names:
+`format`, `delimiter`, `hasHeader`, `columns` (array) or `columnsList` (comma list), `groupBy`, `metrics` (objects with
+`column` and `function`), `x`, `y`, `type`, `title`, `op`, `aField`, `bField`, `digits`.
+The file is `{ name, mediaType, bytes: Uint8Array }`. A chart's optional `output`
+defaults to `chart.html`; it returns `{ answer, files }`, including the HTML bytes.
+Other commands return their JSON answer directly. Calculation/JSON/field errors
+retain their existing reasons. CSV parsing uses `csv-parse/browser/esm/sync`, the
+installed package's self-contained browser build with no Node module imports.
 
 ## Quick Start
 

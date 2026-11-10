@@ -1,0 +1,19 @@
+{
+  "columns": [
+    {
+      "name": "value",
+      "count": 2,
+      "mean": 3,
+      "median": 3,
+      "min": 2,
+      "max": 4,
+      "stdDev": 1,
+      "p25": 2.5,
+      "p75": 3.5,
+      "nullCount": 0
+    }
+  ],
+  "skippedColumns": [],
+  "totalRows": 2,
+  "errors": []
+}

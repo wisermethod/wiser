@@ -1,0 +1,3 @@
+{
+  "error": "Error: the table exceeds 2,048 columns; use a smaller file."
+}

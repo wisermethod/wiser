@@ -1,0 +1,3 @@
+{
+  "error": "Error: the table exceeds 250,000 row-by-column cells; use a smaller file."
+}

@@ -1,0 +1,12 @@
+{
+  "op": "percentage",
+  "a": {
+    "field": "a",
+    "value": 1
+  },
+  "b": {
+    "field": "b",
+    "value": 0
+  },
+  "error": "b is zero"
+}

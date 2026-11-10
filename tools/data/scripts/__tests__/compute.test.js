@@ -253,7 +253,7 @@ describe('compute after Gate 2 round 1', () => {
     mkdirSync(join(root, 'tools', 'lib'), { recursive: true });
     writeFileSync(join(root, 'tools', 'AGENTS.md'), '# Tools\n');
     const here = dirname(fileURLToPath(import.meta.url));
-    for (const name of ['data.js', 'compute-core.js']) copyFileSync(join(here, '..', name), join(root, 'tools', 'data', 'scripts', name));
+    for (const name of ['data.js', 'compute-core.js', 'data-core.js']) copyFileSync(join(here, '..', name), join(root, 'tools', 'data', 'scripts', name));
     copyFileSync(join(here, '..', '..', '..', 'lib', 'consent.js'), join(root, 'tools', 'lib', 'consent.js'));
     copyFileSync(join(here, '..', '..', '..', 'lib', 'user-config.js'), join(root, 'tools', 'lib', 'user-config.js'));
     writeFileSync(join(root, 'tools', 'data', 'package.json'), JSON.stringify({ name: 'data', type: 'module', dependencies: { 'csv-parse': '^5.5.6' } }));

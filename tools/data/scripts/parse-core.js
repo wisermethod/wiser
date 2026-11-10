@@ -13,7 +13,7 @@
  * in system/templates/Script Contract.md.
  */
 
-import { parse as csvParse } from 'csv-parse/sync';
+import { parse as csvParse } from 'csv-parse/browser/esm/sync';
 
 const MAX_SAMPLE_VALUES = 5;
 // A column takes a type when at least this share of its non-null values agree;

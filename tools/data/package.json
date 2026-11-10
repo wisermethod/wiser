@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "help": "node scripts/data.js help",
-    "test": "node --test"
+    "test": "node --test scripts/__tests__/*.test.js test/*.test.js"
   },
   "dependencies": {
     "csv-parse": "^5.5.6"

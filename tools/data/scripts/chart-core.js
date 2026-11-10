@@ -16,7 +16,7 @@
  * system/templates/Script Contract.md.
  */
 
-import { parse as csvParse } from 'csv-parse/sync';
+import { parse as csvParse } from 'csv-parse/browser/esm/sync';
 
 /** The chart types a caller may name. */
 export const CHART_TYPES = ['bar', 'line'];

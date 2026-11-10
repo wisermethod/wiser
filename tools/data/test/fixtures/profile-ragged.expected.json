@@ -1,0 +1,28 @@
+{
+  "columns": [
+    {
+      "name": "region",
+      "type": "string",
+      "nonNullCount": 3,
+      "sampleValues": [
+        "West",
+        "East",
+        "West"
+      ]
+    },
+    {
+      "name": "value",
+      "type": "number",
+      "nonNullCount": 2,
+      "sampleValues": [
+        "2",
+        "3"
+      ]
+    }
+  ],
+  "rowCount": 3,
+  "raggedRowCount": 2,
+  "parseErrors": [
+    "2 of 3 data rows had a column count different from the header (2); short rows filled missing columns as null and long rows dropped extra values"
+  ]
+}

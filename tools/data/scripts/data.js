@@ -470,6 +470,13 @@ function ensureDependencies(install) {
   }
 }
 
+async function coreResult(input, content, filePath) {
+  const { runData } = await import('./data-core.js');
+  try {
+    return await runData(input, [{ name: filePath, mediaType: 'application/octet-stream', bytes: content }]);
+  } catch (error) { fail(error.message); }
+}
+
 async function runParse(argv) {
   const usageCmd = helpRef('parse');
   const VALUE_FLAGS = new Set(['--file', '--format', '--delimiter']);
@@ -513,16 +520,15 @@ async function runParse(argv) {
   const hasHeader = !argv.includes('--no-header');
 
   ensureDependencies(parsedInstallFlag(argv, VALUE_FLAGS));
-  const { executeParse } = await import('./parse-core.js');
 
   let content;
   try {
-    content = readFileSync(filePath, 'utf8');
+    content = new Uint8Array(readFileSync(filePath));
   } catch {
     fail(`Error: could not read ${filePath}. Confirm it is a readable file, not a directory.`);
   }
 
-  const result = executeParse({ content, format, delimiter, hasHeader });
+  const result = await coreResult({ command: 'parse', format, delimiter, hasHeader }, content, filePath);
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }
 
@@ -601,45 +607,17 @@ async function runDescribe(argv) {
   }
 
   ensureDependencies(parsedInstallFlag(argv, VALUE_FLAGS));
-  const { executeDescribe } = await import('./describe-core.js');
 
   let content;
   try {
-    content = readFileSync(filePath, 'utf8');
+    content = new Uint8Array(readFileSync(filePath));
   } catch {
     failUnreadable();
   }
 
-  let columns;
-  if (namedColumns.length > 0) {
-    columns = namedColumns;
-  } else if (columnsArg !== undefined) {
-    const parts = columnsArg.split(',').map((name) => name.trim()).filter((name) => name !== '');
-    if (parts.length === 0) {
-      fail('Error: --columns needs at least one column name. Omit it to describe every numeric column.');
-    }
-    const { readTable } = await import('./read-core.js');
-    const table = readTable({ content, format, delimiter });
-    const headers = table.columns
-      .map((column) => column.name)
-      .filter((name) => typeof name === 'string');
-    const headerSet = new Set(headers);
-    // Split names that are themselves headers are that selection, even when
-    // another header contains a comma. Refuse only a name the split cannot
-    // represent, which is a header whose own text contains a comma.
-    if (parts.every((name) => headerSet.has(name))) {
-      columns = parts;
-    } else {
-      for (const name of headers) {
-        if (name.includes(',') && columnsArg.includes(name)) {
-          fail(`Error: --columns cannot name a header that contains a comma ("${name}"). Use --column for that header.`);
-        }
-      }
-      columns = parts;
-    }
-  }
-
-  const result = executeDescribe({ content, format, delimiter, columns });
+  const result = await coreResult({ command: 'describe', format, delimiter,
+    columns: namedColumns.length > 0 ? namedColumns : undefined,
+    columnsList: columnsArg }, content, filePath);
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }
 
@@ -715,16 +693,15 @@ async function runAggregate(argv) {
   const delimiter = flag('--delimiter');
 
   ensureDependencies(parsedInstallFlag(argv, VALUE_FLAGS));
-  const { executeAggregate } = await import('./aggregate-core.js');
 
   let content;
   try {
-    content = readFileSync(filePath, 'utf8');
+    content = new Uint8Array(readFileSync(filePath));
   } catch {
     fail(`Error: could not read ${filePath}. Confirm it is a readable file, not a directory.`);
   }
 
-  const result = executeAggregate({ content, format, delimiter, groupBy, metrics });
+  const result = await coreResult({ command: 'aggregate', format, delimiter, groupBy, metrics }, content, filePath);
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }
 
@@ -896,19 +873,15 @@ async function runChart(argv) {
   const delimiter = flag('--delimiter');
 
   ensureDependencies(parsedInstallFlag(argv, VALUE_FLAGS));
-  const { buildChart } = await import('./chart-core.js');
 
   let content;
   try {
-    content = readFileSync(filePath, 'utf8');
+    content = new Uint8Array(readFileSync(filePath));
   } catch {
     fail(`Error: could not read ${filePath}. Confirm it is a readable file, not a directory.`);
   }
 
-  const built = buildChart({ content, x, y, type, title, format, delimiter });
-  if (!built.ok) {
-    fail(`Error: ${built.errors.join('; ')}`);
-  }
+  const built = await coreResult({ command: 'chart', x, y, type, title, format, delimiter, output: outputPath }, content, filePath);
 
   const outputDir = dirname(outputPath);
   try {
@@ -918,22 +891,12 @@ async function runChart(argv) {
   }
 
   try {
-    writeFileSync(outputPath, built.html, 'utf8');
+    writeFileSync(outputPath, built.files[0].bytes);
   } catch {
     fail(`Error: could not write ${outputPath}. Confirm the path is writable and not a directory.`);
   }
 
-  process.stdout.write(
-    `${JSON.stringify({
-      output: outputPath,
-      type: built.type,
-      points: built.points,
-      width: built.width,
-      height: built.height,
-      skipped: built.skipped,
-      notes: built.notes,
-    })}\n`
-  );
+  process.stdout.write(`${JSON.stringify(built.answer)}\n`);
 }
 
 async function runCompute(argv) {
@@ -1005,31 +968,16 @@ async function runCompute(argv) {
     fail(`Error: could not read ${filePath}. Confirm it is a readable file, not a directory.`);
   }
 
-  const { executeCompute } = await import('./compute-core.js');
 
   let content;
   try {
-    content = readFileSync(filePath, 'utf8');
+    content = new Uint8Array(readFileSync(filePath));
   } catch {
     fail(`Error: could not read ${filePath}. Confirm it is a readable file, not a directory.`);
   }
 
-  let data;
-  try {
-    data = JSON.parse(content);
-  } catch {
-    fail(`Error: ${filePath} is not valid JSON. Pass a file holding one JSON object, such as a saved aggregate or describe result.`);
-  }
-  if (data === null || typeof data !== 'object' || Array.isArray(data)) {
-    fail(`Error: ${filePath} does not hold one JSON object. Pass a file holding one JSON object, such as a saved aggregate or describe result.`);
-  }
-
-  const computed = executeCompute({ data, op, aField, bField, digits });
-  if (!computed.ok) {
-    fail(`Error: field ${computed.field} is missing or not a number in ${filePath}`);
-  }
-
-  process.stdout.write(`${JSON.stringify(computed.result)}\n`);
+  const result = await coreResult({ command: 'compute', op, aField, bField, digits }, content, filePath);
+  process.stdout.write(`${JSON.stringify(result)}\n`);
 }
 
 const argv = process.argv.slice(2);

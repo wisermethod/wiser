@@ -1,0 +1,9 @@
+{
+  "columns": [],
+  "skippedColumns": [],
+  "totalRows": 1,
+  "errors": [
+    "Column \"missing\" not found. Available: n",
+    "No numeric columns to analyze"
+  ]
+}

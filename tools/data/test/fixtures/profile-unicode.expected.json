@@ -1,0 +1,27 @@
+{
+  "columns": [
+    {
+      "name": "café",
+      "type": "string",
+      "nonNullCount": 2,
+      "sampleValues": [
+        "日本",
+        "été"
+      ]
+    },
+    {
+      "name": "n",
+      "type": "number",
+      "nonNullCount": 2,
+      "sampleValues": [
+        2,
+        4
+      ]
+    }
+  ],
+  "rowCount": 2,
+  "raggedRowCount": 0,
+  "parseErrors": [
+    "1 of 3 array entries were not objects and were skipped"
+  ]
+}

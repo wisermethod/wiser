@@ -1,0 +1,25 @@
+{
+  "groups": [
+    {
+      "key": {
+        "region": "East"
+      },
+      "values": {
+        "value_sum": 4,
+        "value_mean": 4
+      }
+    },
+    {
+      "key": {
+        "region": "West"
+      },
+      "values": {
+        "value_sum": 8,
+        "value_mean": 4
+      }
+    }
+  ],
+  "groupCount": 2,
+  "totalRows": 3,
+  "errors": []
+}

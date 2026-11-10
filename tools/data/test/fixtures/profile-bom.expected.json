@@ -1,0 +1,23 @@
+{
+  "columns": [
+    {
+      "name": "name",
+      "type": "string",
+      "nonNullCount": 1,
+      "sampleValues": [
+        "a"
+      ]
+    },
+    {
+      "name": "n",
+      "type": "number",
+      "nonNullCount": 1,
+      "sampleValues": [
+        "1"
+      ]
+    }
+  ],
+  "rowCount": 1,
+  "raggedRowCount": 0,
+  "parseErrors": []
+}
