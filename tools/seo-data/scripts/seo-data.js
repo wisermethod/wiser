@@ -169,9 +169,9 @@ if (argv[1] === 'help' || argv.includes('--help') || argv.includes('-h')) {
 }
 
 if (command === 'audit') {
-  const { runAudit } = await import('./audit-core.js');
-  runAudit(argv);
+  const { runAudit } = await import('./audit-cli.js');
+  await runAudit(argv);
 } else {
   const { runKeywords } = await import('./keywords-core.js');
-  runKeywords(argv);
+  await runKeywords(argv);
 }

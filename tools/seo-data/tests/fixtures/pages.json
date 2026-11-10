@@ -1,0 +1,1 @@
+[{"keys": ["alpha", "https://example.com/a"], "clicks": 12, "impressions": 100, "ctr": 0.12, "position": 8}, {"keys": ["alpha", "https://example.com/b"], "clicks": 12, "impressions": 60, "ctr": 0.12, "position": 10}]

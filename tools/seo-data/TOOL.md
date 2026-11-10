@@ -3,8 +3,12 @@ name: seo-data
 type: tool
 category: seo
 description: Consolidates Search Console and Analytics results for one site and date range into one audit dataset, and turns Search Console query rows into a keyword report of top performers, opportunities, trends, cannibalization, and target-keyword standings
-version: 0.2.3
-runs: local
+version: 0.2.4
+runs: both
+hosted:
+  - audit 8MiB 15s
+  - keywords 8MiB 15s
+  - previous-window 8MiB 15s
 ---
 
 # seo-data
@@ -306,3 +310,11 @@ The stops every tool shares, an unknown flag and a path that is relative or insi
 - A file that is not JSON, and a row that does not meet the contract, are refused without any of their content appearing in the message.
 - Every number in the output is computed from rows in the files named: nothing is estimated, carried in from elsewhere, or filled in for a report that was not supplied or a row that did not carry it.
 - No run reads a credential, opens a network connection, or writes any file other than one the caller named with `--output`.
+
+## Hosted
+
+`seoData(input, files)` in `scripts/seo-core.js` runs `audit`, `keywords`, and `previous-window` without Node modules, disk or network. Arguments use command-line flag names without `--`, plus `command`. Send at most one `{ name, mediaType, bytes }`: a JSON export, or a ZIP of exports. `audit` selects `input` (defaults to the only entry or `audit-input.json`); `keywords` selects `queries`, `query-pages`, `previous-queries`, and `targets` by ZIP-relative path. With one export, `queries` defaults to that file's name. `previous-window` needs no file. `output: true` also returns the formatted JSON file the command line writes. Absolute disk destinations stay on the command line.
+
+The CLI uses the same core and keeps its existing flags. One change for both: a JSON file that begins with a UTF-8 byte order mark, as exports saved on Windows often do, is read without it, where `audit` before 0.2.4 refused such a file as not JSON. For a ZIP use `keywords --archive /absolute/exports.zip --queries queries.json` with optional entry-name flags. Audit accepts a ZIP as `--input` when it contains one bundle or `audit-input.json`. Multiple ordinary keyword files are packaged in memory by the CLI; no directory is walked.
+
+Each supplied file and the serialized arguments are capped at 8 MiB. ZIPs accept stored or deflated entries, at most 1,000, and at most 32 MiB expanded total. Absolute paths, `..` components, duplicate names, symlinks, encryption, unsupported compression, split/ZIP64 archives, bad headers and CRCs are refused. Missing named entries and invalid exports are refused. Target lines are read incrementally, and target and audit output lists are refused before construction when their minimum serialized size reaches 48,000 characters. The completed answer is also checked against that limit; output files over 4 MiB are refused. Every refusal is whole, never truncated. These size and archive refusals also apply to the CLI. No command needs the member's machine beyond its named input/output paths, and none is local-only.

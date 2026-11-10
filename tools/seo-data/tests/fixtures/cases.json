@@ -1,0 +1,257 @@
+[
+  {
+    "name": "audit export",
+    "input": {
+      "command": "audit",
+      "input": "audit.json"
+    },
+    "file": "audit.json",
+    "expected": {
+      "site": "https://example.com/",
+      "dateRange": {
+        "start": "2026-06-01",
+        "end": "2026-06-28"
+      },
+      "searchPerformance": {
+        "queries": 2,
+        "clicks": 14,
+        "impressions": 105,
+        "ctr": 0.13333333333333333,
+        "averagePosition": 8.333333333333334
+      },
+      "trafficSummary": {
+        "users": 0,
+        "sessions": 0,
+        "pageViews": 0,
+        "engagementRate": 0,
+        "bounceRate": 0,
+        "organicSearchUsers": 0,
+        "organicSearchShare": 0
+      },
+      "topQueries": [
+        {
+          "query": "alpha",
+          "clicks": 12,
+          "impressions": 100,
+          "ctr": 0.12,
+          "position": 8
+        },
+        {
+          "query": "beta",
+          "clicks": 2,
+          "impressions": 5,
+          "ctr": 0.4,
+          "position": 15
+        }
+      ],
+      "topPages": [],
+      "sitemaps": {
+        "count": 1,
+        "pending": 1
+      },
+      "organicTrend": [],
+      "targetKeywords": [
+        {
+          "keyword": "ALPHA",
+          "position": 8,
+          "clicks": 12,
+          "impressions": 100,
+          "ctr": 0.12,
+          "status": "ranking"
+        },
+        {
+          "keyword": "absent",
+          "position": null,
+          "clicks": 0,
+          "impressions": 0,
+          "ctr": 0,
+          "status": "not_ranking"
+        }
+      ],
+      "duplicatesDropped": {
+        "searchQueries": 0,
+        "analyticsPagePaths": 0
+      }
+    }
+  },
+  {
+    "name": "keywords export",
+    "input": {
+      "command": "keywords",
+      "queries": "queries.json",
+      "start": "2026-06-01",
+      "end": "2026-06-28"
+    },
+    "file": "queries.json",
+    "expected": {
+      "site": null,
+      "dateRange": {
+        "start": "2026-06-01",
+        "end": "2026-06-28"
+      },
+      "previousDateRange": null,
+      "minImpressions": 10,
+      "totalQueries": 1,
+      "topPerformers": [
+        {
+          "query": "alpha",
+          "clicks": 12,
+          "impressions": 100,
+          "ctr": 0.12,
+          "position": 8
+        }
+      ],
+      "opportunities": [
+        {
+          "query": "alpha",
+          "impressions": 100,
+          "currentPosition": 8,
+          "ctr": 0.12,
+          "reason": "Position 8.0 with 100 impressions: on page 1 but below the fold"
+        }
+      ],
+      "growing": null,
+      "declining": null,
+      "cannibalization": null,
+      "targetTracking": null
+    }
+  },
+  {
+    "name": "keywords ZIP of exports",
+    "input": {
+      "command": "keywords",
+      "queries": "queries.json",
+      "query-pages": "pages.json",
+      "previous-queries": "previous.json",
+      "targets": "targets.txt",
+      "start": "2026-06-01",
+      "end": "2026-06-28",
+      "site": "https://example.com/"
+    },
+    "zip": [
+      "queries.json",
+      "pages.json",
+      "previous.json",
+      "targets.txt"
+    ],
+    "expected": {
+      "site": "https://example.com/",
+      "dateRange": {
+        "start": "2026-06-01",
+        "end": "2026-06-28"
+      },
+      "previousDateRange": {
+        "start": "2026-05-04",
+        "end": "2026-05-31"
+      },
+      "minImpressions": 10,
+      "totalQueries": 1,
+      "topPerformers": [
+        {
+          "query": "alpha",
+          "clicks": 12,
+          "impressions": 100,
+          "ctr": 0.12,
+          "position": 8
+        }
+      ],
+      "opportunities": [
+        {
+          "query": "alpha",
+          "impressions": 100,
+          "currentPosition": 8,
+          "ctr": 0.12,
+          "reason": "Position 8.0 with 100 impressions: on page 1 but below the fold"
+        }
+      ],
+      "growing": [
+        {
+          "query": "alpha",
+          "currentClicks": 12,
+          "previousClicks": 5,
+          "changePercent": 140,
+          "currentPosition": 8
+        }
+      ],
+      "declining": [],
+      "cannibalization": [
+        {
+          "query": "alpha",
+          "pages": [
+            {
+              "page": "https://example.com/a",
+              "clicks": 12,
+              "impressions": 100,
+              "position": 8
+            },
+            {
+              "page": "https://example.com/b",
+              "clicks": 12,
+              "impressions": 60,
+              "position": 10
+            }
+          ],
+          "recommendation": "Consolidate into https://example.com/a, which draws the most impressions and holds the better position, or give each page its own target intent"
+        }
+      ],
+      "targetTracking": [
+        {
+          "keyword": "ALPHA",
+          "found": true,
+          "position": 8,
+          "clicks": 12,
+          "impressions": 100,
+          "page": "https://example.com/a"
+        },
+        {
+          "keyword": "missing",
+          "found": false,
+          "position": null,
+          "clicks": 0,
+          "impressions": 0,
+          "page": null
+        }
+      ]
+    }
+  },
+  {
+    "name": "previous window across leap day",
+    "input": {
+      "command": "previous-window",
+      "start": "2024-03-01",
+      "end": "2024-03-05"
+    },
+    "expected": {
+      "window": {
+        "start": "2024-03-01",
+        "end": "2024-03-05"
+      },
+      "previousWindow": {
+        "start": "2024-02-25",
+        "end": "2024-02-29"
+      }
+    }
+  },
+  {
+    "name": "invalid calendar date",
+    "input": {
+      "command": "previous-window",
+      "start": "2026-02-30",
+      "end": "2026-03-02"
+    },
+    "expected": {
+      "error": "Error: --start is not a real calendar date; got \"2026-02-30\"."
+    }
+  },
+  {
+    "name": "malformed export",
+    "input": {
+      "command": "audit",
+      "input": "invalid.json"
+    },
+    "file": "invalid.json",
+    "expected": {
+      "error": "Error: invalid.json is not JSON. Pass the audit input bundle described in TOOL.md."
+    }
+  }
+]
