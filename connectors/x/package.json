@@ -1,5 +1,8 @@
 {
   "name": "wiser-connector-x",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  }
 }

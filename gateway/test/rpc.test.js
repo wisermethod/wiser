@@ -122,3 +122,17 @@ test('unknown method is -32601', async () => {
   const res = await handle(JSON.stringify({ jsonrpc: '2.0', id: 9, method: 'nope' }));
   assert.equal(res.error.code, -32601);
 });
+
+test('rpc serializes an undefined tool result as the string null', async () => {
+  const calls = [];
+  const handle = createRpcHandler({ gateway: {
+    async callTool(...args) { calls.push(args); return undefined; },
+  }, version: '0.1.0' });
+  const reply = await handle(JSON.stringify({
+    jsonrpc: '2.0', id: 10, method: 'tools/call', params: { name: 'execute', arguments: {} },
+  }));
+  assert.deepEqual(calls, [['execute', {}]]);
+  assert.deepEqual(reply.result, { content: [{ type: 'text', text: 'null' }], isError: false });
+  assert.equal(typeof reply.result.content[0].text, 'string');
+  assert.equal(JSON.parse(JSON.stringify(reply)).result.content[0].text, 'null');
+});

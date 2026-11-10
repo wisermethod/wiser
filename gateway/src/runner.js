@@ -197,7 +197,8 @@ export async function runApproved(gateway, call, line) {
       };
     }
 
-    const result = await resolved.fn(input ?? {}, ctx);
+    let result = await resolved.fn(input ?? {}, ctx);
+    if (result === undefined) result = statusObject(STATUS.VENDOR_ERROR, { reason: 'no_result' });
     // Screen every public field (including extra fields and the byte slot)
     // before publication, not just the metadata returned by the writer.
     if (responseHeaderGuard.holdsOutput(result)) {

@@ -77,4 +77,4 @@ Local-file and app-only bearer authentication are not routes here. Every action 
 
 ## Last connected
 
-Not yet.
+Yes.

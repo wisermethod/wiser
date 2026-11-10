@@ -84,7 +84,7 @@ export function createRpcHandler({ gateway, version }) {
           try {
             const result = await gateway.callTool(name, args);
             return rpcResult(id, {
-              content: [{ type: 'text', text: JSON.stringify(result) }],
+              content: [{ type: 'text', text: JSON.stringify(result) ?? 'null' }],
               isError: false,
             });
           } catch (err) {

@@ -47,6 +47,20 @@ function assertUnchanged(store, record) {
   assert.deepEqual(store.getConnection(key), record);
 }
 
+test('execute converts an undefined module result to vendor_error before classification and audit', async (t) => {
+  const { gw, store, fake, home } = await createTestGateway({
+    session: false,
+    connectors: [connector({ provider: 'catalog', privilege: 'read' }, async () => undefined)],
+  });
+  t.after(() => rmSync(home, { recursive: true, force: true }));
+  await putActive(store, fake, key);
+  const status = t.mock.method(fake.auth, 'status', async () => assert.fail('no_result must not refresh a grant'));
+  assert.deepEqual(await gw.execute({ action, input }), { status: 'vendor_error', reason: 'no_result' });
+  assert.equal(status.mock.callCount(), 0);
+  const audit = readFileSync(join(home, 'audit.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
+  assert.equal(audit.at(-1).status, 'vendor_error');
+});
+
 for (const path of ['ctx.catalog', 'catalog', 'ctx.proxy']) {
   test(`${path}: ACTIVE plus auth refusal and EXPIRED becomes needs_connect`, async (t) => {
     const { gw, store, record, status, home } = await hosted(t, path);

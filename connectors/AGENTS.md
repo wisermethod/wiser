@@ -117,7 +117,7 @@ guide's `## Revoking` section carries the same working through, from `connectors
 | `usebouncer/CONNECTOR.md` | Reads verification credits, verifies single addresses and batches, and resumes batch results by identifier |
 | `zoom/CONNECTOR.md` | Lists meetings for a user and reads one meeting |
 | `linkedin/CONNECTOR.md` | Reads the connected profile and one post |
-| `x/CONNECTOR.md` | Reads the connected X account, one post and the account's own recent posts, and deletes one post with confirmation |
+| `x/CONNECTOR.md` | Reads the connected X account, one post and the account's own recent posts, and creates or deletes one post with confirmation |
 | `microsoft/CONNECTOR.md` | Reads Outlook messages, Calendar events, OneDrive files, SharePoint lists, Excel values, and joined teams through six separate grants |
 
 ### Media

@@ -83,6 +83,36 @@
             ],
             "additionalProperties": false
           }
+        },
+        "create_post": {
+          "description": "Publish one X post or reply. Text is limited to 280 code points and connector weight 280: code points 0 to 4351, 8192 to 8205, 8208 to 8223 and 8242 to 8247 weigh 1, all others weigh 2, with no shorter URL weighting. This conservative cap is not a measured copy of X's rule. A detected URL (a scheme followed by ://, www., or a dotted host whose last label is two or more letters) requires allow_url=true as a format rule, not a cost bound; X's detector is unpublished and may differ",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 280,
+                "pattern": "\\S"
+              },
+              "reply_to": {
+                "type": "string",
+                "pattern": "^[0-9]{1,19}$"
+              },
+              "allow_url": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "text"
+            ],
+            "additionalProperties": false
+          }
         }
       },
       "unwrap_token": false,
