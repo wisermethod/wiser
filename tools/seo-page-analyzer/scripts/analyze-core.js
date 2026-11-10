@@ -5,7 +5,7 @@
  * arguments. Nothing reads a file, opens a connection, or reads a clock beyond
  * the single timestamp the entry script stamps on the report.
  *
- * Node built-ins only; nothing here imports from outside this tool directory.
+ * Portable JavaScript only; this module imports no Node modules or packages.
  * The rules every shipped script follows are stated once, in
  * system/templates/Script Contract.md.
  */
@@ -26,6 +26,13 @@ const THRESHOLDS = {
 };
 
 const SCANNED_TAGS = new Set(['title', 'meta', 'link', 'html', 'h1', 'h2', 'h3', 'p', 'img', 'a', 'script', 'style']);
+
+// Generous for a single page's schema, while bounding even values that never
+// produce report entries. A normal page's non-overlapping headings copy at
+// most its source length; allow four times the maximum ASCII input length.
+export const MAX_JSON_LD_VALUES = 10000;
+export const MAX_HEADING_TEXT_CHARACTERS = 4 * 1024 * 1024;
+class AnalysisLimitError extends Error {}
 
 const NAMED_ENTITIES = new Map([
   ['amp', '&'], ['lt', '<'], ['gt', '>'], ['quot', '"'], ['apos', "'"],
@@ -117,9 +124,10 @@ function analyzeMetaDescription(tags, needle) {
 }
 
 function analyzeHeadings(source, tags, needle, wordCount) {
-  const h1 = headingTexts(source, tags, 'h1');
-  const h2 = headingTexts(source, tags, 'h2');
-  const h3 = headingTexts(source, tags, 'h3');
+  const textBudget = { characters: 0 };
+  const h1 = headingTexts(source, tags, 'h1', textBudget);
+  const h2 = headingTexts(source, tags, 'h2', textBudget);
+  const h3 = headingTexts(source, tags, 'h3', textBudget);
   const issues = [];
 
   if (h1.length === 0) issues.push('No H1 element.');
@@ -246,6 +254,7 @@ function analyzeStructuredData(source, tags) {
   const schemas = [];
   const issues = [];
   let invalidBlocks = 0;
+  const valueBudget = { count: 0 };
 
   for (const tag of tags) {
     if (tag.name !== 'script') continue;
@@ -261,6 +270,7 @@ function analyzeStructuredData(source, tags) {
       continue;
     }
 
+    checkSchemaWork(data, valueBudget);
     for (const item of flattenSchemaItems(data)) {
       const type = item['@type'];
       if (type === undefined) continue;
@@ -377,15 +387,22 @@ function parseAttributes(text) {
 }
 
 /** The raw text between a scanned tag and its closing tag, empty when unclosed. */
-function elementText(source, tag) {
+function elementText(source, tag, textBudget) {
   const close = tag.lower.indexOf(`</${tag.name}`, tag.end);
-  return close === -1 ? '' : source.slice(tag.end, close);
+  if (close === -1) return '';
+  if (textBudget) {
+    textBudget.characters += close - tag.end;
+    if (textBudget.characters > MAX_HEADING_TEXT_CHARACTERS) {
+      throw new AnalysisLimitError('Error: heading text exceeds 4,194,304 source characters in total; use a smaller page.');
+    }
+  }
+  return source.slice(tag.end, close);
 }
 
-function headingTexts(source, tags, name) {
+function headingTexts(source, tags, name, textBudget) {
   return tags
     .filter((tag) => tag.name === name)
-    .map((tag) => cleanText(stripTags(elementText(source, tag))))
+    .map((tag) => cleanText(stripTags(elementText(source, tag, textBudget))))
     .filter((text) => text !== null);
 }
 
@@ -512,16 +529,37 @@ function formatPercent(ratio) {
   return `${(ratio * 100).toFixed(1)} percent`;
 }
 
+// Count every JSON value across every valid block, including unreported
+// properties and scalars. Check before enqueuing, so the work queue is bounded.
+function checkSchemaWork(data, budget) {
+  const queue = [];
+  const enqueue = value => {
+    if (++budget.count > MAX_JSON_LD_VALUES) {
+      throw new AnalysisLimitError('Error: JSON-LD exceeds 10,000 values across the page; use a smaller page.');
+    }
+    queue.push(value);
+  };
+  enqueue(data);
+  for (let index = 0; index < queue.length; index++) {
+    const item = queue[index];
+    if (Array.isArray(item)) {
+      for (const value of item) enqueue(value);
+    } else if (item && typeof item === 'object') {
+      for (const key of Object.keys(item)) enqueue(item[key]);
+    }
+  }
+}
+
 function flattenSchemaItems(data) {
   const items = [];
   const queue = Array.isArray(data) ? [...data] : [data];
 
-  while (queue.length > 0) {
-    const item = queue.shift();
+  for (let index = 0; index < queue.length; index++) {
+    const item = queue[index];
     if (!item || typeof item !== 'object') continue;
 
     if (Array.isArray(item['@graph'])) {
-      queue.push(...item['@graph']);
+      for (const child of item['@graph']) queue.push(child);
       continue;
     }
 
@@ -529,4 +567,84 @@ function flattenSchemaItems(data) {
   }
 
   return items;
+}
+
+// Query and fragment parameter names that authorize rather than describe. The
+// page URL is echoed into a report that is written into other files, so a
+// caller who analyzes a page it reached with a signed address does not publish
+// the signature by naming the address it fetched.
+const CREDENTIAL_SUBSTRINGS = [
+  'token', 'secret', 'signature', 'apikey', 'api_key', 'password', 'passwd',
+  'credential', 'sessionid', 'accesskey', 'authorization', 'jwt'
+];
+
+const CREDENTIAL_WORDS = /(?:^|[^a-z0-9])(?:key|keys|sid|sig|auth|session|access|refresh|pass|pwd|otp|oauth|bearer|sso|ticket|private)(?:[^a-z0-9]|$)/;
+
+/**
+ * The form of the page address this tool is willing to write down: no embedded
+ * username or password, no fragment, which names a place inside a page rather
+ * than a page, and no query parameter that carries authorization. Everything
+ * else is left alone, so the address stays a usable reference to the page.
+ */
+function recordedUrl(url) {
+  const clean = new URL(url.href);
+  clean.username = '';
+  clean.password = '';
+  clean.hash = '';
+
+  for (const name of [...clean.searchParams.keys()]) {
+    if (isCredentialParam(name)) clean.searchParams.delete(name);
+  }
+
+  return clean.href;
+}
+
+function isCredentialParam(name) {
+  const normalized = String(name).toLowerCase();
+  return CREDENTIAL_SUBSTRINGS.some((needle) => normalized.includes(needle)) || CREDENTIAL_WORDS.test(normalized);
+}
+
+/** Validate before reading a file, and again at the hosted boundary. */
+export function parsePageUrl(value) {
+  if (!value) throw new Error('Error: --page-url is required. Pass the http or https address this HTML came from; it is never requested.');
+  let url;
+  try { url = new URL(value); }
+  catch { throw new Error('Error: --page-url is not a URL. Pass an absolute http or https address, such as https://example.com/pricing.'); }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error(`Error: --page-url must be http or https; got ${url.protocol}//. Pass the address the page is served at.`);
+  return url;
+}
+
+export const MAX_INPUT_BYTES = 1024 * 1024;
+export const MAX_MARKUP_OPENERS = 4096;
+
+/** Hosted and CLI entry. The URL is a label; nothing is fetched. */
+export async function analyzeHtml(input, files) {
+  if (!input || typeof input !== 'object' || Array.isArray(input) ||
+      Object.keys(input).some(k => !['command', 'url', 'keyword', 'analyzedAt'].includes(k)) ||
+      input.command !== undefined && input.command !== 'analyze' ||
+      input.url !== undefined && typeof input.url !== 'string' ||
+      input.keyword !== undefined && typeof input.keyword !== 'string' ||
+      input.analyzedAt !== undefined && (typeof input.analyzedAt !== 'string' || !Number.isFinite(Date.parse(input.analyzedAt)))) {
+    throw new Error('Error: analyze needs a page URL, optional keyword and optional valid analyzedAt timestamp.');
+  }
+  const url = recordedUrl(parsePageUrl(input.url));
+  if (!Array.isArray(files) || files.length !== 1 || typeof files[0]?.name !== 'string' || typeof files[0]?.mediaType !== 'string' || !(files[0]?.bytes instanceof Uint8Array)) throw new Error('Error: supply exactly one HTML file with name, mediaType and Uint8Array bytes.');
+  const file = files[0];
+  if (file.bytes.byteLength > MAX_INPUT_BYTES) throw new Error('Error: the HTML file exceeds 1 MiB; use a smaller page.');
+  const html = new TextDecoder('utf-8', { ignoreBOM: true }).decode(file.bytes);
+  // Bound the number of markup candidates; heading copies have their own
+  // cumulative budget, since late closers can make those slices overlap.
+  let openers = 0;
+  for (let i = 0; i < html.length; i++) {
+    if (html[i] === '<' && ++openers > MAX_MARKUP_OPENERS) throw new Error('Error: the HTML contains more than 4,096 markup openers; use a smaller page.');
+  }
+  let report;
+  try { report = analyzePage({ html, url, keyword: input.keyword, analyzedAt: input.analyzedAt ?? new Date().toISOString() }); }
+  catch (error) {
+    if (error instanceof AnalysisLimitError) throw error;
+    throw new Error('Error: the HTML analysis could not complete; use a smaller page.');
+  }
+  if (JSON.stringify(report).length > 48000) throw new Error('Error: the answer exceeds 48,000 serialized characters; use a smaller page.');
+  // There are no output files: their total size is always zero, below 4 MiB.
+  return report;
 }

@@ -16,23 +16,12 @@ import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { analyzePage } from './analyze-core.js';
+import { analyzeHtml, parsePageUrl } from './analyze-core.js';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const TOOL_DIR = resolve(SCRIPT_DIR, '..');
 
 const COMMANDS = new Set(['analyze']);
-
-// Query and fragment parameter names that authorize rather than describe. The
-// page URL is echoed into a report that is written into other files, so a
-// caller who analyzes a page it reached with a signed address does not publish
-// the signature by naming the address it fetched.
-const CREDENTIAL_SUBSTRINGS = [
-  'token', 'secret', 'signature', 'apikey', 'api_key', 'password', 'passwd',
-  'credential', 'sessionid', 'accesskey', 'authorization', 'jwt'
-];
-
-const CREDENTIAL_WORDS = /(?:^|[^a-z0-9])(?:key|keys|sid|sig|auth|session|access|refresh|pass|pwd|otp|oauth|bearer|sso|ticket|private)(?:[^a-z0-9]|$)/;
 
 const USAGE = `seo-page-analyzer - report one page's on-page SEO elements from its HTML
 
@@ -231,56 +220,22 @@ if (!pageUrlValue) {
   fail('Error: --page-url is required. Pass the http or https address this HTML came from; it is never requested.');
 }
 
-let pageUrl;
-try {
-  pageUrl = new URL(pageUrlValue);
-} catch {
-  fail('Error: --page-url is not a URL. Pass an absolute http or https address, such as https://example.com/pricing.');
-}
-
-if (pageUrl.protocol !== 'http:' && pageUrl.protocol !== 'https:') {
-  fail(`Error: --page-url must be http or https; got ${pageUrl.protocol}//. Pass the address the page is served at.`);
-}
+try { parsePageUrl(pageUrlValue); }
+catch (error) { fail(error.message); }
 
 const keyword = flag('--keyword');
 
 let html;
 try {
-  html = readFileSync(htmlPath, 'utf8');
+  html = new Uint8Array(readFileSync(htmlPath));
 } catch {
   // The runtime's own message is withheld; it can echo the path or file bytes.
   fail(`Error: could not read ${htmlPath}. Confirm it is a readable file, not a directory.`);
 }
 
-const report = analyzePage({
-  html,
-  url: recordedUrl(pageUrl),
-  keyword,
-  analyzedAt: new Date().toISOString()
-});
-
-process.stdout.write(`${JSON.stringify(report)}\n`);
-
-/**
- * The form of the page address this tool is willing to write down: no embedded
- * username or password, no fragment, which names a place inside a page rather
- * than a page, and no query parameter that carries authorization. Everything
- * else is left alone, so the address stays a usable reference to the page.
- */
-function recordedUrl(url) {
-  const clean = new URL(url.href);
-  clean.username = '';
-  clean.password = '';
-  clean.hash = '';
-
-  for (const name of [...clean.searchParams.keys()]) {
-    if (isCredentialParam(name)) clean.searchParams.delete(name);
-  }
-
-  return clean.href;
-}
-
-function isCredentialParam(name) {
-  const normalized = String(name).toLowerCase();
-  return CREDENTIAL_SUBSTRINGS.some((needle) => normalized.includes(needle)) || CREDENTIAL_WORDS.test(normalized);
-}
+try {
+  const report = await analyzeHtml({ url: pageUrlValue, keyword }, [
+    { name: htmlPath, mediaType: 'text/html', bytes: html }
+  ]);
+  process.stdout.write(`${JSON.stringify(report)}\n`);
+} catch (error) { fail(error.message); }

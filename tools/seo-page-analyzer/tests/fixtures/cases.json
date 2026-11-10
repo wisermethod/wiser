@@ -1,0 +1,96 @@
+[
+  {
+    "name": "complete",
+    "input": {
+      "url": "https://example.com/pricing",
+      "keyword": "team pricing",
+      "analyzedAt": "2026-11-09T00:00:00.000Z"
+    },
+    "file": "complete.html",
+    "expected": "complete.expected.json"
+  },
+  {
+    "name": "empty",
+    "input": {
+      "url": "https://example.com/",
+      "analyzedAt": "2026-11-09T00:00:00.000Z"
+    },
+    "file": "empty.html",
+    "expected": "empty.expected.json"
+  },
+  {
+    "name": "duplicates",
+    "input": {
+      "url": "https://example.com/one",
+      "keyword": "missing",
+      "analyzedAt": "2026-11-09T00:00:00.000Z"
+    },
+    "file": "duplicates.html",
+    "expected": "duplicates.expected.json"
+  },
+  {
+    "name": "inert-markup",
+    "input": {
+      "url": "https://example.com/",
+      "analyzedAt": "2026-11-09T00:00:00.000Z"
+    },
+    "file": "inert-markup.html",
+    "expected": "inert-markup.expected.json"
+  },
+  {
+    "name": "entities-bom",
+    "input": {
+      "url": "https://example.com/",
+      "keyword": "café",
+      "analyzedAt": "2026-11-09T00:00:00.000Z"
+    },
+    "file": "entities-bom.html",
+    "expected": "entities-bom.expected.json"
+  },
+  {
+    "name": "links-sanitized",
+    "input": {
+      "url": "https://reader:example@example.com/path?topic=one&token=example&api_key=example&session=example#part",
+      "analyzedAt": "2026-11-09T00:00:00.000Z"
+    },
+    "file": "links-sanitized.html",
+    "expected": "links-sanitized.expected.json"
+  },
+  {
+    "name": "graphs-robots",
+    "input": {
+      "url": "https://example.com/",
+      "keyword": "other",
+      "analyzedAt": "2026-11-09T00:00:00.000Z"
+    },
+    "file": "graphs-robots.html",
+    "expected": "graphs-robots.expected.json"
+  },
+  {
+    "name": "unclosed",
+    "input": {
+      "url": "https://example.com/",
+      "analyzedAt": "2026-11-09T00:00:00.000Z"
+    },
+    "file": "unclosed.html",
+    "expected": "unclosed.expected.json"
+  },
+  {
+    "name": "invalid-url",
+    "input": {
+      "url": "example.com/path",
+      "analyzedAt": "2026-11-09T00:00:00.000Z"
+    },
+    "file": "invalid-url.html",
+    "expected": "invalid-url.expected.json"
+  },
+  {
+    "name": "invalid-scheme",
+    "input": {
+      "url": "file:///page.html",
+      "analyzedAt": "2026-11-09T00:00:00.000Z"
+    },
+    "file": "invalid-scheme.html",
+    "expected": "invalid-scheme.expected.json"
+  }
+]

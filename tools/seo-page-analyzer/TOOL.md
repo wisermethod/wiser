@@ -3,8 +3,10 @@ name: seo-page-analyzer
 type: tool
 category: seo
 description: Reports one page's on-page SEO elements from caller-supplied HTML, each element with its measurements and the checks it failed
-version: 0.1.3
-runs: local
+version: 0.1.4
+runs: both
+hosted:
+  - analyze 1MiB 15s
 ---
 
 # seo-page-analyzer
@@ -45,6 +47,32 @@ How the measurements are taken, where a caller could reasonably read them anothe
 - An image with `alt=""` counts as an image without alt text, though an empty `alt` is the correct markup for a decorative image. Leave that count, and do not add alt text to clear it. When the attribute is absent, the check stands, and do not invent alt text. When the request names that image as decorative, say so to the requester rather than by changing the JSON. Apply this per image, and do not clear the group's issue while any image lacks the attribute.
 - Word count is the visible body text: the head, script and style elements, HTML comments, and the tags themselves are removed first, so the title is measured once as a title and a heading a script writes at runtime is not on the page.
 - A link counts once, toward internal or external by comparing its resolved host to the host in `--page-url`. Fragment, `mailto:`, `tel:`, and script links count toward neither.
+
+## Hosted mode
+
+`analyze` also runs on Wiser's side with one caller-supplied HTML file, at most
+1 MiB, and a 15-second limit. It never fetches the page URL. No command stays
+local, and no archive is needed. The portable entry is `scripts/analyze-core.js`'s
+`analyzeHtml(input, files)`: `input` holds `url`, optional `keyword`, optional
+`analyzedAt` (a valid timestamp, otherwise the current UTC time), and optional
+`command: "analyze"`. `files` holds exactly one `{ name, mediaType, bytes: Uint8Array }`.
+It returns the existing JSON report, including the sanitized page URL.
+
+The core and CLI refuse a file over 1 MiB, more than 4,096 `<` markup openers
+(including those in comments or scripts), or an answer over 48,000 serialized
+characters, whole, without truncation. The opener cap bounds the number of
+markup candidates. Separate work caps refuse more than 10,000 JSON-LD values
+across all valid blocks (every object, array and scalar, including unreported
+properties), before the schema walk, and more than 4,194,304 source characters
+(UTF-16 code units) summed across H1, H2 and H3 text slices, checked before
+each slice. The JSON-LD budget leaves room for thousands of schema fields on
+one page; ordinary headings do not overlap and fit within the source once,
+well below the copy budget. Overlapping malformed headings count their shared
+text each time. These work caps also refuse the whole analysis. Invalid file
+envelopes, unsupported arguments, invalid
+URLs or timestamps, and HTML whose analysis cannot complete are also refused
+with a plain reason. This command writes no files, so its total output-file size
+is zero and always below 4 MiB.
 
 ## Quick Start
 

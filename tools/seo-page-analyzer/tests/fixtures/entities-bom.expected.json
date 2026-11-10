@@ -1,0 +1,82 @@
+{
+  "url": "https://example.com/",
+  "analyzedAt": "2026-11-09T00:00:00.000Z",
+  "targetKeyword": "café",
+  "title": {
+    "text": "Café & tea 😀",
+    "length": 12,
+    "containsKeyword": true,
+    "issues": [
+      "Title is 12 characters, below the 20-character guideline."
+    ]
+  },
+  "metaDescription": {
+    "text": "A > B",
+    "length": 5,
+    "containsKeyword": false,
+    "issues": [
+      "Meta description is 5 characters, below the 70-character guideline.",
+      "Target keyword does not appear in the meta description."
+    ]
+  },
+  "headings": {
+    "h1": [
+      "Café é"
+    ],
+    "h2": [],
+    "h3": [],
+    "h1Count": 1,
+    "containsKeywordInH1": true,
+    "issues": []
+  },
+  "content": {
+    "wordCount": 6,
+    "paragraphCount": 0,
+    "imageCount": 2,
+    "imagesWithAlt": 1,
+    "imagesWithoutAlt": 1,
+    "keywordDensity": 0.3333333333333333,
+    "issues": [
+      "Body text is 6 words, below the 300-word guideline.",
+      "1 of 2 images without a non-empty alt attribute.",
+      "Target keyword appears 2 times in 6 words, 33.3 percent, above the 3.0 percent guideline."
+    ]
+  },
+  "links": {
+    "internalLinks": 0,
+    "externalLinks": 0,
+    "noFollowLinks": 0,
+    "issues": [
+      "No internal links."
+    ]
+  },
+  "technical": {
+    "canonicalUrl": null,
+    "robots": null,
+    "isNoindex": false,
+    "isNofollow": false,
+    "hasViewportMeta": false,
+    "language": "fr",
+    "issues": [
+      "No canonical link.",
+      "No viewport meta."
+    ]
+  },
+  "structuredData": {
+    "schemas": [],
+    "hasSchema": false,
+    "issues": [
+      "No JSON-LD structured data."
+    ]
+  },
+  "openGraph": {
+    "title": null,
+    "description": null,
+    "image": null,
+    "type": null,
+    "issues": [
+      "No og:title.",
+      "No og:image."
+    ]
+  }
+}

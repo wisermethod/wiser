@@ -1,0 +1,91 @@
+{
+  "url": "https://example.com/one",
+  "analyzedAt": "2026-11-09T00:00:00.000Z",
+  "targetKeyword": "missing",
+  "title": {
+    "text": "FIRST",
+    "length": 5,
+    "containsKeyword": false,
+    "issues": [
+      "Title is 5 characters, below the 20-character guideline.",
+      "Title is entirely uppercase.",
+      "2 title elements; the first is reported.",
+      "Target keyword does not appear in the title."
+    ]
+  },
+  "metaDescription": {
+    "text": "First",
+    "length": 5,
+    "containsKeyword": false,
+    "issues": [
+      "Meta description is 5 characters, below the 70-character guideline.",
+      "2 meta description tags; the first is reported.",
+      "Target keyword does not appear in the meta description."
+    ]
+  },
+  "headings": {
+    "h1": [
+      "One",
+      "Two"
+    ],
+    "h2": [],
+    "h3": [],
+    "h1Count": 2,
+    "containsKeywordInH1": false,
+    "issues": [
+      "2 H1 elements; the guideline is one per page.",
+      "Target keyword does not appear in any H1."
+    ]
+  },
+  "content": {
+    "wordCount": 5,
+    "paragraphCount": 0,
+    "imageCount": 0,
+    "imagesWithAlt": 0,
+    "imagesWithoutAlt": 0,
+    "keywordDensity": 0,
+    "issues": [
+      "Body text is 5 words, below the 300-word guideline.",
+      "Target keyword does not appear in the body text."
+    ]
+  },
+  "links": {
+    "internalLinks": 0,
+    "externalLinks": 0,
+    "noFollowLinks": 0,
+    "issues": [
+      "No internal links."
+    ]
+  },
+  "technical": {
+    "canonicalUrl": "/first",
+    "robots": null,
+    "isNoindex": false,
+    "isNofollow": false,
+    "hasViewportMeta": false,
+    "language": null,
+    "issues": [
+      "2 canonical links; the first is reported.",
+      "No viewport meta.",
+      "No lang attribute on the html element."
+    ]
+  },
+  "structuredData": {
+    "schemas": [],
+    "hasSchema": false,
+    "issues": [
+      "1 JSON-LD block did not parse as JSON.",
+      "No JSON-LD structured data."
+    ]
+  },
+  "openGraph": {
+    "title": null,
+    "description": null,
+    "image": null,
+    "type": null,
+    "issues": [
+      "No og:title.",
+      "No og:image."
+    ]
+  }
+}

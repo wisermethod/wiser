@@ -5,7 +5,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "help": "node scripts/analyze.js help"
+    "help": "node scripts/analyze.js help",
+    "test": "node --test tests/*.test.js"
   },
   "engines": {
     "node": ">=18.0.0"

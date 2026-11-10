@@ -1,0 +1,72 @@
+{
+  "url": "https://example.com/pricing",
+  "analyzedAt": "2026-11-09T00:00:00.000Z",
+  "targetKeyword": "team pricing",
+  "title": {
+    "text": "Team pricing for a growing company",
+    "length": 34,
+    "containsKeyword": true,
+    "issues": []
+  },
+  "metaDescription": {
+    "text": "Team pricing that explains the choices available to a growing company, with details about features and support.",
+    "length": 111,
+    "containsKeyword": true,
+    "issues": []
+  },
+  "headings": {
+    "h1": [
+      "Team pricing"
+    ],
+    "h2": [
+      "Options"
+    ],
+    "h3": [],
+    "h1Count": 1,
+    "containsKeywordInH1": true,
+    "issues": []
+  },
+  "content": {
+    "wordCount": 337,
+    "paragraphCount": 1,
+    "imageCount": 1,
+    "imagesWithAlt": 1,
+    "imagesWithoutAlt": 0,
+    "keywordDensity": 0.002967359050445104,
+    "issues": []
+  },
+  "links": {
+    "internalLinks": 3,
+    "externalLinks": 1,
+    "noFollowLinks": 1,
+    "issues": []
+  },
+  "technical": {
+    "canonicalUrl": "https://example.com/pricing",
+    "robots": null,
+    "isNoindex": false,
+    "isNofollow": false,
+    "hasViewportMeta": true,
+    "language": "en",
+    "issues": []
+  },
+  "structuredData": {
+    "schemas": [
+      {
+        "type": "Product",
+        "properties": [
+          "name"
+        ]
+      }
+    ],
+    "hasSchema": true,
+    "issues": []
+  },
+  "openGraph": {
+    "title": "Team pricing",
+    "description": null,
+    "image": "https://example.com/image.png",
+    "type": null,
+    "issues": []
+  }
+}
