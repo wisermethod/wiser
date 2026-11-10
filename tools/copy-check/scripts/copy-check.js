@@ -9,7 +9,7 @@
 import { runCopyCheck } from './copy-check-core.js';
 
 try {
-  const result = runCopyCheck(process.argv.slice(2));
+  const result = await runCopyCheck(process.argv.slice(2));
   if (typeof result === 'string') {
     process.stdout.write(result.endsWith('\n') ? result : `${result}\n`);
   } else {

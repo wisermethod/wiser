@@ -3,8 +3,10 @@ name: copy-check
 type: tool
 category: documents
 description: Count and match page copy against a ledger, a fact map, patterns, and a corpus, and return one JSON object
-version: 0.1.0
-runs: local
+version: 0.1.1
+runs: both
+hosted:
+  - dashes 64KiB 15s
 ---
 
 # copy-check
@@ -18,6 +20,23 @@ Use it when a draft has to be checked, mechanically, against a claims ledger, a 
 Do not use it to decide whether a claim is true, whether a match is allowed, or whether a page should ship. It does not know what a Use code means. It does not know which overlaps are a person's name, title, a book's full title, or a co-author credit. A `pass` of false is a count, not a verdict, and a `pass` of true is an empty count, not an approval.
 
 Classifier seam: none.
+
+## Hosted mode
+
+`dashes` also runs on Wiser's side with one Markdown file, at most 64 KiB,
+and a 15-second limit. The cap bounds the Markdown parser's work on dense copy.
+`facts` and `prohibited` stay local because each reads multiple files.
+`overlap` stays local because it reads a whole folder recursively. No hosted
+command accepts or needs an archive.
+
+The portable entry is `scripts/dashes-core.js`'s `checkDashes(input, files)`.
+`input` is an empty object (or `{ command: "dashes" }`); `files` holds exactly
+one `{ name, mediaType, bytes: Uint8Array }`. It returns the existing JSON answer.
+The CLI calls the same core and enforces the same 64 KiB cap. Invalid UTF-8,
+malformed envelopes, unsupported arguments and commands, and answers over
+48,000 serialized characters are refused whole. There are no output files;
+the core also guards the 4 MiB total output-file ceiling. Nothing is truncated.
+The existing Markdown and planted-control refusals still apply.
 
 ## Quick Start
 

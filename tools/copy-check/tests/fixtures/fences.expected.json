@@ -1,0 +1,34 @@
+{
+  "command": "dashes",
+  "pass": false,
+  "units": 1,
+  "characters": 45,
+  "bomStripped": false,
+  "skippedFences": {
+    "blocks": 1,
+    "characters": 26
+  },
+  "counted": 1,
+  "exempt": 1,
+  "charactersScanned": 45,
+  "hits": [
+    {
+      "line": 2,
+      "column": 6,
+      "character": "U+2014",
+      "context": "text",
+      "excerpt": "```text Code — sample. ``` “Quote"
+    },
+    {
+      "line": 5,
+      "column": 9,
+      "character": "U+2013",
+      "context": "quotation",
+      "excerpt": "ample. ``` “Quoted – here.” "
+    }
+  ],
+  "control": {
+    "planted": "U+2014",
+    "fired": true
+  }
+}

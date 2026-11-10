@@ -1,0 +1,41 @@
+{
+  "command": "dashes",
+  "pass": false,
+  "units": 1,
+  "characters": 63,
+  "bomStripped": false,
+  "skippedFences": {
+    "blocks": 0,
+    "characters": 0
+  },
+  "counted": 2,
+  "exempt": 1,
+  "charactersScanned": 63,
+  "hits": [
+    {
+      "line": 1,
+      "column": 9,
+      "character": "U+2014",
+      "context": "quotation",
+      "excerpt": "\"Quoted — words.\" And [linked"
+    },
+    {
+      "line": 1,
+      "column": 31,
+      "character": "U+2013",
+      "context": "title",
+      "excerpt": "words.\" And [linked – title](https://exam"
+    },
+    {
+      "line": 1,
+      "column": 60,
+      "character": "U+2014",
+      "context": "text",
+      "excerpt": "https://example.com/—). "
+    }
+  ],
+  "control": {
+    "planted": "U+2014",
+    "fired": true
+  }
+}

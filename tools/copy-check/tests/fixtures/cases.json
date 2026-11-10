@@ -1,0 +1,66 @@
+[
+  {
+    "name": "clean",
+    "input": {
+      "command": "dashes"
+    },
+    "file": "clean.md",
+    "expected": "clean.expected.json"
+  },
+  {
+    "name": "unicode-crlf",
+    "input": {
+      "command": "dashes"
+    },
+    "file": "unicode-crlf.md",
+    "expected": "unicode-crlf.expected.json"
+  },
+  {
+    "name": "quotes-links",
+    "input": {
+      "command": "dashes"
+    },
+    "file": "quotes-links.md",
+    "expected": "quotes-links.expected.json"
+  },
+  {
+    "name": "fences",
+    "input": {
+      "command": "dashes"
+    },
+    "file": "fences.md",
+    "expected": "fences.expected.json"
+  },
+  {
+    "name": "frontmatter",
+    "input": {
+      "command": "dashes"
+    },
+    "file": "frontmatter.md",
+    "expected": "frontmatter.expected.json"
+  },
+  {
+    "name": "bom",
+    "input": {
+      "command": "dashes"
+    },
+    "file": "bom.md",
+    "expected": "bom.expected.json"
+  },
+  {
+    "name": "invalid-frontmatter",
+    "input": {
+      "command": "dashes"
+    },
+    "file": "invalid-frontmatter.md",
+    "expected": "invalid-frontmatter.expected.json"
+  },
+  {
+    "name": "invalid-utf8",
+    "input": {
+      "command": "dashes"
+    },
+    "file": "invalid-utf8.md",
+    "expected": "invalid-utf8.expected.json"
+  }
+]

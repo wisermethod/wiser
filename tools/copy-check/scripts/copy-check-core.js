@@ -6,6 +6,8 @@
  * system/templates/Script Contract.md.
  */
 
+import { checkDashes } from './dashes-core.js';
+
 import { readFileSync, readdirSync } from 'node:fs';
 import { extname, join, relative } from 'node:path';
 
@@ -14,7 +16,6 @@ import { screenSource } from './lib/paths.js';
 import {
   blankQuoted,
   collapseWhitespace,
-  codePoints,
   contextAt,
   isDelimiterRow,
   matchKey,
@@ -27,8 +28,6 @@ import {
   wordCount
 } from './lib/document.js';
 
-const EM_DASH = String.fromCodePoint(0x2014);
-const EN_DASH = String.fromCodePoint(0x2013);
 const PLANT_SENTENCE = 'Copycheckcontrol plant sentence one.';
 
 const USAGE = `copy-check: count and match page copy. It judges nothing.
@@ -631,51 +630,6 @@ function evaluateOverlap(parsed, files, skipped, size) {
   };
 }
 
-function excerptAt(text, index) {
-  const chars = Array.from(text);
-  let pointIndex = 0;
-  for (let cursor = 0; cursor < index;) {
-    const point = text.codePointAt(cursor);
-    cursor += point > 0xFFFF ? 2 : 1;
-    pointIndex += 1;
-  }
-  const start = Math.max(0, pointIndex - 20);
-  const end = Math.min(chars.length, pointIndex + 21);
-  return chars.slice(start, end).join('').replace(/\s+/g, ' ');
-}
-
-function evaluateDashes(parsed) {
-  const ranges = parsed.exemptions;
-  const hits = [];
-  let counted = 0;
-  let exempt = 0;
-  for (let index = 0; index < parsed.text.length;) {
-    const point = parsed.text.codePointAt(index);
-    const width = point > 0xFFFF ? 2 : 1;
-    if (point === EM_DASH.codePointAt(0) || point === EN_DASH.codePointAt(0)) {
-      const context = contextAt(index, ranges);
-      if (context === 'quotation') exempt += 1;
-      else counted += 1;
-      const position = positionAt(parsed.text, index);
-      hits.push({
-        line: position.line,
-        column: position.column,
-        character: point === EM_DASH.codePointAt(0) ? 'U+2014' : 'U+2013',
-        context,
-        excerpt: excerptAt(parsed.text, index)
-      });
-    }
-    index += width;
-  }
-  return {
-    ...baseFields('dashes', parsed, counted === 0),
-    counted,
-    exempt,
-    charactersScanned: codePoints(parsed.text),
-    hits
-  };
-}
-
 function controlFailure(command) {
   fail(`Error: ${command} control did not fire. A zero that cannot be shown to be a real zero is not reported.`);
 }
@@ -760,14 +714,12 @@ function runOverlap(values) {
   return { ...result, control: { planted: plantedSeq, fired: true } };
 }
 
-function runDashes(values) {
+async function runDashes(values) {
   const copyPath = screenSource('--copy', requireFlag(values, '--copy'), 'file');
-  const copyText = readUtf8(copyPath, '--copy');
-  const result = evaluateDashes(parseDocument(copyText));
-  const planted = `${copyText}\n\nPlanted ${EM_DASH} marker.\n`;
-  const control = evaluateDashes(parseDocument(planted));
-  if (control.counted !== result.counted + 1) controlFailure('dashes');
-  return { ...result, control: { planted: 'U+2014', fired: true } };
+  let bytes;
+  try { bytes = new Uint8Array(readFileSync(copyPath)); }
+  catch { fail(`Error: --copy at ${copyPath} could not be read. Pass an absolute path to a readable file.`); }
+  return checkDashes({}, [{ name: copyPath, mediaType: 'text/markdown', bytes }]);
 }
 
 export function runCopyCheck(argv) {

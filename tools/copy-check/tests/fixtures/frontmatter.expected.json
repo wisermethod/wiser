@@ -1,0 +1,48 @@
+{
+  "command": "dashes",
+  "pass": false,
+  "units": 6,
+  "characters": 105,
+  "bomStripped": false,
+  "skippedFences": {
+    "blocks": 0,
+    "characters": 0
+  },
+  "counted": 3,
+  "exempt": 1,
+  "charactersScanned": 105,
+  "hits": [
+    {
+      "line": 2,
+      "column": 11,
+      "character": "U+2014",
+      "context": "text",
+      "excerpt": "--- title: \"A — title\" description:"
+    },
+    {
+      "line": 3,
+      "column": 20,
+      "character": "U+2013",
+      "context": "text",
+      "excerpt": " description: Plain – text other: ignored"
+    },
+    {
+      "line": 9,
+      "column": 3,
+      "character": "U+2014",
+      "context": "text",
+      "excerpt": "B | | --- | --- | | — | “–” | "
+    },
+    {
+      "line": 9,
+      "column": 8,
+      "character": "U+2013",
+      "context": "quotation",
+      "excerpt": " --- | --- | | — | “–” | "
+    }
+  ],
+  "control": {
+    "planted": "U+2014",
+    "fired": true
+  }
+}

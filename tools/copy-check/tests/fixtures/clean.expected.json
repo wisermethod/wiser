@@ -1,0 +1,19 @@
+{
+  "command": "dashes",
+  "pass": true,
+  "units": 2,
+  "characters": 31,
+  "bomStripped": false,
+  "skippedFences": {
+    "blocks": 0,
+    "characters": 0
+  },
+  "counted": 0,
+  "exempt": 0,
+  "charactersScanned": 31,
+  "hits": [],
+  "control": {
+    "planted": "U+2014",
+    "fired": true
+  }
+}
