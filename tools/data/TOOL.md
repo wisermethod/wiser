@@ -3,7 +3,7 @@ name: data
 type: tool
 category: data
 description: Parses, describes, aggregates, joins, and charts a CSV, JSON, or TSV file, and computes a percentage, difference, or rate from two numeric fields of a JSON object
-version: 0.3.4
+version: 0.3.5
 runs: both
 hosted:
   - parse 8MiB 15s
@@ -23,7 +23,7 @@ Use it whenever an answer has to come from a CSV, JSON, or TSV file rather than 
 
 Do not use it to transform, clean, or deduplicate data. It reads the files the caller names and, for `chart`, writes one HTML file; it changes nothing about the source. Do not use it for conceptual diagrams, process maps, or geometry that is not a quantitative encoding; those are `skills/Visualizer/`. A spreadsheet workbook, a PDF table, and an image of a table are not among the formats it reads.
 
-It authenticates to nothing, holds no credential, reaches no other primitive, and after the packages described in `tools/AGENTS.md` are installed it makes no network request.
+It authenticates to nothing, holds no credential, reaches no other primitive, and its compiled file makes no network request.
 
 Classifier seam: none.
 
@@ -52,7 +52,7 @@ The file is `{ name, mediaType, bytes: Uint8Array }`. A chart's optional `output
 defaults to `chart.html`; it returns `{ answer, files }`, including the HTML bytes.
 Other commands return their JSON answer directly. Calculation/JSON/field errors
 retain their existing reasons. CSV parsing uses `csv-parse/browser/esm/sync`, the
-installed package's self-contained browser build with no Node module imports.
+package's self-contained browser build with no Node module imports.
 
 ## Quick Start
 
@@ -66,7 +66,7 @@ Usage text listing the six subcommands, with nothing installed. `node scripts/da
 node scripts/data.js parse --file /path/to/a/work/directory/regions.csv
 ```
 
-If this person has not yet authorized a Wiser install, the run reports that it would install `csv-parse` in this tool's directory, and stops. `--install` on that run is the answer (`tools/RUNNING.md`). It prints one JSON object:
+The compiled file includes `csv-parse`, so this run needs no package install. A source copy without that file keeps the install consent described in `tools/RUNNING.md`; `--install` on that run is the answer. It prints one JSON object:
 
 ```
 {"columns":[{"name":"region","type":"string","nonNullCount":3,"sampleValues":["West","East","North"]},{"name":"revenue","type":"number","nonNullCount":3,"sampleValues":["1200","900","1500"]}],"rowCount":3,"raggedRowCount":0,"parseErrors":[]}
@@ -76,7 +76,7 @@ Anything else, see Troubleshooting.
 
 ## Script Contract
 
-Every script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. `parse`, `describe`, `aggregate`, `join`, and `compute` read caller-named files and write nothing of their own; `chart` writes one caller-named HTML file outside this tool directory. Every other write a run makes is a package install, and `tools/AGENTS.md` is the only place this repository lists those. The contract's `--env` clause has nothing to bind here, and the tool carries no Dependencies section because `csv-parse` installs by the consent-gated check and Node covers the rest. The sections below state what each command does; the contract states how the script behaves getting there.
+Every script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. `parse`, `describe`, `aggregate`, `join`, and `compute` read caller-named files and write nothing of their own; `chart` writes one caller-named HTML file outside this tool directory. Every other write a run makes is a package install, and `tools/AGENTS.md` is the only place this repository lists those. The contract's `--env` clause has nothing to bind here, and the tool carries no Dependencies section because the compiled file includes `csv-parse` and Node covers the rest. The sections below state what each command does; the contract states how the script behaves getting there.
 
 No command takes `--env`.
 

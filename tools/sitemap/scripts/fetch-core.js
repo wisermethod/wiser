@@ -264,37 +264,31 @@ export async function runFetch(argv) {
   }
 
 
-  if (!existsSync(UNDICI_MARKER)) {
-    requireInstallConsent('packages');
-    process.stderr.write('First run: installing dependencies in this tool directory.\n');
-    try {
-      execFileSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['ci'], {
-        cwd: TOOL_DIR,
-        stdio: ['ignore', 'ignore', 'inherit']
-      });
-    } catch {
-      // Two different failures arrive here and they have different fixes, so the
-      // Script Contract's Output and errors clause requires telling them apart:
-      // an unwritable tool directory is not a broken install, and telling someone
-      // to run "npm ci" by hand where they cannot write cannot succeed.
-      if (!isWritable(TOOL_DIR)) {
-        fail(`Error: cannot install dependencies because ${TOOL_DIR} is not writable. This tool installs its dependencies into its own directory on the run that authorises it with --install, so that directory has to be writable. Install this plugin somewhere you own, or make that directory writable, then run the command again.`);
+  const server = ['HTTPS_PROXY', 'https_proxy', 'HTTP_PROXY', 'http_proxy']
+    .map(name => process.env[name]?.trim()).find(Boolean);
+  if (server && parsedArgs.files.length === 0) {
+    if (!existsSync(UNDICI_MARKER)) {
+      requireInstallConsent('packages');
+      process.stderr.write('First run: installing dependencies in this tool directory.\n');
+      try {
+        execFileSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['ci'], {
+          cwd: TOOL_DIR,
+          stdio: ['ignore', 'ignore', 'inherit']
+        });
+      } catch {
+        // Two different failures arrive here and they have different fixes, so the
+        // Script Contract's Output and errors clause requires telling them apart:
+        // an unwritable tool directory is not a broken install, and telling someone
+        // to run "npm ci" by hand where they cannot write cannot succeed.
+        if (!isWritable(TOOL_DIR)) {
+          fail(`Error: cannot install dependencies because ${TOOL_DIR} is not writable. This tool installs its dependencies into its own directory on the run that authorises it with --install, so that directory has to be writable. Install this plugin somewhere you own, or make that directory writable, then run the command again.`);
+        }
+        fail(`Error: npm ci failed in ${TOOL_DIR}. Confirm Node 18 or newer, then that package-lock.json is present and matches package.json, which is what npm ci requires. A lockfile missing or out of step with the manifest is a defect in this copy of the plugin, not something a re-run fixes.`);
       }
-      fail(`Error: npm ci failed in ${TOOL_DIR}. Confirm Node 18 or newer, then that package-lock.json is present and matches package.json, which is what npm ci requires. A lockfile missing or out of step with the manifest is a defect in this copy of the plugin, not something a re-run fixes.`);
     }
-  }
-  {
-    const server =
-      process.env.HTTPS_PROXY ||
-      process.env.https_proxy ||
-      process.env.HTTP_PROXY ||
-      process.env.http_proxy ||
-      '';
-    if (typeof server === 'string' && server.trim() !== '') {
-      const undici = await import('undici');
-      if (typeof undici.setGlobalDispatcher === 'function' && undici.ProxyAgent) {
-        undici.setGlobalDispatcher(new undici.ProxyAgent(server.trim()));
-      }
+    const undici = await import('undici');
+    if (typeof undici.setGlobalDispatcher === 'function' && undici.ProxyAgent) {
+      undici.setGlobalDispatcher(new undici.ProxyAgent(server));
     }
   }
 

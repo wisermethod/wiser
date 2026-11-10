@@ -9,7 +9,7 @@ import {SAMPLE_FORM,FONT_HOSTS} from '../scripts/format.js';
 import {mixedPictures} from './cases.js';
 import {boardForm,lookForm,lookActions} from './board-fixtures.js';
 import {onlyFonts} from './boards-harness.js';
-import {form,payload,serve,wait,stop,http,cli,dest,equal,delay,sentinel,listeners,cleanupAndScan} from './local-harness.js';
+import {form,payload,serve,wait,stop,http,cli,dest,equal,delay,sentinel,listenerMarker,assertNoListeners,cleanupAndScan} from './local-harness.js';
 
 let browser,runtime;
 before(async () => {
@@ -208,19 +208,29 @@ test('stop resolves pending waits, repeated stop and wrong code return gone',asy
   assert.equal((await stop(s)).status,'gone'); assert.equal((await wait(s)).status,'gone');
 });
 test('SSH and denied bind produce no-window and no-listen without leaving children',async () => {
-  const before = await listeners();
+  const marker = listenerMarker();
+  const run = async (args,overrides = {}) => {
+    const result = await cli(args,{...overrides,...marker});
+    await assertNoListeners(marker,'failed starts leave no process');
+    return result;
+  };
   for (const override of [{SSH_CONNECTION:'test'},{SSH_TTY:''},...(process.platform === 'linux' ? [{DISPLAY:undefined,WAYLAND_DISPLAY:undefined}] : [])]) {
-    const r = await cli(['serve','--sample'],override);
+    const r = await run(['serve','--sample'],override);
     assert.equal(r.code,0); assert.equal(r.stderr,''); assert.equal(r.json.status,'no-window'); assert.ok(r.json.reason);
   }
   // Only tests set WISER_FORM_TEST_LISTEN_EPERM; the listener simulates EPERM at listen.
-  const denied = await cli(['serve','--sample'],{WISER_FORM_TEST_LISTEN_EPERM:'1'});
+  const denied = await run(['serve','--sample'],{WISER_FORM_TEST_LISTEN_EPERM:'1'});
   assert.equal(denied.code,0); assert.equal(denied.stderr,''); assert.equal(denied.json.status,'no-listen');
   assert.match(denied.json.reason,/^EPERM: this command was not allowed to listen on this computer; run it outside the tool's sandbox, or ask in chat\.$/);
-  await delay(150); assert.deepEqual(await listeners(),before,'failed starts leave no process');
+  await assertNoListeners(marker,'failed starts leave no process');
 });
 test('closed command flags, limits and bad forms fail before any listener starts',async () => {
-  const before = await listeners();
+  const marker = listenerMarker();
+  const run = async (args,overrides = {}) => {
+    const result = await cli(args,{...overrides,...marker});
+    await assertNoListeners(marker,'invalid commands leave no process');
+    return result;
+  };
   const args = [
     ['serve'],['serve','--sample','--form','/missing'],['serve','--form','relative.json'],
     ...['0','86401','1.5','Infinity'].map(n => ['serve','--sample','--ttl',n]),
@@ -229,15 +239,15 @@ test('closed command flags, limits and bad forms fail before any listener starts
     ['wait','--port','1','--code','A'.repeat(32)],['wait','--port','1','--code','0'.repeat(32),'--seconds','3601'],
     ['stop','--port','1','--code','0'.repeat(32),'--seconds','1'],['wait','--port','1','--code','0'.repeat(32),'--install']
   ];
-  for (const command of args) { const r = await cli(command); assert.equal(r.code,1); assert.equal(r.stdout,''); assert.match(r.stderr,/help/); }
+  for (const command of args) { const r = await run(command); assert.equal(r.code,1); assert.equal(r.stdout,''); assert.match(r.stderr,/help/); }
   const directory = await mkdtemp(join(tmpdir(),'wiser-form-invalid-'));
   try {
     const file = join(directory,'form.json'),f = form(); f.questions[0].type = 'unknown'; f.questions[1].id = f.questions[0].id;
     await writeFile(file,JSON.stringify(f));
-    const r = await cli(['serve','--form',file],{SSH_CONNECTION:'test'});
+    const r = await run(['serve','--form',file],{SSH_CONNECTION:'test'});
     assert.equal(r.code,1); assert.equal(r.stdout,''); assert.match(r.stderr,/questions\[0\]\.type/); assert.match(r.stderr,/questions\[1\]\.id/);
   } finally { await rm(directory,{recursive:true,force:true}); }
-  assert.deepEqual(await listeners(),before);
+  await assertNoListeners(marker,'invalid commands leave no process');
 });
 test('unused replay expires 60 seconds after first collection, replacing the shorter TTL',{timeout:65000},async () => {
   const s = await serve(undefined,['--ttl','3']);

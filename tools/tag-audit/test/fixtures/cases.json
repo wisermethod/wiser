@@ -302,16 +302,12 @@
     "requests": [
       "https://page.test/"
     ],
-    "mainRequests": [
-      "https://page.test/",
-      "http://127.0.0.1/private"
-    ],
     "change": "Every redirect hop is screened before requesting it.",
     "error": "Error: the redirect to http://127.0.0.1/private was not followed: it points at a loopback address, which this tool does not fetch.",
     "main": {
-      "status": 0,
-      "stdout": "{\"url\":\"https://page.test/\",\"final_url\":\"http://127.0.0.1/private\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":7,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":false,\"id\":null},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":false,\"id\":null},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":false,\"id\":null},\"hotjar\":{\"label\":\"Hotjar\",\"present\":false,\"id\":null},\"plausible\":{\"label\":\"Plausible\",\"present\":false,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":false,\"id\":null},\"segment\":{\"label\":\"Segment\",\"present\":false,\"id\":null}},\"summary\":{\"present\":[]},\"missing_note\":\"Not detected in served HTML: Microsoft Clarity, Google Analytics 4, Google Tag Manager, Hotjar, Plausible, Meta Pixel, Segment. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.\"}\n",
-      "stderr": ""
+      "status": 1,
+      "stdout": "",
+      "stderr": "Error: the redirect to http://127.0.0.1/private was not followed: it points at a loopback address, which this tool does not fetch.\n"
     }
   },
   {
@@ -411,15 +407,12 @@
       }
     },
     "requests": [],
-    "mainRequests": [
-      "http://[64:ff9b:1::a00:1]/"
-    ],
     "change": "Shared screen refuses all of 64:ff9b:1::/48.",
     "error": "Error: --url http://[64:ff9b:1::a00:1]/ points at an address that is not routable on the public internet, which this tool does not fetch.",
     "main": {
-      "status": 0,
-      "stdout": "{\"url\":\"http://[64:ff9b:1::a00:1]/\",\"final_url\":\"http://[64:ff9b:1::a00:1]/\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":16,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":false,\"id\":null},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":false,\"id\":null},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":false,\"id\":null},\"hotjar\":{\"label\":\"Hotjar\",\"present\":false,\"id\":null},\"plausible\":{\"label\":\"Plausible\",\"present\":false,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":false,\"id\":null},\"segment\":{\"label\":\"Segment\",\"present\":false,\"id\":null}},\"summary\":{\"present\":[]},\"missing_note\":\"Not detected in served HTML: Microsoft Clarity, Google Analytics 4, Google Tag Manager, Hotjar, Plausible, Meta Pixel, Segment. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.\"}\n",
-      "stderr": ""
+      "status": 1,
+      "stdout": "",
+      "stderr": "Error: --url http://[64:ff9b:1::a00:1]/ points at an address that is not routable on the public internet, which this tool does not fetch.\n"
     }
   },
   {
@@ -441,7 +434,7 @@
     "main": {
       "status": 1,
       "stdout": "",
-      "stderr": "Error: could not fetch https://page.test/: the request did not complete. Confirm the host is reachable from this machine, then re-run.\n"
+      "stderr": "Error: the redirect to ftp://page.test/data was not followed: it uses ftp://, and this tool fetches http and https web pages only.\n"
     }
   },
   {
@@ -557,10 +550,14 @@
     "main": {
       "status": 1,
       "stdout": "",
-      "stderr": "Error: could not fetch https://page.test/: the request did not complete. Confirm the host is reachable from this machine, then re-run.\n"
+      "stderr": "Error: the redirect to http://public.test/a was not followed: it carries an embedded username or password, and this tool sends no credentials.\n"
     },
     "change": "redirect credentials get a named refusal before any second request",
-    "error": "Error: the redirect to http://public.test/a was not followed: it carries an embedded username or password, and this tool sends no credentials."
+    "error": "Error: the redirect to http://public.test/a was not followed: it carries an embedded username or password, and this tool sends no credentials.",
+    "fetch": {
+      "status": 1,
+      "stdout": ""
+    }
   },
   {
     "name": "protocol-relative loopback redirect refused",
@@ -580,13 +577,18 @@
       "https://page.test/"
     ],
     "main": {
+      "status": 1,
+      "stdout": "",
+      "stderr": "Error: the redirect to https://127.0.0.1/ was not followed: it points at a loopback address, which this tool does not fetch.\n"
+    },
+    "change": "protocol-relative loopback is refused before the second request",
+    "error": "Error: the redirect to https://127.0.0.1/ was not followed: it points at a loopback address, which this tool does not fetch.",
+    "fetch": {
       "status": 0,
       "stdout": "{\"url\":\"https://page.test/\",\"final_url\":\"https://127.0.0.1/\",\"http_status\":200,\"method\":\"served-html\",\"html_bytes\":2,\"tags\":{\"clarity\":{\"label\":\"Microsoft Clarity\",\"present\":false,\"id\":null},\"ga4\":{\"label\":\"Google Analytics 4\",\"present\":false,\"id\":null},\"gtm\":{\"label\":\"Google Tag Manager\",\"present\":false,\"id\":null},\"hotjar\":{\"label\":\"Hotjar\",\"present\":false,\"id\":null},\"plausible\":{\"label\":\"Plausible\",\"present\":false,\"id\":null},\"metaPixel\":{\"label\":\"Meta Pixel\",\"present\":false,\"id\":null},\"segment\":{\"label\":\"Segment\",\"present\":false,\"id\":null}},\"summary\":{\"present\":[]},\"missing_note\":\"Not detected in served HTML: Microsoft Clarity, Google Analytics 4, Google Tag Manager, Hotjar, Plausible, Meta Pixel, Segment. A loader injected only after hydration will not appear here; confirm with a browser-driving tool before concluding one is absent.\"}\n",
       "stderr": ""
     },
-    "change": "protocol-relative loopback is refused before the second request",
-    "error": "Error: the redirect to https://127.0.0.1/ was not followed: it points at a loopback address, which this tool does not fetch.",
-    "mainRequests": [
+    "fetchRequests": [
       "https://page.test/",
       "https://127.0.0.1/"
     ]

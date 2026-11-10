@@ -256,6 +256,7 @@ describe('compute after Gate 2 round 1', () => {
     for (const name of ['data.js', 'compute-core.js', 'data-core.js']) copyFileSync(join(here, '..', name), join(root, 'tools', 'data', 'scripts', name));
     copyFileSync(join(here, '..', '..', '..', 'lib', 'consent.js'), join(root, 'tools', 'lib', 'consent.js'));
     copyFileSync(join(here, '..', '..', '..', 'lib', 'user-config.js'), join(root, 'tools', 'lib', 'user-config.js'));
+    copyFileSync(join(here, '..', '..', '..', 'lib', 'one-file.js'), join(root, 'tools', 'lib', 'one-file.js'));
     writeFileSync(join(root, 'tools', 'data', 'package.json'), JSON.stringify({ name: 'data', type: 'module', dependencies: { 'csv-parse': '^5.5.6' } }));
     const file = join(root, 'ab.json');
     writeFileSync(file, JSON.stringify({ a: 3, b: 4 }));

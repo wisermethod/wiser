@@ -65,7 +65,9 @@ for (const [tool,script,purpose] of rows) test(`${tool} refusal opens with the e
     'Build Brand':['check','--library',library,'--directory',join(f.root,'fonts'),'--from',pack],
     'Build Brand family':['check','--library',library,'--directory',join(f.root,'fonts'),'--from',assets,'--family',Object.keys(JSON.parse(readFileSync(library)).fonts)[0]],
   }[tool];
-  const result=spawnSync(process.execPath,[join(dest,'scripts',script),...args],{env:process.env,encoding:'utf8',timeout:30000});
+  // sitemap asks only behind a proxy: its fetch needs undici for nothing else. The refusal comes before any request.
+  const env = tool === 'sitemap' ? {...process.env, HTTPS_PROXY:'http://127.0.0.1:9'} : process.env;
+  const result=spawnSync(process.execPath,[join(dest,'scripts',script),...args],{env,encoding:'utf8',timeout:30000});
   assert.equal(result.status,1,result.stdout+result.stderr);assert.equal(result.stdout,'');
   const [first,blank,details]=result.stderr.split('\n');
   assert.ok(first.startsWith('This Wiser skill needs to '),result.stderr);
