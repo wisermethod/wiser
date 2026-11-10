@@ -1,0 +1,134 @@
+{
+  "start": "https://example.com/",
+  "host": "example.com",
+  "fetchedAt": "2026-09-19T12:00:00.000Z",
+  "bounds": {
+    "maxPages": 3,
+    "maxDepth": 5
+  },
+  "stoppedByBound": true,
+  "reason": "max-pages",
+  "counts": {
+    "fetched": 3,
+    "html": 2,
+    "nonHtml": 1,
+    "pdf": 1,
+    "redirectChains": 1,
+    "non200": 0,
+    "noindex": 2,
+    "canonicalElsewhere": 1,
+    "robotsBlocked": 1
+  },
+  "pages": [
+    {
+      "url": "https://example.com/",
+      "finalUrl": "https://example.com/",
+      "status": 200,
+      "redirectChain": [],
+      "contentType": "text/html",
+      "contentLength": null,
+      "pdf": false,
+      "title": "Home & Start",
+      "h1Count": 1,
+      "hasMetaDescription": true,
+      "canonical": "https://example.com/canonical",
+      "canonicalMatches": false,
+      "robotsMeta": "noindex",
+      "noindex": true,
+      "lang": "en",
+      "internalLinks": 4,
+      "xRobotsTag": null,
+      "depth": 0,
+      "discoveredFrom": null
+    },
+    {
+      "url": "https://example.com/go",
+      "finalUrl": "https://example.com/land",
+      "status": 200,
+      "redirectChain": [
+        {
+          "from": "https://example.com/go",
+          "to": "https://example.com/hop",
+          "status": 302
+        },
+        {
+          "from": "https://example.com/hop",
+          "to": "https://example.com/land",
+          "status": 301
+        }
+      ],
+      "contentType": "text/html",
+      "contentLength": null,
+      "pdf": false,
+      "title": "Home & Start",
+      "h1Count": 0,
+      "hasMetaDescription": false,
+      "canonical": null,
+      "canonicalMatches": null,
+      "robotsMeta": null,
+      "noindex": false,
+      "lang": null,
+      "internalLinks": 1,
+      "xRobotsTag": null,
+      "depth": 1,
+      "discoveredFrom": "https://example.com/"
+    },
+    {
+      "url": "https://example.com/file.pdf",
+      "finalUrl": "https://example.com/file.pdf",
+      "status": 200,
+      "redirectChain": [],
+      "contentType": "application/pdf",
+      "contentLength": 8,
+      "pdf": true,
+      "title": null,
+      "h1Count": null,
+      "hasMetaDescription": null,
+      "canonical": null,
+      "canonicalMatches": null,
+      "robotsMeta": null,
+      "noindex": true,
+      "lang": null,
+      "internalLinks": 0,
+      "xRobotsTag": "noindex",
+      "depth": 1,
+      "discoveredFrom": "https://example.com/"
+    }
+  ],
+  "redirectChains": [
+    {
+      "url": "https://example.com/go",
+      "chain": [
+        {
+          "from": "https://example.com/go",
+          "to": "https://example.com/hop",
+          "status": 302
+        },
+        {
+          "from": "https://example.com/hop",
+          "to": "https://example.com/land",
+          "status": 301
+        }
+      ]
+    }
+  ],
+  "duplicateTitles": {
+    "Home & Start": [
+      "https://example.com/",
+      "https://example.com/go"
+    ]
+  },
+  "noindexPages": [
+    "https://example.com/",
+    "https://example.com/file.pdf"
+  ],
+  "canonicalElsewhere": [
+    "https://example.com/"
+  ],
+  "robotsBlocked": [
+    "https://example.com/secret"
+  ],
+  "errors": [],
+  "sitemap": null,
+  "renderingSuspected": []
+}

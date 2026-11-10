@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { classifyLiteral, destinationReason } from '../scripts/lib/destination.js';
+import { classifyLiteral, destinationReason } from '../../lib/destination-core.js';
 import { isDisallowed } from '../scripts/lib/robots.js';
 import { runSiteCrawl, UsageError } from '../scripts/site-crawl-core.js';
 

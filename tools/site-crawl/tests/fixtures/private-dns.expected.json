@@ -1,0 +1,3 @@
+{
+  "error": "Error: --start https://example.com/ points at a private-range address, which this tool does not fetch."
+}

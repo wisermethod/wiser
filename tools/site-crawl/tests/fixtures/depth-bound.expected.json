@@ -1,0 +1,59 @@
+{
+  "start": "https://example.com/",
+  "host": "example.com",
+  "fetchedAt": "2026-09-19T12:00:00.000Z",
+  "bounds": {
+    "maxPages": 3,
+    "maxDepth": 0
+  },
+  "stoppedByBound": true,
+  "reason": "max-depth",
+  "counts": {
+    "fetched": 1,
+    "html": 1,
+    "nonHtml": 0,
+    "pdf": 0,
+    "redirectChains": 0,
+    "non200": 0,
+    "noindex": 1,
+    "canonicalElsewhere": 1,
+    "robotsBlocked": 1
+  },
+  "pages": [
+    {
+      "url": "https://example.com/",
+      "finalUrl": "https://example.com/",
+      "status": 200,
+      "redirectChain": [],
+      "contentType": "text/html",
+      "contentLength": null,
+      "pdf": false,
+      "title": "Home & Start",
+      "h1Count": 1,
+      "hasMetaDescription": true,
+      "canonical": "https://example.com/canonical",
+      "canonicalMatches": false,
+      "robotsMeta": "noindex",
+      "noindex": true,
+      "lang": "en",
+      "internalLinks": 4,
+      "xRobotsTag": null,
+      "depth": 0,
+      "discoveredFrom": null
+    }
+  ],
+  "redirectChains": [],
+  "duplicateTitles": {},
+  "noindexPages": [
+    "https://example.com/"
+  ],
+  "canonicalElsewhere": [
+    "https://example.com/"
+  ],
+  "robotsBlocked": [
+    "https://example.com/secret"
+  ],
+  "errors": [],
+  "sitemap": null,
+  "renderingSuspected": []
+}

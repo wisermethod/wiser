@@ -1,0 +1,55 @@
+{
+  "start": "https://example.com/",
+  "host": "example.com",
+  "fetchedAt": "2026-09-19T12:00:00.000Z",
+  "bounds": {
+    "maxPages": 3,
+    "maxDepth": 5
+  },
+  "stoppedByBound": false,
+  "reason": null,
+  "counts": {
+    "fetched": 1,
+    "html": 1,
+    "nonHtml": 0,
+    "pdf": 0,
+    "redirectChains": 0,
+    "non200": 0,
+    "noindex": 0,
+    "canonicalElsewhere": 0,
+    "robotsBlocked": 0
+  },
+  "pages": [
+    {
+      "url": "https://example.com/",
+      "finalUrl": "https://example.com/",
+      "status": 200,
+      "redirectChain": [],
+      "contentType": "text/html",
+      "contentLength": null,
+      "pdf": false,
+      "title": "Bad &#x110000; and café",
+      "h1Count": 0,
+      "hasMetaDescription": false,
+      "canonical": null,
+      "canonicalMatches": null,
+      "robotsMeta": null,
+      "noindex": false,
+      "lang": null,
+      "internalLinks": 0,
+      "xRobotsTag": null,
+      "depth": 0,
+      "discoveredFrom": null
+    }
+  ],
+  "redirectChains": [],
+  "duplicateTitles": {},
+  "noindexPages": [],
+  "canonicalElsewhere": [],
+  "robotsBlocked": [],
+  "errors": [],
+  "sitemap": null,
+  "renderingSuspected": [
+    "https://example.com/"
+  ]
+}

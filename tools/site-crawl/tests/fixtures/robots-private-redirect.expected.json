@@ -1,0 +1,3 @@
+{
+  "error": "Error: robots.txt at https://example.com/robots.txt is unreachable. RFC 9309 section 2.3.1.4: an unreachable robots file means complete disallow. This tool stops rather than crawling a site that has disallowed everything."
+}

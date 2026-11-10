@@ -1,0 +1,64 @@
+{
+  "start": "https://example.com/",
+  "host": "example.com",
+  "fetchedAt": "2026-09-19T12:00:00.000Z",
+  "bounds": {
+    "maxPages": 3,
+    "maxDepth": 5
+  },
+  "stoppedByBound": false,
+  "reason": null,
+  "counts": {
+    "fetched": 1,
+    "html": 0,
+    "nonHtml": 1,
+    "pdf": 0,
+    "redirectChains": 0,
+    "non200": 1,
+    "noindex": 0,
+    "canonicalElsewhere": 0,
+    "robotsBlocked": 0
+  },
+  "pages": [
+    {
+      "url": "https://example.com/",
+      "finalUrl": "https://example.com/",
+      "status": 302,
+      "redirectChain": [
+        {
+          "from": "https://example.com/",
+          "to": "http://169.254.169.254/latest",
+          "status": 302
+        }
+      ],
+      "contentType": "text/plain;charset=UTF-8",
+      "contentLength": null,
+      "pdf": false,
+      "title": null,
+      "h1Count": null,
+      "hasMetaDescription": null,
+      "canonical": null,
+      "canonicalMatches": null,
+      "robotsMeta": null,
+      "noindex": false,
+      "lang": null,
+      "internalLinks": 0,
+      "xRobotsTag": null,
+      "depth": 0,
+      "discoveredFrom": null
+    }
+  ],
+  "redirectChains": [],
+  "duplicateTitles": {},
+  "noindexPages": [],
+  "canonicalElsewhere": [],
+  "robotsBlocked": [],
+  "errors": [
+    {
+      "url": "https://example.com/",
+      "reason": "points at a cloud instance metadata address, which this tool does not fetch"
+    }
+  ],
+  "sitemap": null,
+  "renderingSuspected": []
+}

@@ -3,8 +3,10 @@ name: site-crawl
 type: tool
 category: seo
 description: One JSON inventory of the URLs a bounded polite crawl can reach from one start URL
-version: 0.1.2
-runs: local
+version: 0.1.3
+runs: both
+hosted:
+  - crawl 2KiB 15s
 ---
 
 # site-crawl
@@ -64,13 +66,35 @@ One start URL per run. Breadth-first, one request in flight at a time, 15 second
 
 No command takes `--env`.
 
+## Hosted crawl
+
+`crawl` also runs on Wiser's side and returns the complete inventory, including `pages`, in one call. It writes no output file. The command line retains its defaults of 200 pages, depth 5 and 250 ms between requests, its 2 MiB per-body prefix, and its summary on stdout plus full inventory on disk. `--output` and `--sitemap` remain local because they name paths on the member's machine; neither path nor a sitemap attachment is a hosted input.
+
+The hosted JSON arguments are `start` (required), `maxPages`, `maxDepth`, `delayMs`, `includeSubdomains`, and `userAgent`. Their types are a URL string, integer, integer, integer, boolean, and string respectively. The JSON serialized as UTF-8 must fit 2 KiB. No files or unknown arguments are accepted. For example:
+
+```json
+{"start":"https://example.com/","maxPages":3,"maxDepth":2,"delayMs":100}
+```
+
+Hosted `maxPages` defaults to 10 and accepts 1 to 10; `maxDepth` keeps 5 by default and accepts 0 to 20. Ten pages with roughly 2 KiB of metadata each leave room under the answer cap for URLs and the related lists; the ten-page test uses 2,048-character titles and checks that the whole answer fits. A page count alone cannot guarantee a size for arbitrary titles, URLs or headers, so every completed answer is checked too. Nothing is shortened to fit. The ordinary page or depth bound still returns the whole bounded inventory with `stoppedByBound` and `reason` set.
+
+Hosted `delayMs` defaults to 250 and accepts 0 to 250. Even 47 waits at 250 ms total 11.75 seconds, leaving 3.25 seconds of the 15-second budget for other work. Slower hosts or redirect chains can still exhaust the deadline. One deadline covers argument validation, DNS, delays, requests, body reads, traversal and answer serialization; it does not restart for a request. Pending I/O is raced against that deadline and receives its abort signal.
+
+One invocation allows at most 48 request slots, including `robots.txt`, every redirect and DNS. The host supplies Fetch and an all-address DNS lookup; the lookup must make at most two DNS requests per call (A and AAAA), and each lookup is conservatively charged two slots. Cached discovery answers save lookups, but never authorize a later GET: each GET is resolved and screened again immediately before it is sent through `tools/lib/destination-core.js`. Unresolved names and any private or reserved answer are refused. An off-host page redirect is recorded and not followed; robots redirects are screened too. The connection itself still has the DNS rebinding limitation described in Context.
+
+The cumulative byte caps are 1 MiB received and 4 MiB decoded. All response bodies count, including robots, redirects, errors, PDFs and other non-HTML resources; DNS address data counts too. Fetch may already have decompressed a response, so delivered body bytes are conservatively charged to the received budget as well as the decoded budget; a smaller compressed `Content-Length` never discounts them, and a larger declared length also counts. This can refuse compressed content before the 4 MiB decoded ceiling. Text expansion, including invalid UTF-8 replacement characters, counts toward the decoded ceiling. A body exceeding a cap is cancelled and the entire invocation is refused, rather than returning a parsed prefix.
+
+A hosted answer of 48,000 serialized characters or more is refused whole. Output files over 4 MiB in total are refused whole; hosted crawl emits no files, so its output-file total is zero. Request, byte, time and answer-size refusals return a plain reason and no partial inventory. A host that automatically follows redirects or supplies an unreadable non-streaming body is refused. URLs with an embedded username or password are refused without echoing those values.
+
+The shared address screen adds one local refusal needed by the portable core: the RFC 8215 local-use NAT64 prefix `64:ff9b:1::/48` is refused. A DNS result containing malformed address entries is now classified as unresolved instead of public. Local unresolved hosts continue through to the existing connection-failure result; hosted calls refuse them before a GET. Existing public-address CLI cases, inventory bytes and help text remain unchanged.
+
 ## Script Contract
 
 Every script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. Node built-ins cover the whole tool, so the contract's dependency-install, `--env`, and system-dependency clauses have nothing to bind here and the tool carries no Dependencies section. No command checks for a package or runs an install. A file is written only when `--output` names a directory outside this tool directory, and only if that file does not already exist. The sections above state what the command does; the contract states how the script behaves getting there.
 
 ## Output
 
-One JSON object on stdout, exit 0, holding every field below except `pages`, plus `file`. The output file holds the same object including `pages`.
+On the command line, one JSON object on stdout, exit 0, holding every field below except `pages`, plus `file`. The output file holds the same object including `pages`.
 
 | Field | Carries |
 |-------|---------|

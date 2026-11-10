@@ -1,0 +1,108 @@
+{
+  "start": "https://example.com/",
+  "host": "example.com",
+  "fetchedAt": "2026-09-19T12:00:00.000Z",
+  "bounds": {
+    "maxPages": 3,
+    "maxDepth": 5
+  },
+  "stoppedByBound": false,
+  "reason": null,
+  "counts": {
+    "fetched": 3,
+    "html": 2,
+    "nonHtml": 1,
+    "pdf": 0,
+    "redirectChains": 0,
+    "non200": 1,
+    "noindex": 0,
+    "canonicalElsewhere": 0,
+    "robotsBlocked": 0
+  },
+  "pages": [
+    {
+      "url": "https://example.com/",
+      "finalUrl": "https://example.com/",
+      "status": 200,
+      "redirectChain": [],
+      "contentType": "text/html",
+      "contentLength": null,
+      "pdf": false,
+      "title": null,
+      "h1Count": 0,
+      "hasMetaDescription": false,
+      "canonical": null,
+      "canonicalMatches": null,
+      "robotsMeta": null,
+      "noindex": false,
+      "lang": null,
+      "internalLinks": 2,
+      "xRobotsTag": null,
+      "depth": 0,
+      "discoveredFrom": null
+    },
+    {
+      "url": "https://www.example.com/",
+      "finalUrl": "https://www.example.com/",
+      "status": 200,
+      "redirectChain": [],
+      "contentType": "text/html",
+      "contentLength": null,
+      "pdf": false,
+      "title": "Sub",
+      "h1Count": 0,
+      "hasMetaDescription": false,
+      "canonical": null,
+      "canonicalMatches": null,
+      "robotsMeta": null,
+      "noindex": false,
+      "lang": null,
+      "internalLinks": 0,
+      "xRobotsTag": null,
+      "depth": 1,
+      "discoveredFrom": "https://example.com/"
+    },
+    {
+      "url": "https://example.com/off",
+      "finalUrl": "https://example.com/off",
+      "status": 302,
+      "redirectChain": [
+        {
+          "from": "https://example.com/off",
+          "to": "https://elsewhere.test/",
+          "status": 302
+        }
+      ],
+      "contentType": "text/plain;charset=UTF-8",
+      "contentLength": null,
+      "pdf": false,
+      "title": null,
+      "h1Count": null,
+      "hasMetaDescription": null,
+      "canonical": null,
+      "canonicalMatches": null,
+      "robotsMeta": null,
+      "noindex": false,
+      "lang": null,
+      "internalLinks": 0,
+      "xRobotsTag": null,
+      "depth": 1,
+      "discoveredFrom": "https://example.com/"
+    }
+  ],
+  "redirectChains": [],
+  "duplicateTitles": {},
+  "noindexPages": [],
+  "canonicalElsewhere": [],
+  "robotsBlocked": [],
+  "errors": [
+    {
+      "url": "https://example.com/off",
+      "reason": "redirectOffHost"
+    }
+  ],
+  "sitemap": null,
+  "renderingSuspected": [
+    "https://www.example.com/"
+  ]
+}

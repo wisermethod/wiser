@@ -1,0 +1,270 @@
+[
+  {
+    "name": "inventory",
+    "input": {
+      "start": "https://example.com/",
+      "maxPages": 3,
+      "delayMs": 0
+    },
+    "responses": {
+      "https://example.com/robots.txt": {
+        "body": "User-agent: *\nDisallow: /secret\n"
+      },
+      "https://example.com/": {
+        "headers": {
+          "content-type": "text/html"
+        },
+        "body": "<html lang=\"en\"><title>Home &amp; Start</title><meta name=\"description\" content=\"yes\"><meta name=\"robots\" content=\"noindex\"><link rel=\"canonical\" href=\"/canonical\"><h1>Home</h1><a href=\"/go\">go</a><a href=\"/file.pdf\">pdf</a><a href=\"/secret\">secret</a><a href=\"/later\">later</a></html>"
+      },
+      "https://example.com/go": {
+        "status": 302,
+        "headers": {
+          "location": "/hop"
+        },
+        "body": ""
+      },
+      "https://example.com/hop": {
+        "status": 301,
+        "headers": {
+          "location": "/land"
+        },
+        "body": ""
+      },
+      "https://example.com/land": {
+        "headers": {
+          "content-type": "text/html"
+        },
+        "body": "<title>Home &amp; Start</title><a href=\"/deep\">deep</a>"
+      },
+      "https://example.com/file.pdf": {
+        "headers": {
+          "content-type": "application/pdf",
+          "content-length": "8",
+          "x-robots-tag": "noindex"
+        },
+        "body": "%PDF-1.4"
+      }
+    },
+    "requests": [
+      "https://example.com/robots.txt",
+      "https://example.com/",
+      "https://example.com/go",
+      "https://example.com/hop",
+      "https://example.com/land",
+      "https://example.com/file.pdf"
+    ],
+    "expected": "inventory.expected.json"
+  },
+  {
+    "name": "depth-bound",
+    "input": {
+      "start": "https://example.com/",
+      "maxPages": 3,
+      "delayMs": 0,
+      "maxDepth": 0
+    },
+    "responses": {
+      "https://example.com/robots.txt": {
+        "body": "User-agent: *\nDisallow: /secret\n"
+      },
+      "https://example.com/": {
+        "headers": {
+          "content-type": "text/html"
+        },
+        "body": "<html lang=\"en\"><title>Home &amp; Start</title><meta name=\"description\" content=\"yes\"><meta name=\"robots\" content=\"noindex\"><link rel=\"canonical\" href=\"/canonical\"><h1>Home</h1><a href=\"/go\">go</a><a href=\"/file.pdf\">pdf</a><a href=\"/secret\">secret</a><a href=\"/later\">later</a></html>"
+      },
+      "https://example.com/go": {
+        "status": 302,
+        "headers": {
+          "location": "/hop"
+        },
+        "body": ""
+      },
+      "https://example.com/hop": {
+        "status": 301,
+        "headers": {
+          "location": "/land"
+        },
+        "body": ""
+      },
+      "https://example.com/land": {
+        "headers": {
+          "content-type": "text/html"
+        },
+        "body": "<title>Home &amp; Start</title><a href=\"/deep\">deep</a>"
+      },
+      "https://example.com/file.pdf": {
+        "headers": {
+          "content-type": "application/pdf",
+          "content-length": "8",
+          "x-robots-tag": "noindex"
+        },
+        "body": "%PDF-1.4"
+      }
+    },
+    "requests": [
+      "https://example.com/robots.txt",
+      "https://example.com/"
+    ],
+    "expected": "depth-bound.expected.json"
+  },
+  {
+    "name": "rendering-and-unicode",
+    "input": {
+      "start": "https://example.com/",
+      "maxPages": 3,
+      "delayMs": 0
+    },
+    "responses": {
+      "https://example.com/robots.txt": {
+        "status": 404
+      },
+      "https://example.com/": {
+        "headers": {
+          "content-type": "text/html"
+        },
+        "body": "﻿<title>Bad &#x110000; and café</title><script><a href=\"/hidden\">x</a></script>"
+      }
+    },
+    "requests": [
+      "https://example.com/robots.txt",
+      "https://example.com/"
+    ],
+    "expected": "rendering-and-unicode.expected.json"
+  },
+  {
+    "name": "subdomains-and-offhost",
+    "input": {
+      "start": "https://example.com/",
+      "maxPages": 3,
+      "delayMs": 0,
+      "includeSubdomains": true
+    },
+    "responses": {
+      "https://example.com/robots.txt": {
+        "status": 410
+      },
+      "https://example.com/": {
+        "headers": {
+          "content-type": "text/html"
+        },
+        "body": "<a href=\"https://www.example.com/\">sub</a><a href=\"/off\">off</a>"
+      },
+      "https://www.example.com/robots.txt": {
+        "status": 404
+      },
+      "https://www.example.com/": {
+        "headers": {
+          "content-type": "text/html"
+        },
+        "body": "<title>Sub</title>"
+      },
+      "https://example.com/off": {
+        "status": 302,
+        "headers": {
+          "location": "https://elsewhere.test/"
+        },
+        "body": ""
+      }
+    },
+    "requests": [
+      "https://example.com/robots.txt",
+      "https://example.com/",
+      "https://www.example.com/robots.txt",
+      "https://www.example.com/",
+      "https://example.com/off"
+    ],
+    "expected": "subdomains-and-offhost.expected.json"
+  },
+  {
+    "name": "private-start",
+    "input": {
+      "start": "http://127.0.0.1/",
+      "maxPages": 3,
+      "delayMs": 0
+    },
+    "responses": {},
+    "requests": [],
+    "expected": "private-start.expected.json"
+  },
+  {
+    "name": "private-dns",
+    "input": {
+      "start": "https://example.com/",
+      "maxPages": 3,
+      "delayMs": 0
+    },
+    "responses": {},
+    "requests": [],
+    "expected": "private-dns.expected.json",
+    "dns": {
+      "example.com": [
+        "93.184.216.34",
+        "10.0.0.1"
+      ]
+    }
+  },
+  {
+    "name": "robots-unreachable",
+    "input": {
+      "start": "https://example.com/",
+      "maxPages": 3,
+      "delayMs": 0
+    },
+    "responses": {
+      "https://example.com/robots.txt": {
+        "status": 503
+      }
+    },
+    "requests": [
+      "https://example.com/robots.txt"
+    ],
+    "expected": "robots-unreachable.expected.json"
+  },
+  {
+    "name": "robots-private-redirect",
+    "input": {
+      "start": "https://example.com/",
+      "maxPages": 3,
+      "delayMs": 0
+    },
+    "responses": {
+      "https://example.com/robots.txt": {
+        "status": 302,
+        "headers": {
+          "location": "http://169.254.169.254/latest"
+        },
+        "body": ""
+      }
+    },
+    "requests": [
+      "https://example.com/robots.txt"
+    ],
+    "expected": "robots-private-redirect.expected.json"
+  },
+  {
+    "name": "page-private-redirect",
+    "input": {
+      "start": "https://example.com/",
+      "maxPages": 3,
+      "delayMs": 0
+    },
+    "responses": {
+      "https://example.com/robots.txt": {
+        "status": 404
+      },
+      "https://example.com/": {
+        "status": 302,
+        "headers": {
+          "location": "http://169.254.169.254/latest"
+        },
+        "body": ""
+      }
+    },
+    "requests": [
+      "https://example.com/robots.txt",
+      "https://example.com/"
+    ],
+    "expected": "page-private-redirect.expected.json"
+  }
+]
