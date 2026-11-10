@@ -1,0 +1,7 @@
+{
+  "output": "deck.pdf",
+  "format": "pdf",
+  "width": 320,
+  "height": 180,
+  "slides": 3
+}

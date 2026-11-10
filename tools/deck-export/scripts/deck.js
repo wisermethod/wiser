@@ -15,9 +15,10 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { accessSync, constants, cpSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
+import { accessSync, constants, cpSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync, lstatSync } from 'node:fs';
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
+import { revealAssets } from './package-assets.js';
 
 import { INSTALL_HELP, installQuestion, formatInstallSize, INSTALL_BYTES, flagAuthorised, installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
 import { runtimeDir, activeRuntimeDir, personRuntimeDir, installBrowserRuntime } from '../../lib/browser-runtime/browser-runtime.js';
@@ -32,11 +33,6 @@ const COMMANDS = new Set(['scaffold', 'pdf', 'png', 'check']);
 
 // How long a deck gets to load and initialize before the run is abandoned.
 const DEFAULT_TIMEOUT_MS = 30000;
-// Fonts, the print layout, and slide transitions settle after the page reports
-// ready; each shot waits that out.
-const PDF_SETTLE_MS = 2000;
-const DECK_SETTLE_MS = 1000;
-const SLIDE_SETTLE_MS = 500;
 
 const RATIOS = new Map([
   ['16/9', { width: 1920, height: 1080 }],
@@ -92,9 +88,10 @@ Scaffold options:
   --transition <t> slide, fade, convex, concave, zoom, or none. Default: slide.
 
 Render options:
-  --input <path>   Deck HTML file to render, absolute. Required.
+  --input <path>   Deck HTML file or ZIP to render, absolute. Required.
+  --entry <name>   HTML path inside a ZIP when there is more than one page.
   --output <path>  Where to write, absolute, and not inside this tool
-                   directory. A .pdf file for pdf, a directory for png.
+                   directory. A .pdf file for pdf, a directory or .zip file for png.
   --width N        Override the deck's own slide width in pixels.
   --height N       Override the deck's own slide height in pixels.
   --scale N        Pixel density for png, 1 to 4. Default 2.
@@ -199,7 +196,7 @@ if (!COMMANDS.has(command)) {
 
 const VALUE_FLAGS = new Set([
   '--output', '--title', '--template', '--theme', '--ratio', '--transition',
-  '--input', '--width', '--height', '--scale', '--timeout'
+  '--input', '--entry', '--width', '--height', '--scale', '--timeout'
 ]);
 const BARE_FLAGS = new Set([
   '--install','--help', '-h']);
@@ -648,17 +645,6 @@ async function ensurePackage(name) {
   }
 }
 
-/** True when the process carries an HTTP(S) proxy for CDN-loaded decks. */
-function processHasProxy() {
-  const server =
-    process.env.HTTPS_PROXY ||
-    process.env.https_proxy ||
-    process.env.HTTP_PROXY ||
-    process.env.http_proxy ||
-    '';
-  return typeof server === 'string' && server.trim() !== '';
-}
-
 /**
  * Launch failure text: prefer the shared runtime's remediation (dependency +
  * check + one step). Never pass through Playwright's root-only install-deps wall.
@@ -837,6 +823,11 @@ if (command === 'scaffold') {
     );
     fontsStripped = themeCss !== strippedTheme;
     writeFileSync(join(assetsPath, 'theme.css'), strippedTheme);
+    // Stock themes import fonts relative to theme.css; keep that tree beside
+    // the renamed stylesheet so the starter really is self-contained.
+    if (strippedTheme.includes('./fonts/')) {
+      cpSync(join(themeDir, 'fonts'), join(assetsPath, 'fonts'), { recursive: true });
+    }
 
     const html = readFileSync(join(TEMPLATES_DIR, 'starter.html'), 'utf8')
       .replace(/\{\{TITLE\}\}/g, escapeHtml(title))
@@ -887,7 +878,7 @@ refuseInsideToolDir('--output', outputPath);
 if (command === 'pdf' && extname(outputPath).toLowerCase() !== '.pdf') {
   fail(`Error: --output must end .pdf; got "${outputPath}".`);
 }
-if (command === 'png' && existsSync(outputPath) && !statSync(outputPath).isDirectory()) {
+if (command === 'png' && !/\.zip$/i.test(outputPath) && existsSync(outputPath) && !statSync(outputPath).isDirectory()) {
   fail(`Error: --output must be a directory for png; ${outputPath} is a file.`);
 }
 
@@ -919,239 +910,65 @@ if (browserSurvey.chromiumLaunch !== true) {
   );
 }
 
-// A problem this script diagnosed itself, so its text is ours and safe to print.
-// Content/render engine messages are withheld: they quote the deck and the page
-// console. Launch failures and network/navigation timeouts are environment
-// failures and surface their own text so an operator can act on them.
-class RenderProblem extends Error {}
+const { exportPdf, exportPng } = await import('./export-core.js');
+const { readZip, writeZip } = await import('../../lib/archive-core.js');
 
-const READY = 'typeof Reveal !== "undefined" && Reveal.isReady()';
-
-function isTimeoutError(error) {
-  if (!error) return false;
-  if (error.name === 'TimeoutError') return true;
-  const message = String(error.message || '');
-  return /Timeout|timed out|timeout/i.test(message);
-}
-
-function isLaunchError(error) {
-  if (!error) return false;
-  const message = String(error.message || '');
-  // Playwright launch failures name the binary, missing libs, or spawn failure;
-  // they do not quote deck content.
-  return (
-    /Failed to launch|browserType\.launch|Executable doesn't exist|lib(nss|glib|dbus|atk|X11)|Target closed|Browser closed|spawn .* ENOENT/i.test(
-      message
-    ) || error.name === 'Error' && /launch/i.test(message)
-  );
-}
-
-function engineText(error) {
-  const message = error && error.message ? String(error.message).trim() : '';
-  return message || 'no detail from the engine';
-}
-
-async function openDeck(context, query) {
-  const page = await context.newPage();
-  const href = `${pathToFileURL(inputPath).href}${query}`;
-  try {
-    await page.goto(href, { waitUntil: 'networkidle', timeout });
-  } catch (error) {
-    if (isTimeoutError(error)) {
-      throw error;
-    }
-    // Navigation failures that are not timeouts can still name a network or
-    // protocol problem without quoting deck content; surface them.
-    throw error;
-  }
-  await waitForReveal(page);
-
-  // The deck's own configuration is the size it was designed at. An override
-  // wins; otherwise the deck decides, and 1920 by 1080 is the last resort for a
-  // deck whose configuration sets a percentage rather than a pixel count.
-  const config = await page.evaluate(() => {
-    const { width, height } = Reveal.getConfig();
-    return { width, height };
-  });
-  const size = {
-    width: askedWidth ?? (Number.isFinite(config.width) ? config.width : 1920),
-    height: askedHeight ?? (Number.isFinite(config.height) ? config.height : 1080)
-  };
-
-  const viewport = page.viewportSize();
-  if (viewport.width !== size.width || viewport.height !== size.height) {
-    // reveal.js lays out against the viewport it was initialized in, so a
-    // resize only counts once the deck has initialized again inside it.
-    await page.setViewportSize(size);
-    try {
-      await page.reload({ waitUntil: 'networkidle', timeout });
-    } catch (error) {
-      if (isTimeoutError(error)) throw error;
-      throw error;
-    }
-    await waitForReveal(page);
-  }
-
-  return { page, size };
-}
-
-async function waitForReveal(page) {
-  try {
-    await page.waitForFunction(READY, null, { timeout });
-  } catch (error) {
-    if (isTimeoutError(error)) {
-      // Re-throw so the outer classifier can surface timeout detail; the
-      // RenderProblem below is the content-oriented fallback when the wait
-      // failed for another reason.
-      const proxyHint = processHasProxy()
-        ? ' A proxy is configured for Chromium; confirm it can reach any CDN the deck loads.'
-        : ' If this machine only reaches the network through a proxy, set HTTPS_PROXY or HTTP_PROXY so Chromium can fetch CDN assets.';
-      const wrapped = new Error(
-        `the deck did not initialize within ${timeout} ms. reveal.js never became ready: confirm ${inputPath} is a reveal.js deck, that every file it references sits beside it, and that a deck loading reveal.js from a CDN has network access.${proxyHint} Raise --timeout for a very large deck. Engine: ${engineText(error)}`
-      );
-      wrapped.name = 'TimeoutError';
-      throw wrapped;
-    }
-    throw new RenderProblem(
-      `the deck did not initialize within ${timeout} ms. reveal.js never became ready: confirm ${inputPath} is a reveal.js deck, that every file it references sits beside it, and that a deck loading reveal.js from a CDN has network access. Raise --timeout for a very large deck.`
-    );
-  }
-}
-
-async function renderPdf(browser) {
-  const context = await browser.newContext({ viewport: { width: askedWidth ?? 1920, height: askedHeight ?? 1080 } });
-  // The print-pdf query is what reveal.js reads to lay the deck out as pages
-  // rather than as a running presentation.
-  const { page, size } = await openDeck(context, '?print-pdf');
-  await page.waitForTimeout(PDF_SETTLE_MS);
-
-  const slides = await page.evaluate(() => {
-    const pages = document.querySelectorAll('.pdf-page');
-    return pages.length > 0 ? pages.length : Reveal.getTotalSlides();
-  });
-
-  mkdirSync(dirname(outputPath), { recursive: true });
-  await page.pdf({
-    path: outputPath,
-    width: `${size.width}px`,
-    height: `${size.height}px`,
-    printBackground: true,
-    margin: { top: '0', right: '0', bottom: '0', left: '0' }
-  });
-  await context.close();
-
-  return { output: outputPath, format: 'pdf', width: size.width, height: size.height, slides };
-}
-
-async function renderPng(browser) {
-  const context = await browser.newContext({
-    viewport: { width: askedWidth ?? 1920, height: askedHeight ?? 1080 },
-    deviceScaleFactor: scale
-  });
-  // The export query tells a deck it is being captured, so a slide whose animation honours it, such as an
-  // explainer, holds its finished picture rather than whatever frame the settle happens to land on. reveal.js
-  // reads query parameters into its configuration and ignores one it does not know.
-  const { page, size } = await openDeck(context, '?export=png');
-  // Each image is its slide at rest: with the deck's own transition left on, a slide arriving by the default
-  // 'slide' transition is captured part-way across the frame. This changes the page in the browser only.
-  await page.evaluate(() => {
-    Reveal.configure({ transition: 'none', backgroundTransition: 'none' });
-    // A slide's own transition attributes outrank the deck's configuration, so they go too.
-    document.querySelectorAll('[data-transition], [data-transition-speed], [data-background-transition]').forEach((el) => {
-      el.removeAttribute('data-transition');
-      el.removeAttribute('data-transition-speed');
-      el.removeAttribute('data-background-transition');
-    });
-  });
-  await page.addStyleTag({ content: '.reveal .slides section, .reveal .backgrounds .slide-background { transition: none !important; }' });
-  await page.waitForTimeout(DECK_SETTLE_MS);
-
-  // Every slide, vertical stacks included, in the order an audience sees them.
-  const indices = await page.evaluate(() => {
-    const found = [];
-    document.querySelectorAll('.reveal .slides > section').forEach((horizontal, h) => {
-      const vertical = horizontal.querySelectorAll('section');
-      if (vertical.length > 0) {
-        vertical.forEach((_, v) => found.push({ h, v }));
-      } else {
-        found.push({ h, v: 0 });
+// Convert a local deck project to the same byte upload the hosted action takes.
+// Only its named assets folder is read, never the deck directory as a whole.
+async function deckUpload() {
+  if (statSync(inputPath).size > 8 * 1024 * 1024) throw new Error('Error: input file exceeds 8 MiB.');
+  if (/\.zip$/i.test(inputPath)) return { name: basename(inputPath), mediaType: 'application/zip', bytes: new Uint8Array(readFileSync(inputPath)) };
+  const files = [{ name: basename(inputPath), bytes: new Uint8Array(readFileSync(inputPath)) }];
+  const assetsName = basename(inputPath, extname(inputPath)) + ' Assets';
+  const assetsPath = join(dirname(inputPath), assetsName);
+  let total = files[0].bytes.length;
+  function collect(path, prefix) {
+    for (const entry of readdirSync(path, { withFileTypes: true })) {
+      if (entry.isSymbolicLink()) throw new Error('Error: symbolic links in deck assets are refused; use a ZIP of regular files.');
+      if (entry.name.startsWith('.')) continue;
+      const disk = join(path, entry.name), name = prefix + '/' + entry.name;
+      if (entry.isDirectory()) collect(disk, name);
+      else if (entry.isFile()) {
+        total += statSync(disk).size;
+        if (total > 8 * 1024 * 1024 || files.length >= 1000) throw new Error('Error: local deck and assets exceed the 8 MiB or 1000-file upload cap; supply a bounded ZIP.');
+        files.push({ name, bytes: new Uint8Array(readFileSync(disk)) });
       }
-    });
-    return found;
-  });
-
-  if (indices.length === 0) {
-    throw new RenderProblem(`no slides found in ${inputPath}. A reveal.js deck holds its slides as <section> elements inside a div with class "slides".`);
-  }
-
-  mkdirSync(outputPath, { recursive: true });
-  const files = [];
-  for (let i = 0; i < indices.length; i += 1) {
-    const { h, v } = indices[i];
-    await page.evaluate(([hh, vv]) => Reveal.slide(hh, vv), [h, v]);
-    await page.waitForTimeout(SLIDE_SETTLE_MS);
-    const file = join(outputPath, `slide-${String(i + 1).padStart(3, '0')}.png`);
-    await page.screenshot({ path: file });
-    files.push(file);
-    log(`slide ${i + 1}/${indices.length}`);
-  }
-  await context.close();
-
-  return {
-    output: outputPath,
-    format: 'png',
-    width: size.width,
-    height: size.height,
-    scale,
-    slides: files.length,
-    files
-  };
-}
-
-let browser;
-let result = null;
-let failure = null;
-
-try {
-  try {
-    browser = await runtime.launch();
-  } catch (error) {
-    const report = await runtime.prepareBrowserRuntime();
-    failure = `Error: Chromium cannot launch; check: node scripts/deck.js check. ${chromiumLaunchMessage(report, error)}. See the Dependencies section of TOOL.md.`;
-    throw error;
-  }
-  result = command === 'pdf' ? await renderPdf(browser) : await renderPng(browser);
-} catch (error) {
-  if (failure) {
-    // Launch failure already named.
-  } else if (error instanceof RenderProblem) {
-    failure = `Error: ${error.message}`;
-  } else if (isTimeoutError(error)) {
-    const detail = engineText(error);
-    const proxyHint = processHasProxy()
-      ? ' A proxy is configured for Chromium; confirm it can reach any CDN the deck loads.'
-      : ' If this machine only reaches the network through a proxy, set HTTPS_PROXY or HTTP_PROXY so Chromium can fetch CDN assets.';
-    failure =
-      `Error: the deck did not finish loading within ${timeout} ms. Everything the HTML references is fetched before rendering: confirm each local file it names sits beside it, that a deck loading reveal.js from a CDN has network access, or raise --timeout.${proxyHint} Engine: ${detail}`;
-  } else if (isLaunchError(error)) {
-    const report = await runtime.prepareBrowserRuntime();
-    failure = `Error: Chromium cannot launch; check: node scripts/deck.js check. ${chromiumLaunchMessage(report, error)}. See the Dependencies section of TOOL.md.`;
-  } else {
-    // Content/render failures can quote the deck; keep the engine text out.
-    failure = `Error: the browser engine could not render ${inputPath}. Open that file in a browser to see what it does; the engine's own message is withheld because it quotes the deck.`;
-  }
-} finally {
-  if (browser) {
-    try {
-      await browser.close();
-    } catch {
-      // Closing is cleanup. A failure here must not replace the real outcome.
     }
   }
+  if (existsSync(assetsPath)) {
+    if (lstatSync(assetsPath).isSymbolicLink()) throw new Error('Error: symbolic links in deck assets are refused; use a ZIP of regular files.');
+    collect(assetsPath, assetsName);
+  }
+  return { name: 'deck.zip', mediaType: 'application/zip', bytes: await writeZip(files, { maxBytes: 8 * 1024 * 1024 }) };
 }
-
-if (failure) {
-  fail(failure);
+let browser, failure;
+try {
+  const file = await deckUpload();
+  await ensurePackage('reveal.js');
+  try { browser = await runtime.launch(); }
+  catch { throw new Error('Error: Chromium cannot launch; check: node scripts/deck.js check (read remediation). See the Dependencies section of TOOL.md.'); }
+  const packed = command === 'png' && /\.zip$/i.test(outputPath);
+  const output = await (command === 'pdf' ? exportPdf : exportPng)(
+    { entry: flag('--entry'), output: command === 'pdf' || packed ? basename(outputPath) : 'slides.zip', width: askedWidth, height: askedHeight, scale, timeout },
+    [file], { browser, revealAssets: revealAssets(), responseBody: bytes => Buffer.from(bytes) }
+  );
+  const answer = { ...output.answer, output: outputPath };
+  if (command === 'pdf' || packed) {
+    mkdirSync(dirname(outputPath), { recursive: true });
+    writeFileSync(outputPath, output.files[0].bytes);
+  } else {
+    const pictures = await readZip(output.files[0].bytes, { maxBytes: 4 * 1024 * 1024 });
+    mkdirSync(outputPath, { recursive: true });
+    answer.files = pictures.map(file => join(outputPath, file.name));
+    for (let i = 0; i < pictures.length; i++) {
+      writeFileSync(answer.files[i], pictures[i].bytes);
+      log(`slide ${i+1}/${pictures.length}`);
+    }
+  }
+  process.stdout.write(`${JSON.stringify(answer)}\n`);
+} catch (error) {
+  failure = error.message?.startsWith('Error:') || error.message?.startsWith('ZIP refused:') ? error.message : 'Error: the browser could not export this deck; engine text is withheld because it can quote the page.';
+} finally {
+  if (browser) await browser.close().catch(() => {});
 }
-
-process.stdout.write(`${JSON.stringify(result)}\n`);
+if (failure) fail(failure);

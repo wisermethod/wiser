@@ -1,0 +1,111 @@
+[
+  {
+    "name": "PDF deck",
+    "command": "pdf",
+    "input": {},
+    "expected": "pdf.json",
+    "file": "deck.zip"
+  },
+  {
+    "name": "PNG deck with vertical stack",
+    "command": "png",
+    "input": {
+      "scale": 1
+    },
+    "expected": "png.json",
+    "file": "deck.zip"
+  },
+  {
+    "name": "PNG dimensions override",
+    "command": "png",
+    "input": {
+      "scale": 1,
+      "width": 400,
+      "height": 240
+    },
+    "expected": "override.json",
+    "file": "deck.zip"
+  },
+  {
+    "name": "Pinned reveal replaces uploaded runtime",
+    "command": "png",
+    "replaceRuntime": true,
+    "input": {
+      "scale": 1
+    },
+    "expected": "png.json",
+    "file": "override-runtime.zip"
+  },
+  {
+    "name": "PNG complete 24-slide cap",
+    "command": "png",
+    "slides": 24,
+    "input": {
+      "scale": 1
+    },
+    "expected": "cap.json",
+    "file": "deck-24.zip"
+  },
+  {
+    "name": "Slide count refused whole",
+    "command": "png",
+    "slides": 25,
+    "input": {
+      "scale": 1
+    },
+    "expected": "slides-refused.json",
+    "file": "deck-25.zip"
+  },
+  {
+    "name": "PDF page count refused whole",
+    "command": "pdf",
+    "slides": 25,
+    "input": {},
+    "expected": "slides-refused.json",
+    "file": "deck-25.zip"
+  },
+  {
+    "name": "Missing upload asset refused",
+    "command": "pdf",
+    "file": "missing.zip",
+    "input": {
+      "timeout": 2000
+    },
+    "expected": "missing.json"
+  },
+  {
+    "name": "Oversize upload refused",
+    "command": "png",
+    "oversize": true,
+    "input": {},
+    "expected": "input-refused.json"
+  },
+  {
+    "name": "Output refused before writing any PNG",
+    "command": "png",
+    "noise": true,
+    "input": {
+      "scale": 1
+    },
+    "expected": "output-refused.json",
+    "file": "noise.zip"
+  },
+  {
+    "name": "ZIP entry selected by both interfaces",
+    "command": "pdf",
+    "input": {
+      "entry": "selected.html"
+    },
+    "expected": "pdf.json",
+    "file": "entry.zip"
+  },
+  {
+    "name": "Inline runtime cannot replace pinned reveal",
+    "command": "png",
+    "file": "inline-runtime.zip",
+    "input": {
+      "scale": 1
+    },
+    "expected": "png.json"
+  }
+]

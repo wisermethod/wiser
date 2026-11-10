@@ -1,0 +1,13 @@
+{
+  "output": "slides.zip",
+  "format": "png",
+  "width": 320,
+  "height": 180,
+  "scale": 1,
+  "slides": 3,
+  "files": [
+    "slide-001.png",
+    "slide-002.png",
+    "slide-003.png"
+  ]
+}
