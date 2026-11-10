@@ -15,9 +15,10 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { accessSync, constants, existsSync, mkdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import { accessSync, constants, existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
+import dns from 'node:dns';
 
 import { INSTALL_HELP, installQuestion, formatInstallSize, INSTALL_BYTES, flagAuthorised, installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
 import { runtimeDir, activeRuntimeDir, personRuntimeDir, installBrowserRuntime } from '../../lib/browser-runtime/browser-runtime.js';
@@ -27,32 +28,20 @@ let install = false;
 import {
   DEFAULT_SCALE as HTML_DEFAULT_SCALE,
   DEFAULT_TIMEOUT_MS as HTML_DEFAULT_TIMEOUT_MS,
-  FIT_MARGIN_PX,
   FORMATS,
-  SETTLE_MS as HTML_SETTLE_MS,
-  imageSize
 } from './html-core.js';
 
 import {
   DEFAULT_SCALE as SVG_DEFAULT_SCALE,
   DEFAULT_TIMEOUT_MS as SVG_DEFAULT_TIMEOUT_MS,
-  buildDocument,
   isInsideDirectory,
-  readSvgSize,
-  resolveOutputSize,
-  withViewBox
 } from './svg-core.js';
 
 import {
   DEFAULTS as MERMAID_DEFAULTS,
   THEMES,
   UsageError,
-  buildShell,
-  fitDiagram,
-  parseErrorLine,
-  pngSize,
   readOptions,
-  viewportWidth
 } from './mermaid-core.js';
 
 import {
@@ -60,9 +49,6 @@ import {
   DEFAULT_SCALE as URL_DEFAULT_SCALE,
   DEFAULT_TIMEOUT_MS as URL_DEFAULT_TIMEOUT_MS,
   DEFAULT_WIDTH,
-  SETTLE_MS as URL_SETTLE_MS,
-  classifyFailure,
-  pngSizeFromHeader,
   screenDestination,
   validateHeight,
   validateOutput,
@@ -80,7 +66,6 @@ const TOOL_DIR = resolve(SCRIPT_DIR, '..');
 const MERMAID_MARKER = join(TOOL_DIR, 'node_modules', 'mermaid', 'package.json');
 const MERMAID_SCRIPT = join(TOOL_DIR, 'node_modules', 'mermaid', 'dist', 'mermaid.min.js');
 const BROWSER_CHECK = 'npm run check:chromium';
-const SVG_FONT_SETTLE_MS = 500;
 const LAUNCH_OPTIONS = { headless: true };
 
 const SUBCOMMANDS = new Set(['html', 'svg', 'mermaid', 'url', 'check']);
@@ -130,7 +115,8 @@ Commands:
   help             Print this message
 
 Options:
-  --input <path>   HTML file to render, absolute. Required.
+  --input <path>   HTML file or ZIP to render, absolute. Required.
+  --entry <name>   HTML path inside a ZIP when there is more than one page.
   --output <path>  Image file to write, absolute, ending .png, .jpg, or .jpeg.
                    Required, and it may not sit inside this tool directory.
   --width N        Viewport width in pixels. Default 1200.
@@ -148,7 +134,7 @@ Options:
 
 Renders the file the caller names and writes the image the caller names. Needs
 no credentials and no configuration file, so no command takes --env. The page is
-loaded from disk; anything it references is fetched, and nothing else is. Success
+loaded from upload bytes; include every referenced asset in the ZIP. Success
 prints one JSON object to stdout; a usage mistake or a page that will not render
 goes to stderr with exit 1.`;
 
@@ -233,7 +219,7 @@ Options:
   --scale <n>      Device scale factor: the image is this many pixels per
                    viewport pixel. Default ${URL_DEFAULT_SCALE}.
   --timeout <n>    Milliseconds to wait for the page's network activity to
-                   stop. Default ${URL_DEFAULT_TIMEOUT_MS}; minimum 1000.
+                   stop. Default ${URL_DEFAULT_TIMEOUT_MS}; minimum 1000, maximum 45000.
   --full-page      Capture the whole scrollable page instead of the viewport.
   --overwrite      Replace the file at --output when one is already there.
   --install          ${INSTALL_HELP}
@@ -554,7 +540,7 @@ function svgPositiveNumber(name, raw, { integer = false } = {}) {
 async function runHtml(argv) {
   const usageCmd = 'node scripts/render.js help';
   const VALUE_FLAGS = new Set([
-    '--input', '--output', '--width', '--height', '--scale', '--quality', '--timeout'
+    '--input', '--output', '--entry', '--width', '--height', '--scale', '--quality', '--timeout'
   ]);
   install = parsedInstallFlag(argv, VALUE_FLAGS);
   const BARE_FLAGS = new Set(['--install', '--overwrite', '--help', '-h']);
@@ -628,80 +614,7 @@ async function runHtml(argv) {
     fail(`Error: could not create the directory for ${outputPath}. Pass a work directory in the owning root that this process may write to.`);
   }
 
-  class RenderProblem extends Error {}
-
-  let browser;
-  let result = null;
-  let failure = null;
-
-  try {
-    browser = await runtime.launch();
-
-    const page = await browser.newPage({
-      deviceScaleFactor: scale,
-      viewport: { width, height: height ?? 800 }
-    });
-
-    await page.goto(pathToFileURL(inputPath).href, {
-      waitUntil: 'networkidle',
-      timeout
-    });
-
-    await new Promise((done) => setTimeout(done, HTML_SETTLE_MS));
-
-    const shot = { path: outputPath, type: format };
-    if (format === 'jpeg') {
-      shot.quality = quality;
-    }
-
-    if (height) {
-      await page.screenshot(shot);
-    } else {
-      const body = await page.$('body');
-      const box = body === null ? null : await body.boundingBox();
-      if (box === null || box.width < 1 || box.height < 1) {
-        throw new RenderProblem('the page rendered nothing with a size to capture. Give the HTML visible content, or pass --height to shoot a fixed viewport instead.');
-      }
-
-      await page.setViewportSize({
-        width: Math.max(width, Math.ceil(box.width)),
-        height: Math.ceil(box.height) + FIT_MARGIN_PX
-      });
-
-      await body.screenshot(shot);
-    }
-
-    let size;
-    try {
-      size = imageSize(readFileSync(outputPath));
-    } catch (problem) {
-      throw new RenderProblem(`the render finished but ${outputPath} could not be measured: ${problem.message}. Re-run; if it repeats, the page produced nothing drawable.`);
-    }
-
-    result = { output: outputPath, format, width: size.width, height: size.height, scale };
-  } catch (error) {
-    if (error instanceof RenderProblem) {
-      failure = `Error: ${error.message}`;
-    } else if (error && error.name === 'TimeoutError') {
-      failure = `Error: the page did not finish loading within ${timeout} ms. Something the page references is hanging rather than answering: inline the remote references or keep them beside the HTML, or raise --timeout if the asset is slow rather than unresponsive.`;
-    } else {
-      failure = `Error: the browser engine could not render ${inputPath}. Open that file in a browser to see what it does; the engine's own message is withheld because it quotes the page.`;
-    }
-  } finally {
-    if (browser) {
-      try {
-        await browser.close();
-      } catch {
-        // Closing is cleanup. A failure here must not replace the real outcome.
-      }
-    }
-  }
-
-  if (failure) {
-    fail(failure);
-  }
-
-  process.stdout.write(`${JSON.stringify(result)}\n`);
+  await coreRun('renderHtml', { width, height, scale, quality, timeout, entry: flag('--entry') }, inputPath, outputPath);
 }
 
 async function runSvg(argv) {
@@ -746,6 +659,7 @@ async function runSvg(argv) {
   const targetWidth = svgPositiveNumber('--width', flag('--width'), { integer: true }) ?? null;
   const timeoutMs = svgPositiveNumber('--timeout', flag('--timeout'), { integer: true }) ?? SVG_DEFAULT_TIMEOUT_MS;
 
+  if (statSync(filePath).size > 8 * 1024 * 1024) fail('Error: input file exceeds 8 MiB.');
   let svgContent;
   try {
     svgContent = readFileSync(filePath, 'utf8');
@@ -757,14 +671,6 @@ async function runSvg(argv) {
     fail(`Error: ${filePath} holds no <svg> element. Pass an SVG file; a renamed PNG belongs to the image tool and an HTML page to the html subcommand.`);
   }
 
-  const svgSize = readSvgSize(svgContent);
-  const output = resolveOutputSize({
-    svgWidth: svgSize.width,
-    svgHeight: svgSize.height,
-    scale,
-    targetWidth
-  });
-
   await ensurePlaywright();
   await ensureChromium();
 
@@ -774,59 +680,7 @@ async function runSvg(argv) {
     fail(`Error: could not create the folder for ${outputPath}. Confirm the parent path is writable by this account.`);
   }
 
-  let browser;
-  try {
-    browser = await runtime.launch();
-  } catch (error) {
-    const report = await runtime.prepareBrowserRuntime();
-    let detail = report.remediation || '';
-    if (!detail) {
-      const line = String(error.message || '').split('\n')[0];
-      if (/install-deps|missing dependencies to run browsers/i.test(line)) {
-        detail =
-          'dependency: Chromium OS libraries; check: npm run check:chromium. Next: provide a C compiler so userspace stubs can be built, or add the missing libraries to the base image.';
-      } else {
-        detail = line || 'chromiumLaunch:false';
-      }
-    }
-    fail(`Error: Chromium cannot launch; check: ${BROWSER_CHECK}. ${detail}. See the Dependencies section of TOOL.md.`);
-  }
-
-  let failure = null;
-  try {
-    const page = await browser.newPage();
-    await page.setViewportSize({ width: output.width, height: output.height });
-    const markup = withViewBox(svgContent, svgSize);
-    await page.setContent(buildDocument(markup, output.width, output.height), {
-      waitUntil: 'networkidle',
-      timeout: timeoutMs
-    });
-    await page.waitForTimeout(SVG_FONT_SETTLE_MS);
-
-    await page.screenshot({
-      path: outputPath,
-      type: 'png',
-      clip: { x: 0, y: 0, width: output.width, height: output.height }
-    });
-  } catch (error) {
-    failure = error?.name === 'TimeoutError'
-      ? `Error: ${filePath} did not finish loading within ${timeoutMs} ms. Everything the SVG references is fetched before the screenshot: confirm each remote font or image it names is reachable, embed them in the file, or raise --timeout.`
-      : `Error: could not render ${filePath} at ${output.width}x${output.height}. See Troubleshooting in TOOL.md; an unreachable reference inside the SVG and an output size past what the browser will allocate are the two usual causes.`;
-  }
-
-  await browser.close();
-
-  if (failure) {
-    fail(failure);
-  }
-
-  process.stdout.write(`${JSON.stringify({
-    output: outputPath,
-    width: output.width,
-    height: output.height,
-    scale: output.scale,
-    sizedFrom: svgSize.sizedFrom
-  })}\n`);
+  await coreRun('renderSvg', { scale, width: targetWidth, timeout: timeoutMs }, filePath, outputPath);
 }
 
 async function runMermaid(argv) {
@@ -858,6 +712,7 @@ async function runMermaid(argv) {
     fail(`Error: no file at ${options.inputPath}. Check the path; an absolute one cannot be misread.`);
   }
 
+  if (statSync(options.inputPath).size > 8 * 1024 * 1024) fail('Error: input file exceeds 8 MiB.');
   let diagram;
 
   try {
@@ -890,106 +745,7 @@ async function runMermaid(argv) {
     fail(`Error: could not create the directory for ${options.outputPath}. Pass a work directory in the owning root that this process may write to.`);
   }
 
-  async function render() {
-    const browser = await runtime.launch();
-
-    try {
-      const page = await browser.newPage({
-        deviceScaleFactor: options.scale,
-        viewport: { width: viewportWidth(options.width), height: 800 }
-      });
-
-      await page.setContent(buildShell(options));
-
-      await page.$eval('.mermaid', (node, source) => {
-        node.textContent = source;
-      }, diagram);
-
-      await page.addScriptTag({ path: MERMAID_SCRIPT });
-
-      const rendered = await page.evaluate(async (theme) => {
-        try {
-          window.mermaid.initialize({
-            startOnLoad: false,
-            theme,
-            flowchart: { useMaxWidth: true, htmlLabels: true }
-          });
-          await window.mermaid.run({ querySelector: '.mermaid' });
-          return { ok: true };
-        } catch (error) {
-          return { ok: false, message: String(error && error.message) };
-        }
-      }, options.theme);
-
-      if (!rendered.ok) {
-        const line = parseErrorLine(rendered.message);
-        throw new UsageError(
-          line === null
-            ? 'the diagram did not parse. Check its syntax, starting with the diagram type on the first line'
-            : `the diagram did not parse; the renderer stopped at line ${line}`
-        );
-      }
-
-      try {
-        await page.waitForSelector('.mermaid svg', { timeout: options.timeout });
-      } catch {
-        throw new UsageError(`the diagram parsed but did not finish rendering within ${options.timeout} ms. Raise --timeout for a very large diagram; if a Mermaid preview draws it at once, re-run the Dependencies check`);
-      }
-
-      await page.waitForTimeout(500);
-
-      const fitted = await page.evaluate(fitDiagram, options.width);
-
-      if (!fitted) {
-        throw new Error('the rendered diagram reported no size to capture');
-      }
-
-      const element = await page.$('#container');
-
-      if (!element) {
-        throw new Error('the rendered diagram left no element to capture');
-      }
-
-      try {
-        await element.screenshot({
-          path: options.outputPath,
-          type: 'png',
-          omitBackground: options.background === 'transparent'
-        });
-      } catch {
-        throw new UsageError(`the diagram rendered but ${options.outputPath} could not be written. Check that this process may write there, and pass a work directory in the owning root`);
-      }
-    } finally {
-      await browser.close();
-    }
-  }
-
-  try {
-    await render();
-  } catch (error) {
-    if (error instanceof UsageError) {
-      fail(`Error: ${error.message}.`);
-    }
-    fail(`Error: rendering ${options.inputPath} failed in the browser. Confirm the diagram renders in a Mermaid preview, then re-run; if it does, the browser install is the next thing to check with: ${BROWSER_CHECK}`);
-  }
-
-  let size;
-
-  try {
-    size = pngSize(readFileSync(options.outputPath));
-  } catch (error) {
-    fail(`Error: the render finished but ${options.outputPath} could not be measured: ${error.message}. Re-run; if it repeats, the diagram produced no drawable output.`);
-  }
-
-  process.stdout.write(`${JSON.stringify({
-    path: options.outputPath,
-    width: size.width,
-    height: size.height,
-    scale: options.scale,
-    maxWidth: options.width,
-    theme: options.theme,
-    background: options.background
-  })}\n`);
+  await coreRun('renderMermaid', { width: options.width, scale: options.scale, theme: options.theme, background: options.background, timeout: options.timeout }, options.inputPath, options.outputPath, { mermaidScript: new Uint8Array(readFileSync(MERMAID_SCRIPT)) });
 }
 
 async function runUrl(argv) {
@@ -1043,43 +799,32 @@ async function runUrl(argv) {
     );
   }
 
+  await coreRun('captureUrl', { url, width, height, scale, timeout: timeoutMs, fullPage }, null, outputPath);
+}
+
+async function coreRun(core, input, inputPath, outputPath, assets = {}) {
   let browser;
-  let result;
   let failure;
-
   try {
+    if (inputPath && statSync(inputPath).size > 8 * 1024 * 1024) throw new Error('Error: input file exceeds 8 MiB.');
+    const files = inputPath ? [{ name: basename(inputPath), mediaType: /\.zip$/i.test(inputPath) ? 'application/zip' : 'application/octet-stream', bytes: new Uint8Array(readFileSync(inputPath)) }] : [];
     browser = await runtime.launch();
-    const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: scale });
-
-    const response = await page.goto(url, { waitUntil: 'networkidle', timeout: timeoutMs });
-
-    await page.waitForTimeout(URL_SETTLE_MS);
-
-    const parent = dirname(outputPath);
-    if (!existsSync(parent)) mkdirSync(parent, { recursive: true });
-
-    const image = await page.screenshot({ path: outputPath, type: 'png', fullPage });
-    const size = pngSizeFromHeader(image);
-
-    result = {
-      output: outputPath,
-      url,
-      finalUrl: page.url(),
-      status: response ? response.status() : null,
-      width: size ? size.width : null,
-      height: size ? size.height : null,
-      scale,
-      fullPage
-    };
+    const engine = await import('./render-core.js');
+    const output = await engine[core]({ ...input, output: basename(outputPath) }, files, {
+      browser, fetch: globalThis.fetch, responseBody: bytes => Buffer.from(bytes),
+      lookup: host => dns.promises.lookup(host, { all: true, verbatim: true }), ...assets
+    });
+    mkdirSync(dirname(outputPath), { recursive: true });
+    writeFileSync(outputPath, output.files[0].bytes);
+    const answer = { ...output.answer };
+    answer[core === 'renderMermaid' ? 'path' : 'output'] = outputPath;
+    process.stdout.write(`${JSON.stringify(answer)}\n`);
   } catch (error) {
-    failure = classifyFailure(error && error.message, { url, timeoutMs }).message;
+    failure = error.message?.startsWith('Error:') || error.message?.startsWith('ZIP refused:') ? error.message : 'Error: browser rendering failed; engine text is withheld because it can quote the page.';
   } finally {
-    if (browser) await browser.close();
+    if (browser) await browser.close().catch(() => {});
   }
-
   if (failure) fail(failure);
-
-  process.stdout.write(`${JSON.stringify(result)}\n`);
 }
 
 async function runCheck(argv) {

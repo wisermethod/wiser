@@ -3,8 +3,13 @@ name: render
 type: tool
 category: media
 description: Renders a local HTML file to a PNG or JPEG, an SVG or a Mermaid diagram to a PNG, and captures a PNG of a live web page
-version: 0.2.5
-runs: local
+version: 0.2.6
+runs: both
+hosted:
+  - html 8MiB 60s
+  - svg 8MiB 60s
+  - mermaid 8MiB 60s
+  - url 8MiB 60s
 ---
 
 # render
@@ -17,7 +22,25 @@ Use it whenever the answer has to be pixels rather than the source that produced
 
 Do not use it to change an image that already exists, which is `image` `edit` and `image` `compose`, and do not reach for it to produce imagery from a description, which is generation, not rendering. A spreadsheet, a PDF, and a raster that is already an image are not among the inputs it reads.
 
-`html`, `svg`, and `mermaid` authenticate to nothing, hold no credential, and after the packages described in `tools/AGENTS.md` are installed make no network request of their own; the page, SVG, or diagram may still fetch whatever it references. `url` reaches the one address `--url` names, logged out and unauthenticated, and every other request in that run is one the page itself issues. `check` surveys whether the Chromium build is present and, without `--install`, fetches nothing.
+`html`, `svg`, and `mermaid` authenticate to nothing, hold no credential, and after the packages described in `tools/AGENTS.md` are installed make no network request of their own; uploaded assets are served from bytes and external references are refused. `url` reaches the one address `--url` names, logged out and unauthenticated, and the host fetches every page request through the same destination screens and byte budget. `check` surveys whether the Chromium build is present and, without `--install`, fetches nothing.
+
+## Hosted mode
+
+`html`, `svg`, `mermaid`, and `url` run on either host through `scripts/render-core.js`. `check` stays local because it surveys and installs this machine's browser. The host owns the browser and passes it as the third argument; each job creates and closes its own context without closing that browser. No core imports Node or a browser package.
+
+Call `renderHtml`, `renderSvg`, `renderMermaid`, or `captureUrl` with JSON options and at most one `{ name, mediaType, bytes: Uint8Array }` upload. The CLI also takes `--entry <name>` for an HTML path inside a ZIP. JSON option names are the CLI flags without `--`, with `fullPage` for `--full-page`; omit disk paths. `output` is an optional simple filename. HTML accepts one file or one ZIP; choose its HTML with `entry` when ambiguous (otherwise root `index.html`, or the only HTML file). SVG and Mermaid take one source file. Address capture takes no file. The return is `{ answer, files }`, each file carrying its name, media type and bytes.
+
+The third argument supplies `{ browser, fetch, lookup, responseBody, mermaidScript }`. Only address capture uses `fetch` and all-address `lookup`. `responseBody(bytes)` adapts binary bytes to Playwright's response-body type; Node and a Worker with Node compatibility can supply `bytes => Buffer.from(bytes)` outside the portable core. Text assets work without that adapter; binary assets refuse if it is absent. Mermaid receives the bytes of this tool's pinned `mermaid` 10.9.6 `dist/mermaid.min.js` from the host, never a CDN. The CLI reads those bytes from its installed package. Fonts and other page assets travel in the ZIP or as embedded data rather than paths on the host's disk.
+
+Each command refuses an uploaded file or JSON input over 8 MiB. ZIPs use `tools/lib/archive-core.js`: at most 1,000 entries and 32 MiB expanded, with traversal, links, encrypted or unsupported archives refused. A job has a 60-second wall budget; `timeout` is at most 45,000 ms. Scale is at most 4; images have at most 8,192 pixels per side and 16,777,216 pixels in total, including fitted and full-page captures. A serialized answer reaching 48,000 characters, or output files reaching 4 MiB in total, is refused whole. Nothing is truncated and the CLI writes no image on these refusals.
+
+Address capture accepts a public HTTP(S) URL of at most 4,096 characters without embedded credentials. Every initial address, redirect hop, frame, script, font and image passes `tools/lib/destination-core.js` with the host's DNS lookup. Every request is fetched by the host with manual redirects and fulfilled through interception; no browser request is continued directly. Refused or unresolved destinations, a host fetch that follows redirects automatically, more than five redirect hops, 200 requests, 8 MiB of received bodies, or methods beyond GET and HEAD refuse the whole job. Browser contexts are offline before navigation. The HTTP route is the allowlist; service workers are blocked and an init script in every frame removes WebRTC and WebSocket constructors, including when WebSocket routing is unavailable. Redirected document bases are set to the final screened address; redirected scripts and stylesheets refuse the whole job because fulfillment cannot preserve their final resource URL and relative imports. Fetches use a pool of at most four, with one shared abort signal; the first refusal cancels all in-flight and queued work. Declared body lengths are checked before reading, and chunks count against the shared byte budget before being retained. Ports are restricted to 80 and 443; a nonstandard port is allowed only on the exact origin explicitly named by the member. The CLI applies these same screens and caps.
+
+DNS screening does not pin the eventual connection. On the Wiser service, the transport the host supplies refuses Wiser domains and fetches only public addresses, including at connection time. The CLI supplies the machine's ordinary fetch and has no connection-time rebinding protection; its preflight DNS screen alone cannot guarantee that boundary.
+
+Compatibility refusals: a local HTML file no longer reads neighboring files through `file://`; ZIP its assets. Missing ZIP assets and external references in uploaded HTML, SVG or Mermaid now refuse the whole render. Existing self-contained inputs retain their picture and JSON bytes. The local browser measured one 8 MiB HTML job and all shared cases within the declared budget; timings are in the build report. Browser Rendering remains for the service to verify.
+
+A deadline or failed context close raises an error with `code: "browser_abandoned"` and `cleanup: Promise<{ closed: boolean }>`; cleanup also waits for context creation that completes after the deadline. The host must retain that promise with `waitUntil(error.cleanup)` (or await it outside a request lifetime). If it hangs or resolves with `closed: false`, discard the host browser. A pending close is never reported as completed.
 
 ## Quick Start
 
@@ -62,7 +85,7 @@ Use it when HTML is already the artwork and an image is what has to ship: a soci
 
 `--width` sets the viewport the page lays out in. Height works one of two ways: given, the image is the viewport exactly; omitted, the image is the body's own box, with the viewport grown to hold all of it. `--scale` is the device scale factor and does not touch the layout. The extension on `--output` chooses the format. `.png` keeps transparency; `.jpg` and `.jpeg` do not, and take `--quality` from 1 to 100, defaulting to 90.
 
-The file is loaded through a `file://` address, so a relative `src` or `href` resolves against the HTML file's own directory. Loading waits for the network to go quiet. A reference that fails fast is drawn without; a reference that hangs spends the page's load budget and fails the run.
+The file is loaded from an intercepted upload address. A single HTML file must be self-contained; pass one `.zip` with the HTML and its assets to use relative `src` or `href` paths. Loading waits for the network to go quiet. A reference that fails fast is drawn without; a reference that hangs spends the page's load budget and fails the run.
 
 ### Usage
 
@@ -73,7 +96,8 @@ The file is loaded through a `file://` address, so a relative `src` or `href` re
 
 | Option | Effect | Default |
 |--------|--------|---------|
-| `--input <path>` | HTML file to render, absolute. Required | None; required |
+| `--input <path>` | HTML file or ZIP of HTML and assets, absolute. Required | None; required |
+| `--entry <name>` | HTML path inside a ZIP | Root `index.html` or the only HTML |
 | `--output <path>` | Image file to write, absolute, ending `.png`, `.jpg`, or `.jpeg`. Required | None; required |
 | `--width N` | Viewport width in pixels | 1200 |
 | `--height N` | Viewport height in pixels; omit to fit the content | None; fit the content |
@@ -99,7 +123,7 @@ One JSON object on stdout, exit 0, once the image is written.
 
 One PNG written from one SVG, at the dimensions the SVG declares for itself multiplied by a scale factor, or at an exact pixel width the caller names.
 
-Use it whenever vector artwork has to arrive as pixels. Do not use it for HTML (`html`), Mermaid (`mermaid`), or a live URL (`url`). An SVG that references a remote font or image causes the browser to fetch exactly those addresses; an SVG that references nothing outside itself puts no traffic on the network.
+Use it whenever vector artwork has to arrive as pixels. Do not use it for HTML (`html`), Mermaid (`mermaid`), or a live URL (`url`). An SVG that references an external font or image is refused; an SVG that references nothing outside itself puts no traffic on the network.
 
 Output pixels come from the SVG's own dimensions. `sizedFrom` reports which of three answered: the root tag's `width` and `height` (`attributes`), its `viewBox`, or an 800 by 600 fallback (`default`). `--scale` defaults to 2. `--width` overrides it: the scale becomes whatever puts the SVG at that exact width, and the height follows. A copy handed to the browser gets a `viewBox` built from the measured dimensions when the root tag carries none; the file on disk is never touched.
 
@@ -137,7 +161,7 @@ One PNG of the diagram a Mermaid file describes, written where the caller says.
 
 Use it whenever a Mermaid diagram has to become an image. Mermaid inside a fenced block in a markdown file is not an input: extract the diagram to its own file first. An SVG goes to `svg`, HTML to `html`, a live page to `url`.
 
-A diagram is drawn at the size the renderer computes, then capped. Natural width above `--width` scales the whole drawing down; natural width below it, or equal to it, leaves the drawing alone. `--scale` multiplies device pixels last and does not reflow text. The renderer loads from this tool's own `node_modules`, so a render of a diagram fetches nothing; an HTML page or an SVG may still load what it references. The diagram reaches the page as text through the DOM, so a diagram file cannot close an element or open a script of its own.
+A diagram is drawn at the size the renderer computes, then capped. Natural width above `--width` scales the whole drawing down; natural width below it, or equal to it, leaves the drawing alone. `--scale` multiplies device pixels last and does not reflow text. The renderer loads from this tool's own `node_modules`, so a render of a diagram fetches nothing; HTML assets must be in its ZIP, and an SVG must embed its assets. The diagram reaches the page as text through the DOM, so a diagram file cannot close an element or open a script of its own.
 
 ### Usage
 
@@ -175,9 +199,9 @@ One JSON object on stdout, exit 0, when the PNG was written.
 
 One PNG of a web page as a browser renders it, plus a JSON record of the address that was actually reached, the status it returned, and the pixel dimensions written.
 
-Use it when the page is live and the picture has to be of the real thing. A local HTML file is `html`, a Mermaid diagram `mermaid`, an SVG `svg`. It captures the page a stranger sees: no credential, no cookie, a fresh browser every run. A `--url` that points at a loopback, private-range, link-local, or cloud-metadata address is refused by name before the browser is launched, the same screen `sitemap` `fetch` applies.
+Use it when the page is live and the picture has to be of the real thing. A local HTML file is `html`, a Mermaid diagram `mermaid`, an SVG `svg`. It captures without credentials or cookies in a fresh browser every run. Requests omit cookies and response `Set-Cookie` headers are stripped; pages whose assets require a cookie set by their document may render differently or fail. A `--url` that points at a loopback, private-range, link-local, or cloud-metadata address is refused by name before the browser is launched, the same screen `sitemap` `fetch` applies.
 
-`--width` and `--height` are the browser window the page lays itself out in; `--scale` multiplies the pixels written without changing that layout. `--timeout` is the budget for waiting for network silence, in milliseconds, minimum 1000. `--full-page` captures the whole scrollable page instead of the viewport.
+`--width` and `--height` are the browser window the page lays itself out in; `--scale` multiplies the pixels written without changing that layout. `--timeout` is the budget for waiting for network silence, in milliseconds, minimum 1000 and maximum 45000 (45 seconds). `--full-page` captures the whole scrollable page instead of the viewport.
 
 ### Usage
 
@@ -193,7 +217,7 @@ Use it when the page is live and the picture has to be of the real thing. A loca
 | `--width <n>` | Viewport width in whole pixels | 1280 |
 | `--height <n>` | Viewport height in whole pixels | 720 |
 | `--scale <n>` | Device scale factor | 1 |
-| `--timeout <n>` | Whole milliseconds to wait for network silence. Minimum 1000 | 30000 |
+| `--timeout <n>` | Whole milliseconds to wait for network silence. Minimum 1000, maximum 45000 | 30000 |
 | `--full-page` | Capture the whole scrollable page instead of the viewport | Off; viewport only |
 | `--overwrite` | Replace the file already at `--output` | Off; an existing file is refused |
 | `--help` | Print usage and exit | Off |
@@ -260,7 +284,7 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 | `Error: --width must be a whole number` / `--scale must be a positive number` / `--timeout` unit mistakes | A non-numeric, zero, negative, or unit-carrying value | Pass a bare positive number in the unit that subcommand documents |
 | `Error: --timeout is in milliseconds and must be at least 1000` | `url` was given a seconds-shaped value | Multiply by a thousand; thirty seconds is `30000` |
 | `the diagram did not parse; the renderer stopped at line N` | Mermaid syntax the renderer rejected | Fix that line. Only the line number is reported, by design |
-| `the page did not finish loading within <N> ms` | A reference hangs, or the page never goes network-quiet | For `html` and `svg`, inline or keep referenced assets beside the file and run again when they are not already. When they already are, or this is `url`, raise `--timeout` and run once more. When that run finishes, the page was slow. When it still does not finish, report the failure, and do not keep raising `--timeout` |
+| `the page did not finish loading within <N> ms` | A reference hangs, or the page never goes network-quiet | For `html` and `svg`, inline or keep referenced assets beside the file and run again when they are not already. When they already are, or this is `url`, raise `--timeout` up to 45000 ms and run once more. When that run finishes, the page was slow. When it still does not finish, report the failure, and do not keep raising `--timeout` |
 | The image is a cookie banner or a login page | Expected for `url`: a fresh browser with no stored consent | The page a stranger sees is what `url` captures |
 
 ## Success

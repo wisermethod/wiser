@@ -1,0 +1,1 @@
+<html><body style="margin:0"><canvas width="1500" height="1500"></canvas><script>const c=document.querySelector('canvas').getContext('2d'),d=c.createImageData(1500,1500);let seed=12345;for(let i=0;i<d.data.length;i++){seed=(Math.imul(seed,1664525)+1013904223)>>>0;d.data[i]=i%4===3?255:seed>>>24}c.putImageData(d,0,0)</script></body></html>

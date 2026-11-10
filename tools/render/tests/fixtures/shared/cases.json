@@ -1,0 +1,160 @@
+[
+  {
+    "name": "HTML fixed viewport",
+    "command": "html",
+    "core": "renderHtml",
+    "file": "card.html",
+    "input": {
+      "width": 240,
+      "height": 100
+    },
+    "expected": "html.json"
+  },
+  {
+    "name": "HTML fitted body",
+    "command": "html",
+    "core": "renderHtml",
+    "file": "card.html",
+    "input": {
+      "width": 240
+    },
+    "expected": "fit.json"
+  },
+  {
+    "name": "JPEG bytes",
+    "command": "html",
+    "core": "renderHtml",
+    "file": "card.html",
+    "input": {
+      "width": 240,
+      "height": 100,
+      "output": "render.jpg",
+      "quality": 85
+    },
+    "expected": "jpeg.json"
+  },
+  {
+    "name": "SVG scaled",
+    "command": "svg",
+    "core": "renderSvg",
+    "file": "picture.svg",
+    "input": {},
+    "expected": "svg.json"
+  },
+  {
+    "name": "Mermaid bundled runtime",
+    "command": "mermaid",
+    "core": "renderMermaid",
+    "file": "graph.mmd",
+    "input": {
+      "scale": 1
+    },
+    "expected": "mermaid.json"
+  },
+  {
+    "name": "Mermaid parse refusal",
+    "command": "mermaid",
+    "core": "renderMermaid",
+    "file": "invalid.mmd",
+    "input": {},
+    "expected": "invalid.json"
+  },
+  {
+    "name": "ZIP assets",
+    "command": "html",
+    "core": "renderHtml",
+    "zip": true,
+    "input": {
+      "width": 240,
+      "height": 100
+    },
+    "expected": "html.json",
+    "file": "page.zip"
+  },
+  {
+    "name": "Screened redirect",
+    "command": "url",
+    "core": "captureUrl",
+    "network": "public",
+    "input": {
+      "url": "https://public.example/start",
+      "width": 200,
+      "height": 80,
+      "output": "capture.png"
+    },
+    "expected": "url.json"
+  },
+  {
+    "name": "Private redirect refused",
+    "command": "url",
+    "core": "captureUrl",
+    "network": "private-redirect",
+    "input": {
+      "url": "https://public.example/start"
+    },
+    "expected": "redirect.json"
+  },
+  {
+    "name": "Private browser asset refused",
+    "command": "url",
+    "core": "captureUrl",
+    "network": "private-asset",
+    "input": {
+      "url": "https://public.example/start"
+    },
+    "expected": "asset.json"
+  },
+  {
+    "name": "Whole output refusal",
+    "command": "html",
+    "core": "renderHtml",
+    "file": "noise.html",
+    "input": {
+      "width": 1500,
+      "height": 1500
+    },
+    "expected": "output-limit.json"
+  },
+  {
+    "name": "Whole input refusal",
+    "command": "html",
+    "core": "renderHtml",
+    "oversize": true,
+    "input": {},
+    "expected": "input-limit.json"
+  },
+  {
+    "name": "Missing ZIP asset refused",
+    "command": "html",
+    "core": "renderHtml",
+    "file": "missing.html",
+    "input": {
+      "width": 240,
+      "height": 100
+    },
+    "expected": "missing.json"
+  },
+  {
+    "name": "ZIP entry selected by both interfaces",
+    "command": "html",
+    "core": "renderHtml",
+    "zip": true,
+    "input": {
+      "width": 240,
+      "height": 100,
+      "entry": "selected.html"
+    },
+    "expected": "html.json",
+    "file": "entry.zip"
+  },
+  {
+    "name": "Redirected stylesheet refused with a plain reason",
+    "command": "url",
+    "core": "captureUrl",
+    "network": "redirected-style",
+    "input": {
+      "url": "https://public.example/start"
+    },
+    "expected": "resource-redirect.json"
+  }
+]

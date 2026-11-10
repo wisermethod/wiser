@@ -232,75 +232,7 @@ export function readOptions(argv, toolDir) {
   };
 }
 
-export function viewportWidth(width) {
-  return width + VIEWPORT_MARGIN;
-}
-
-/**
- * The page the diagram renders in. It holds no diagram text and no script:
- * the source is set as text through the DOM and the renderer is attached from
- * this tool's own node_modules, so nothing here can be closed early by the
- * contents of a caller's file and nothing is fetched from anywhere.
- *
- * The width is definite rather than a maximum, because a diagram that lays
- * itself out against its container needs a real one to lay out against; what
- * keeps a narrow diagram from being padded out to it is the fit pass below.
- */
-export function buildShell({ width, background }) {
-  return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<style>
-  body {
-    margin: 0;
-    padding: 20px;
-    background: ${background};
-    display: flex;
-    justify-content: center;
-  }
-  #container { width: ${width}px; }
-  .mermaid {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  }
-  .mermaid svg { display: block; }
-</style>
-</head>
-<body>
-  <div id="container"><pre class="mermaid"></pre></div>
-</body>
-</html>`;
-}
-
-/**
- * Runs in the page once the diagram exists: sizes the drawing to what it
- * actually measures, capped at the requested width, then shrinks the frame
- * onto it. Without this the capture is whatever the renderer's own
- * responsive sizing left behind, which is neither the diagram's size nor the
- * requested one.
- */
-export function fitDiagram(cap) {
-  const svg = document.querySelector('.mermaid svg');
-
-  if (!svg) return null;
-
-  const box = svg.viewBox.baseVal;
-  const naturalWidth = box && box.width ? box.width : svg.getBoundingClientRect().width;
-  const naturalHeight = box && box.height ? box.height : svg.getBoundingClientRect().height;
-
-  if (!naturalWidth || !naturalHeight) return null;
-
-  const drawWidth = Math.min(naturalWidth, cap);
-  const drawHeight = (naturalHeight * drawWidth) / naturalWidth;
-
-  svg.style.maxWidth = 'none';
-  svg.style.width = `${drawWidth}px`;
-  svg.style.height = `${drawHeight}px`;
-  document.querySelector('#container').style.width = `${drawWidth}px`;
-
-  return { naturalWidth, naturalHeight, drawWidth, drawHeight };
-};
+export { viewportWidth, buildShell, fitDiagram, parseErrorLine } from './drawing-core.js';
 
 /**
  * Width and height straight out of the PNG's IHDR chunk, so the reported size
@@ -320,13 +252,4 @@ export function pngSize(buffer) {
     width: buffer.readUInt32BE(16),
     height: buffer.readUInt32BE(20)
   };
-}
-
-/**
- * A renderer's parse error quotes the diagram it was given, and this tool will
- * read any file it is pointed at, so only the line number crosses back out.
- */
-export function parseErrorLine(message) {
-  const match = /\bline\s+(\d+)/i.exec(String(message ?? ''));
-  return match ? Number(match[1]) : null;
 }
