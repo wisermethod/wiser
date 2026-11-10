@@ -5,6 +5,7 @@ import { filterCandidates } from './lib/filter.js';
 import { rankCandidates } from './lib/rank.js';
 import { artifactFiles } from './lib/render-core.js';
 import { validateRequest } from './lib/request.js';
+import { stringBytes } from './lib/size.js';
 import { writeZip } from '../../lib/archive-core.js';
 const FEED_TYPES = new Set(['rss','substack_rss','reddit_rss']);
 const fail = message => { const error = new Error(message); error.fatal = true; throw error; };
@@ -39,10 +40,20 @@ export async function harvest(input = {}, files = [], fetch, lookup, { now = () 
     topics += source.topics?.length || 0;
   }
   if (topics > 100) fail('Error: harvest exceeds 100 topics across request and active sources; refused whole.');
+  let topicBytes = 0;
+  const addTopicBytes = bytes => { topicBytes += bytes; if (topicBytes > 16384) fail('Error: harvest exceeds 16 KiB of UTF-8 topics across request and active sources; refused whole.'); };
+  for (const list of [request.topics, ...sources.map(source => source.topics || [])]) {
+    for (const topic of list) stringBytes(String(topic), addTopicBytes, check);
+  }
   for (const key of ['exclude_terms', 'include_terms']) {
     const terms = request.filters?.[key];
     if (terms !== undefined && !Array.isArray(terms)) fail(`Error: ${key} must be an array.`);
     if (terms?.length > 100) fail(`Error: harvest exceeds 100 ${key} terms; refused whole.`);
+    let termBytes = 0;
+    for (const term of terms || []) stringBytes(String(term), bytes => {
+      termBytes += bytes;
+      if (termBytes > 16384) fail(`Error: harvest exceeds 16 KiB of UTF-8 ${key} terms; refused whole.`);
+    }, check);
   }
   const addressCount = sources.reduce((n, source) => n + (source.type === 'manual_urls' ? source.urls.length : FEED_TYPES.has(source.type) || source.type === 'url' ? 1 : 0), 0);
   if (sources.length > 25 || addressCount > 100) fail('Error: harvest exceeds 25 active sources or 100 public addresses; refused whole.');
@@ -104,7 +115,7 @@ export async function harvest(input = {}, files = [], fetch, lookup, { now = () 
 
     check();
     const answer = bounded({ok:true, candidate_count:bundle.candidates.length, rejected_count:bundle.rejected.length, error_count:bundle.errors.length, output_directory:outputDirectory});
-    const bytes = await writeZip(artifactFiles(bundle, status, request.output || {}), {maxBytes:4 * 1024 * 1024});
+    const bytes = await writeZip(artifactFiles(bundle, status, request.output || {}, check), {maxBytes:4 * 1024 * 1024});
     check();
     return {answer, files:[{name:'harvest.zip', mediaType:'application/zip', bytes}]};
   };

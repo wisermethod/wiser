@@ -45,7 +45,7 @@ export async function fetchText(target, accept, context) {
 
       if (REDIRECT_STATUSES.has(response.status)) {
         const location = response.headers.get('location');
-        await cancelUnreadBody(response.body, context);
+        await cancelUnreadBody(response, context);
         context.check?.();
         if (!location) {
           throw taggedError(`Request to ${safeUrl} returned HTTP ${response.status} without a Location header.`, false);
@@ -59,14 +59,13 @@ export async function fetchText(target, accept, context) {
       }
 
       if (!response.ok) {
-        await cancelUnreadBody(response.body, context);
+        await cancelUnreadBody(response, context);
         context.check?.();
         throw taggedError(`Request to ${safeUrl} returned HTTP ${response.status}.`, RETRYABLE_STATUSES.has(response.status));
       }
 
       try {
         context.check?.();
-        if (!context.maxBodyBytes) return await response.text();
         const reader = response.body?.getReader(), decoder = new TextDecoder();
         if (!reader) return '';
         let total = 0, text = '';
@@ -114,7 +113,7 @@ function requestSignal(context) {
 function countBytes(length, total, context) {
   total += length;
   context.receivedBytes = (context.receivedBytes || 0) + length;
-  if ((context.maxBodyBytes && total > context.maxBodyBytes) || context.receivedBytes > 4 * 1024 * 1024) {
+  if (total > (context.maxBodyBytes || 1024 * 1024) || context.receivedBytes > 4 * 1024 * 1024) {
     const error = new Error('Error: fetched body exceeds 1 MiB or fetched total exceeds 4 MiB; refused whole.');
     error.fatal = true;
     throw error;
@@ -125,16 +124,23 @@ function countBytes(length, total, context) {
 // Read only an already-available chunk, then cancel immediately. Calling cancel
 // right after read resolves a pending read as done when the body has no data;
 // it never waits for a failing server to start or finish sending. A buffered
-// body's chunk is charged to the same caps before the status error is thrown.
-async function cancelUnreadBody(body, context) {
-  if (!body) return;
-  const reader = body.getReader();
-  try {
-    const pending = reader.read();
-    const cancellation = reader.cancel();
-    const [first] = await Promise.allSettled([pending, cancellation]);
-    if (first.status === 'fulfilled' && !first.value.done) countBytes(first.value.value.byteLength, 0, context);
-  } finally { reader.releaseLock(); }
+// body's chunk and its advertised length share one charge (the greater of the
+// two). Later chunks cannot hide an advertised over-cap body behind a tiny first
+// chunk. Cancellation starts before any size refusal and never drains the body.
+async function cancelUnreadBody(response, context) {
+  let buffered = 0;
+  if (response.body) {
+    const reader = response.body.getReader();
+    try {
+      const pending = reader.read();
+      const cancellation = reader.cancel();
+      const [first] = await Promise.allSettled([pending, cancellation]);
+      if (first.status === 'fulfilled' && !first.value.done) buffered = first.value.value.byteLength;
+    } finally { reader.releaseLock(); }
+  }
+  const header = response.headers.get('content-length')?.trim() || '';
+  const declared = /^\d+$/.test(header) ? Number(header) : 0;
+  countBytes(Math.max(buffered, declared), 0, context);
 }
 
 /**
