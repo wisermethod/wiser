@@ -22,7 +22,8 @@ const LIMITS = {
   cannibalWarnings: 10,
 };
 
-export function keywordReport(input, readTextFile, { validateOnly = false } = {}) {
+export function keywordReport(input, readTextFile, { validateOnly = false, bounded = true, beforeParse = () => {} } = {}) {
+const checkList = bounded ? checkAnswerListSize : () => {};
 const command = input.command;
 const flag = name => input[name.slice(2)];
 function toDay(ms) {
@@ -64,6 +65,7 @@ function readWindow() {
 
 function readRows(path, what, keyCount) {
   const text = readTextFile(path, what);
+  beforeParse(text);
   let parsed;
   try {
     parsed = JSON.parse(text);
@@ -116,7 +118,7 @@ function readTargets(path) {
     if (line === '' || line.startsWith('#')) continue;
     const keyword = line.replace(/^[-*]\s+/, '').trim();
     if (keyword !== '') {
-      checkAnswerListSize(targets.length + 1, TARGET_MIN_CHARACTERS);
+      checkList(targets.length + 1, TARGET_MIN_CHARACTERS);
       targets.push(keyword);
     }
   }
@@ -164,81 +166,74 @@ function findOpportunities(rows) {
     }));
 }
 
+// Stable bounded insertion preserves the original sort's tie order. A result
+// list never temporarily grows past its limit.
+function keepBest(list, value, limit, compare) {
+  let at = 0;
+  while (at < list.length && !(compare(value, list[at]) < 0)) at++;
+  if (at >= limit) return;
+  if (list.length === limit) list.pop();
+  list.splice(at, 0, value);
+}
+
 function findTrends(current, previous) {
-  const previousByQuery = new Map(previous.map((row) => [row.keys[0].toLowerCase(), row]));
-  const trends = [];
+  // Last duplicate wins, as in new Map(previous.map(...)), without its temporary
+  // pair array. Hosted rows were counted before JSON.parse.
+  const previousByQuery = new Map();
+  for (const row of previous) previousByQuery.set(row.keys[0].toLowerCase(), row);
+  const growing = [], declining = [];
 
   for (const row of current) {
     const prior = previousByQuery.get(row.keys[0].toLowerCase());
-    // No prior row means a new query, and a tiny prior baseline turns one extra
-    // click into a triple-digit swing. Neither is a trend.
     if (!prior || prior.clicks < LIMITS.trendMinPreviousClicks) continue;
-
     const changePercent = ((row.clicks - prior.clicks) / prior.clicks) * 100;
     if (Math.abs(changePercent) < LIMITS.trendMinChangePercent) continue;
-
-    trends.push({
-      query: row.keys[0],
-      currentClicks: row.clicks,
-      previousClicks: prior.clicks,
-      changePercent,
-      currentPosition: row.position,
-    });
+    const list = changePercent > 0 ? growing : declining;
+    const compare = changePercent > 0
+      ? (a, b) => b.changePercent - a.changePercent
+      : (a, b) => a.changePercent - b.changePercent;
+    if (list.length === LIMITS.trends && !(compare({ changePercent }, list[list.length - 1]) < 0)) continue;
+    keepBest(list, {
+      query: row.keys[0], currentClicks: row.clicks, previousClicks: prior.clicks,
+      changePercent, currentPosition: row.position,
+    }, LIMITS.trends, compare);
   }
-
-  return {
-    growing: trends
-      .filter((trend) => trend.changePercent > 0)
-      .sort((a, b) => b.changePercent - a.changePercent)
-      .slice(0, LIMITS.trends),
-    declining: trends
-      .filter((trend) => trend.changePercent < 0)
-      .sort((a, b) => a.changePercent - b.changePercent)
-      .slice(0, LIMITS.trends),
-  };
+  return { growing, declining };
 }
 
 function detectCannibalization(queryPageRows) {
   const pagesByQuery = new Map();
-
   for (const row of queryPageRows) {
     const query = row.keys[0];
-    if (!pagesByQuery.has(query)) pagesByQuery.set(query, []);
-    pagesByQuery.get(query).push({
-      page: row.keys[1],
-      clicks: row.clicks,
-      impressions: row.impressions,
-      position: row.position,
-    });
+    if (!pagesByQuery.has(query)) pagesByQuery.set(query, { query, rows: [], totalImpressions: 0 });
+    if (row.impressions < LIMITS.cannibalPageMinImpressions) continue;
+    const group = pagesByQuery.get(query);
+    // Keep references only. Page objects are copied only for the ten warnings
+    // that will be returned, after the per-warning size refusal.
+    group.rows.push(row);
+    group.totalImpressions += row.impressions;
   }
-
   const warnings = [];
-
-  for (const [query, pages] of pagesByQuery) {
-    const competing = pages.filter((page) => page.impressions >= LIMITS.cannibalPageMinImpressions);
-    if (competing.length < 2) continue;
-
-    const totalImpressions = competing.reduce((sum, page) => sum + page.impressions, 0);
-    if (totalImpressions < LIMITS.cannibalQueryMinImpressions) continue;
-
-    const ranked = competing.slice().sort((a, b) => b.impressions - a.impressions);
+  for (const group of pagesByQuery.values()) {
+    if (group.rows.length < 2 || group.totalImpressions < LIMITS.cannibalQueryMinImpressions) continue;
+    keepBest(warnings, group, LIMITS.cannibalWarnings, (a, b) => b.totalImpressions - a.totalImpressions);
+  }
+  return warnings.map(({ query, rows }) => {
+    checkList(rows.length, '{"page":"","clicks":0,"impressions":0,"position":0}'.length);
+    const ranked = rows.slice().sort((a, b) => b.impressions - a.impressions).map(row => ({
+      page: row.keys[1], clicks: row.clicks, impressions: row.impressions, position: row.position,
+    }));
     const recommendation = ranked[0].position < ranked[1].position
       ? `Consolidate into ${ranked[0].page}, which draws the most impressions and holds the better position, or give each page its own target intent`
       : `The page drawing the most impressions does not hold the better position; make one the canonical target and redirect or differentiate the other`;
-
-    warnings.push({ warning: { query, pages: ranked, recommendation }, totalImpressions });
-  }
-
-  return warnings
-    .sort((a, b) => b.totalImpressions - a.totalImpressions)
-    .slice(0, LIMITS.cannibalWarnings)
-    .map((entry) => entry.warning);
+    return { query, pages: ranked, recommendation };
+  });
 }
 
 // Targets are matched against every supplied query row, not the filtered set: a
 // target sitting below the impression floor is an answer, not noise.
 function trackTargets(targets, queryRows, queryPageRows) {
-  checkAnswerListSize(targets.length, TARGET_MIN_CHARACTERS);
+  checkList(targets.length, TARGET_MIN_CHARACTERS);
   const byQuery = new Map(queryRows.map((row) => [row.keys[0].toLowerCase(), row]));
   const pageByQuery = new Map();
 

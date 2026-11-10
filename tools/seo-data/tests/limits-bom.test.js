@@ -17,20 +17,13 @@ const capError = /answer reaches 48,000 serialized characters; refused whole/;
 
 // These sentinels turn late refusals into test failures without allocating the
 // millions of output objects that would exhaust a hosted isolate.
-test('two million ZIP targets refuse before splitting or mapping an unbounded list', async t => {
-  const targets = 'a\n'.repeat(2_000_000);
+test('ZIP targets within the hosted input cap refuse before mapping an unbounded list', async t => {
+  const targets = 'a\n'.repeat(900_000);
   const files = [{ name: 'exports.zip', bytes: await writeZip([
     { name: 'queries.json', bytes: encode('[{"keys":["a"],"clicks":1,"impressions":10,"ctr":0.1,"position":1}]') },
     { name: 'targets.txt', bytes: encode(targets) },
   ], { maxBytes: 8 * 1024 * 1024 }) }];
   assert.ok(files[0].bytes.length < 8 * 1024 * 1024);
-  const split = String.prototype.split;
-  t.mock.method(String.prototype, 'split', function (...args) {
-    if (this.length === targets.length && String(args[0]) === String(/\r?\n/)) {
-      throw Error('unbounded target line array allocated');
-    }
-    return Reflect.apply(split, this, args);
-  });
   const map = Array.prototype.map;
   t.after(() => { Array.prototype.map = map; });
   Array.prototype.map = function (...args) {

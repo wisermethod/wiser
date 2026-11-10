@@ -174,8 +174,17 @@ let bytes;
 try { bytes = new Uint8Array(readFileSync(inputPath)); }
 catch { fail(`Error: could not read ${inputPath}. Confirm it is a readable file, not a directory.`); }
 try {
-  const { seoData } = await import('./seo-core.js');
-  const result = await seoData({ command: 'audit', ...(/\.zip$/i.test(inputPath) ? {} : { input: inputPath }) }, [{ name: inputPath, mediaType: /\.zip$/i.test(inputPath) ? 'application/zip' : 'application/json', bytes }]);
+  let result;
+  if (/\.zip$/i.test(inputPath)) {
+    const { seoData } = await import('./seo-core.js');
+    result = await seoData({ command: 'audit' }, [{ name: inputPath, mediaType: 'application/zip', bytes }]);
+  } else {
+    const { auditReport } = await import('./audit-core.js');
+    let bundle;
+    try { bundle = JSON.parse(new TextDecoder('utf-8').decode(bytes)); }
+    catch { fail(`Error: ${inputPath} is not JSON. Pass the audit input bundle described in TOOL.md.`); }
+    result = auditReport(bundle, inputPath, { bounded: false });
+  }
   process.stdout.write(`${JSON.stringify(result)}\n`);
 } catch (error) { fail(error.message); }
 }

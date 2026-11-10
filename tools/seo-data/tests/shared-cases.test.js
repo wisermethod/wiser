@@ -40,7 +40,7 @@ for (const c of cases) test(c.name + ': CLI, main bytes and portable core', asyn
 });
 test('refuses multiple files, oversized input and oversized answer whole; returns JSON output bytes', async () => {
   await assert.rejects(seoData({ command: 'audit' }, [{}, {}]), /one export/);
-  await assert.rejects(seoData({ command: 'audit' }, [{ bytes: new Uint8Array(8 * 1024 * 1024 + 1) }]), /8 MiB/);
+  await assert.rejects(seoData({ command: 'audit' }, [{ bytes: new Uint8Array(2 * 1024 * 1024 + 1) }]), /2 MiB/);
   const bundle = JSON.parse(readFileSync(join(fixtures, 'audit.json'))); bundle.site = 'x'.repeat(48000);
   await assert.rejects(seoData({ command: 'audit' }, [{ name: 'audit.json', bytes: new TextEncoder().encode(JSON.stringify(bundle)) }]), /48,000/);
   const result = await seoData({ command: 'previous-window', start: '2026-01-01', end: '2026-01-02', output: true });

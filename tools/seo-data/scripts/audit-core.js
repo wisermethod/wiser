@@ -1,7 +1,8 @@
 /** Portable audit arithmetic and validation, shared by the CLI and hosted action. */
 import { checkAnswerListSize } from './answer-size.js';
 const fail = message => { throw new Error(message); };
-export function auditReport(bundle, inputPath) {
+export function auditReport(bundle, inputPath, { bounded = true } = {}) {
+const checkList = bounded ? checkAnswerListSize : () => {};
 if (bundle === null || typeof bundle !== 'object' || Array.isArray(bundle)) {
   fail(`Error: ${inputPath} is JSON but not an audit input bundle. The top level is one object with site, dateRange, searchConsole, and analytics.`);
 }
@@ -34,7 +35,7 @@ function requireArray(value, where) {
 // the run instead.
 function searchRows(value, where, minimumItemCharacters) {
   const rows = requireArray(value, where);
-  checkAnswerListSize(rows.length, minimumItemCharacters);
+  checkList(rows.length, minimumItemCharacters);
   rows.forEach((row, index) => {
     if (row === null || typeof row !== 'object' || !Array.isArray(row.keys) || typeof row.keys[0] !== 'string') {
       fail(`Error: ${where} row ${index} has no keys array. Pass the search analytics rows as the reporting API returned them.`);
@@ -136,7 +137,7 @@ const organic = requireObject(analytics.organicTraffic, 'analytics.organicTraffi
 let targetKeywords = null;
 if (bundle.targetKeywords !== undefined && bundle.targetKeywords !== null) {
   const list = requireArray(bundle.targetKeywords, 'targetKeywords');
-  checkAnswerListSize(list.length, '{"keyword":"","position":0,"clicks":0,"impressions":0,"ctr":0,"status":"ranking"}'.length);
+  checkList(list.length, '{"keyword":"","position":0,"clicks":0,"impressions":0,"ctr":0,"status":"ranking"}'.length);
   list.forEach((keyword, index) => {
     if (typeof keyword !== 'string') {
       fail(`Error: targetKeywords entry ${index} is not a string. Pass a flat list of keywords.`);
@@ -271,7 +272,7 @@ const trendSessionsIndex = headerIndex(organic, 'analytics.organicTraffic', 'met
 const trendPageViewsIndex = headerIndex(organic, 'analytics.organicTraffic', 'metric', 'screenPageViews');
 
 const organicRows = reportRows(organic, 'analytics.organicTraffic', { dimensions: true });
-checkAnswerListSize(organicRows.length, '{"date":0,"users":0,"sessions":0,"pageViews":0}'.length);
+checkList(organicRows.length, '{"date":0,"users":0,"sessions":0,"pageViews":0}'.length);
 const organicTrend = organicRows.map((row) => ({
   date: valueAt(row.dimensionValues, trendDateIndex) ?? '',
   users: numberAt(row.metricValues, trendUsersIndex),

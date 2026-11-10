@@ -190,36 +190,24 @@ if (outputDir) {
 try {
   const { seoData } = await import('./seo-core.js');
   const { keywordReport } = await import('./keywords-report-core.js');
-  const { writeZip } = await import('../../lib/archive-core.js');
   const input = { command };
   for (const option of VALUE_FLAGS) if (option !== '--output' && option !== '--archive') {
     const value = flag(option); if (value !== undefined) input[option.slice(2)] = value;
   }
   keywordReport(input, () => '', { validateOnly: true });
-  let files = [];
   const archive = flag('--archive');
-  if (command !== 'previous-window') {
-    if (archive) {
-      if (!isAbsolute(archive)) fail(`Error: the path for the export archive must be absolute; got "${archive}".`);
-      let bytes;
-      try { bytes = new Uint8Array(readFileSync(archive)); }
-      catch { fail(`Error: could not read ${archive}. Confirm it is a readable file, not a directory.`); }
-      files = [{ name: archive, mediaType: 'application/zip', bytes }];
-    } else {
-      const entries = [];
-      input.labels = {};
-      for (const [key, what] of [['queries', 'the reporting-window rows'], ['query-pages', 'the query and page rows'], ['previous-queries', 'the earlier-window rows'], ['targets', 'the target keywords']]) {
-        if (input[key]) {
-          const path = input[key], name = key + (key === 'targets' ? '.txt' : '.json');
-          entries.push({ name, bytes: new TextEncoder().encode(readTextFile(path, what)) });
-          input[key] = name; input.labels[name] = path;
-        }
-      }
-      if (entries.length === 1) files = [{ ...entries[0], mediaType: 'application/json' }];
-      else if (entries.length) files = [{ name: 'exports.zip', mediaType: 'application/zip', bytes: await writeZip(entries, { maxBytes: 8 * 1024 * 1024 }) }];
-    }
+  let result;
+  if (archive && command !== 'previous-window') {
+    if (!isAbsolute(archive)) fail(`Error: the path for the export archive must be absolute; got "${archive}".`);
+    let bytes;
+    try { bytes = new Uint8Array(readFileSync(archive)); }
+    catch { fail(`Error: could not read ${archive}. Confirm it is a readable file, not a directory.`); }
+    result = await seoData(input, [{ name: archive, mediaType: 'application/zip', bytes }]);
+  } else {
+    // Plain files retain main's local limits. Hosted/ZIP refusal rules belong
+    // to seoData; local files need neither UTF-8 re-encoding nor an in-memory ZIP.
+    result = keywordReport(input, (name, what) => readTextFile(name, what).replace(/^\uFEFF/, ''), { bounded: false });
   }
-  const result = await seoData(input, files);
   if (outputTarget) {
     mkdirSync(outputTarget, { recursive: true });
     const file = join(outputTarget, `seo-keywords-${new Date().toISOString().slice(0, 10)}.json`);
