@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.09.3, November 9, 2026
+
+- X can now publish a post or a reply to a post, each after you confirm it. A post is held to 280 characters, with most characters outside Latin scripts, emoji among them, counting as two, and text with a link is refused unless you allow links, so a link goes in the first reply. (ef4aa8fe)
+- X's reads now check what X sends back, and reading a post X cannot find now answers with an error that says so instead of a reply your app cannot read. X answers a delete as done even for a post that does not exist, so a deletion is confirmed by reading the post afterwards. (ef4aa8fe)
+- Any connector action that gives back nothing now answers with an error instead of a reply your app cannot read. (ef4aa8fe)
+
 ## v2026.11.09.2, November 9, 2026
 
 - Wiser's install steps now match what each app does, measured on November 9. In the ChatGPT desktop app you install lowercase `wiser`, the one with the branch icon, from Browse directory; after adding Wiser's marketplace you go back there, since the Marketplace tab installs nothing itself. A server you add for Wiser yourself in the ChatGPT desktop app or Codex is named exactly `wiser`: they treat any other name as a second Wiser, with every tool twice. In Claude, a Wiser connector you added before installing the plugin is the one the plugin uses, so there is nothing more to press. ChatGPT on the web, which installs no plugins, has its own steps, and the README says Cursor cannot sign in to Wiser yet. (27b84bee)
