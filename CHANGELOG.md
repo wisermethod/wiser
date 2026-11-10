@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.10.2, November 10, 2026
+
+- Two more of Wiser's tools can now also run through the Wiser connector, in a browser Wiser opens for one call and closes after it: turning one HTML page, SVG drawing or Mermaid diagram into a picture, or taking a picture of one public web page (render), and turning one ZIP of a slide deck and its files into a PDF or into pictures of its slides (deck-export). Each tool's page gives, for each command that can run there, the largest input it takes and its time limit, and which commands stay on your computer; the connector does not offer them to members yet. (75fd923d, a00b9282)
+- On your computer, render and deck-export read only what you give them: a page, drawing or deck that points at a file you did not include, or at an outside address, is now refused whole with the reason, instead of rendering without it, and render no longer reads files beside a page you name; put those files in a ZIP with it. Pictures and PDFs of self-contained inputs are as before. (75fd923d, a00b9282)
+- deck-export's starter deck now carries its theme's fonts, so a deck it scaffolds exports as it is. (a00b9282)
+
 ## v2026.11.10, November 10, 2026
 
 - Six more of Wiser's tools can now also run through the Wiser connector, so a member with only the connector can use them: describing, totalling, charting and computing over one data file (data), finding dashes in one draft (copy-check), checking one page's HTML for search basics (seo-page-analyzer), reading search exports (seo-data), gathering public feeds and pages into one archive (Content Harvester), and a short crawl of a site that answers in one go (site-crawl). Each tool's page gives, for each command that can run there, the largest input it takes and its time limit, and which commands stay on your computer; the connector does not offer them to members yet. (0de4b550, f4aaed6b, e571acc0, 709cab50, 10243b53, 0fbe1b21, 41af031c, da82fbf8, 96b1db13, 96fe5fa5)
