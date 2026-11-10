@@ -42,7 +42,7 @@ union of JSON column names, or the delimited header width (first row width with
 also refuses any delimited record wider than 2,048 fields, including ragged
 rows. The row-by-column cap bounds profiling work for sparse and dense tables;
 the per-record field cap bounds each delimited record's field allocation.
-Malformed file envelopes, unsupported commands and invalid argument types are refused.
+Malformed file envelopes, unsupported commands and invalid argument types are refused, and so is a delimiter that is empty or longer than 8 characters, on the command line too.
 
 The portable entry is `scripts/data-core.js`'s `runData(input, files)`. `input.command`
 is one of the hosted commands; other keys use the calculation cores' names:

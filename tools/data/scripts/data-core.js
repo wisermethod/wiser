@@ -16,6 +16,8 @@ function validate(input) {
     if (input[key] !== undefined && typeof input[key] !== 'string') problem(`${key} must be text.`);
   }
   if (input.format !== undefined && !['csv', 'tsv', 'json'].includes(input.format)) problem('format must be csv, tsv, or json.');
+  // A long near-match delimiter makes every delimiter search superlinear (review round 2); real files use one character or a short marker.
+  if (input.delimiter !== undefined && (input.delimiter.length < 1 || input.delimiter.length > 8)) problem('delimiter must be 1 to 8 characters.');
   if (input.hasHeader !== undefined && typeof input.hasHeader !== 'boolean') problem('hasHeader must be a boolean.');
   for (const key of ['columns', 'groupBy']) {
     if (input[key] !== undefined && (!Array.isArray(input[key]) || input[key].some(v => typeof v !== 'string'))) problem(`${key} must be an array of column names.`);

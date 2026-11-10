@@ -85,3 +85,14 @@ test('quoted delimiters, escaped quotes and embedded newlines do not add fields'
     await assert.rejects(runData({ command: 'parse' }, files('a' + delimiter + 'b\n' + Array(2049).fill('v').join(delimiter))), /exceeds 2,048 columns/);
   }
 });
+
+test('a delimiter that is empty or longer than 8 characters refuses at once (review round 2)', async () => {
+  const content = 'a'.repeat(2 * 1024 * 1024);
+  for (const delimiter of ['', 'a'.repeat(50000) + '!']) {
+    const started = performance.now();
+    await assert.rejects(runData({ command: 'parse', delimiter }, files(content)), /delimiter must be 1 to 8 characters/);
+    assert.ok(performance.now() - started < 1000, 'refused before any scan');
+  }
+  const ok = await runData({ command: 'parse', delimiter: '||' }, files('a||b\n1||2\n'));
+  assert.ok(ok);
+});
