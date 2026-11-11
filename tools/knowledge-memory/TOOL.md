@@ -5,6 +5,7 @@ category: knowledge
 description: Lints local knowledge wikis, builds and queries a dataset-scoped databased store (SQLite FTS5), and ingests and recalls a local LadybugDB graph, all from session-extracted knowledge with located provenance
 version: 0.6.4
 runs: local
+local-only: reads local knowledge-set folders and keeps their SQLite or graph stores on disk
 gaps:
   - temporal filtering of recall by a date, so an as-of question is answered from the facts the set dates rather than filtered by the engine
   - hosted-unspecified, so hosted lookup, ingest and export stop before a source is read

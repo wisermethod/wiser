@@ -18,7 +18,7 @@ import { execFileSync } from 'node:child_process';
 import { accessSync, constants, cpSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync, lstatSync } from 'node:fs';
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { revealAssets } from './package-assets.js';
+import { revealAssets, carriedReveal, revealComplete } from './package-assets.js';
 
 import { INSTALL_HELP, installQuestion, formatInstallSize, INSTALL_BYTES, flagAuthorised, installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
 import { runtimeDir, activeRuntimeDir, personRuntimeDir, installBrowserRuntime } from '../../lib/browser-runtime/browser-runtime.js';
@@ -27,7 +27,7 @@ const HERE = fileURLToPath(import.meta.url);
 const SCRIPT_DIR = dirname(HERE);
 const TOOL_DIR = resolve(SCRIPT_DIR, '..');
 const TEMPLATES_DIR = join(TOOL_DIR, 'templates');
-const REVEAL_DIR = join(TOOL_DIR, 'node_modules', 'reveal.js');
+const REVEAL_DIR = join(TOOL_DIR, 'vendor', 'reveal.js');
 
 const COMMANDS = new Set(['scaffold', 'pdf', 'png', 'check']);
 
@@ -44,10 +44,12 @@ const TRANSITIONS = new Set(['slide', 'fade', 'convex', 'concave', 'zoom', 'none
 
 // The reveal.js files a self-contained deck needs beside its HTML.
 const VENDOR_FILES = [
+  { from: 'LICENSE', to: 'LICENSE' },
   { from: 'dist/reveal.js', to: 'reveal.js' },
   { from: 'dist/reset.css', to: 'reset.css' },
   { from: 'dist/reveal.css', to: 'reveal.css' },
   { from: 'plugin/highlight/highlight.js', to: 'highlight.js' },
+  { from: 'plugin/highlight/LICENSE', to: 'highlight-LICENSE' },
   { from: 'plugin/highlight/monokai.css', to: 'monokai.css' },
   { from: 'plugin/notes/notes.js', to: 'notes.js' }
 ];
@@ -159,9 +161,7 @@ const WILL_FETCH_BROWSER = command === 'pdf' || command === 'png' || command ===
 
 function installPlan() {
   return {
-    packages: WILL_FETCH_BROWSER
-      ? `Installing fetches playwright from registry.npmjs.org into ${personRuntimeDir()}`
-      : `Installing fetches reveal.js from registry.npmjs.org into ${TOOL_DIR}`,
+    packages: `Installing fetches playwright from registry.npmjs.org into ${personRuntimeDir()}`,
     size: WILL_FETCH_BROWSER
       ? ' This run then fetches the Chromium build if it is missing, from cdn.playwright.dev, or from playwright.download.prss.microsoft.com when Playwright falls back. The build goes wherever Playwright keeps browser builds on this machine, which tools/AGENTS.md names for each platform.'
       : ''
@@ -390,7 +390,7 @@ function browserRuntimeDir() {
 // directory proves nothing. Playwright is checked in the shared runtime.
 const MARKERS = {
   get playwright() { return join(browserRuntimeDir(), 'node_modules', 'playwright', 'package.json'); },
-  'reveal.js': join(REVEAL_DIR, 'package.json')
+  'reveal.js': join(REVEAL_DIR, 'dist', 'reveal.js')
 };
 
 const playwrightCLI = () => join(browserRuntimeDir(), 'node_modules', 'playwright', 'cli.js');
@@ -614,35 +614,13 @@ async function ensureChromium() {
 
 // Dependencies. Runs before any package import, and only on a command that
 // imports that package (Script Contract).
-async function ensurePackage(name) {
-  if (name === 'playwright') browserRuntimeDir();
-  if (name === 'playwright' ? activeRuntimeDir() : existsSync(MARKERS[name])) return;
+async function ensurePackage() {
+  browserRuntimeDir();
+  if (activeRuntimeDir()) return;
   requireInstallConsent('packages');
-  if (name === 'playwright') {
-    log(`First run: installing dependencies in ${personRuntimeDir()}.`);
-    try { await installBrowserRuntime(); }
-    catch (error) { fail(`Error: ${error.message}`); }
-    return;
-  }
-  const dir = TOOL_DIR;
-  log(`First run: installing dependencies in ${dir}.`);
-  try {
-    const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-    // stderr only: npm output on stdout would break the empty-stdout-on-failure rule.
-    execFileSync(npm, ['ci'], { cwd: dir, stdio: ['ignore', 'ignore', 'inherit'] });
-  } catch {
-    // Two different failures arrive here and they have different fixes, so the
-    // Script Contract's Output and errors clause requires telling them apart:
-    // an unwritable directory is not a broken install, and telling someone
-    // to run "npm ci" by hand where they cannot write cannot succeed.
-    if (!isWritable(dir)) {
-      fail(`Error: cannot install dependencies because ${dir} is not writable. This tool installs its dependencies into ${dir} on the run that authorises it with --install, so that directory has to be writable. Install this plugin somewhere you own, or make that directory writable, then run the command again.`);
-    }
-    fail(`Error: npm ci failed in ${dir}. Confirm Node 18 or newer, then that package-lock.json is present and matches package.json, which is what npm ci requires and will not resolve around. Delete node_modules there and run "npm ci" by hand to see npm's own message. A lockfile that is missing or out of step with the manifest is a defect in this copy of the plugin, not something a re-run fixes. See SETUP.md.`);
-  }
-  if (!existsSync(MARKERS[name])) {
-    fail(`Error: npm ci finished but ${MARKERS[name]} is still missing. Check that package.json lists every package this script imports.`);
-  }
+  log(`First run: installing dependencies in ${personRuntimeDir()}.`);
+  try { await installBrowserRuntime(); }
+  catch (error) { fail(`Error: ${error.message}`); }
 }
 
 /**
@@ -677,12 +655,11 @@ if (command === 'check') {
   // all. The same one line answers both, so the printed remedy is true on every
   // command of every browser tool rather than on all but the surveying one.
   if (flagAuthorised(install)) {
-    await ensurePackage('reveal.js');
-    await ensurePackage('playwright');
+    await ensurePackage();
     await ensureChromium();
   }
   const result = {
-    'reveal.js': existsSync(MARKERS['reveal.js']),
+    'reveal.js': revealComplete(),
     playwright: Boolean(activeRuntimeDir()),
     chromium: false
   };
@@ -781,52 +758,43 @@ if (command === 'scaffold') {
       fail(`Error: --transition "${transition}" is not one of ${[...TRANSITIONS].join(', ')}.`);
     }
 
-    // The package holding the runtime is the one dependency this path needs.
-    await ensurePackage('reveal.js');
-
     const themeDir = join(REVEAL_DIR, 'dist', 'theme');
     if (!existsSync(join(REVEAL_DIR, 'dist', 'reveal.js')) || !existsSync(themeDir)) {
-      fail(`Error: the reveal.js package in ${TOOL_DIR} is missing the distribution files a deck needs. Delete node_modules there and run "npm ci" by hand.`);
+      fail(`Error: the carried reveal.js copy in ${TOOL_DIR} is missing the distribution files a deck needs. Restore this plugin copy.`);
     }
     const themes = readdirSync(themeDir)
       .filter((file) => file.endsWith('.css'))
       .map((file) => basename(file, '.css'))
       .sort();
 
-    // The real theme list lives in the installed package, so this one check
-    // cannot precede the install; it still precedes any browser.
+    // The theme list is carried with the runtime; check before any browser.
     const theme = flag('--theme') ?? 'white';
     if (!themes.includes(theme)) {
       fail(`Error: --theme "${theme}" is not one this reveal.js version ships. Available: ${themes.join(', ')}.`);
     }
 
+    // Verify the selected theme before examining its font references, then
+    // verify every asset this starter will copy before creating its output.
+    let themeCss, strippedTheme, carried;
+    try {
+      const themePath = `dist/theme/${theme}.css`;
+      themeCss = carriedReveal([themePath]).get(themePath).toString('utf8');
+      strippedTheme = themeCss.replace(/@import\s+url\(\s*['"]?https?:\/\/[^)]*\)\s*;?/gi, '');
+      carried = carriedReveal(VENDOR_FILES.map(file => file.from), strippedTheme.includes('./fonts/'));
+    } catch (error) { fail(error.message); }
     mkdirSync(assetsPath, { recursive: true });
-    for (const { from, to } of VENDOR_FILES) {
-      const source = join(REVEAL_DIR, from);
-      if (!existsSync(source)) {
-        fail(`Error: the reveal.js package in ${TOOL_DIR} is missing ${from}. Delete node_modules there and run "npm ci" by hand.`);
-      }
-      copyFileSync(source, join(assetsPath, to));
-    }
-    // The whole point of the bundled starter is a deck that presents with no
-    // network, and eight of the fifteen themes reveal.js ships open with an
-    // @import of a Google Fonts stylesheet. Copied verbatim, the "offline"
-    // starter fetches a stylesheet on every load, and behind a captive portal a
-    // render-blocking @import is the hang this tool's own SETUP.md warns about.
-    // So the theme is copied with its remote @imports removed and the removal is
-    // reported, rather than copied whole and quietly online. The theme's own
-    // font-family declarations stay, so the faces fall back to the host's.
-    const themeCss = readFileSync(join(themeDir, `${theme}.css`), 'utf8');
-    const strippedTheme = themeCss.replace(
-      /@import\s+url\(\s*['"]?https?:\/\/[^)]*\)\s*;?/gi,
-      '',
-    );
+    for (const { from, to } of VENDOR_FILES) writeFileSync(join(assetsPath, to), carried.get(from));
     fontsStripped = themeCss !== strippedTheme;
     writeFileSync(join(assetsPath, 'theme.css'), strippedTheme);
     // Stock themes import fonts relative to theme.css; keep that tree beside
     // the renamed stylesheet so the starter really is self-contained.
     if (strippedTheme.includes('./fonts/')) {
-      cpSync(join(themeDir, 'fonts'), join(assetsPath, 'fonts'), { recursive: true });
+      for (const [path, bytes] of carried) {
+        if (!path.startsWith('dist/theme/fonts/')) continue;
+        const output = join(assetsPath, path.slice('dist/theme/'.length));
+        mkdirSync(dirname(output), { recursive: true });
+        writeFileSync(output, bytes);
+      }
     }
 
     const html = readFileSync(join(TEMPLATES_DIR, 'starter.html'), 'utf8')
@@ -893,7 +861,7 @@ const scale = scaleRaw === undefined ? 2 : positiveInteger('--scale', scaleRaw, 
 const timeoutRaw = flag('--timeout');
 const timeout = timeoutRaw === undefined ? DEFAULT_TIMEOUT_MS : positiveInteger('--timeout', timeoutRaw);
 
-await ensurePackage('playwright');
+await ensurePackage();
 await ensureChromium();
 
 // Shared browser runtime: dynamic import only on commands that need Chromium.
@@ -944,7 +912,6 @@ async function deckUpload() {
 let browser, failure;
 try {
   const file = await deckUpload();
-  await ensurePackage('reveal.js');
   try { browser = await runtime.launch(); }
   catch { throw new Error('Error: Chromium cannot launch; check: node scripts/deck.js check (read remediation). See the Dependencies section of TOOL.md.'); }
   const packed = command === 'png' && /\.zip$/i.test(outputPath);

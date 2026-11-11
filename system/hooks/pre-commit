@@ -1,5 +1,5 @@
 #!/bin/sh
-# Four checks, triggered by the staged set.
+# Five checks, triggered by the staged set.
 #
 # Why these and not the others: over the 52 commits of the Close-out range, the
 # em-dash sweep fired zero times, the retired-word sweep fired zero times, and
@@ -115,6 +115,63 @@ if [ -s /tmp/.wiser-precommit-hits.$$ ]; then
   exit 1
 fi
 rm -f /tmp/.wiser-precommit-hits.$$
+
+# Carried-copy checks see rename sources and deletions. Match the covered inputs
+# case-insensitively, including wrongly cased directory names.
+copy_paths=$(git -c core.quotePath=false diff --cached --no-renames --name-only --diff-filter=ACDMRT)
+copy_lock='(package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.ya?ml|bun\.lockb?)'
+render_paths=$(printf '%s\n' "$copy_paths" | $GREP -i -E "^tools/render/(vendor/|package\.json$|${copy_lock}$|build/(THIRD-PARTY-NOTICES\.txt|mermaid-10\.9\.6-LICENSE\.txt)$)")
+deck_paths=$(printf '%s\n' "$copy_paths" | $GREP -i -E "^tools/deck-export/(vendor/|package\.json$|${copy_lock}$|build/(THIRD-PARTY-NOTICES\.txt|highlightjs-11\.9\.0-LICENSE\.txt|league-gothic-OFL\.md)$)")
+asset_builder_paths=$(printf '%s\n' "$copy_paths" | $GREP -i -E '^tools/lib/build/copy-assets\.mjs$')
+data_paths=$(printf '%s\n' "$copy_paths" | $GREP -i -E "^tools/((data|Content Harvester|keynote-render)/(dist/|package\.json$|${copy_lock}$)|Content Harvester/build/nodable-entities-3\.0\.0-LICENSE\.txt$|lib/(build/(one-file\.mjs|compiler-package-lock\.json)|one-file\.js)$)")
+
+# Graph inputs are emitted by the one-file builder, never duplicated here.
+# A plugin without these tools has no graph to query.
+if [ -f "$ROOT/tools/lib/build/one-file.mjs" ]; then
+  graph_paths=$(printf '%s\n' "$copy_paths" | node "$ROOT/tools/lib/build/one-file.mjs" --affected-inputs) || exit 1
+  data_paths=$(printf '%s\n' "$data_paths" "$graph_paths")
+fi
+
+# The builders read disk. Refuse a different staged blob before measuring it.
+# An absent index entry and absent disk file is a staged deletion, which the
+# corresponding builder must inspect. Linked inputs are refused as well.
+printf '%s\n' "$render_paths" "$deck_paths" "$asset_builder_paths" "$data_paths" | while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  index_blob=$(git rev-parse --verify ":$f" 2>/dev/null) || index_blob=
+  if [ -z "$index_blob" ] && [ ! -e "$ROOT/$f" ] && [ ! -L "$ROOT/$f" ]; then continue; fi
+  disk_blob=
+  if [ -f "$ROOT/$f" ] && [ ! -L "$ROOT/$f" ]; then
+    disk_blob=$(git hash-object --no-filters -- "$ROOT/$f") || exit 1
+  fi
+  if [ -z "$index_blob" ] || [ "$index_blob" != "$disk_blob" ]; then
+    printf 'pre-commit: %s staged copy differs from the worktree, so stage the bytes to be checked.\n' "$f" >&2
+    exit 1
+  fi
+done || exit 1
+
+check_carried_copy() {
+  copy_log=$(mktemp "${TMPDIR:-/tmp}/wiser-copy-hook.XXXXXX") || return 1
+  # npm's environment reaches the one-file compiler's child npm ci too.
+  (cd "$ROOT" && npm_config_offline=true NPM_CONFIG_OFFLINE=true node "$@") >"$copy_log" 2>&1
+  copy_status=$?
+  if [ "$copy_status" -eq 0 ]; then
+    cat "$copy_log"
+  else
+    cat "$copy_log" >&2
+  fi
+  rm -f "$copy_log"
+  return "$copy_status"
+}
+
+if [ -n "$render_paths" ] || [ -n "$asset_builder_paths" ]; then
+  check_carried_copy tools/lib/build/copy-assets.mjs render --check || exit 1
+fi
+if [ -n "$deck_paths" ] || [ -n "$asset_builder_paths" ]; then
+  check_carried_copy tools/lib/build/copy-assets.mjs deck-export --check || exit 1
+fi
+if [ -n "$data_paths" ]; then
+  check_carried_copy tools/lib/build/one-file.mjs --check || exit 1
+fi
 
 # Every flag a tool's help declares is named in its typed file,
 # per standards/script-contract.md. Only when the staged set touches tools/.

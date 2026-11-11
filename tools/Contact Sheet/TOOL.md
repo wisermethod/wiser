@@ -5,6 +5,7 @@ category: media
 description: Write one self-contained HTML page of numbered options to pick from or whole brand boards, from local assets and licensed fonts
 version: 0.4.0
 runs: local
+local-only: image options and brand boards read local image and font files; page building is not yet split into a core
 ---
 
 # Contact Sheet

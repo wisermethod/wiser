@@ -3,7 +3,7 @@ name: Content Harvester
 type: tool
 category: research
 description: Turns one harvest request into a timeboxed, deduplicated, ranked bundle of source candidates with a record of what was rejected and what failed
-version: 0.1.7
+version: 0.1.8
 runs: both
 hosted:
   - run 1MiB 15s
@@ -47,7 +47,7 @@ node scripts/harvest.js validate --request /path/to/a/work/directory/weekly.harv
 {"ok":true,"name":"weekly-roundup","sources":2}
 ```
 
-Then run it. If this person has not yet authorized a Wiser install, the run reports that it would install dependencies, and stops. `--install` on that run is the answer; later tools in every copy install without asking.
+Then run it. With no selected proxy, the carried compiled file runs without installing packages or asking an install question. A proxied run needs the external `undici` package; if absent it follows the install consent in `tools/RUNNING.md`.
 
 ```bash
 node scripts/harvest.js run --request /path/to/a/work/directory/weekly.harvest.json
@@ -58,6 +58,18 @@ node scripts/harvest.js run --request /path/to/a/work/directory/weekly.harvest.j
 ```
 
 Anything else, see Troubleshooting.
+
+## Dependencies
+
+Node 18 or newer runs every command. A fresh copy carries `dist/harvest.mjs`, compiled from this tool's source and its locked JavaScript packages by `tools/lib/build/one-file.mjs`; `--check` rebuilds and compares both that file and `NOTICE.md`. For `run`, the documented `scripts/harvest.js` command uses installed source packages only when their versions equal the lockfile and they load; otherwise it uses the compiled file, including after an incomplete install. When an installed version differs, one stderr line names the package, its installed version and the locked version before the compiled file runs; stdout is unchanged. Help and request preparation use built-ins without inspecting packages.
+
+| Command | Fresh copy with no packages |
+|---------|-----------------------------|
+| `help`, `sample`, `validate`, `run --dry-run` | No install and no network request |
+| `run`, without a selected proxy | Feed parsing and all other JavaScript packages are compiled in; no install |
+| `run`, with a selected proxy | External `undici` is needed for the proxy dispatcher; an absent package needs consent and `npm ci` |
+
+The selected proxy is the first non-blank trimmed value of `HTTPS_PROXY`, `https_proxy`, `HTTP_PROXY`, `http_proxy`, in that order, as sitemap chooses it. `NO_PROXY` and `no_proxy` do not bypass that selection. `undici` stays outside the compiled file. When the compiled file is usable, proxy consent and installation cover only locked `undici` (about 1.6 MB); later runs keep using the compiled parser. If both the compiled file and usable installed parser are absent, the source entry retains the full package install path. `--install` or `WISER_ALLOW_INSTALL=1` answers an install question only when a package is needed. The generated NOTICE names the packages actually compiled in and explicitly reports any package archive without licence text.
 
 ## Usage
 

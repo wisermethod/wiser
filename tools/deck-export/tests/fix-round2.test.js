@@ -39,7 +39,7 @@ test('default scaffold exports PDF and PNG and contains the theme fonts', { time
 
 test('every theme using local fonts scaffolds the complete fonts tree beside theme.css', () => {
   const dir = mkdtempSync(join(tmpdir(), 'deck-themes-'));
-  const themes = fileURLToPath(new URL('../node_modules/reveal.js/dist/theme/', import.meta.url));
+  const themes = fileURLToPath(new URL('../vendor/reveal.js/dist/theme/', import.meta.url));
   try {
     let checked = 0;
     for (const name of readdirSync(themes).filter(name => name.endsWith('.css'))) {

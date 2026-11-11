@@ -1,0 +1,17 @@
+[
+  "tools/data/scripts/aggregate-core.js",
+  "tools/data/scripts/chart-core.js",
+  "tools/data/scripts/compute-core.js",
+  "tools/data/scripts/data-core.js",
+  "tools/data/scripts/data.js",
+  "tools/data/scripts/describe-core.js",
+  "tools/data/scripts/join-core.js",
+  "tools/data/scripts/parse-core.js",
+  "tools/data/scripts/read-core.js",
+  "tools/lib/build/compiler-package-lock.json",
+  "tools/lib/build/locked-package.mjs",
+  "tools/lib/build/one-file.mjs",
+  "tools/lib/consent.js",
+  "tools/lib/one-file.js",
+  "tools/lib/user-config.js"
+]

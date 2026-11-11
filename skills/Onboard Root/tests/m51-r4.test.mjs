@@ -1,3 +1,4 @@
+import { tmpdir } from 'node:os';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -8,7 +9,7 @@ import { spawnSync } from 'node:child_process';
 const here = dirname(fileURLToPath(import.meta.url));
 const harness = readFileSync(join(here, '../gates.sh'), 'utf8').replace('MEM="$ROOT/memory"', 'MEM="$ROOT/shelf"');
 function gate(id, text, { scoped = false, fails = false, path = 'shelf/voice.md' } = {}) {
-  const root = mkdtempSync(join(here, 'r4-fixture-'));
+  const root = mkdtempSync(join(tmpdir(), 'r4-fixture-'));
   try {
     const files = {
       'AGENTS.md': '---\ntype: org\n---\n\n## Provides\n- voice: shelf/voice.md\n',

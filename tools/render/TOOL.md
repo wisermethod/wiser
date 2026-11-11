@@ -3,7 +3,7 @@ name: render
 type: tool
 category: media
 description: Renders a local HTML file to a PNG or JPEG, an SVG or a Mermaid diagram to a PNG, and captures a PNG of a live web page
-version: 0.2.6
+version: 0.2.7
 runs: both
 hosted:
   - html 8MiB 60s
@@ -30,7 +30,7 @@ Do not use it to change an image that already exists, which is `image` `edit` an
 
 Call `renderHtml`, `renderSvg`, `renderMermaid`, or `captureUrl` with JSON options and at most one `{ name, mediaType, bytes: Uint8Array }` upload. The CLI also takes `--entry <name>` for an HTML path inside a ZIP. JSON option names are the CLI flags without `--`, with `fullPage` for `--full-page`; omit disk paths. `output` is an optional simple filename. HTML accepts one file or one ZIP; choose its HTML with `entry` when ambiguous (otherwise root `index.html`, or the only HTML file). SVG and Mermaid take one source file. Address capture takes no file. The return is `{ answer, files }`, each file carrying its name, media type and bytes.
 
-The third argument supplies `{ browser, fetch, lookup, responseBody, mermaidScript }`. Only address capture uses `fetch` and all-address `lookup`. `responseBody(bytes)` adapts binary bytes to Playwright's response-body type; Node and a Worker with Node compatibility can supply `bytes => Buffer.from(bytes)` outside the portable core. Text assets work without that adapter; binary assets refuse if it is absent. Mermaid receives the bytes of this tool's pinned `mermaid` 10.9.6 `dist/mermaid.min.js` from the host, never a CDN. The CLI reads those bytes from its installed package. Fonts and other page assets travel in the ZIP or as embedded data rather than paths on the host's disk.
+The third argument supplies `{ browser, fetch, lookup, responseBody, mermaidScript }`. Only address capture uses `fetch` and all-address `lookup`. `responseBody(bytes)` adapts binary bytes to Playwright's response-body type; Node and a Worker with Node compatibility can supply `bytes => Buffer.from(bytes)` outside the portable core. Text assets work without that adapter; binary assets refuse if it is absent. Mermaid receives the bytes of this tool's pinned `mermaid` 10.9.6 `dist/mermaid.min.js` from the host, never a CDN. The CLI reads those bytes from `vendor/mermaid/mermaid.min.js`, shipped with the tool. Fonts and other page assets travel in the ZIP or as embedded data rather than paths on the host's disk.
 
 Each command refuses an uploaded file or JSON input over 8 MiB. ZIPs use `tools/lib/archive-core.js`: at most 1,000 entries and 32 MiB expanded, with traversal, links, encrypted or unsupported archives refused. A job has a 60-second wall budget; `timeout` is at most 45,000 ms. Scale is at most 4; images have at most 8,192 pixels per side and 16,777,216 pixels in total, including fitted and full-page captures. A serialized answer reaching 48,000 characters, or output files reaching 4 MiB in total, is refused whole. Nothing is truncated and the CLI writes no image on these refusals.
 
@@ -60,11 +60,11 @@ If this person has not yet authorized a Wiser install, the run reports that it w
 {"output":"/path/to/a/work/directory/card.png","format":"png","width":1200,"height":630,"scale":1}
 ```
 
-`svg` and `mermaid` stop the same way for Playwright; `mermaid` also names `mermaid` in this tool's directory. `url` stops the same way for Playwright. `check` without `--install` surveys and prints JSON with exit 0 either way. Anything else, see Troubleshooting.
+`svg` and `mermaid` stop the same way for Playwright; `mermaid` uses its carried browser file and asks for no diagram package. `url` stops the same way for Playwright. `check` without `--install` surveys and prints JSON with exit 0 either way. Anything else, see Troubleshooting.
 
 ## Script Contract
 
-Every script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. `html`, `svg`, `mermaid`, and `url` write one caller-named image outside this tool directory. `check` writes nothing without `--install`; with it, the install's own writes and no more. Every other write a run makes is a package install, and `tools/AGENTS.md` is the only place this repository lists those. Only `mermaid` checks for and installs `mermaid`. The contract's `--env` clause has nothing to bind here.
+Every script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. `html`, `svg`, `mermaid`, and `url` write one caller-named image outside this tool directory. `check` writes nothing without `--install`; with it, the install's own writes and no more. Every other write a run makes is a package install, and `tools/AGENTS.md` is the only place this repository lists those. No command installs `mermaid`; its pinned browser file is carried in this tool. The contract's `--env` clause has nothing to bind here.
 
 No command takes `--env`.
 
@@ -73,9 +73,11 @@ No command takes `--env`.
 | Dependency | Needed for | Present when |
 |------------|------------|--------------|
 | The Chromium build Playwright drives | `html`, `svg`, `mermaid`, `url` | `node scripts/render.js check` exits 0 with `"chromiumLaunch":true` |
-| `mermaid` | `mermaid` | `node_modules/mermaid/package.json` inside this tool directory |
+| Carried Mermaid 10.9.6 browser file | `mermaid` | `vendor/mermaid/mermaid.min.js`; SHA-256 and bytes in `vendor/manifest.json` |
 
-Playwright uses the active browser runtime; its Chromium build uses Playwright's cache (`tools/AGENTS.md`). If its own build is absent, the runtime first tries the newest complete build of the same artifact already in that browsers directory. Only if that trial cannot succeed does the authorised download run. Presence is a **trial launch** through the active browser runtime, not a path on disk. A missing OS library is shimmed where a compiler is present, or named with one next step (`tools/AGENTS.md`). The `mermaid` package installs into this tool's directory, and only `mermaid` asks for it. Install steps are never written here. `tools/AGENTS.md` lists every write.
+Playwright uses the active browser runtime; its Chromium build uses Playwright's cache (`tools/AGENTS.md`). If its own build is absent, the runtime first tries the newest complete build of the same artifact already in that browsers directory. Only if that trial cannot succeed does the authorised download run. Presence is a **trial launch** through the active browser runtime, not a path on disk. A missing OS library is shimmed where a compiler is present, or named with one next step (`tools/AGENTS.md`). No command installs tool-local packages. `html`, `svg`, `mermaid`, and `url` still need Playwright and a usable Chromium build; absent, their existing consent and `--install` path prepares the shared browser runtime. `check` without `--install` only surveys it; `check --install` repairs it. Install steps are never written here. `tools/AGENTS.md` lists every write.
+
+Developer refresh: run `npm ci` in this tool, then from the plugin root run `node tools/lib/build/copy-assets.mjs render`; `--check` recreates and compares every carried byte, SHA-256 and file name. Member commands never run this script. The package declares MIT; the npm archive omits its standalone licence, and the pinned upstream MIT text is carried beside the copy, with its source and SHA-256 recorded in the manifest, along with available third-party notices. See `NOTICE.md` before distribution.
 
 ## html
 
@@ -161,7 +163,7 @@ One PNG of the diagram a Mermaid file describes, written where the caller says.
 
 Use it whenever a Mermaid diagram has to become an image. Mermaid inside a fenced block in a markdown file is not an input: extract the diagram to its own file first. An SVG goes to `svg`, HTML to `html`, a live page to `url`.
 
-A diagram is drawn at the size the renderer computes, then capped. Natural width above `--width` scales the whole drawing down; natural width below it, or equal to it, leaves the drawing alone. `--scale` multiplies device pixels last and does not reflow text. The renderer loads from this tool's own `node_modules`, so a render of a diagram fetches nothing; HTML assets must be in its ZIP, and an SVG must embed its assets. The diagram reaches the page as text through the DOM, so a diagram file cannot close an element or open a script of its own.
+A diagram is drawn at the size the renderer computes, then capped. Natural width above `--width` scales the whole drawing down; natural width below it, or equal to it, leaves the drawing alone. `--scale` multiplies device pixels last and does not reflow text. The renderer loads from this tool's carried `vendor/mermaid/mermaid.min.js`, so a render of a diagram fetches nothing; HTML assets must be in its ZIP, and an SVG must embed its assets. The diagram reaches the page as text through the DOM, so a diagram file cannot close an element or open a script of its own.
 
 ### Usage
 
@@ -298,5 +300,5 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 - A required flag omitted, a path that does not exist or is a directory, a bad number, an occupied `--output` without `--overwrite`, a non-http `--url`, or an unknown option exits 1 with the cause on stderr and stdout empty, and triggers no dependency install when the mistake is a usage one.
 - An unknown option is refused by name before any install, read, or write.
 - A `--url` that points at a loopback, private-range, link-local, or cloud-metadata address is refused by name before any install and before a browser is launched.
-- Only `mermaid` checks for and installs `mermaid`. `html`, `svg`, `url`, and `check` never stop for a mermaid install.
+- No command installs `mermaid`; its pinned browser file is carried in this tool. All rendering commands still require the shared browser runtime when absent.
 - No run reads a credential. The writes are what `tools/AGENTS.md` lists an install writing, and the image at the caller-named `--output`.

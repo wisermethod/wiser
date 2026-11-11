@@ -1,3 +1,4 @@
+import { tmpdir } from 'node:os';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -11,7 +12,7 @@ const harness = readFileSync(join(here, '../gates.sh'), 'utf8').replace('MEM="$R
 const claims = '## Claims\n| Row |\n|---|\n| V1 |\n\n## Negative claims\n| Row | Anchor | All containers | Second reader | Outcome |\n|---|---|---|---|---|\n';
 const agents = '---\nroot: Test Root\ntype: org\n---\n\n## Provides\n- design: shelf/design.md\n';
 function gate(id, files = {}, { file, status = 0, setup = () => {} } = {}) {
-  const root = mkdtempSync(join(here, 'r3-fixture-'));
+  const root = mkdtempSync(join(tmpdir(), 'r3-fixture-'));
   try {
     for (const [path, bytes] of Object.entries({
       'AGENTS.md': agents,

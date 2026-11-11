@@ -5,6 +5,7 @@ category: media
 description: Captures and drives a macOS app window, redacts PNG stills and recordings, and checks every written frame for email-shaped text and declared terms
 version: 0.2.1
 runs: local
+local-only: drives the member's macOS app windows and uses macOS Vision to check captures
 gaps:
   - Desktop capture and redaction on Windows and Linux
 ---

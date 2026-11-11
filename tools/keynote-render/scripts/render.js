@@ -25,14 +25,16 @@
 import { execFileSync } from 'node:child_process';
 import { accessSync, constants, existsSync, mkdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { compiledEntry, isMain, packagesAvailable } from '../../lib/one-file.js';
 
 import { INSTALL_HELP, installQuestion, formatInstallSize, INSTALL_BYTES, installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
 
-const HERE = fileURLToPath(import.meta.url);
+const HERE = realpathSync(fileURLToPath(import.meta.url));
 const SCRIPT_DIR = dirname(HERE);
 const TOOL_DIR = resolve(SCRIPT_DIR, '..');
 
+export async function main(argv = process.argv.slice(2)) {
 // One installed package's own manifest. An interrupted install leaves
 // node_modules/ behind with nothing in it, so the directory proves nothing.
 const DEP_MARKER = join(TOOL_DIR, 'node_modules', 'yaml', 'package.json');
@@ -134,12 +136,16 @@ function emit(object) {
 
 // Arguments. Parsed first so help costs nothing: no install, no dependency
 // check, no file read.
-const argv = process.argv.slice(2);
 const command = argv[0] ?? 'help';
 
 if (command === 'help' || argv.includes('--help') || argv.includes('-h')) {
   process.stdout.write(`${USAGE}\n`);
   process.exit(0);
+}
+
+if (['build', 'sync', 'update-slide', 'insert-slide'].includes(command) && argv.includes('--brand')) {
+  const compiled = await compiledEntry(DEP_MARKER, () => import('./lib/brand.js'), import.meta.url, 'render');
+  if (compiled) return (await import(compiled)).main(argv);
 }
 
 if (!COMMANDS.has(command)) {
@@ -419,8 +425,8 @@ if (command === 'check') {
 // Dependencies (npm). Only a brand file needs a package, so only a branded
 // build runs this. The marker is one package's own manifest, never the
 // node_modules directory, which an interrupted install leaves behind empty.
-function requirePackages() {
-  if (existsSync(DEP_MARKER)) return;
+async function requirePackages() {
+  if (await packagesAvailable(DEP_MARKER, () => import('./lib/brand.js'))) return;
   requireInstallConsent('packages');
   process.stderr.write('First run: installing dependencies in this tool directory.\n');
   try {
@@ -437,8 +443,8 @@ function requirePackages() {
     }
     fail(`Error: npm ci failed in ${TOOL_DIR}. Confirm Node 18 or newer, then that package-lock.json is present and matches package.json, which is what npm ci requires and will not resolve around. Delete node_modules there and run "npm ci" by hand to see npm's own message. A lockfile that is missing or out of step with the manifest is a defect in this copy of the plugin, not something a re-run fixes. See SETUP.md.`);
   }
-  if (!existsSync(DEP_MARKER)) {
-    fail(`Error: npm ci finished but ${DEP_MARKER} is still missing. Check that package.json lists every package this script imports.`);
+  if (!await packagesAvailable(DEP_MARKER, () => import('./lib/brand.js'))) {
+    fail('Error: npm ci finished but the required packages do not load. Restore this plugin copy and run again.');
   }
 }
 
@@ -528,7 +534,7 @@ function warningsFromWrite(where, result) {
 async function resolveSlideContent(slide, brandPath, themeOverride, baseDir) {
   let brandEntry = null;
   if (brandPath) {
-    requirePackages();
+    await requirePackages();
     const { loadBrand } = await import('./lib/brand.js');
     brandEntry = loadBrand(brandPath);
   }
@@ -618,7 +624,7 @@ async function build() {
 
   let brandEntry = null;
   if (brandPath) {
-    requirePackages();
+    await requirePackages();
     const { loadBrand } = await import('./lib/brand.js');
     brandEntry = loadBrand(brandPath);
   }
@@ -864,7 +870,7 @@ async function syncCommand() {
 
     let brandEntry = null;
     if (brandPath) {
-      requirePackages();
+      await requirePackages();
       const { loadBrand } = await import('./lib/brand.js');
       brandEntry = loadBrand(brandPath);
     }
@@ -928,7 +934,7 @@ async function syncCommand() {
   // Resolve brand for inserts/updates that carry layout intents or semantic texts.
   let brandEntry = null;
   if (brandPath) {
-    requirePackages();
+    await requirePackages();
     const { loadBrand } = await import('./lib/brand.js');
     brandEntry = loadBrand(brandPath);
   }
@@ -1227,4 +1233,11 @@ function readSpec(file) {
     fail(`Error: ${file} is not a valid deck spec:\n- ${problems.join('\n- ')}`);
   }
   return slides;
+}
+
+}
+
+if (isMain(import.meta.url)) {
+  if (HERE !== fileURLToPath(import.meta.url)) await import(pathToFileURL(HERE).href);
+  else await main();
 }

@@ -1,3 +1,4 @@
+import { tmpdir } from 'node:os';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -10,7 +11,7 @@ const read = path => readFileSync(join(plugin, path), 'utf8');
 const harness = read('skills/Onboard Root/gates.sh').replace('MEM="$ROOT/memory"', 'MEM="$ROOT/shelf"');
 const skill = read('skills/Onboard Root/SKILL.md'), full = read('skills/Onboard Root/full-path.md');
 function gate(id, files, fails = false) {
-  const root = mkdtempSync(join(here, 'm54-fixture-'));
+  const root = mkdtempSync(join(tmpdir(), 'm54-fixture-'));
   try {
     for (const [path, bytes] of Object.entries({
       'AGENTS.md': '---\nroot: Sample Org\ntype: org\n---\n\n## Provides\n- voice: shelf/voice.md\n- design: shelf/design.md\n',

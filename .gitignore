@@ -11,9 +11,8 @@ infrastructure/release/dist/
 # not a file this repository ships.
 .wiser-consent
 
-# Tool install artifacts. A tool installs its dependencies on the user's own
-# machine when that tool is called; this repository ships manifests and never
-# packages, and none of what an install leaves behind is committable.
+# A tool's installed packages are never committed; a compiled file is committed
+# only where tools/AGENTS.md Installing names it.
 .venv/
 __pycache__/
 *.egg-info/

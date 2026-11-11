@@ -3,7 +3,7 @@ name: tag-audit
 type: tool
 category: marketing
 description: One JSON report of which analytics and behavior tags a live page serves, with each tag's id where the served HTML exposes it
-version: 0.1.6
+version: 0.1.7
 runs: both
 hosted:
   - audit 2MiB 15s
@@ -71,7 +71,7 @@ Options:
 
 One page per run: auditing a set means one run each, which keeps every result attributable to the URL that produced it.
 
-No command takes `--env`. It writes no output file: nothing it produces lands anywhere but stdout. **Installing its packages is the exception**, under `tools/RUNNING.md`. This tool declares one package, `undici`, and installs it under the person or matching copy consent described in `tools/RUNNING.md`, which reaches the npm registry once and writes what `tools/AGENTS.md` lists an install writing. Later runs write nothing and the only request is for the page the caller named, plus any redirect that page issues. Redirects are followed up to 20 times, screening every hop before its request, and the landing address is reported as `final_url`, so a run that ended somewhere other than where it started says so. The whole fetch, redirects and body included, waits 20 seconds and then fails rather than hanging; the check of the page's address before a first-run install has 20 seconds of its own.
+No command takes `--env`. It writes no output file: nothing it produces lands anywhere but stdout. **Installing its packages is the exception**, under `tools/RUNNING.md`. Only a run with a non-blank selected `HTTPS_PROXY`, `https_proxy`, `HTTP_PROXY` or `http_proxy` needs `undici` and installs it under the person or matching copy consent described in `tools/RUNNING.md`, which reaches the npm registry once and writes what `tools/AGENTS.md` lists an install writing. Later runs write nothing and the only request is for the page the caller named, plus any redirect that page issues. Redirects are followed up to 20 times, screening every hop before its request, and the landing address is reported as `final_url`, so a run that ended somewhere other than where it started says so. The whole fetch, redirects and body included, waits 20 seconds and then fails rather than hanging; the check of the page's address before a first-run install has 20 seconds of its own.
 
 The address screen is shared with `sitemap`: caller addresses and redirect targets refuse loopback, private-range, link-local, unique-local, cloud-metadata and reserved addresses. It now also refuses the whole local-use NAT64 range `64:ff9b:1::/48`, which this tool previously allowed. A blocked address anywhere in a DNS answer wins; otherwise, a malformed entry makes the answer unresolved. The command line still lets unresolved hosts reach fetch so it can report a connection failure. The same 20-second deadline covers the initial DNS screen and every redirect lookup; earlier versions could wait indefinitely for DNS.
 
@@ -79,7 +79,11 @@ Redirect locations resolve against the URL that answered, with Fetch's binary-he
 
 ## Script Contract
 
-The script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. It reads no configuration file, so that contract's `--env` clause has nothing to bind here. It does import one package, `undici`, so the contract's dependency check applies: if this person has not yet authorized a Wiser install, the run reports what it would install and stops; `--install` on that run is the answer, and later tools in every copy install without asking. What a run writes, and where, is in `tools/AGENTS.md`. The sections above state what the command does; the contract states how the script behaves getting there.
+The script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. It reads no configuration file, so that contract's `--env` clause has nothing to bind here. Without a proxy, `audit` uses Node fetch and never probes packages or consent. Only a proxied run imports `undici`, so the contract's dependency check then applies: if this person has not yet authorized a Wiser install, the run reports what it would install and stops; `--install` on that run is the answer, and later tools in every copy install without asking. What a run writes, and where, is in `tools/AGENTS.md`. The sections above state what the command does; the contract states how the script behaves getting there.
+
+## Dependencies
+
+`help` and `audit` without a proxy need only Node, with no `node_modules` and no install question. A proxied `audit` retains its consent-gated `undici` install. Each proxy name is trimmed in order: `HTTPS_PROXY`, `https_proxy`, `HTTP_PROXY`, `http_proxy`; the first non-blank wins. `NO_PROXY` and `no_proxy` do not bypass the selected proxy. `node_modules/undici/package.json` is checked only when that selected value is non-blank. The package is MIT; `NOTICE.md` records its pinned version. There is no compiled file.
 
 ## Output
 

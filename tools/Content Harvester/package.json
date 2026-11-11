@@ -1,6 +1,6 @@
 {
   "name": "content-harvester",
-  "version": "0.1.0",
+  "version": "0.1.8",
   "description": "Turns one harvest request into a timeboxed, deduplicated, ranked bundle of source candidates",
   "private": true,
   "type": "module",

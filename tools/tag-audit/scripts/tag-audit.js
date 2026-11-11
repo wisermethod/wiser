@@ -6,8 +6,8 @@
  *   node scripts/tag-audit.js help
  *   node scripts/tag-audit.js audit --url <http or https url>
  *
- * No configuration file and no credentials. undici is installed on first
- * network run so Node fetch honors HTTPS_PROXY in proxy-mediated sandboxes.
+ * No configuration file and no credentials. Only a proxied run needs undici,
+ * so ordinary Node fetch runs without packages or an install question.
  * Node built-ins, this tool's own files, and tools/lib/. The rules every
  * shipped script follows are stated once, in system/templates/Script Contract.md.
  */
@@ -247,38 +247,35 @@ const preflightSignal = AbortSignal.timeout(TIMEOUT_MS);
 }
 
 
-if (!existsSync(UNDICI_MARKER)) {
-  requireInstallConsent('packages');
-  process.stderr.write('First run: installing dependencies in this tool directory.\n');
-  try {
-    execFileSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['ci'], {
-      cwd: TOOL_DIR,
-      stdio: ['ignore', 'ignore', 'inherit']
-    });
-  } catch {
-    // Two different failures arrive here and they have different fixes, so the
-    // Script Contract's Output and errors clause requires telling them apart:
-    // an unwritable tool directory is not a broken install, and telling someone
-    // to run "npm ci" by hand where they cannot write cannot succeed.
-    if (!isWritable(TOOL_DIR)) {
-      fail(`Error: cannot install dependencies because ${TOOL_DIR} is not writable. This tool installs its dependencies into its own directory on the run that authorises it with --install, so that directory has to be writable. Install this plugin somewhere you own, or make that directory writable, then run the command again.`);
-    }
-    fail(`Error: npm ci failed in ${TOOL_DIR}. Confirm Node 18 or newer, then that package-lock.json is present and matches package.json, which is what npm ci requires. A lockfile missing or out of step with the manifest is a defect in this copy of the plugin, not something a re-run fixes.`);
-  }
-}
-{
-  const server =
-    process.env.HTTPS_PROXY ||
-    process.env.https_proxy ||
-    process.env.HTTP_PROXY ||
-    process.env.http_proxy ||
-    '';
-  if (typeof server === 'string' && server.trim() !== '') {
-    const undici = await import('undici');
-    if (typeof undici.setGlobalDispatcher === 'function' && undici.ProxyAgent) {
-      undici.setGlobalDispatcher(new undici.ProxyAgent(server.trim()));
+// Trim each name before choosing the first non-blank proxy, as sitemap does.
+// No proxy means no package/consent probe and no package import.
+const server = [process.env.HTTPS_PROXY, process.env.https_proxy, process.env.HTTP_PROXY, process.env.http_proxy]
+  .map(value => (value || '').trim()).find(Boolean) || '';
+if (server) {
+  if (!existsSync(UNDICI_MARKER)) {
+    requireInstallConsent('packages');
+    process.stderr.write('First run: installing dependencies in this tool directory.\n');
+    try {
+      execFileSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['ci'], {
+        cwd: TOOL_DIR,
+        stdio: ['ignore', 'ignore', 'inherit']
+      });
+    } catch {
+      // Two different failures arrive here and they have different fixes, so the
+      // Script Contract's Output and errors clause requires telling them apart:
+      // an unwritable tool directory is not a broken install, and telling someone
+      // to run "npm ci" by hand where they cannot write cannot succeed.
+      if (!isWritable(TOOL_DIR)) {
+        fail(`Error: cannot install dependencies because ${TOOL_DIR} is not writable. This tool installs its dependencies into its own directory on the run that authorises it with --install, so that directory has to be writable. Install this plugin somewhere you own, or make that directory writable, then run the command again.`);
+      }
+      fail(`Error: npm ci failed in ${TOOL_DIR}. Confirm Node 18 or newer, then that package-lock.json is present and matches package.json, which is what npm ci requires. A lockfile missing or out of step with the manifest is a defect in this copy of the plugin, not something a re-run fixes.`);
     }
   }
+  const undici = await import('undici');
+  if (typeof undici.setGlobalDispatcher !== 'function' || typeof undici.ProxyAgent !== 'function') {
+    fail('Error: the installed undici cannot configure the selected proxy. Restore this tool’s dependencies with npm ci.');
+  }
+  undici.setGlobalDispatcher(new undici.ProxyAgent(server));
 }
 const runSignal = AbortSignal.timeout(TIMEOUT_MS);
 

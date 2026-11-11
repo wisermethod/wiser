@@ -1,9 +1,9 @@
 # Third-party notice: deck-export
 
-This tool installs the 1 package below on the machine that calls it, into this tool's own directory on the first run that authorizes it with `--install`. **This repository redistributes none of them.** Playwright comes from the active browser runtime, installed once per person where the copy holds none (`tools/AGENTS.md`); its notice is in `tools/lib/browser-runtime/NOTICE.md`.
+This tool carries selected files from reveal.js 5.2.1, pinned by `package-lock.json`, in `vendor/reveal.js/`. `vendor/manifest.json` records the source package integrity and each carried file's SHA-256 and bytes. The package is MIT; its original `LICENSE` is copied verbatim beside the files and into each starter's assets folder. Themes and their fonts retain the upstream notices. Source Sans Pro carries its original full OFL 1.1 and copyright in `dist/theme/fonts/source-sans-pro/LICENSE`. League Gothic keeps the upstream package’s two-line link stub in `dist/theme/fonts/league-gothic/LICENSE`; its own repository’s full copyright, reserved font name and OFL 1.1 are supplied verbatim in `dist/theme/fonts/league-gothic/OFL.md`, from `build/league-gothic-OFL.md`. The manifest pins that input’s source, byte count and SHA-256. Both full texts are also reproduced in `THIRD-PARTY-NOTICES.txt`. Starter decks receive those texts beside their fonts.
 
-Versions and licenses are read from this tool's `package-lock.json`, on 2026-09-02. An optional package installs only where it applies, so one install takes fewer than the table lists.
+The highlight plugin embeds highlight.js 11.9.0. Its original BSD 3-Clause copyright, conditions and disclaimer are carried verbatim in `vendor/reveal.js/plugin/highlight/LICENSE`, from the upstream 11.9.0 source. The manifest records that source address and full SHA-256; `build/highlightjs-11.9.0-LICENSE.txt` keeps the supplied text as a repository input for offline refresh. Each starter's assets folder includes the same bytes as `highlight-LICENSE`. See `vendor/reveal.js/THIRD-PARTY-NOTICES.txt` and `tools/lib/build/COPIES.md`.
 
-| Package | Version | License | |
-|---------|---------|---------|--|
-| `reveal.js` | 5.2.1 | MIT | required |
+Starters retain reveal.js’s MIT `LICENSE`, highlight.js’s BSD `highlight-LICENSE`, and the font licences beside the fonts. They omit `THIRD-PARTY-NOTICES.txt` because those individual texts already cover everything copied into a starter.
+
+Member commands never install reveal.js. Playwright remains in the active browser runtime; its notice is `tools/lib/browser-runtime/NOTICE.md`.

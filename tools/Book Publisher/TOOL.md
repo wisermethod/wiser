@@ -5,6 +5,7 @@ category: documents
 description: Builds a typeset print interior, a structurally checked PDF/X variant, and an EPUB from ordered Markdown chapters and a YAML config
 version: 0.1.0
 runs: local
+local-only: builds a local book project with pandoc and, for print, LaTeX and Ghostscript
 ---
 
 # Book Publisher

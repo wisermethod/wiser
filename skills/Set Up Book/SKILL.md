@@ -3,7 +3,7 @@ name: Set Up Book
 type: skill
 category: onboarding
 description: Settle a book's production decisions and fill its project instructions and edition configurations before writing or bringing in a manuscript
-version: 0.1.0
+version: 0.1.1
 gaps:
   - producing a print interior with bleed
 ---
@@ -34,37 +34,43 @@ A production planner testing whether an edition can be manufactured and distribu
 
 ## Steps
 
+If a plugin sentence or folder prompt was already said in this chat, stop before Step 1 without repeating it.
+
 ### 1. Settle the place and entry
 
-Is the owning root known? Yes: load its instruction chain before reading the book. No, or several are plausible: resolve it under the constitution's Workspace Model before proceeding. Load `tools/Book Publisher/TOOL.md`; its input contract, Book project instructions, configuration and Usage govern every mechanical part below.
+Skip only when a calling skill took this same check and continued; a folder-only check does not satisfy this provenance check. What establishes how this skill is available? This skill is in this app's own skill list: the plugin is installed, even when the text being followed also came through `load_skill` or `read_skill_file`; with a folder attached, continue; with none, use the folder prompt: "This needs a folder to keep the work in. Attach one to this chat, then ask again." The text came through the Wiser connector's `load_skill` or `read_skill_file` and this app's own skill list holds no copy of this skill: use the sentence: "Producing a book needs the Wiser plugin and a folder on your computer, because the manuscript and its editions are yours to keep, and Wiser doesn't keep your files. Here's how to install it: https://account.wisermemory.com/install" Cannot establish either: ask nothing about installing and use the folder test alone; with a folder attached, continue; with none, use the folder prompt. The served `Plugin:` label and `find_skill`'s description do not establish what this app has installed. Say the sentence or the prompt only if no plugin sentence or folder prompt has already been said in this chat; otherwise stop without saying it. On any missing path, stop: attempt no workaround, offer no cut-down version, and start none of the work in chat.
+
+After the check continues, load `tools/Book Publisher/TOOL.md`; its input contract, Book project instructions, configuration and Usage govern every mechanical part below. Resolve the owning root under the constitution's Workspace Model and load its instruction chain before opening or creating the project. Read any existing book's `AGENTS.md` and configuration now, retaining its settled choices except where the member requested changes.
+
+Which platforms and products do the request and existing project name? Named: read each one's current official documentation, whether IngramSpark, Amazon KDP print or an ebook platform, and cite the source and date read. Missing or unclear: ask only which editions and destinations are intended so their documents can be read, before recommending or settling production choices. Are the applicable requirements available? Yes: use them with TOOL.md's input contract, configuration and Index strategies for the decisions below. No or unclear: ask for current official material or clarification and withhold decisions that depend on it, labeling the missing reading per `standards/conventions.md` Evidence Labels. Never treat a stored platform specification as current authority. A later change of platform or product returns here for its current documents before any affected choice is settled.
 
 Has the member said where the book lives? Yes: use that place and never move it to fit a convention. No: recommend a project at `work/<slug>/`, or inside the program it serves, by `standards/user-root.md` C3 and C4; unsure is a project. The member chooses; an unanswered placement question waits before scaffolding.
 
-What material exists? A plan without chapters: use it to settle production, with manuscript changes recorded as awaiting actual chapters. An incoming manuscript: read it against TOOL.md's input contract and identify concrete changes needed for ingestion. An existing book project: load its `AGENTS.md` and configuration, retain settled choices and address only the requested changes. An unclear entry: ask which applies.
+What material exists? A plan without chapters: use it to settle production, with manuscript changes recorded as awaiting actual chapters. An incoming manuscript: review it against the tool contract and note proposed ingestion changes. An existing book project: use its project instructions and configuration. Retain settled choices and address only the requested changes. An unclear entry: ask which applies.
 
 ### 2. Decide the editions
 
 Which editions and destinations are settled? All named: retain them. Missing or uncertain: recommend choices from the audience, use and distribution intent and ask the member to decide. Conflicting choices: name the conflict and settle it before configuration.
 
-Are the book details needed by TOOL.md's input contract supplied? Yes: retain them for configuration. Missing: ask before completing it.
+Are the book details supplied? Yes: check them against the tool's required fields. Missing: ask for the required details before configuring.
 
-Read each named platform's current official documentation for the selected product, whether IngramSpark, Amazon KDP print or an ebook platform, and cite the source and date read. Are its applicable requirements available? Yes: use them to judge the production choices. No or unclear: ask for current official material or clarification and withhold decisions that depend on it, labeling the missing reading per `standards/conventions.md` Evidence Labels. Never treat a stored platform specification as current authority.
-
-Is each edition's trim and margin specification settled and compatible with the tool contract and platform? Yes: retain it for Step 4. Unsettled: propose trim and margins together, allowing for binding, page geometry and expected extent, and take the member's decision. Incompatible or not representable by the tool: name the conflict and offer a supported specification for the member to choose; unresolved, stop that edition rather than inventing a setting. Bleed is not a setting TOOL.md documents, so a platform that requires bleed for an edition takes that branch unless the member accepts the edition without it, a waiver Step 5 records. Identify the front and back matter the chosen platform requires as this book's production obligations; their prose is written later.
+Are each edition's trim, margins, binding, expected extent and front and back matter settled against the tool contract and the current platform documents read in Step 1? Yes: retain them. Unsettled: propose supported choices together with their production reason and take the member's decision. Conflicting or unsupported requirements: name the conflict and a supported option and ask; unresolved, stop that edition rather than inventing a setting. Producing a print interior with bleed is this skill's declared gap: an edition requiring it stops unless the member accepts it without bleed, a waiver Step 5 records.
 
 ### 3. Decide structure and retrieval
 
-Take each choice below against the plan or manuscript and the intended reader. A choice already made stands. For an unanswered choice, recommend an outcome with its reader or production reason and take the member's decision; no answer leaves that choice open and setup incomplete.
+Take each choice below against the supplied plan or manuscript, the intended reader, the tool contract and the current platform documents read in Step 1. A choice already made stands. For an unanswered choice, recommend an outcome with its reader or production reason and take the member's decision; no answer leaves that choice open and setup incomplete.
 
-- Does print carry a contents page? Yes: settle its coverage. No: record that choice in configuration. Undecided: put the recommendation to the member.
+- Does print carry a contents page? Yes: settle its coverage. No: retain that choice for configuration. Undecided: put the recommendation to the member.
 - Does the book use Parts? Yes: settle their organization and the heading-numbering treatment. No: settle the heading treatment without Parts. Undecided: ask with the outline in view.
 - Which recurring elements need boxes? Named in the plan or manuscript: settle the classes and production treatment they need. The member says none: use no boxed elements. No material names any yet: recommend none, or the classes the plan implies, and take the member's decision.
-- Which of TOOL.md's Index strategies serves this book? A named compatible strategy: record it. None yet: recommend one from how readers will retrieve material and how the manuscript will change, then take the member's decision. Incompatible with the intended manuscript: explain the changes it would require and ask whether to keep it or choose another.
-- Does that strategy use a separate terms list? Yes: settle that choice and where the list will live, and record its path in Production requirements, not in configuration: the tool refuses `index.terms_file` naming a missing or empty list, and Publish Book sets the key once it writes the list from real chapters. No: retain the strategy's manuscript preparation path. The member has not decided: explain list maintenance versus chapter-level placement where the contract admits both and ask. A list is incompatible with the strategy: resolve the conflict with the member before recording it.
+- Which index strategy serves this book? A named strategy: check its support against TOOL.md's Index strategies before retaining it. None yet: recommend one from how readers will retrieve material and how the manuscript will change, then take the member's decision. Incompatible with the supplied manuscript: explain the changes it would require and ask whether to keep it or choose another.
+- Does that strategy use a separate terms list? Yes: settle that choice and its proposed path for Production requirements. No: retain the strategy's manuscript preparation path. The member has not decided: explain list maintenance versus chapter-level placement and ask. Use only choices TOOL.md admits.
 
-Carry the resulting choices to Step 4 using TOOL.md's configuration surface. Do not place index markers or curate terms against unwritten chapters; Publish Book applies these decisions to real content.
+Carry these decisions to Step 4 to map to the documented configuration. Do not place index markers or curate terms against unwritten chapters; Publish Book applies the decisions to real content.
 
 ### 4. Obtain the scaffold
+
+Do the choices and supplied book details meet both contracts? Yes: map them to configuration, confirming proposed ingestion changes against the real manuscript where present. Missing details: ask before configuring. Incompatible or unsupported: return the affected decision to the member with the conflict and a supported option; unresolved, stop that edition rather than inventing a setting. For a chosen separate terms list, keep its path in Production requirements until Publish Book writes a nonempty list from real chapters and sets `index.terms_file`; never configure a missing or empty list. No list: retain the chosen strategy's documented manuscript preparation path.
 
 Does the chosen place already have a book project? Yes: retain its scaffold and edit only the book's instructions and configuration for the settled decisions. No: run Book Publisher `init` as TOOL.md's Usage specifies; the tool writes the scaffold from its templates. A scaffold refusal or collision: report the named paths and ask how the member wants to proceed, without moving their book or recreating the scaffold by hand.
 

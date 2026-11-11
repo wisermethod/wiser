@@ -5,6 +5,7 @@ category: media
 description: Prepare marked speech text, original-spelling character timings, a verified signed 16-bit PCM sample clock and byte-bounded upload derivatives
 version: 0.2.0
 runs: local
+local-only: pcm and upload run local FFmpeg and ffprobe; text and timing work is not yet split into a core
 ---
 
 # Speech Preparation

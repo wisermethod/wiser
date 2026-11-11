@@ -15,6 +15,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { accessSync, constants, existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -63,8 +64,7 @@ const HERE = fileURLToPath(import.meta.url);
 const SCRIPT_DIR = dirname(HERE);
 const TOOL_DIR = resolve(SCRIPT_DIR, '..');
 
-const MERMAID_MARKER = join(TOOL_DIR, 'node_modules', 'mermaid', 'package.json');
-const MERMAID_SCRIPT = join(TOOL_DIR, 'node_modules', 'mermaid', 'dist', 'mermaid.min.js');
+const MERMAID_SCRIPT = join(TOOL_DIR, 'vendor', 'mermaid', 'mermaid.min.js');
 const BROWSER_CHECK = 'npm run check:chromium';
 const LAUNCH_OPTIONS = { headless: true };
 
@@ -344,20 +344,18 @@ function flagFrom(argv, name, usageCmd) {
 
 const BROWSER_SIZE = ' This run then fetches the Chromium build if it is missing, several hundred megabytes, from cdn.playwright.dev, or from playwright.download.prss.microsoft.com when Playwright falls back. That build does NOT land here: it goes wherever Playwright keeps browser builds on this machine, which tools/AGENTS.md names for each platform.';
 
-function installPlan({ missingMermaid, missingRuntime, missingBrowser }) {
+function installPlan({ missingRuntime, missingBrowser }) {
   const fetches = [];
-  if (missingMermaid) fetches.push(`mermaid and its dependencies from registry.npmjs.org into ${TOOL_DIR}`);
   if (missingRuntime) fetches.push(`playwright from registry.npmjs.org into ${personRuntimeDir()}`);
   return (fetches.length ? `Installing fetches ${fetches.join(' and ')}, and npm writes its own cache outside this plugin.` : '')
     + (missingRuntime || missingBrowser ? BROWSER_SIZE : '');
 }
 
-async function requireInstallConsent(what, { needsMermaid = false } = {}) {
+async function requireInstallConsent(what) {
   if (installAuthorised(HERE, install)) {
     writeConsent(HERE, 'render', install);
     return;
   }
-  const missingMermaid = needsMermaid && !existsSync(MERMAID_MARKER);
   const missingRuntime = !activeRuntimeDir();
   // The same probe ensureChromium uses distinguishes absent artifacts from host
   // failures. With Playwright present, an absent build is a known part; a failure
@@ -368,7 +366,6 @@ async function requireInstallConsent(what, { needsMermaid = false } = {}) {
   const maybeBrowser = missingRuntime || (failure !== null && !['artifact', 'host', 'permission', 'crashed'].includes(failure));
   const parts = [];
   let bytes = 0;
-  if (missingMermaid) { parts.push('the Mermaid diagram library'); bytes += INSTALL_BYTES.mermaid; }
   if (missingRuntime) { parts.push('the code that drives a browser'); bytes += INSTALL_BYTES.playwright; }
   if (missingBrowser) { parts.push('a private copy of the Chromium browser'); bytes += INSTALL_BYTES.chromium; }
   const named = parts.length < 3 ? parts.join(' and ') : `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`;
@@ -376,20 +373,8 @@ async function requireInstallConsent(what, { needsMermaid = false } = {}) {
     'turn web pages, drawings and diagrams into image files', maybeBrowser
       ? `${formatInstallSize(bytes)}, or about ${formatInstallSize(bytes + INSTALL_BYTES.chromium)} with the browser`
       : formatInstallSize(bytes));
-  const details = installPlan({ missingMermaid, missingRuntime, missingBrowser: missingBrowser || maybeBrowser });
+  const details = installPlan({ missingRuntime, missingBrowser: missingBrowser || maybeBrowser });
   fail(`${question}\n\nDetails for the assistant: ${details} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`);
-}
-
-function npmCi(dir, marker, { unwritable, missing }) {
-  process.stderr.write(`First run: installing dependencies in ${dir}.\n`);
-  try {
-    const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-    execFileSync(npm, ['ci'], { cwd: dir, stdio: ['ignore', 'ignore', 'inherit'] });
-  } catch {
-    if (!isWritable(dir)) fail(unwritable);
-    fail(`Error: npm ci failed in ${dir}. Confirm Node 18 or newer, then that package-lock.json is present and matches package.json, which is what npm ci requires and will not resolve around. Delete node_modules there and run "npm ci" by hand to see npm's own message. A lockfile that is missing or out of step with the manifest is a defect in this copy of the plugin, not something a re-run fixes.`);
-  }
-  if (!existsSync(marker)) fail(missing);
 }
 
 async function installRuntime() {
@@ -400,24 +385,8 @@ async function installRuntime() {
 
 async function ensurePlaywright() {
   if (Boolean(activeRuntimeDir())) return;
-  await requireInstallConsent('packages', { needsMermaid: false });
+  await requireInstallConsent('packages');
   await installRuntime();
-}
-
-async function ensureMermaidPackages() {
-  const needPlaywright = !Boolean(activeRuntimeDir());
-  const needMermaid = !existsSync(MERMAID_MARKER);
-  if (!(needPlaywright || needMermaid)) return;
-  await requireInstallConsent('packages', { needsMermaid: true });
-  if (needPlaywright) {
-    await installRuntime();
-  }
-  if (needMermaid) {
-    npmCi(TOOL_DIR, MERMAID_MARKER, {
-      unwritable: `Error: cannot install dependencies because ${TOOL_DIR} is not writable. This tool installs its dependencies into ${TOOL_DIR} on the run that authorises it with --install, so that directory has to be writable. Install this plugin somewhere you own, or make that directory writable, then run the command again.`,
-      missing: `Error: npm ci finished but ${MERMAID_MARKER} is still missing. Check that package.json lists every package this script imports.`
-    });
-  }
 }
 
 let runtime = null;
@@ -729,7 +698,16 @@ async function runMermaid(argv) {
     fail(`Error: ${options.outputPath} already exists. Pass --overwrite to replace it, or name a path nothing holds yet.`);
   }
 
-  await ensureMermaidPackages();
+  let mermaidScript;
+  try {
+    const manifest = JSON.parse(readFileSync(join(TOOL_DIR, 'vendor', 'manifest.json')));
+    const row = manifest.files.find(file => file.path === 'mermaid/mermaid.min.js');
+    mermaidScript = readFileSync(MERMAID_SCRIPT);
+    if (!row || mermaidScript.length !== row.bytes || createHash('sha256').update(mermaidScript).digest('hex') !== row.sha256) throw new Error('altered carried file');
+  } catch {
+    fail('Error: the carried Mermaid browser file is missing or altered. Restore this plugin copy; see TOOL.md Dependencies.');
+  }
+  await ensurePlaywright();
   await ensureChromium();
 
   if (browserSurvey === null) await chromiumLaunches();
@@ -745,7 +723,7 @@ async function runMermaid(argv) {
     fail(`Error: could not create the directory for ${options.outputPath}. Pass a work directory in the owning root that this process may write to.`);
   }
 
-  await coreRun('renderMermaid', { width: options.width, scale: options.scale, theme: options.theme, background: options.background, timeout: options.timeout }, options.inputPath, options.outputPath, { mermaidScript: new Uint8Array(readFileSync(MERMAID_SCRIPT)) });
+  await coreRun('renderMermaid', { width: options.width, scale: options.scale, theme: options.theme, background: options.background, timeout: options.timeout }, options.inputPath, options.outputPath, { mermaidScript: new Uint8Array(mermaidScript) });
 }
 
 async function runUrl(argv) {

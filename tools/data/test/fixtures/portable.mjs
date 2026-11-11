@@ -1,11 +1,13 @@
-// Resolve only this installed browser bundle, never a Node fallback.
+// Resolve only the browser parser, installed or compiled by the isolated test harness; never a Node fallback.
 import { readFileSync } from 'node:fs';
 import { createContext, SourceTextModule } from 'node:vm';
 export async function loadPortable(entry) {
   const context = createContext({ TextEncoder, TextDecoder, Uint8Array, ArrayBuffer });
   const cache = new Map();
   const resolve = (specifier, parent) => {
-    if (specifier === 'csv-parse/browser/esm/sync') return new URL('../../node_modules/csv-parse/dist/esm/sync.js', import.meta.url);
+    if (specifier === 'csv-parse/browser/esm/sync') return process.env.WISER_TEST_PORTABLE_CSV
+      ? new URL(process.env.WISER_TEST_PORTABLE_CSV)
+      : new URL('../../node_modules/csv-parse/dist/esm/sync.js', import.meta.url);
     if (!/^\.\.?\//.test(specifier)) throw new Error(`Non-portable import: ${specifier}`);
     return new URL(specifier, parent);
   };

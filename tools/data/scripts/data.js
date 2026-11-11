@@ -27,17 +27,31 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { INSTALL_HELP, installQuestion, formatInstallSize, INSTALL_BYTES, installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
-
-const HERE = fileURLToPath(import.meta.url);
+const HERE = realpathSync(fileURLToPath(import.meta.url));
+// Node can preserve an external main-script symlink. Load shared files from the
+// real entry in source; the build folds the literal imports into the one file.
+const { compiledEntry, isMain, packagesAvailable } = await (
+  typeof WISER_PACKAGES_BUNDLED !== 'undefined' && WISER_PACKAGES_BUNDLED === true
+    ? import('../../lib/one-file.js')
+    : import(new URL('../../lib/one-file.js', pathToFileURL(HERE)).href));
+const { INSTALL_HELP, installQuestion, formatInstallSize, INSTALL_BYTES, installAuthorised, parsedInstallFlag, writeConsent } = await (
+  typeof WISER_PACKAGES_BUNDLED !== 'undefined' && WISER_PACKAGES_BUNDLED === true
+    ? import('../../lib/consent.js')
+    : import(new URL('../../lib/consent.js', pathToFileURL(HERE)).href));
 const SCRIPT_DIR = dirname(HERE);
 const TOOL_DIR = resolve(SCRIPT_DIR, '..');
 
 // One installed package's own manifest. An interrupted install leaves
 // node_modules/ behind with nothing in it, so the directory proves nothing.
 const DEP_MARKER = join(TOOL_DIR, 'node_modules', 'csv-parse', 'package.json');
+
+async function loadPackages(command) {
+  if (command === 'compute') return;
+  if (command === 'join') await import('csv-parse/sync');
+  else await import('csv-parse/browser/esm/sync');
+}
 
 const FORMATS = new Set(['csv', 'json', 'tsv']);
 const SUBCOMMANDS = new Set(['parse', 'describe', 'aggregate', 'join', 'chart', 'compute']);
@@ -452,8 +466,8 @@ function requireInstallConsent(what, install) {
   );
 }
 
-function ensureDependencies(install) {
-  if (existsSync(DEP_MARKER)) return;
+async function ensureDependencies(install, command = 'parse') {
+  if (await packagesAvailable(DEP_MARKER, () => loadPackages(command))) return;
   requireInstallConsent('packages', install);
   process.stderr.write('First run: installing dependencies in this tool directory.\n');
   try {
@@ -465,8 +479,8 @@ function ensureDependencies(install) {
     }
     fail(`Error: npm ci failed in ${TOOL_DIR}. Confirm Node 18 or newer, then that package-lock.json is present and matches package.json, which is what npm ci requires and will not resolve around. Delete node_modules there and run "npm ci" by hand to see npm's own message. A lockfile that is missing or out of step with the manifest is a defect in this copy of the plugin, not something a re-run fixes.`);
   }
-  if (!existsSync(DEP_MARKER)) {
-    fail(`Error: npm ci finished but ${DEP_MARKER} is still missing. Check that package.json lists every package this script imports.`);
+  if (!await packagesAvailable(DEP_MARKER, () => loadPackages(command))) {
+    fail(`Error: npm ci finished but the csv-parse files are still unavailable. Check that package.json lists every package this script imports and that npm ci completed in ${TOOL_DIR}.`);
   }
 }
 
@@ -519,7 +533,7 @@ async function runParse(argv) {
   const delimiter = flag('--delimiter');
   const hasHeader = !argv.includes('--no-header');
 
-  ensureDependencies(parsedInstallFlag(argv, VALUE_FLAGS));
+  await ensureDependencies(parsedInstallFlag(argv, VALUE_FLAGS));
 
   let content;
   try {
@@ -606,7 +620,7 @@ async function runDescribe(argv) {
     fail('Error: --column and --columns were both given. Use --column for one header, including a header that contains a comma; --columns cannot name such a header.');
   }
 
-  ensureDependencies(parsedInstallFlag(argv, VALUE_FLAGS));
+  await ensureDependencies(parsedInstallFlag(argv, VALUE_FLAGS));
 
   let content;
   try {
@@ -692,7 +706,7 @@ async function runAggregate(argv) {
 
   const delimiter = flag('--delimiter');
 
-  ensureDependencies(parsedInstallFlag(argv, VALUE_FLAGS));
+  await ensureDependencies(parsedInstallFlag(argv, VALUE_FLAGS));
 
   let content;
   try {
@@ -761,7 +775,7 @@ async function runJoin(argv) {
 
   const delimiter = flag('--delimiter');
 
-  ensureDependencies(parsedInstallFlag(argv, VALUE_FLAGS));
+  await ensureDependencies(parsedInstallFlag(argv, VALUE_FLAGS), 'join');
   const { executeJoin } = await import('./join-core.js');
 
   function readContent(path) {
@@ -872,7 +886,7 @@ async function runChart(argv) {
 
   const delimiter = flag('--delimiter');
 
-  ensureDependencies(parsedInstallFlag(argv, VALUE_FLAGS));
+  await ensureDependencies(parsedInstallFlag(argv, VALUE_FLAGS));
 
   let content;
   try {
@@ -980,36 +994,45 @@ async function runCompute(argv) {
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }
 
-const argv = process.argv.slice(2);
-const command = argv[0] ?? 'help';
+export async function main(argv = process.argv.slice(2)) {
+  const command = argv[0] ?? 'help';
 
-if (command === 'help' || command === '--help' || command === '-h') {
-  process.stdout.write(`${USAGE}\n`);
-  process.exit(0);
+  if (command === 'help' || command === '--help' || command === '-h') {
+    process.stdout.write(`${USAGE}\n`);
+    return;
+  }
+
+  if (!SUBCOMMANDS.has(command)) {
+    fail(`Error: unknown command "${command}". Run "node scripts/data.js help" for usage.`);
+  }
+
+  const COMMAND_VALUE_FLAGS = {
+    parse: new Set(['--file', '--format', '--delimiter']),
+    describe: new Set(['--file', '--format', '--delimiter', '--columns', '--column']),
+    aggregate: new Set(['--file', '--group-by', '--metric', '--format', '--delimiter']),
+    join: new Set(['--left', '--right', '--on', '--how', '--format', '--delimiter']),
+    chart: new Set(['--file', '--x', '--y', '--output', '--type', '--title', '--format', '--delimiter']),
+    compute: new Set(['--file', '--op', '--a', '--b', '--digits', '--format', '--delimiter']),
+  };
+
+  if (argv[1] === 'help' || hasBare(argv, '--help', COMMAND_VALUE_FLAGS[command]) || hasBare(argv, '-h', COMMAND_VALUE_FLAGS[command])) {
+    process.stdout.write(`${SUB_USAGE[command]}\n`);
+    return;
+  }
+
+
+  const compiled = await compiledEntry(DEP_MARKER, () => loadPackages(command), import.meta.url, 'data');
+  if (compiled) return (await import(compiled)).main(argv);
+
+  if (command === 'parse') await runParse(argv);
+  else if (command === 'describe') await runDescribe(argv);
+  else if (command === 'aggregate') await runAggregate(argv);
+  else if (command === 'join') await runJoin(argv);
+  else if (command === 'chart') await runChart(argv);
+  else if (command === 'compute') await runCompute(argv);
 }
 
-if (!SUBCOMMANDS.has(command)) {
-  fail(`Error: unknown command "${command}". Run "node scripts/data.js help" for usage.`);
+if (isMain(import.meta.url)) {
+  if (HERE !== fileURLToPath(import.meta.url)) await import(pathToFileURL(HERE).href);
+  else await main();
 }
-
-const COMMAND_VALUE_FLAGS = {
-  parse: new Set(['--file', '--format', '--delimiter']),
-  describe: new Set(['--file', '--format', '--delimiter', '--columns', '--column']),
-  aggregate: new Set(['--file', '--group-by', '--metric', '--format', '--delimiter']),
-  join: new Set(['--left', '--right', '--on', '--how', '--format', '--delimiter']),
-  chart: new Set(['--file', '--x', '--y', '--output', '--type', '--title', '--format', '--delimiter']),
-  compute: new Set(['--file', '--op', '--a', '--b', '--digits', '--format', '--delimiter']),
-};
-
-if (argv[1] === 'help' || hasBare(argv, '--help', COMMAND_VALUE_FLAGS[command]) || hasBare(argv, '-h', COMMAND_VALUE_FLAGS[command])) {
-  process.stdout.write(`${SUB_USAGE[command]}\n`);
-  process.exit(0);
-}
-
-
-if (command === 'parse') await runParse(argv);
-else if (command === 'describe') await runDescribe(argv);
-else if (command === 'aggregate') await runAggregate(argv);
-else if (command === 'join') await runJoin(argv);
-else if (command === 'chart') await runChart(argv);
-else if (command === 'compute') await runCompute(argv);

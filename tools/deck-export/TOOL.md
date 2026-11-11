@@ -3,7 +3,7 @@ name: deck-export
 type: tool
 category: documents
 description: Writes a new reveal.js deck project on disk, from a brand template or as a self-contained starter, and renders a finished deck to a PDF or to one PNG per slide
-version: 0.2.9
+version: 0.2.10
 runs: both
 hosted:
   - pdf 8MiB 60s
@@ -20,7 +20,7 @@ Use it at the two mechanical ends of deck work. At the start, when a deck projec
 
 Do not use it to write the deck. Choosing the arc, the slides, and the words is `skills/Create Presentation/`; this tool lays the project down and renders the finished file, and a caller composes the two. Do not use it for a single HTML page rendered to one image, which is `render` `html`, nor for a long-form document such as a book, headed to print or to an EPUB, which is `tools/Book Publisher/`. It holds no opinion about a deck's content: it copies, writes, and renders exactly what it is pointed at.
 
-It authenticates to nothing, holds no credential, and reaches no other primitive. After packages are installed, deck HTML and assets are served from upload bytes in an offline browser context. A CDN reference whose basename is a pinned reveal.js asset is fulfilled with the host's package bytes; every other external reference is refused. Rendering fetches no CDN. The install itself reaches `registry.npmjs.org` and `cdn.playwright.dev`, per `tools/AGENTS.md`.
+It authenticates to nothing, holds no credential, and reaches no other primitive. After packages are installed, deck HTML and assets are served from upload bytes in an offline browser context. A CDN reference whose basename is a pinned reveal.js asset is fulfilled with the host's carried reveal.js bytes; every other external reference is refused. Rendering fetches no CDN. The install itself reaches `registry.npmjs.org` and `cdn.playwright.dev`, per `tools/AGENTS.md`.
 
 ## Hosted mode
 
@@ -56,7 +56,7 @@ Reports what is present, installing nothing (with `--install` it installs first 
 {"reveal.js":true,"playwright":true,"chromium":true}
 ```
 
-Then scaffold, and later render. Scaffolding from a template installs nothing; a starter scaffold needs the reveal.js package and a render needs the browser driver, so for a person who has not yet authorized a Wiser install the first such command reports what it would install and stops, and `--install` on that run is the answer. Later tools in every copy install without asking.
+Then scaffold, and later render. Both template and starter scaffolding install nothing. The tool carries reveal.js; only a render needs the browser driver, so for a person who has not yet authorized a Wiser install the first such command reports what it would install and stops, and `--install` on that run is the answer. Later tools in every copy install without asking.
 
 ```bash
 node scripts/deck.js scaffold --output "/path/to/a/work/directory/Board Review" --title "Board Review"
@@ -76,7 +76,9 @@ Anything else, see Troubleshooting.
 |------------|------------|--------------|
 | The Chromium build Playwright drives | `pdf` and `png` | `node scripts/deck.js check` reports `"chromium":true` (trial launch), or `npm run check:chromium` exits 0 |
 
-The packages install on the run that authorizes them with `--install`, `reveal.js` into this tool's directory and Playwright into the active browser runtime (`tools/AGENTS.md`), and that same run fetches the version-matched browser as a separate download if needed. If its own build is absent, the runtime first tries the newest complete build of the same artifact already in that browsers directory. Only if that trial cannot succeed does the authorised download run. Presence is a **trial launch**, not a path on disk: a binary that cannot start reports false. Missing OS libraries are self-healed in userspace where a C compiler is present (shims in `node_modules/.wiser-lib` inside the active browser runtime, per `tools/AGENTS.md`); otherwise `check` names the library and the one next step. Install steps are never written here. The shared runtime forwards `HTTPS_PROXY` / `HTTP_PROXY` at browser launch; exports keep that context offline and fulfill pinned CDN references from package bytes. `scaffold` and `check` never need a successful launch for non-browser work; `check` surveys Chromium without installing packages unless the run authorizes an install with `--install`, in which case it installs the packages and the browser and then reports on them. `tools/AGENTS.md` lists every write.
+The tool carries the reveal.js 5.2.1 runtime, plugins, all themes and their font tree in `vendor/reveal.js/`; per-file SHA-256 hashes and bytes are recorded in `vendor/manifest.json`. Neither `scaffold` mode installs packages, and `check` surveys this carried runtime. Only `pdf`, `png`, and `check --install` can prepare Playwright in the active browser runtime (`tools/AGENTS.md`) on the run that authorizes it with `--install`, and that same run fetches the version-matched browser as a separate download if needed. If its own build is absent, the runtime first tries the newest complete build of the same artifact already in that browsers directory. Only if that trial cannot succeed does the authorised download run. Presence is a **trial launch**, not a path on disk: a binary that cannot start reports false. Missing OS libraries are self-healed in userspace where a C compiler is present (shims in `node_modules/.wiser-lib` inside the active browser runtime, per `tools/AGENTS.md`); otherwise `check` names the library and the one next step. Install steps are never written here. The shared runtime forwards `HTTPS_PROXY` / `HTTP_PROXY` at browser launch; exports keep that context offline and fulfill pinned CDN references from package bytes. `scaffold` and `check` never need a successful launch for non-browser work; `check` surveys Chromium without installing packages unless the run authorizes an install with `--install`, in which case it installs the packages and the browser and then reports on them. `tools/AGENTS.md` lists every write.
+
+Developer refresh: run `npm ci` in this tool, then from the plugin root run `node tools/lib/build/copy-assets.mjs deck-export`; `--check` recreates and compares every carried byte, hash and file name. Member commands never run the builder. reveal.js is MIT; its `LICENSE` travels with starter runtime files. Each font’s full OFL and copyright travel with the font tree; League Gothic also keeps the package’s original link stub. The highlight plugin’s BSD 3-Clause text travels as `highlight-LICENSE`. See `NOTICE.md`.
 
 ## Scaffolding
 
@@ -91,7 +93,7 @@ Pass `--template` when the caller named a template path and that path is a file.
 
 A brand template is a complete working deck: an HTML file, and beside it a folder named for that file plus ` Assets` holding everything the file references. Copying it whole is what makes a template verifiable: what it shows when opened is what a deck made from it looks like. Two substitutions happen and no others: `{{TITLE}}` and the `<title>` tag take the new title, and references to the template's assets folder become references to the new one. Whatever else the template carries, layout classes, fonts, logos, slide markers, arrives untouched.
 
-Without a template, the starter in this tool's `templates/` is written instead, carrying layout utilities, the slide markers `<!-- SLIDES START -->` and `<!-- SLIDES END -->`, and a reveal.js configuration at the chosen size and transition. Its slides are three placeholders to be replaced. The runtime is copied from this tool's own installed copy of reveal.js, so the deck has no CDN to reach and no build step, which is why a deck that must present with no network, and that named no template, takes the starter. **The theme is copied with its remote `@import` rules removed**, because eight of the fifteen themes reveal.js ships open by importing a Google Fonts stylesheet, and a theme copied whole would fetch it on every load and hang behind a captive portal. `fontsStripped` in the result says whether that happened; when it did, the theme's own `font-family` declarations stay and the faces fall back to the host's.
+Without a template, the starter in this tool's `templates/` is written instead, carrying layout utilities, the slide markers `<!-- SLIDES START -->` and `<!-- SLIDES END -->`, and a reveal.js configuration at the chosen size and transition. Its slides are three placeholders to be replaced. The runtime and notices are copied from this tool's carried reveal.js files, so the deck has no CDN to reach and no build step, which is why a deck that must present with no network, and that named no template, takes the starter. **The theme is copied with its remote `@import` rules removed**, because eight of the fifteen themes reveal.js ships open by importing a Google Fonts stylesheet, and a theme copied whole would fetch it on every load and hang behind a captive portal. `fontsStripped` in the result says whether that happened; when it did, the theme's own `font-family` declarations stay and the faces fall back to the host's.
 
 Scaffolding refuses rather than overwrites. A deck or an assets folder already at the target path stops the run, so a deck someone has worked on cannot be replaced by a fresh starter.
 
@@ -120,7 +122,7 @@ Options:
 | `--output <path>` | Where to write, absolute: a project directory for `scaffold`, a `.pdf` file for `pdf`, a directory or `.zip` file for `png`. It may not sit inside this tool directory | None; required |
 | `--title <text>` | The deck's title, and the base of both project names | The `--output` directory's name |
 | `--template <path>` | A brand template deck to copy, absolute | None; a starter is written |
-| `--theme <name>` | reveal.js theme for a starter deck; the run lists what the installed version ships | `white` |
+| `--theme <name>` | reveal.js theme for a starter deck; the run lists what the carried version ships | `white` |
 | `--ratio <ratio>` | `16/9`, `4/3`, or `1/1` for a starter deck | `16/9` |
 | `--transition <name>` | `slide`, `fade`, `convex`, `concave`, `zoom`, or `none` for a starter deck | `slide` |
 | `--input <path>` | Deck HTML file or ZIP to render, absolute | None; required by `pdf` and `png` |
@@ -136,7 +138,7 @@ Every path is absolute, because a relative one resolves against whichever direct
 
 The one script this tool ships follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. The sections above state what each command does; the contract states how the script behaves getting there.
 
-Two behaviors are worth knowing beyond it. Every usage mistake the script can judge on its own is caught before the dependency check, so a bad path, a bad size, a bad ratio, or a bad transition never triggers an install and never opens a browser; `--theme` is the one exception, since only the installed package knows which themes it ships, so an unknown theme refuses after that install and still before any browser. And `check` installs nothing at all unless the run authorizes an install with `--install`, so a machine can be surveyed before anything is committed to it and repaired by the same command once someone has answered for the download: for Chromium it runs a trial launch through the shared browser-runtime, not only a path check. Content and render failures still withhold the engine's own text, which quotes the deck; launch failures name the runtime's remediation (never a root-only install-deps wall); initialization timeouts name the requested budget without quoting the deck. Per-slide progress goes to stderr, so stdout carries only the final JSON object. Nothing is read from stdin, so a run with nobody watching fails loudly rather than waiting.
+Two behaviors are worth knowing beyond it. Every usage mistake the script can judge on its own is caught before the dependency check, so a bad path, a bad size, a bad ratio, or a bad transition never triggers an install and never opens a browser; the carried theme list lets an unknown theme refuse on a fresh copy, before any install or browser. And `check` installs nothing at all unless the run authorizes an install with `--install`, so a machine can be surveyed before anything is committed to it and repaired by the same command once someone has answered for the download: for Chromium it runs a trial launch through the shared browser-runtime, not only a path check. Content and render failures still withhold the engine's own text, which quotes the deck; launch failures name the runtime's remediation (never a root-only install-deps wall); initialization timeouts name the requested budget without quoting the deck. Per-slide progress goes to stderr, so stdout carries only the final JSON object. Nothing is read from stdin, so a run with nobody watching fails loudly rather than waiting.
 
 ## Output
 
@@ -177,7 +179,7 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 ## Success
 
 - `help` prints usage to stdout and exits 0 on a copy with no `node_modules/`, and `check` prints one JSON object of booleans on the same copy, installing nothing and opening no connection; `chromium` is true only after a trial launch succeeds, not merely because the binary path exists. `check --install` on that same copy installs the packages and the browser first and then reports on them.
-- Every usage mistake exits 1 with the cause on stderr and stdout empty, and none of them opens a browser: a missing, relative, non-existent, or wrong-shaped path, an unknown ratio, or an unknown transition refuses before any install; an unknown theme refuses against the list the installed package really ships, which on a fresh copy is after that install.
+- Every usage mistake exits 1 with the cause on stderr and stdout empty, and none of them opens a browser: a missing, relative, non-existent, or wrong-shaped path, an unknown ratio, or an unknown transition refuses before any install; an unknown theme refuses against the carried theme list before any install on a fresh copy.
 - An `--output` resolving inside this tool directory is refused rather than written.
 - `scaffold` writes exactly one HTML file and one assets folder under `--output`, and a second run at the same path refuses instead of overwriting.
 - A starter deck opens and presents with no network connection available; a deck scaffolded from a template carries that template's own structure with only the title and the assets-folder references changed.

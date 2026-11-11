@@ -35,6 +35,7 @@ for (const [tool,script,purpose] of rows) test(`${tool} refusal opens with the e
   const dest=join(f.copy,relative);
   cpSync(join(source,relative,'scripts'),join(dest,'scripts'),{recursive:true});
   if (!tool.startsWith('Build Brand')) cpSync(join(source,relative,'package.json'),join(dest,'package.json'));
+  if (tool === 'render') cpSync(join(source,relative,'vendor'),join(dest,'vendor'),{recursive:true});
   const file=join(f.root,'input.html'), data=join(f.root,'input.csv'), output=join(f.root,'output.png');
   writeFileSync(file,'<p>test</p>');writeFileSync(data,'name,value\nx,1');
   const diagram=join(f.root,'diagram.mmd');writeFileSync(diagram,'graph TD; A-->B');
@@ -52,7 +53,7 @@ for (const [tool,script,purpose] of rows) test(`${tool} refusal opens with the e
   const args={
     'Browser Control':['session','start','--profile',join(f.root,'profile'),'--port','1'],
     render:['mermaid','--file',diagram,'--output',output],
-    'deck-export':['scaffold','--output',join(f.root,'deck')],
+    'deck-export':['pdf','--input',file,'--output',join(f.root,'deck.pdf')],
     'tag-audit':['audit','--url','https://example.com'],
     'icon-set':['get','--set','phosphor','--name','house','--weight','regular','--size','24','--color','black','--output',join(f.root,'icon.svg')],
     sitemap:['fetch','--domain','example.com'],
@@ -65,17 +66,25 @@ for (const [tool,script,purpose] of rows) test(`${tool} refusal opens with the e
     'Build Brand':['check','--library',library,'--directory',join(f.root,'fonts'),'--from',pack],
     'Build Brand family':['check','--library',library,'--directory',join(f.root,'fonts'),'--from',assets,'--family',Object.keys(JSON.parse(readFileSync(library)).fonts)[0]],
   }[tool];
-  const result=spawnSync(process.execPath,[join(dest,'scripts',script),...args],{env:process.env,encoding:'utf8',timeout:30000});
+  // These web clients ask only behind a proxy. Refusal precedes any request.
+  const env = ['sitemap','tag-audit'].includes(tool) ? {...process.env, HTTPS_PROXY:'http://127.0.0.1:9'} : process.env;
+  const imports = [];
+  if (['sitemap','tag-audit'].includes(tool)) {
+    const guard = join(f.root,'no-network.mjs');
+    writeFileSync(guard, `import dns from 'node:dns';dns.promises.lookup=async()=>[{address:'93.184.216.34',family:4}];globalThis.fetch=async()=>{throw new Error('consent fixture must not fetch')};`);
+    imports.push('--import',guard);
+  }
+  const result=spawnSync(process.execPath,[...imports,join(dest,'scripts',script),...args],{env,encoding:'utf8',timeout:30000});
   assert.equal(result.status,1,result.stdout+result.stderr);assert.equal(result.stdout,'');
   const [first,blank,details]=result.stderr.split('\n');
   assert.ok(first.startsWith('This Wiser skill needs to '),result.stderr);
   assert.ok(first.endsWith(tool === 'Build Brand family' ? 'This yes covers only these typefaces.' : once),first);assert.ok(first.includes('in order to '+purpose+'.'),first);
   assert.equal(blank,'');assert.ok(details.startsWith('Details for the assistant: '),result.stderr);
-  if (tool === 'render') assert.ok(first.includes("It's about 84 MB, or about 660 MB with the browser."),first);
+  if (tool === 'render') assert.ok(first.includes("It's about 19 MB, or about 600 MB with the browser."),first);
   const whatAndSize = {
     'Browser Control': ["the code that drives a browser (and a private copy of the Chromium browser, if you don't have it yet)", '19 MB, or about 600 MB with the browser'],
-    render: ["the Mermaid diagram library and the code that drives a browser (and a private copy of the Chromium browser, if you don't have it yet)", '84 MB, or about 660 MB with the browser'],
-    'deck-export': ['the reveal.js slide library','6.0 MB'],
+    render: ["the code that drives a browser (and a private copy of the Chromium browser, if you don't have it yet)", '19 MB, or about 600 MB with the browser'],
+    'deck-export': ["the code that drives a browser (and a private copy of the Chromium browser, if you don't have it yet)",'19 MB, or about 600 MB with the browser'],
     'tag-audit': ['a small web-request library','1.6 MB'],
     'icon-set': ['the Phosphor and Health Icons icon sets','4.7 MB'],
     sitemap: ['a small web-request library','1.6 MB'],
@@ -92,7 +101,7 @@ for (const [tool,script,purpose] of rows) test(`${tool} refusal opens with the e
   assert.equal(first,tool.startsWith('Build Brand')
     ? `This Wiser skill needs to install ${what} on your machine from a copy you already have, in order to ${purpose}. ${tool === 'Build Brand family' ? 'This yes covers only these typefaces.' : once}`
     : `This Wiser skill needs to download and install ${what} on your machine in order to ${purpose}.${size ? " It's about "+size+'.' : ''} ${once}`);
-  if (tool === 'deck-export') assert.ok(!result.stderr.includes(f.home), result.stderr);
+  if (tool === 'deck-export') assert.ok(!result.stderr.includes('fetches reveal.js'), result.stderr);
 });
 
 test('Browser Control without Playwright gives the conditional browser and both sizes', t => {
@@ -150,7 +159,7 @@ for (const [tool,script,args,purpose] of [
   cpSync(join(source,'tools',tool,'scripts'),join(dest,'scripts'),{recursive:true});
   cpSync(join(source,'tools',tool,'package.json'),join(dest,'package.json'));
   // Use the pinned installed runtime, while choosing an empty browser cache.
-  const installed=join(source,'tools/lib/browser-runtime/node_modules');
+  const installed=process.env.WISER_TEST_BROWSER_RUNTIME || join(source,'tools/lib/browser-runtime/node_modules');
   if(!existsSync(join(installed,'playwright/package.json'))) { t.skip('pinned runtime is not installed');return; }
   symlinkSync(installed,join(f.runtime,'node_modules'),'dir');
   const input=join(f.root,'input.html');writeFileSync(input,'<html><body>test</body></html>');
@@ -165,17 +174,24 @@ for (const present of [false, true]) test(`render mermaid with Playwright presen
   const f=fixture(t), dest=join(f.copy,'tools/render');
   cpSync(join(source,'tools/render/scripts'),join(dest,'scripts'),{recursive:true});
   cpSync(join(source,'tools/render/package.json'),join(dest,'package.json'));
-  symlinkSync(join(source,'tools/lib/browser-runtime/node_modules'),join(f.runtime,'node_modules'),'dir');
+  const installed=process.env.WISER_TEST_BROWSER_RUNTIME || join(source,'tools/lib/browser-runtime/node_modules');
+  assert.ok(existsSync(join(installed,'playwright/package.json')), 'supply installed Playwright with WISER_TEST_BROWSER_RUNTIME');
+  symlinkSync(installed,join(f.runtime,'node_modules'),'dir');
+  cpSync(join(source,'tools/render/vendor'),join(dest,'vendor'),{recursive:true});
   const input=join(f.root,'diagram.mmd');writeFileSync(input,'graph TD; A-->B');
   const browsers=present ? process.env.WISER_TEST_PLAYWRIGHT_CACHE : join(f.root,'empty-browsers');
   assert.ok(browsers, 'the runner supplies the read-only installed browser cache');
   const result=spawnSync(process.execPath,[join(dest,'scripts/render.js'),'mermaid','--file',input,'--output',join(f.root,'output.png')],{env:{...process.env,PLAYWRIGHT_BROWSERS_PATH:browsers},encoding:'utf8'});
-  assert.equal(result.status,1,result.stderr);assert.equal(result.stdout,'');
-  assert.equal(result.stderr.split('\n')[0],`This Wiser skill needs to download and install the Mermaid diagram library${present ? '' : ' and a private copy of the Chromium browser'} on your machine in order to turn web pages, drawings and diagrams into image files. It's about ${present ? '65 MB' : '640 MB'}. ${once}`);
   if (present) {
-    assert.ok(!/Chromium|browser|cdn.playwright.dev|playwright.download.prss.microsoft.com/.test(result.stderr), result.stderr);
-  } else assert.ok(result.stderr.includes('cdn.playwright.dev'), result.stderr);
+    assert.equal(result.status,0,result.stderr);assert.equal(result.stderr,'');
+    assert.equal(readFileSync(join(f.root,'output.png')).subarray(0,8).toString('hex'),'89504e470d0a1a0a');
+  } else {
+    assert.equal(result.status,1,result.stderr);assert.equal(result.stdout,'');
+    assert.equal(result.stderr.split('\n')[0],`This Wiser skill needs to download and install a private copy of the Chromium browser on your machine in order to turn web pages, drawings and diagrams into image files. It's about 580 MB. ${once}`);
+    assert.ok(result.stderr.includes('cdn.playwright.dev'), result.stderr);
+  }
   assert.ok(!result.stderr.includes('fetches playwright'), result.stderr);
+  assert.ok(!result.stderr.includes('Mermaid diagram library'), result.stderr);
 });
 
 test('video-render browser-only refusal uses the measured 200 MB', async () => {

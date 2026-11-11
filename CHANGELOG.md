@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## Unreleased
+
+- Site Author, Set Up Book, Publish Book, Animated Explainer's video path and Media Generator for any video now check this app's own skill list before treating connector-served text as needing installation. An installed skill continues with a folder or asks only for one; a connector-served skill with no installed copy gives its install sentence and stops; uncertain provenance uses the folder test alone. A stopped run gives only one plugin sentence or folder prompt per chat, including across called skills, and a caller skips only the same check it took and continued. Book setup checks before planning and reads the tool contract and current platform documents before dependent choices; every video request checks before connector or model work or a tool handoff, then generation takes direction, model choice and spend disclosure in that order. Local tool pages and project files open after the check continues. (81566a52 and its follow-up)
+
 ## v2026.11.10.2, November 10, 2026
 
 - Two more of Wiser's tools can now also run through the Wiser connector, in a browser Wiser opens for one call and closes after it: turning one HTML page, SVG drawing or Mermaid diagram into a picture, or taking a picture of one public web page (render), and turning one ZIP of a slide deck and its files into a PDF or into pictures of its slides (deck-export). Each tool's page gives, for each command that can run there, the largest input it takes and its time limit, and which commands stay on your computer; the connector does not offer them to members yet. (75fd923d, a00b9282)

@@ -5,6 +5,7 @@ category: automation
 description: Run one builder or reviewer through a vendor command-line tool named by flags, or survey the boundary that run would use
 version: 0.1.2
 runs: local
+local-only: runs the member's installed command-line AI against their attached folders
 ---
 
 # Subagent Runner

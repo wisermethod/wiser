@@ -2356,24 +2356,12 @@ gate_G15() {
   ic=$(kv "$AUDIT" "independent-context")
   rv=$(kv "$AUDIT" "reviewers")
   case "$ic" in
-    yes|no) ;;
+    yes) ;;
+    no) add_fail "$(rel "$AUDIT"): independent-context is no; an independent audit is still owed before close" ;;
     '') add_fail "$(rel "$AUDIT"): 'independent-context:' missing or empty" ;;
     *) add_fail "$(rel "$AUDIT"): independent-context '$ic' is not yes or no" ;;
   esac
   [ -n "$rv" ] || add_fail "$(rel "$AUDIT"): 'reviewers:' missing or empty"
-  if [ "$ic" = "no" ]; then
-    if [ ! -f "$CLOSE" ]; then
-      add_fail "$(rel "$CLOSE"): missing: independent-context is no and the close report must say so"
-    else
-      section_body "$CLOSE" "## Audit disposition" > "$TMPD/g15.txt"
-      nb=$(nonblank_count "$TMPD/g15.txt")
-      if [ "$nb" -eq 0 ]; then
-        add_fail "$(rel "$CLOSE"): '## Audit disposition' is empty but independent-context is no"
-      elif ! grep -qi 'independen' "$TMPD/g15.txt"; then
-        add_fail "$(rel "$CLOSE"): '## Audit disposition' does not record that the audit was not independent"
-      fi
-    fi
-  fi
 }
 
 # Containers a claim can hide in. A rejection has to name at least one place it

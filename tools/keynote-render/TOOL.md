@@ -3,8 +3,9 @@ name: keynote-render
 type: tool
 category: documents
 description: Builds and edits native Keynote decks from JSON or markdown SSOT, with zArchive safety before every in-place mutation
-version: 0.2.4
+version: 0.2.5
 runs: local
+local-only: drives Keynote on the member's Mac
 ---
 
 # keynote-render
@@ -19,7 +20,7 @@ Use it when the deliverable is a Keynote file: a deck someone will open, edit, a
 
 Do not use it to author a deck in HTML: reveal.js decks belong to `skills/Create Presentation/`. Do not use it to decide what the slides say. It places the text it is handed; the writing discipline and visual review belong to the skill that calls this tool.
 
-It runs on macOS with Keynote installed, and nowhere else. It authenticates to nothing, holds no credential, takes no `--env`, and after packages are installed it opens no network connection. The install itself reaches `registry.npmjs.org`, per `tools/AGENTS.md`.
+It runs on macOS with Keynote installed, and nowhere else. It authenticates to nothing, holds no credential, takes no `--env`, and opens no network connection. Its carried compiled file includes the YAML package, so even a branded command needs no package install.
 
 ## Workstream (primary)
 
@@ -82,6 +83,14 @@ node scripts/render.js export --deck /path/to/deck.key --format pdf
 ```
 
 ## Dependencies
+
+Node 18 or newer needs no package install while the carried compiled file is present. A fresh copy carries `dist/render.mjs`, built with `yaml` inside by `tools/lib/build/one-file.mjs`; `--check` reproduces that file and its generated `NOTICE.md`. For branded `build`, `sync`, `update-slide` and `insert-slide`, the documented `scripts/render.js` entry runs source only when its installed package version equals the lockfile and it loads; otherwise it uses the compiled file, including after an incomplete install. When an installed version differs, one stderr line names the package, its installed version and the locked version before the compiled file runs; stdout is unchanged. Other commands use built-ins without inspecting packages.
+
+| Commands | Fresh copy with no packages |
+|----------|-----------------------------|
+| `help`, `check` | No package install; `check` surveys local runtime presence without opening Keynote |
+| `themes`, `layouts`, `build`, `inspect`, `snapshot`, `export`, `sync`, `update-slide`, `insert-slide`, `delete-slide` | No package install, including with `--brand`; the local Mac runtimes below still apply |
+
 
 Keynote is scripted through JXA, so this tool runs a second interpreter beyond Node and declares it here per the Script Contract's Runtimes and System dependencies clauses. Each is checked after help parsing and only on a command that reaches Keynote; a missing one fails the run by naming the dependency and its check command. Install steps are never written here.
 
@@ -244,7 +253,7 @@ The scripts follows `system/templates/Script Contract.md`; what a user meets whe
 
 Replacing an existing **output file** from `build` / `snapshot` / `export` is opt-in via `--confirm`. Mutating an existing **deck** is also opt-in via `--confirm`, and always preceded by a `zArchive/` copy when the deck already exists.
 
-Only a brand file needs an installed package; if this person has not yet authorized a Wiser install, the first branded command reports what it would install and stops, and `--install` on that run is the answer. Later tools in every copy install without asking.
+Brand parsing uses `yaml` from the compiled file on a fresh copy. The source-only fallback retains `--install` consent if both its package and the carried compiled file are absent. The `local-only:` declaration remains: Keynote automation requires the member’s Mac, Keynote and its Automation permission.
 
 ## Output
 

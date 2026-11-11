@@ -14,7 +14,7 @@ function load(url) {
   if (!modules.has(url)) modules.set(url, new SourceTextModule(readFileSync(new URL(url), 'utf8'), {
     context, identifier: url,
     importModuleDynamically: async (specifier, parent) => {
-      const mod = load(import.meta.resolve(specifier, parent.identifier));
+      const mod = load(resolvePortable(specifier, parent.identifier));
       if (mod.status === 'unlinked') await mod.link(link);
       if (mod.status === 'linked') await mod.evaluate();
       return mod;
@@ -22,7 +22,12 @@ function load(url) {
   }));
   return modules.get(url);
 }
-function link(specifier, parent) { return load(import.meta.resolve(specifier, parent.identifier)); }
+function resolvePortable(specifier, parent) {
+  if (specifier === 'fast-xml-parser' && process.env.WISER_TEST_PORTABLE_XML) return process.env.WISER_TEST_PORTABLE_XML;
+  // Read original Web-only files, bypassing the Node suite's namespace loader.
+  return specifier.startsWith('.') ? new URL(specifier, parent).href : import.meta.resolve(specifier, parent);
+}
+function link(specifier, parent) { return load(resolvePortable(specifier, parent.identifier)); }
 const core = load(new URL('../scripts/harvest-core.js', import.meta.url).href);
 await core.link(link); await core.evaluate();
 for (let i = 0; i < 4; i++) {

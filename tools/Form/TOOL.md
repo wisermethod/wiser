@@ -5,6 +5,7 @@ category: automation
 description: Check and fill Wiser forms and draw their questions in a page that returns answers to the chat
 version: 0.7.0
 runs: local
+local-only: ask and serve use a local browser or loopback listener; format commands are not yet split into a core
 ---
 
 # Form

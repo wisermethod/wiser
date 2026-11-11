@@ -1,6 +1,6 @@
 {
   "name": "tag-audit",
-  "version": "0.1.0",
+  "version": "0.1.7",
   "description": "Reports which analytics and behavior tags a live page serves",
   "private": true,
   "type": "module",

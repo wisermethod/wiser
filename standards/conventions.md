@@ -1,6 +1,6 @@
 ---
 standard: conventions
-version: 0.5.0
+version: 0.7.0
 description: The cross-cutting conventions every file and agent in a Wiser workspace follows: formatting, dates, portable names, working files, root layout, archives, sourcing, and evidence labels
 ---
 
@@ -47,6 +47,8 @@ A name that already violates these rules: report it; do not rename on sight, nam
 Intermediate outputs (drafts, scratch analysis, generated data, logs) go to the active work directory in the owning root; the root's AGENTS.md declares which directories those are, and Root Layout below governs where a file sits inside one. Quick captures with no home yet go to that root's `inbox/`.
 
 Where a write is forbidden outright, the top level of any root and a composed shared root in use, the constitution's Irreversibles states the rule and its exceptions. If no declared work directory fits, ask; do not invent one. A root missing its declared `inbox/` or archive directory gets it created there; creating a declared home is not inventing a location.
+
+Where the session has no owning root, because the person attached no folder, a file they ask for reaches them by the first of these that fits: the app makes the file itself, under the skill's direction, as a download in the chat; a tool on Wiser's side returns the file in its answer; the file is saved to an account the person has already connected, only when they ask for that; and for work that lasts beyond the chat, such as a site, a book or a video, the skill says in one line that it needs the Wiser plugin and a folder, gives the link to install it, and stops; where the plugin is installed, the skill asks only for a folder and does not mention installing. Nothing is kept on Wiser's side in any of these, and no new account is asked of the person.
 
 ## Root Layout
 

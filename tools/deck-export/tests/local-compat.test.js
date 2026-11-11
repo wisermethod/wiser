@@ -7,13 +7,14 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { revealAssets } from '../scripts/package-assets.js';
 const root=fileURLToPath(new URL('../../../',import.meta.url));
+const sourceRoot = process.env.WISER_TEST_SOURCE_ROOT || root;
 test('local HTML adapter preserves baseline PNG, PDF page pixels, CLI JSON and progress',()=>{
   const scratch=mkdtempSync(join(tmpdir(),'deck-before-'));
   try{
     const scripts=join(scratch,'tools/deck-export/scripts');mkdirSync(scripts,{recursive:true});
-    writeFileSync(join(scripts,'deck.js'),execFileSync('git',['show','1f810776:tools/deck-export/scripts/deck.js'],{cwd:root}));
-    symlinkSync(join(root,'tools/lib'),join(scratch,'tools/lib'),'dir');
-    symlinkSync(join(root,'tools/deck-export/node_modules'),join(scratch,'tools/deck-export/node_modules'),'dir');
+    writeFileSync(join(scripts,'deck.js'),execFileSync('git',['show','1f810776:tools/deck-export/scripts/deck.js'],{cwd:sourceRoot}));
+    symlinkSync(join(sourceRoot,'tools/lib'),join(scratch,'tools/lib'),'dir');
+    symlinkSync(join(sourceRoot,'tools/deck-export/node_modules'),join(scratch,'tools/deck-export/node_modules'),'dir');
     const project=join(scratch,'project');mkdirSync(join(project,'Deck Assets'),{recursive:true});
     const input=join(project,'Deck.html');
     writeFileSync(input,readFileSync(new URL('./fixtures/shared/deck.html',import.meta.url),'utf8').replace('width:320,height:180','width:640,height:360'));

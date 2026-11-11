@@ -103,10 +103,45 @@ export function http(s,suffix = '',{method = 'GET',headers = {},body,chunked = f
     else req.end(raw);
   });
 }
-export async function listeners() {
-  const text = await new Promise((accept,reject) => execFile('ps',['-axo','pid=,command='],(error,out) => error ? reject(error) : accept(out)));
+export const listenerMarker = () => ({
+  [`WISER_FORM_TEST_OWNER_${randomBytes(12).toString('hex')}`]:randomBytes(24).toString('hex')
+});
+export async function listeners(marker) {
+  const entries = Object.entries(marker);
+  assert.equal(entries.length,1,'listener inventory needs one test ownership marker');
+  const [name,value] = entries[0];
+  assert.match(name,/^WISER_FORM_TEST_OWNER_[0-9a-f]+$/);
+  assert.match(value,/^[0-9a-f]+$/);
+  const ps = args => new Promise((accept,reject) => execFile('ps',args,{maxBuffer:16*1024*1024},(error,out) => {
+    // Never attach ps output to an error: the environment can contain secrets.
+    if (error) reject(new Error('Could not inspect listener ownership with ps.'));
+    else accept(out);
+  }));
   const listener = join(dirname(script),'listener.js');
-  return text.split('\n').filter(line => line.trim().endsWith(listener)).map(line => line.trim().split(/\s+/)[0]);
+  const commands = await ps(['-axww','-o','pid=,command=']);
+  const candidates = new Set(commands.split('\n').filter(line => line.trim().endsWith(listener))
+    .map(line => line.trim().split(/\s+/,1)[0]));
+  if (!candidates.size) return [];
+  // BSD ps uses -E; GNU ps uses e. Both append the same-user environment.
+  // Inspect only the generated marker token, never log any environment text.
+  const args = process.platform === 'darwin' ? ['-axwwE','-o','pid=,command='] : ['axwwe','-o','pid=,command='];
+  const environments = await ps(args);
+  return environments.split('\n').filter(line => {
+    const fields = line.trim().split(/\s+/);
+    return candidates.has(fields[0]) && fields.includes(`${name}=${value}`);
+  }).map(line => line.trim().split(/\s+/,1)[0]).sort();
+}
+export async function assertNoListeners(marker,message) {
+  // Observe the whole short window, even after an empty sample, for ps lag.
+  // 250 ms is far below the unkept listener's 4500 ms self-exit deadline.
+  const deadline = performance.now()+250;
+  let remaining;
+  do {
+    remaining = await listeners(marker);
+    if (performance.now() >= deadline) break;
+    await delay(25);
+  } while (true);
+  assert.deepEqual(remaining,[],message);
 }
 export async function scanFile(file) {
   const needle = Buffer.from(sentinel); let tail = Buffer.alloc(0);

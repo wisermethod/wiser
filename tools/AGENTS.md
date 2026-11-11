@@ -4,9 +4,41 @@ Deterministic operations that skills and experts call; `standards/primitives.md`
 
 ## Installing
 
-Each tool's `runs:` key declares whether it also runs on Wiser's side; the rule is in `standards/primitives.md` Frontmatter.
+Each tool's `runs:` key declares whether it also runs on Wiser's side; the rule is in `standards/primitives.md` Frontmatter. Where a tool runs both ways and the session has the plugin and a folder, the tool runs here, on the person's own files; the hosted command is for a session with neither.
 
-A tool ships its manifest and never its packages. The plugin asks once per person; `--install` on that run is the answer, and later tools in every copy install without asking (`tools/RUNNING.md`). The refusal opens with a question written for the member; say it to them word for word, and use the details after it only to act on their answer or if they ask. For Form `ask`, say its `question` field word for word. A tool's own packages still land in its directory per copy, which must be writable. New shared Playwright installs land once per person in the runtime below; existing copy-local installs keep priority. The active browser runtime is that copy-local directory when its Playwright package.json version matches the shipped runtime lockfile, otherwise the person runtime with that same version. An incomplete or wrong-version copy-local tree is skipped and never altered. An install writes nothing this repository ships.
+A tool ships its manifest. A command listed below asks for nothing and downloads nothing, for the reason its row gives. `data`, `Content Harvester` and `keynote-render` do so by shipping one compiled file per tool holding their JavaScript packages (Content Harvester leaves `undici` external for a selected proxy), built from its own source by `tools/lib/build/` and checked against a fresh build with that builder's `--check`. `render` carries Mermaid's pinned browser file and `deck-export` carries reveal.js browser files, themes, fonts and notices; `tools/lib/build/copy-assets.mjs --check` verifies installed package bytes against the lockfile-integrity archive in npm’s cache, then recreates these copies and compares their bytes and recorded SHA-256 hashes. Before a release, `system/hooks/pre-commit` runs each carried-copy builder offline for its own staged outputs and inputs, including its package manifest and lockfiles. Render and deck-export each trigger their own copy check. Data, Content Harvester and keynote-render trigger the one-file check for their `dist/`, manifests, lockfiles, every `scripts/` file and shared source files in the builder-generated input graphs. Builder edits trigger the checks they affect. The hook includes rename sources, matches directory names case-insensitively and refuses a matching staged blob that differs from disk. `tools/lib/build/COPIES.md` lists the covered inputs and hook limits. Both still install the shared browser runtime when needed. Other tools install when a command first needs packages, as the rest of this section says.
+
+Declared system dependencies still apply. Read each tool's `TOOL.md` for its commands.
+
+| Tool needing no install | Reason |
+|------------------------|--------|
+| `data` | `dist/data.mjs` holds its packages. |
+| `Contact Sheet` | Node built-ins cover it. |
+| `Speech Preparation` | Node built-ins cover it; media commands check their declared system programs. |
+| `Subagent Runner` | Python's standard library covers it; a run uses the caller-named vendor program. |
+| `copy-check` | Node built-ins cover it. |
+| `reference-check` | Node built-ins cover it. |
+| `seo-data` | Node built-ins cover it. |
+| `seo-page-analyzer` | Node built-ins cover it. |
+| `site-crawl` | Node built-ins cover it. |
+| `video-edit` | Node built-ins cover it; media commands check FFmpeg and their other declared system programs. |
+| `Book Publisher` `init` | Project scaffolding needs no packages; the publishing commands can install them. |
+| `Book Publisher` `check`, without `--config` or `--install` | Surveys system programs and package markers; `--install` or `WISER_ALLOW_INSTALL=1` authorises package repair. |
+| `deck-export` `scaffold`, with or without `--template` | Starter runtime, plugins, themes and fonts are carried in `vendor/reveal.js/`; template scaffolding copies the caller's files. Neither needs a browser. |
+| `deck-export` `pdf` and `png`, with a working browser runtime | reveal.js is carried; only an absent browser runtime or build follows the existing install path. |
+| `render` `html`, `svg`, `mermaid` and `url`, with a working browser runtime | Mermaid's browser file is carried in `vendor/mermaid/`; none installs tool-local packages. An absent browser runtime or build still needs its existing install path. |
+| `render` `check`, without `--install` | Surveys and trial-launches an existing browser; `--install` or `WISER_ALLOW_INSTALL=1` authorises repair. |
+| `tag-audit` `audit`, without a non-blank selected proxy | Node fetch covers it; only a non-blank selected `HTTPS_PROXY`, `https_proxy`, `HTTP_PROXY` or `http_proxy` needs `undici`. Each name is trimmed in that order; the first non-blank wins. `NO_PROXY` and `no_proxy` do not bypass this proxy. |
+| `deck-export` `check`, without `--install` | Checks every carried reveal.js file and trial-launches an existing browser; `--install` or `WISER_ALLOW_INSTALL=1` authorises repair. |
+| `Form`, except `ask` | Member commands need no development packages; `ask` can install Browser Control's browser runtime. |
+| `keynote-render`, all commands including `--brand` | `dist/render.mjs` holds `yaml`; commands reaching Keynote still require the member’s Mac, osascript and Keynote. |
+| `Content Harvester` `help`, `sample`, `validate`, `run --dry-run` | No package install or network request. |
+| `Content Harvester` `run`, without a non-blank selected proxy | `dist/harvest.mjs` holds feed parsing and its JavaScript dependencies. Only a selected proxy needs external `undici`; trim `HTTPS_PROXY`, `https_proxy`, `HTTP_PROXY`, `http_proxy` in that order and take the first non-blank value, as sitemap does. |
+| `knowledge-memory` wiki, databased and chunk commands | Python's standard library covers these commands; graph ingest and recall need the graph environment. |
+| `knowledge-memory` `check`, without `--install` | Python's standard library surveys SQLite FTS5 and graph package presence; only `check --install` prepares the graph environment. |
+| `sitemap` `diff`, and `fetch` except a proxied network fetch | Only `fetch` with no input files (`parsedArgs.files.length === 0`) and a non-blank `HTTPS_PROXY`, `https_proxy`, `HTTP_PROXY` or `http_proxy` needs `undici`. |
+
+The plugin asks once per person; `--install` on that run is the answer, and later tools in every copy install without asking (`tools/RUNNING.md`). The refusal opens with a question written for the member; say it to them word for word, and use the details after it only to act on their answer or if they ask. For Form `ask`, say its `question` field word for word. A tool's own packages still land in its directory per copy, which must be writable. New shared Playwright installs land once per person in the runtime below; existing copy-local installs keep priority. The active browser runtime is that copy-local directory when its Playwright package.json version matches the shipped runtime lockfile, otherwise the person runtime with that same version. An incomplete or wrong-version copy-local tree is skipped and never altered. An install writes nothing this repository ships.
 
 **Hosts an install reaches.** `registry.npmjs.org` for a Node tool; `storage.googleapis.com`, Google's Chrome for Testing storage, for the `chrome-headless-shell` build HyperFrames' installer fetches for `video-render`; `cdn.playwright.dev`, with `playwright.download.prss.microsoft.com` as fallback, for a Chromium build; `pypi.org` and `files.pythonhosted.org` for `Transcribe Audio` packages, `openaipublic.azureedge.net` for its transcription weights, and `download.pytorch.org` for its MIT English alignment weights (about 378 MB); `pypi.org` and `files.pythonhosted.org` for `Screen Capture` and `knowledge-memory` packages only. `github.com`, redirected to `release-assets.githubusercontent.com`, for Build Brand's pinned font pack and the single font files published beside it on the same release. At run time a deck or a diagram may name `cdn.jsdelivr.net` or `cdnjs.cloudflare.com` for its own assets.
 
@@ -21,6 +53,7 @@ The one list; a tool's pages point here.
 | Build Brand's font pack | `skills/Build Brand/parts/fonts/`; download in an OS-temporary directory removed at the end, staging inside `fonts/` removed at the end | `skills/Build Brand/scripts/fonts.mjs` |
 | Plugin consent markers | `.wiser-consent` in the platform user-config directory (`gateway/SETUP.md`), mode 0600 in a directory created 0700 where absent, plus the matching copy marker at the plugin root | every tool that installs |
 | Node packages | `node_modules/` in the tool's directory | the 13 tools whose `package.json` declares a dependency, Form included (development tests only); `pages-functions` is about 210 MB of them, Wrangler and its `workerd` runtime |
+| Content Harvester’s proxy-only install manifests and packages before copying `undici` into the tool | one `wiser-harvester-proxy-*` directory in system temporary storage, removed on ordinary success or failure | `Content Harvester` when compiled parsing or a valid installed parser needs only `undici` |
 | npm's cache and logs | npm's configured cache, `~/.npm` by default, outside this plugin | the same 13, and the shared browser runtime |
 | Python packages | `.venv/` in the tool's directory; pip's cache is switched off | `Screen Capture`, `Transcribe Audio`, `knowledge-memory` graph commands |
 | Chatterbox's pinned Python environment, about 1.3 GiB | `Chatterbox/.venv/`, native CPython 3.11, including `chatterbox-tts` 0.1.7, `resemble-perth` 1.0.1 and torch/torchaudio 2.6.0, with the complete resolution in `requirements.lock`; pip cache is off and installer temporary files stay in `.venv/cache/`. An environment whose interpreter is unusable is retained under `Chatterbox/.venv-recovery/<id>/` before its replacement is created, never deleted automatically. | `Chatterbox` `install` |

@@ -1,8 +1,9 @@
+import { tmpdir } from 'node:os';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,7 +21,7 @@ const blocks = [...step.matchAll(/```(?:sh)?\n([\s\S]*?)\n```/g)].map(match => m
 const download = blocks.find(block => block.includes('/starter/personal-'));
 const fill = blocks.find(block => block.includes("folder='<folder name>'"));
 const grep = blocks.find(block => block.startsWith('grep -rn'));
-const expectedId = '7fc080a31fd4d17c';
+const expectedId = '5aab2e4b0716f181';
 const comparePaths = (a, b) => Buffer.compare(Buffer.from(a), Buffer.from(b));
 const quote = value => `'${value.replaceAll("'", "'\\''")}'`;
 const available = command => !spawnSync(command, ['--version'], { stdio: 'ignore' }).error;
@@ -31,7 +32,8 @@ const needs = commands => {
 };
 
 function scratch(t) {
-  const path = mkdtempSync(join(here, 'starter-fixture-'));
+  // Node resolves import.meta.url through macOS's /var -> /private/var link.
+  const path = realpathSync(mkdtempSync(join(tmpdir(), 'starter-fixture-')));
   t.after(() => rmSync(path, { recursive: true, force: true }));
   return path;
 }
@@ -68,16 +70,16 @@ function trackedTemplate() {
 }
 
 // An independent implementation of today's physical copy, overlay and removal.
-function copyToday(t) {
+function copyToday(t, type = 'personal') {
   const root = join(scratch(t), 'copy');
   for (const path of trackedTemplate().keys()) {
     mkdirSync(dirname(join(root, path)), { recursive: true });
     copyFileSync(join(plugin, prefix, path), join(root, path));
   }
-  for (const name of ['about', 'design']) copyFileSync(join(root, `prompts/personal/${name}.md`), join(root, `memory/${name}.md`));
+  for (const name of ['about', 'design']) copyFileSync(join(root, `prompts/${type}/${name}.md`), join(root, `memory/${name}.md`));
   rmSync(join(root, 'prompts'), { recursive: true });
   const agents = join(root, 'AGENTS.md');
-  writeFileSync(agents, Buffer.from(readFileSync(agents).toString('latin1').split('\n').map(line => line === 'type:' ? 'type: personal' : line).join('\n'), 'latin1'));
+  writeFileSync(agents, Buffer.from(readFileSync(agents).toString('latin1').split('\n').map(line => line === 'type:' ? `type: ${type}` : line).join('\n'), 'latin1'));
   return readFiles(root);
 }
 
@@ -94,18 +96,80 @@ function checkoutCopy(t) {
   return { root, env: { ...process.env, GIT_DIR: gitDirectory, GIT_WORK_TREE: root } };
 }
 
-test('starter matches today\'s copy: 13 files, 9,089 bytes, id 7fc080a31fd4d17c', { skip: needs(['git']) }, t => {
+test('starter matches today\'s copy: 13 files, 10,972 bytes, id 5aab2e4b0716f181', { skip: needs(['git']) }, t => {
   const template = trackedTemplate();
   const original = new Map([...template].map(([path, bytes]) => [path, Buffer.from(bytes)]));
   const result = personalStarter(template);
   assert.equal(result.files.size, 13);
-  assert.equal([...result.files.values()].reduce((sum, bytes) => sum + bytes.length, 0), 9089);
+  assert.equal([...result.files.values()].reduce((sum, bytes) => sum + bytes.length, 0), 10972);
   assert.equal(result.id, expectedId);
   equalFiles(result.files, copyToday(t));
   equalFiles(template, original);
   result.files.get('CLAUDE.md')[0] ^= 1;
   equalFiles(template, original);
 });
+
+function alwaysSection(bytes) {
+  // Latin-1 keeps regex offsets identical to byte offsets, including at EOF.
+  const sections = [...bytes.toString('latin1').matchAll(/^## Always(?:\r?\n|$)/gm)];
+  assert.equal(sections.length, 1, 'C16 section is present and unique');
+  const start = sections[0].index;
+  const next = /^## /gm;
+  next.lastIndex = start + sections[0][0].length;
+  return bytes.subarray(start, next.exec(bytes.toString('latin1'))?.index ?? bytes.length);
+}
+
+function approvedAlwaysSection() {
+  const approved = readFileSync(join(here, 'approved-always-section.txt'));
+  assert.equal(createHash('sha256').update(approved).digest('hex'),
+    '2f0d5e83370268a540b3e7a6b722ea89897c0317cc6897b48b4d2bd855caeff9',
+    'C16 approved bytes changed; updating the starter id does not approve new rules');
+  return approved;
+}
+
+test('template C16 bytes equal the stored approved section, independently of the starter id', () => {
+  const template = readFileSync(join(plugin, prefix, 'AGENTS.md'));
+  assert.deepEqual(alwaysSection(template), approvedAlwaysSection());
+});
+
+test('C16 pin refuses a coordinated template, stored-copy and starter-metadata change', { skip: needs(['git']) }, t => {
+  const { root, env } = checkoutCopy(t);
+  const changed = Buffer.from(approvedAlwaysSection().toString().replace('A question gets an answer', 'A QUESTION gets an answer'));
+  const agents = join(root, prefix, 'AGENTS.md');
+  writeFileSync(agents, Buffer.from(readFileSync(agents).toString().replace(approvedAlwaysSection().toString(), changed.toString())));
+  const updatedId = cli(root, ['id'], env).stdout.trim();
+  assert.match(updatedId, /^[a-f0-9]{16}$/);
+  assert.notEqual(updatedId, expectedId);
+  writeFileSync(join(root, skillPath), skill.replaceAll(expectedId, updatedId));
+  const testDirectory = join(root, 'skills/Onboard Root/tests');
+  mkdirSync(testDirectory, { recursive: true });
+  writeFileSync(join(testDirectory, 'approved-always-section.txt'), changed);
+  writeFileSync(join(testDirectory, 'starter.test.mjs'), readFileSync(fileURLToPath(import.meta.url), 'utf8').replaceAll(expectedId, updatedId));
+  // Length is unchanged, and both starter ids now agree. Run only the byte
+  // approval test: a nonzero result must be the pin, not unrelated metadata.
+  const childEnv = { ...env };
+  delete childEnv.NODE_TEST_CONTEXT; // The child is a separate test runner.
+  const result = spawnSync(process.execPath, ['--test', '--test-name-pattern=^template C16 bytes equal', join(testDirectory, 'starter.test.mjs')], { env: childEnv, encoding: 'utf8' });
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  assert.match(result.stdout, /C16 approved bytes changed/);
+});
+
+for (const type of ['personal', 'org', 'client', 'department', 'industry']) {
+  test(`template copy for ${type} carries C16 byte for byte and layout 5`, { skip: needs(['git']) }, t => {
+    const approved = approvedAlwaysSection();
+    const copied = copyToday(t, type).get('AGENTS.md');
+    assert.ok(alwaysSection(copied).equals(approved));
+    assert.equal((copied.toString('utf8').match(/^layout:/gm) || []).length, 1);
+    assert.match(copied.toString('utf8'), /^layout: 5$/m);
+    assert.equal((alwaysSection(copied).toString('utf8').match(/^- /gm) || []).length, 5);
+    assert.equal(copied.toString('utf8').match(/^## .+$/gm)[0], '## Always', 'C16 precedes all other sections');
+    if (type === 'personal') {
+      const starter = personalStarter(trackedTemplate()).files.get('AGENTS.md');
+      assert.ok(alwaysSection(starter).equals(approved));
+      assert.match(starter.toString('utf8'), /^layout: 5$/m);
+    }
+  });
+}
 
 const smallTemplate = agents => new Map([
   ['AGENTS.md', Buffer.from(agents)],
@@ -150,7 +214,7 @@ test('starter id and check pass on this checkout', { skip: needs(['git']) }, () 
   const check = cli(plugin, ['check']);
   assert.equal(check.status, 0, check.stderr);
   assert.equal(check.stderr, '');
-  assert.deepEqual(JSON.parse(check.stdout), { id: expectedId, files: 13, bytes: 9089 });
+  assert.deepEqual(JSON.parse(check.stdout), { id: expectedId, files: 13, bytes: 10972 });
 });
 
 test('starter check names a stale SKILL.md id in a temporary checkout', { skip: needs(['git']) }, t => {
@@ -231,6 +295,21 @@ const shellNeeds = (shell, commands) => shell.command ? needs([shell.command, ..
 const filledCommand = (root, folder, person) => fill.replace("'<destination>'", quote(root)).replace("'<folder name>'", quote(folder)).replace("'<person name>'", quote(person));
 const grepCommand = root => grep.replace('"<the root>"', quote(root));
 const allowedFolder = name => /^[\p{L}\p{N} _.-]+$/u.test(name) && !/^[ .]|[ .]$/.test(name) && !/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)/i.test(name);
+
+test('existing folder with an approved Always section keeps exactly one through the scripted fill', { skip: needs(['/bin/bash', 'git', 'cat']) }, t => {
+  // Adoption's section decision is model-led in existing-root.md, not scripted.
+  // Exercise the actual fill on an existing file; do not invent an adopter here.
+  const root = join(scratch(t), 'Existing folder');
+  const files = personalStarter(trackedTemplate()).files;
+  files.set('AGENTS.md', Buffer.concat([files.get('AGENTS.md'), Buffer.from('\nLocal filing note stays here.\n')]));
+  writeFiles(root, files);
+  const before = readFileSync(join(root, 'AGENTS.md'));
+  const result = spawnSync('/bin/bash', ['-c', filledCommand(root, 'Existing folder', 'Rowan')], { encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  const after = readFileSync(join(root, 'AGENTS.md'));
+  assert.deepEqual(alwaysSection(after), approvedAlwaysSection());
+  assert.deepEqual(after, Buffer.from(before.toString('utf8').replaceAll('[name]', 'Existing folder')));
+});
 
 function expectedFill(files, folder, person) {
   return new Map([...files].map(([path, bytes]) => [path,

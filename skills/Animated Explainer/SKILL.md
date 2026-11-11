@@ -3,7 +3,7 @@ name: Animated Explainer
 type: skill
 category: design
 description: One animated explainer, an illustrated picture that moves to show how something works or what happened, true to its sources, built so its finished picture shows wherever motion cannot run, and delivered to a site built with the plugin's site kit, any other site, one deck slide, or a video.
-version: 0.3.1
+version: 0.3.2
 memory:
   - about
   - design
@@ -49,7 +49,9 @@ An illustrator and motion designer who explains by showing, held to one fact-che
 
 ### 1. Frame
 
-Answer each question from the brief, the owning root's `AGENTS.md`, the destination and the bound files. Ask only what none of them answers, in one message, before Step 2.
+Is the destination a video? No: continue with Frame below. Yes: take this check before resolving its record folder. Skip only when a calling skill took this same check and continued; a folder-only check does not satisfy this provenance check. What establishes how this skill is available? This skill is in this app's own skill list: the plugin is installed, even when the text being followed also came through `load_skill` or `read_skill_file`; with a folder attached, continue; with none, use the folder prompt: "This needs a folder to keep the work in. Attach one to this chat, then ask again." The text came through the Wiser connector's `load_skill` or `read_skill_file` and this app's own skill list holds no copy of this skill: use the sentence: "Making a video needs the Wiser plugin and a folder on your computer, because the footage and the edit stay on your machine. Here's how to install it: https://account.wisermemory.com/install" Cannot establish either: ask nothing about installing and use the folder test alone; with a folder attached, continue; with none, use the folder prompt. The served `Plugin:` label and `find_skill`'s description do not establish what this app has installed. Say the sentence or the prompt only if no plugin sentence or folder prompt has already been said in this chat; otherwise stop without saying it. On any missing path, stop: attempt no workaround, offer no cut-down version, and start none of the work in chat.
+
+After the check continues, answer each question from the brief, the owning root's `AGENTS.md`, the destination and the bound files. Ask only what none of them answers, in one message, before Step 2.
 
 **Which root owns the output, and where does the record folder sit?** Per the constitution's Workspace Model and `standards/conventions.md` Working Files. One candidate each: use it. More than one, or none: ask.
 

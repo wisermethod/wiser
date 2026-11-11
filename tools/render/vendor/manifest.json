@@ -1,0 +1,28 @@
+{
+  "package": "mermaid",
+  "version": "10.9.6",
+  "license": "MIT",
+  "resolved": "https://registry.npmjs.org/mermaid/-/mermaid-10.9.6.tgz",
+  "integrity": "sha512-XRjjRaI4aPCAMpVaOhxIwLYdx3U4Cb6mN0M268ggFAfFRqsvyFW8zxWbEZazN/mPkqsVWThb0oa1UawWK+XMNg==",
+  "sourceLockSha256": "d0666962283af8b62f9eb8bfe74ec6a21863b3f7868f14d9458dd54956ee86ae",
+  "builderSha256": "db3efe3e2d97084cf7b6d2965af71d2c33f01309f0a5f1f9c55b1b9677f6632a",
+  "bytes": 3477116,
+  "files": [
+    {
+      "path": "mermaid/LICENSE",
+      "bytes": 1089,
+      "sha256": "ec9fb67dcb25eccc416ed56e1aab819222c805a2a4bfe4cb19e7556bf2ffde80",
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/v10.9.6/LICENSE"
+    },
+    {
+      "path": "mermaid/mermaid.min.js",
+      "bytes": 3337508,
+      "sha256": "eda3a0ad572bbe69a318c1be0163e8233dd824f3f12939e5168feba207767151"
+    },
+    {
+      "path": "mermaid/THIRD-PARTY-NOTICES.txt",
+      "bytes": 138519,
+      "sha256": "7e7747dd7cc9f44e76c7449835a8c2a33da1ae912e1bd89c88aa1f71d6f03e3d"
+    }
+  ]
+}

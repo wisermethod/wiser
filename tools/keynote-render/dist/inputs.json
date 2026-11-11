@@ -1,0 +1,16 @@
+[
+  "tools/keynote-render/scripts/lib/archive.js",
+  "tools/keynote-render/scripts/lib/brand.js",
+  "tools/keynote-render/scripts/lib/deck.js",
+  "tools/keynote-render/scripts/lib/diff.js",
+  "tools/keynote-render/scripts/lib/jxa.js",
+  "tools/keynote-render/scripts/lib/keynote.js",
+  "tools/keynote-render/scripts/lib/markdown.js",
+  "tools/keynote-render/scripts/render.js",
+  "tools/lib/build/compiler-package-lock.json",
+  "tools/lib/build/locked-package.mjs",
+  "tools/lib/build/one-file.mjs",
+  "tools/lib/consent.js",
+  "tools/lib/one-file.js",
+  "tools/lib/user-config.js"
+]

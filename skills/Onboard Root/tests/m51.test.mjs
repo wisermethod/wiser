@@ -19,7 +19,7 @@ const emptyList = '## Must-reach list\n\n| Item | Kind | Text | Disposition | Wh
   + '|------|------|------|-------------|-------|\n';
 
 function runGate(gate, files, fails = false, setup = () => {}) {
-  const root = mkdtempSync(join(here, 'm51-fixture-'));
+  const root = mkdtempSync(join(tmpdir(), 'm51-fixture-'));
   const scratch = mkdtempSync(join(tmpdir(), 'onboard-m51-'));
   try {
     const fixture = {

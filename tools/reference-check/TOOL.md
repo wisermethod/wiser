@@ -5,6 +5,7 @@ category: system
 description: Return a JSON scan of path-shaped and family-name references under --root, or take and restore an approved structural snapshot
 version: 0.1.3
 runs: local
+local-only: scans a whole local root folder and takes or restores structural snapshots there
 ---
 
 # reference-check

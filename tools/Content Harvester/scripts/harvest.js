@@ -15,22 +15,36 @@
 // Node built-ins, this tool's own files, and tools/lib/.
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { accessSync, constants, existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import { accessSync, constants, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { compiledEntry, isMain, packagesAvailable, packagesBundled } from '../../lib/one-file.js';
 
 import { INSTALL_HELP, installQuestion, formatInstallSize, INSTALL_BYTES, installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
 
-const HERE = fileURLToPath(import.meta.url);
+const HERE = realpathSync(fileURLToPath(import.meta.url));
 const SCRIPT_DIR = dirname(HERE);
 const TOOL_DIR = resolve(SCRIPT_DIR, '..');
 
+export async function main(argv = process.argv.slice(2)) {
 // Installed packages' own manifests. An interrupted install leaves
 // node_modules/ behind with nothing in it, so the directory proves nothing.
-const DEP_MARKERS = [
-  join(TOOL_DIR, 'node_modules', 'fast-xml-parser', 'package.json'),
-  join(TOOL_DIR, 'node_modules', 'undici', 'package.json')
-];
+const XML_MARKER = join(TOOL_DIR, 'node_modules', 'fast-xml-parser', 'package.json');
+const UNDICI_MARKER = join(TOOL_DIR, 'node_modules', 'undici', 'package.json');
+const server = ['HTTPS_PROXY', 'https_proxy', 'HTTP_PROXY', 'http_proxy']
+  .map(name => process.env[name]?.trim()).find(Boolean);
+async function dependenciesAvailable() {
+  if (!await packagesAvailable(XML_MARKER, () => import('./adapters/rss.js'), ['undici'])) return false;
+  if (!server) return true;
+  // undici is external even in a compiled file; check its real import.
+  if (!existsSync(UNDICI_MARKER)) return false;
+  try {
+    const lock = JSON.parse(readFileSync(join(TOOL_DIR, 'package-lock.json')));
+    if (JSON.parse(readFileSync(UNDICI_MARKER)).version !== lock.packages['node_modules/undici'].version) return false;
+    await import('undici'); return true;
+  } catch { return false; }
+}
 
 const COMMANDS = new Set(['run', 'validate', 'sample']);
 
@@ -67,12 +81,16 @@ function fail(message) {
 }
 
 // Arguments. Parsed first so help costs nothing: no install, no request file.
-const argv = process.argv.slice(2);
 const command = argv[0] ?? 'help';
 
 if (command === 'help' || argv.includes('--help') || argv.includes('-h')) {
   process.stdout.write(`${USAGE}\n`);
   process.exit(0);
+}
+
+if (command === 'run' && !argv.includes('--dry-run')) {
+  const compiled = await compiledEntry(XML_MARKER, () => import('./adapters/rss.js'), import.meta.url, 'harvest', ['undici']);
+  if (compiled) return (await import(compiled)).main(argv);
 }
 
 if (!COMMANDS.has(command)) {
@@ -305,11 +323,14 @@ function isWritable(dir) {
 // browser tools that fetch none.
 const WILL_FETCH_BROWSER = false;
 
+const proxyOnly = packagesBundled() || await packagesAvailable(XML_MARKER, () => import('./adapters/rss.js'), ['undici']);
+
 function installPlan() {
   let names = [];
   try {
     names = Object.keys(JSON.parse(readFileSync(join(TOOL_DIR, 'package.json'), 'utf8')).dependencies || {});
   } catch { /* the report degrades to a generic list; the refusal still stands */ }
+  if (proxyOnly) names = ['undici'];
   const browser = names.includes('playwright');
   // A browser tool's authorised run makes TWO fetches, to two different places,
   // and this report used to fold them into one clause that was wrong about both
@@ -355,21 +376,49 @@ function requireInstallConsent(what) {
   }
   const { list, hosts, size } = installPlan();
   fail(
-    `${installQuestion("a feed reader and a small web-request library", "gather and rank sources from the feeds and pages you name", formatInstallSize(INSTALL_BYTES.harvester))}\n\nDetails for the assistant: this tool is not installed yet and this person has not authorised a Wiser install. Installing fetches ${list} from ${hosts} into ${TOOL_DIR}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
+    `${installQuestion(proxyOnly ? "undici" : "a feed reader and a small web-request library", proxyOnly ? "use the selected proxy" : "gather and rank sources from the feeds and pages you name", formatInstallSize(proxyOnly ? INSTALL_BYTES.request : INSTALL_BYTES.harvester))}\n\nDetails for the assistant: this tool is not installed yet and this person has not authorised a Wiser install. Installing fetches ${list} from ${hosts} into ${TOOL_DIR}, and npm writes its own cache outside this plugin.${size} tools/AGENTS.md lists every write an install makes. Re-run the same command with --install to authorise it, or set WISER_ALLOW_INSTALL=1 for an unattended run. Nothing is read from stdin, so this is the only way to answer.`
   );
+}
+
+// The compiled parser needs only the external proxy package. A reduced lockfile
+// keeps npm ci's integrity checks without fetching the already-bundled parser or
+// changing this tool's shipped manifest and lockfile.
+function installProxy(npm) {
+  const lock = JSON.parse(readFileSync(join(TOOL_DIR, 'package-lock.json')));
+  const locked = lock.packages['node_modules/undici'];
+  if (!locked?.version || !locked.integrity || Object.keys(locked.dependencies || {}).length) {
+    throw new Error('The proxy package lock must pin undici with no dependencies.');
+  }
+  const scratch = mkdtempSync(join(tmpdir(), 'wiser-harvester-proxy-'));
+  try {
+    const manifest = { name: 'wiser-harvester-proxy', version: '1.0.0', private: true, dependencies: { undici: locked.version } };
+    writeFileSync(join(scratch, 'package.json'), JSON.stringify(manifest));
+    writeFileSync(join(scratch, 'package-lock.json'), JSON.stringify({ name: manifest.name, version: manifest.version, lockfileVersion: 3, requires: true, packages: { '': manifest, 'node_modules/undici': locked } }));
+    execFileSync(npm, ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: scratch, stdio: ['ignore', 'ignore', 'inherit'] });
+    mkdirSync(join(TOOL_DIR, 'node_modules'), { recursive: true });
+    rmSync(join(TOOL_DIR, 'node_modules/undici'), { recursive: true, force: true });
+    cpSync(join(scratch, 'node_modules/undici'), join(TOOL_DIR, 'node_modules/undici'), { recursive: true });
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
 }
 
 // Dependencies. Runs after every path screen above, so a run this tool must
 // refuse is refused without an install, and before every package import below.
 
-if (DEP_MARKERS.some((marker) => !existsSync(marker))) {
+if (!await dependenciesAvailable()) {
   requireInstallConsent('packages');
-  process.stderr.write('First run: installing dependencies in this tool directory.\n');
+  process.stderr.write(proxyOnly
+    ? 'First run: installing dependencies in a temporary directory; copying undici into this tool directory.\n'
+    : 'First run: installing dependencies in this tool directory.\n');
   try {
     const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
     // stderr only: npm output on stdout would break the empty-stdout-on-failure rule.
-    execFileSync(npm, ['ci'], { cwd: TOOL_DIR, stdio: ['ignore', 'ignore', 'inherit'] });
-  } catch {
+    if (proxyOnly) installProxy(npm);
+    else execFileSync(npm, ['ci'], { cwd: TOOL_DIR, stdio: ['ignore', 'ignore', 'inherit'] });
+  } catch (error) {
+    if (proxyOnly) {
+      // npm inherits stderr above, so its own error precedes this explanation.
+      fail(`Error: the temporary undici install failed: ${error.message}. This tool's package.json and package-lock.json were left unchanged. Fix the reported cause and retry the same command.`);
+    }
     // Two different failures arrive here and they have different fixes, so the
     // Script Contract's Output and errors clause requires telling them apart:
     // an unwritable tool directory is not a broken install, and telling someone
@@ -379,26 +428,19 @@ if (DEP_MARKERS.some((marker) => !existsSync(marker))) {
     }
     fail(`Error: npm ci failed in ${TOOL_DIR}. Confirm Node 18 or newer, then that package-lock.json is present and matches package.json, which is what npm ci requires and will not resolve around. Delete node_modules there and run "npm ci" by hand to see npm's own message. A lockfile that is missing or out of step with the manifest is a defect in this copy of the plugin, not something a re-run fixes.`);
   }
-  const stillMissing = DEP_MARKERS.find((marker) => !existsSync(marker));
-  if (stillMissing) {
-    fail(`Error: npm ci finished but ${stillMissing} is still missing. Check that package.json lists every package this script imports.`);
+  if (!await dependenciesAvailable()) {
+    fail('Error: npm ci finished but the required packages do not load. Restore this plugin copy and run again.');
   }
 }
 
-// Proxy-mediated sandboxes set HTTPS_PROXY; Node fetch does not honor it alone.
-{
-  const server =
-    process.env.HTTPS_PROXY ||
-    process.env.https_proxy ||
-    process.env.HTTP_PROXY ||
-    process.env.http_proxy ||
-    '';
-  if (typeof server === 'string' && server.trim() !== '') {
-    const undici = await import('undici');
-    if (typeof undici.setGlobalDispatcher === 'function' && undici.ProxyAgent) {
-      undici.setGlobalDispatcher(new undici.ProxyAgent(server.trim()));
-    }
+// Node fetch needs an external dispatcher only for the selected proxy.
+if (server) {
+  const undici = await import('undici');
+  if (typeof undici.setGlobalDispatcher !== 'function' || typeof undici.ProxyAgent !== 'function') {
+    fail('Error: the installed undici cannot configure the selected proxy. Restore this tool’s dependencies with npm ci.');
   }
+  try { undici.setGlobalDispatcher(new undici.ProxyAgent(server)); }
+  catch { fail('Error: the installed undici cannot configure the selected proxy. Restore this tool’s dependencies with npm ci.'); }
 }
 
 try {
@@ -433,4 +475,11 @@ function resolveOutputBase() {
   if (!declared) return join(dirname(requestPath), 'generated_output', request.name);
 
   return resolve(dirname(requestPath), declared);
+}
+
+}
+
+if (isMain(import.meta.url)) {
+  if (HERE !== fileURLToPath(import.meta.url)) await import(pathToFileURL(HERE).href);
+  else await main();
 }

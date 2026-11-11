@@ -1,3 +1,4 @@
+import { tmpdir } from 'node:os';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -32,7 +33,7 @@ for (const [name, voice, failedLine, file = 'voice.md'] of [
   ['the section in about is not exempt', '## From your brand\nPlayful and creative (T2).\n', 2, 'about.md'],
   ['the section in design is not exempt', '## From your brand\nPlayful and creative (T2).\n', 2, 'design.md'],
 ]) for (const gate of (file === 'voice.md' ? ['G5a', 'G9', 'G13'] : ['G5a', 'G9'])) test(`${gate}: ${name}`, () => {
-  const root = mkdtempSync(join(here, 'g13-fixture-'));
+  const root = mkdtempSync(join(tmpdir(), 'g13-fixture-'));
   try {
     mkdirSync(join(root, 'voice-fixture')); mkdirSync(join(root, 'tmp'));
     mkdirSync(join(root, 'work/onboarding'), { recursive: true });

@@ -16,7 +16,7 @@ node --version
 
 ## 2. Packages
 
-Nothing to run by hand. Consent is once per person across plugin copies (`tools/RUNNING.md`). This tool holds no credentials, so there is nothing else to configure and no `--env` to resolve.
+Starter mode uses carried reveal.js files. Template mode copies the caller's files. Both scaffold modes need no install. PDF and PNG still need the shared browser runtime. Nothing to run by hand. Consent is once per person across plugin copies (`tools/RUNNING.md`). This tool holds no credentials, so there is nothing else to configure and no `--env` to resolve.
 
 ## 3. The browser build
 

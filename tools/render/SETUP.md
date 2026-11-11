@@ -16,7 +16,7 @@ node --version
 
 ## 2. Packages
 
-Nothing to run by hand. Consent is once per person across plugin copies (`tools/RUNNING.md`). Only `mermaid` installs `mermaid` into this tool's directory. Every subcommand that launches a browser uses the active browser runtime, installed once per person where the copy holds none (`tools/AGENTS.md`). This tool holds no credentials.
+Nothing to run by hand. Consent is once per person across plugin copies (`tools/RUNNING.md`). Mermaid's browser file is carried with this tool; no command installs it. Every subcommand that launches a browser uses the active browser runtime, installed once per person where the copy holds none (`tools/AGENTS.md`). This tool holds no credentials.
 
 ## 3. Chromium
 

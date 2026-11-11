@@ -13,7 +13,7 @@ const cases = JSON.parse(readFileSync(new URL('cases.json', fixtures)));
 let browser, core;
 before(async () => { browser = await launch(); core = await portable(new URL('../scripts/render-core.js', import.meta.url)); });
 after(async () => { await browser?.close(); });
-const mermaidScript = new Uint8Array(readFileSync(new URL('../node_modules/mermaid/dist/mermaid.min.js', import.meta.url)));
+const mermaidScript = new Uint8Array(readFileSync(new URL('../vendor/mermaid/mermaid.min.js', import.meta.url)));
 for (const c of cases) test(c.name, async () => {
   const scratch = mkdtempSync(join(tmpdir(), 'render-shared-'));
   try {

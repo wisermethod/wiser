@@ -1,6 +1,6 @@
 ---
 standard: user-root
-version: 0.11.2
+version: 0.13.0
 description: One declared user-root tree and the clauses used to score its layout
 ---
 
@@ -12,7 +12,7 @@ Applies to personal, org, client, department, and industry user roots. This is t
 
 ## C1 Identification
 
-The constitution's Workspace Model (`wiser/AGENTS.md`) owns root identification. Its declaration is in root `AGENTS.md`: `type:`, a Provides block, the Wiser constitution citation, the Onboarding section (C15), and the declared-directory table. A folder set never identifies a user root. The frontmatter also carries `root:` and `layout:`, the latter this standard's current tree version (4). Increment that integer when this standard changes the tree; a version difference is a converge input, never permission to re-onboard. `skills/Housekeeping/` owns layout migration on a declared Wiser user root and is callable any time to bring its shelves and filing declarations into conformance with this standard. A missing layout version on an already-declared Wiser root is drift, not foreign identity.
+The constitution's Workspace Model (`wiser/AGENTS.md`) owns root identification. Its declaration is in root `AGENTS.md`: `type:`, a Provides block, the Wiser constitution citation, the Onboarding section (C15), and the declared-directory table. A folder set never identifies a user root. The frontmatter also carries `root:` and `layout:`, the latter this standard's current tree version (5). Increment that integer when this standard changes the tree; a version difference is a converge input, never permission to re-onboard. `skills/Housekeeping/` owns layout migration on a declared Wiser user root and is callable any time to bring its shelves and filing declarations into conformance with this standard. A missing layout version on an already-declared Wiser root is drift, not foreign identity.
 
 That integer is the root **contract** version: the tree above, and whatever else this standard requires of a root before it counts as current. Increment it equally when a row of the table below requires something a tree change does not cover. One integer and no minor part; a row says whether it is required or advisory, so severity lives in the row and not in the number.
 
@@ -24,6 +24,7 @@ The table states, per integer, what a root must carry to reach it, which primiti
 | 2 | The C3 declared directories, their routers, and the C2 to C11 clauses as this standard now states them, less the `memory/knowledge/` router cell that row 3 owns and the `memory/answers/` row that row 4 owns. Those clauses are otherwise unchanged since 2026-09-10, except that C4 came to permit nested programs on 2026-10-09, which asks nothing of a root that holds none, so an installed copy carrying no git history scores this row from the text in front of it | `skills/Onboard Root/` at instantiation, `skills/Housekeeping/` afterwards | required |
 | 3 | C12 Set registration and the C3 `memory/knowledge/` router cell, both of which entered this standard on 2026-09-15 without moving the integer and therefore bound no root by number; and the stamp read as this contract rather than as the tree alone | `skills/Housekeeping/` for the router cell, which is a tree change; the Sets row per C12, which Housekeeping names and hands off, is written by `skills/Knowledge Set Onboarding/` and updated by `skills/Knowledge Curation/`, and is owed only where C12 scores the root anything: a root with **neither a set nor a row** takes C12's vacuous case, owes those two nothing, and is not held short of this contract by a certification for work that does not exist. A set without a row, or a row naming no set directory, is C12's absent or misfiled and is still owed | required |
 | 4 | The C3 `memory/answers/` row in the root's Work Directories table, the directory `memory/answers/`, and its router `memory/answers/AGENTS.md` copied from the template. An answers file is not owed: a directory with none takes C14's vacuous case | `skills/Onboard Root/` at instantiation, by copying the template; `skills/Housekeeping/` afterwards, which adds the table row and the missing router and writes no answers file and no bound file | required |
+| 5 | Exactly one C16 `## Always` section in the root's `AGENTS.md`, equal to the template's and first as C16 requires | `skills/Onboard Root/` at instantiation, by copying the template; `skills/Housekeeping/` afterwards, which adds or replaces the section and nothing else in the file's prose | required |
 
 ## C2 One tree
 
@@ -147,6 +148,14 @@ Score present when the section holds only those three. Score misfiled when a not
 `skills/Onboard Root/` writes the section at close; `skills/Build Voice/` on its coach path sets its own key's state line. A caller's Build Brand run, its provisional page writes and every rerun included, leaves the design state line to Onboard Root; a direct run sets the design state line. `skills/Housekeeping/` scores this clause on every **update root**, whatever the stamp, and proposes rewriting a misfiled note to pointers, changing no other byte of the section. This clause gives Housekeeping that one write and no other: it closes no key and writes no bound file.
 
 **No C1 contract row scores this clause, and that is decided rather than missing.** Decided 2026-11-02: this clause changes no tree, and Housekeeping scores every clause whatever the stamp, so an existing root converges at its next **update root** with no number to reach. C1 increments the integer for a requirement a tree change does not cover; this clause deliberately takes no row. **Do not add one, and do not read the absence as an oversight.**
+
+## C16 Always block
+
+A root's `AGENTS.md` carries, as its first section, before any other heading, the section `## Always` exactly as `system/templates/User Root Template/AGENTS.md` states it. The block is a projection: each line restates one rule of the constitution, names the section it comes from, and exists so the rule reaches an app that reads the folder and never loads the constitution. The constitution is each rule's home and governs where the two differ. No other file states these rules again.
+
+A single leading level-one file title is not a section heading. Only body headings outside front matter and fenced blocks count; text that looks like a heading inside either is not a section. Whatever the owner wrote before the first section heading stays where it is, byte for byte. A root changes the block only by taking the template's.
+
+Score absent when the section is missing, and misfiled when there is more than one, its text differs from the template's, or it is not the first section. Contract row 5 is complete only when exactly one section has the template's bytes and is first; a matching `layout:` alone proves none of these.
 
 ## Scoring
 

@@ -5,6 +5,7 @@ category: media
 description: Synthesize local English speech from supplied text and a reference recording, with a sample layout and timed route trial
 version: 0.1.1
 runs: local
+local-only: runs Python and speech models on the member's Apple silicon Mac
 ---
 
 # Chatterbox

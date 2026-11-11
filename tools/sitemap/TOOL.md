@@ -3,7 +3,7 @@ name: sitemap
 type: tool
 category: seo
 description: One deterministic snapshot of the URLs a site publishes in its sitemaps, and one JSON report of what changed between two snapshots of the same site
-version: 0.2.5
+version: 0.2.6
 runs: both
 hosted:
   - fetch 1MiB 15s
@@ -23,7 +23,7 @@ Do not use `diff` to fetch or refresh a sitemap; that is `fetch`, which produces
 
 `diff` compares one site with its earlier self. Snapshots of two different sites are a caller mistake rather than a comparison, and a run whose snapshots name different domains says so in its result and still reports every URL on one side as added and every URL on the other as removed.
 
-It authenticates to nothing, holds no credential, and reaches no other primitive. After the packages described in `tools/AGENTS.md` are installed, `fetch` in network mode requests only the addresses its input names and the child sitemaps those name, none of which may be an address inside this machine or its network. `diff` makes no network request. A file is written only when the caller asks for one.
+It authenticates to nothing, holds no credential, and reaches no other primitive. `fetch` in network mode requests only the addresses its input names and the child sitemaps those name, none of which may be an address inside this machine or its network. `diff` makes no network request. A file is written only when the caller asks for one.
 
 ## Quick Start
 
@@ -37,7 +37,7 @@ Usage text listing the two subcommands, with nothing installed. `node scripts/si
 node scripts/sitemap.js fetch --domain example.com
 ```
 
-If this person has not yet authorized a Wiser install, `fetch` reports that it would install `undici` in this tool's directory, and stops. `--install` on that run is the answer (`tools/RUNNING.md`). It prints one JSON object:
+`fetch` installs `undici` only when `HTTPS_PROXY`, `https_proxy`, `HTTP_PROXY` or `http_proxy` is set to a non-blank value. The install consent is described in `tools/RUNNING.md`; `--install` on that run is the answer. It prints one JSON object:
 
 ```
 {"domain":"example.com","fetchedAt":"2026-07-27","sitemaps":["https://example.com/sitemap.xml"],"urls":[{"loc":"https://example.com/guide/naming","path":"/guide/naming","slug":"naming","segment":"guide","lastmod":"2026-06-02"}],"count":1,"truncated":false}
@@ -59,7 +59,7 @@ Anything else, see Troubleshooting.
 
 ## Script Contract
 
-Every script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. `fetch` writes a snapshot file only when `--output` names a directory outside this tool directory. `diff` writes a report file only when `--output` names a file outside this tool directory. Every other write a run makes is a package install, and `tools/AGENTS.md` is the only place this repository lists those. `fetch` checks for and imports `undici`; `diff` does not. `help` does not. The contract's `--env` clause has nothing to bind here, and the tool carries no Dependencies section because `undici` installs by the consent-gated check and Node covers the rest. The sections below state what each command does; the contract states how the script behaves getting there.
+Every script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. `fetch` writes a snapshot file only when `--output` names a directory outside this tool directory. `diff` writes a report file only when `--output` names a file outside this tool directory. Every other write a run makes is a package install, and `tools/AGENTS.md` is the only place this repository lists those. `fetch` checks for and imports `undici` only for a network request through a proxy. `diff` and `help` need no packages. The contract's `--env` clause has nothing to bind here, and the tool carries no Dependencies section because `undici` installs by the consent-gated check only when a proxy variable is set and Node covers the rest. The sections below state what each command does; the contract states how the script behaves getting there.
 
 No command takes `--env`.
 

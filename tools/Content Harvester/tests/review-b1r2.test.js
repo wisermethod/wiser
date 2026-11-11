@@ -128,6 +128,6 @@ test('fetchText without an explicit body cap still uses the 1 MiB bound', async 
 
 test('the unused filesystem renderer is removed with its last committed text archived', () => {
   assert.equal(existsSync(new URL('../scripts/lib/render.js',import.meta.url)),false);
-  const expected = execFileSync('git',['show','c88b4613:tools/Content Harvester/scripts/lib/render.js'],{cwd:new URL('../../../',import.meta.url)});
+  const expected = execFileSync('git',['show','c88b4613:tools/Content Harvester/scripts/lib/render.js'],{cwd:process.env.WISER_TEST_SOURCE_ROOT || new URL('../../../',import.meta.url)});
   assert.deepEqual(readFileSync(new URL('../scripts/lib/zArchive/26-11-09 V2 - render.js',import.meta.url)), expected);
 });

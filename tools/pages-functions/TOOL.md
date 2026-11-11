@@ -5,6 +5,7 @@ category: web
 description: The three files Cloudflare Pages takes for a site's functions folder, compiled offline
 version: 0.1.1
 runs: local
+local-only: compiles the site's functions and static-asset folders with local Wrangler
 ---
 
 # pages-functions

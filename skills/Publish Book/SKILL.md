@@ -3,7 +3,7 @@ name: Publish Book
 type: skill
 category: publishing
 description: Turn a publishable manuscript and settled book specifications into built editions with a production verdict and a hand-off for the member's upload
-version: 0.1.0
+version: 0.1.1
 ---
 
 # Publish Book
@@ -34,7 +34,9 @@ A production editor judging whether a finished book can become a distributable f
 
 ### 1. Establish readiness
 
-Load the owning chain, the book's `AGENTS.md`, its edition configurations, and `tools/Book Publisher/TOOL.md` before preparing anything. That tool file is the sole input, configuration, markup and command contract throughout this run.
+Skip only when a calling skill took this same check and continued; a folder-only check does not satisfy this provenance check. What establishes how this skill is available? This skill is in this app's own skill list: the plugin is installed, even when the text being followed also came through `load_skill` or `read_skill_file`; with a folder attached, continue; with none, use the folder prompt: "This needs a folder to keep the work in. Attach one to this chat, then ask again." The text came through the Wiser connector's `load_skill` or `read_skill_file` and this app's own skill list holds no copy of this skill: use the sentence: "Producing a book needs the Wiser plugin and a folder on your computer, because the manuscript and its editions are yours to keep, and Wiser doesn't keep your files. Here's how to install it: https://account.wisermemory.com/install" Cannot establish either: ask nothing about installing and use the folder test alone; with a folder attached, continue; with none, use the folder prompt. The served `Plugin:` label and `find_skill`'s description do not establish what this app has installed. Say the sentence or the prompt only if no plugin sentence or folder prompt has already been said in this chat; otherwise stop without saying it. On any missing path, stop: attempt no workaround, offer no cut-down version, and start none of the work in chat.
+
+After the check continues, load the owning chain, the book's `AGENTS.md`, its edition configurations, and `tools/Book Publisher/TOOL.md` before preparing anything. That tool file is the sole input, configuration, markup and command contract throughout this run.
 
 The tool reads the manuscript as numbered chapter files under the config's `source.chapters`. `init`'s `01-first-chapter.md`, a `# First chapter` heading over `Awaiting its owner.`, is a placeholder and never a chapter. What is ready? The edition and index decisions not recorded: run `skills/Set Up Book/` first and stop this run. No manuscript, or the member says the writing is unfinished: stop; writing the book is Content Author's and Build Concepts' work, and this skill starts again when it is done. Decisions recorded and a finished manuscript, as numbered chapters or held elsewhere with its Manuscript changes listed: continue; Step 3 brings it into `source.chapters`. Conflicting instructions, missing reader or unnamed platform: ask before proceeding.
 

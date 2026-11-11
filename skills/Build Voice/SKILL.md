@@ -3,7 +3,7 @@ name: Build Voice
 type: skill
 category: onboarding
 description: Build or rebuild one user root's voice.md, for a personal root as a coach that first takes any writing samples the person wants to use, then asks a few short questions about them and three screens of quick taps, leaving out what the samples already show, shows them how they come across, and has them correct a first piece, and for every other type from real writing evidence routed to the register that root's outputs need
-version: 0.19.1
+version: 0.19.3
 memory:
   - voice
 ---
@@ -82,6 +82,6 @@ Pitfalls that belong to one path are in that path's file.
 - Every statement about a reader in the routing table's Why column is either a statement a named person made or a research inference naming the evidence rows it derives from.
 - `voice-authority-name:`, `voice-authority-basis:` per domain, and `voice-confirmation-date:`, anchored where the run keeps a verification record, are present, with `voice-authority-fallback-signoff:` wherever the authority is a fallback.
 - Every derivation an authority overruled stands in the file as a prohibition, with what its output got wrong and who stated the replacement.
-- `experts/Ghost Writer/` read the confirmation passage or the first piece, in a context that did not draft the voice where the host offers one, and its findings were worked before the confirming authority saw it; the confirming authority for that root type then said the passage sounds right, and the bound path changed only after that.
+- `experts/Ghost Writer/` read the confirmation passage or the first piece, in a context that did not draft the voice, and its findings were worked before the confirming authority saw it; on a one-context host the coach waits before Step 6 for that review as `paths/coach.md` Step 5 requires; the confirming authority for that root type then said the passage sounds right, and the bound path changed only after that.
 - A rebuild left the previous file archived per `standards/conventions.md`, and every rejected attempt archived with what it got wrong.
 - On every type but personal, before the bound path changed, `experts/Ghost Writer/` read the file in a context that did not write it, or the requester declined that read. Judge `## From your brand` only for its citation to a numbered design answer and the member's tap labels. A finding confined to that section is not a return and is not rewritten; record a citation issue for Build Brand. Keep the checkable-trait test, evidence tracing and the closed adjective list on every other section; the confirming authority, not the expert, decided whether the voice is right.

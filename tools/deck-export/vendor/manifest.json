@@ -1,0 +1,234 @@
+{
+  "package": "reveal.js",
+  "version": "5.2.1",
+  "license": "MIT",
+  "resolved": "https://registry.npmjs.org/reveal.js/-/reveal.js-5.2.1.tgz",
+  "integrity": "sha512-r7//6mIM5p34hFiDMvYfXgyjXqGRta+/psd9YtytsgRlrpRzFv4RbH76TXd2qD+7ZPZEbpBDhdRhJaFgfQ7zNQ==",
+  "sourceLockSha256": "7c0c675fe3210a6628793f9b654950e1605876c8e580bf0b088eb43fc68a128f",
+  "builderSha256": "db3efe3e2d97084cf7b6d2965af71d2c33f01309f0a5f1f9c55b1b9677f6632a",
+  "bytes": 3242831,
+  "files": [
+    {
+      "path": "reveal.js/dist/reset.css",
+      "bytes": 871,
+      "sha256": "1aa8e84c9cabcbfe4d95b19879fe48b9c2c5e6d54574cbe679bc22edb9fe12b6"
+    },
+    {
+      "path": "reveal.js/dist/reveal.css",
+      "bytes": 54097,
+      "sha256": "68f915a11ebf7203c0446576b7e952ff61c5dd02134a8a226ffaf62ed42136d2"
+    },
+    {
+      "path": "reveal.js/dist/reveal.js",
+      "bytes": 112163,
+      "sha256": "46538b52db48724192f59bf46f5e851a18e302777c46f4a34c32709d010d6a29"
+    },
+    {
+      "path": "reveal.js/dist/theme/beige.css",
+      "bytes": 8153,
+      "sha256": "98d3d5021cc5a35cf6b63919337ef3061f71f8c09d6d8b9ee34389b10a898f61"
+    },
+    {
+      "path": "reveal.js/dist/theme/black-contrast.css",
+      "bytes": 7387,
+      "sha256": "39bab5701746b107249b26cd83c80db5ce3b5586bf36dfd8a7d1d14842d870a1"
+    },
+    {
+      "path": "reveal.js/dist/theme/black.css",
+      "bytes": 7201,
+      "sha256": "1f1344b2fb5d70cbc27dce84385ec279685575743e86ebdedf6451e1a2e47571"
+    },
+    {
+      "path": "reveal.js/dist/theme/blood.css",
+      "bytes": 8058,
+      "sha256": "94d8b97e72b16a7c5a8e353f0474ddf09eb05071302175990efda3ee3cc53bfb"
+    },
+    {
+      "path": "reveal.js/dist/theme/dracula.css",
+      "bytes": 7781,
+      "sha256": "6ad62934e8fb01894838788d90b73154586677746c1ae0d7a272d2a7f53510b7"
+    },
+    {
+      "path": "reveal.js/dist/theme/fonts/league-gothic/league-gothic.css",
+      "bytes": 317,
+      "sha256": "82d18a3cfbde189aefc749cc31d314681e7a41f064141d33ec6687f6fc57223d"
+    },
+    {
+      "path": "reveal.js/dist/theme/fonts/league-gothic/league-gothic.eot",
+      "bytes": 25696,
+      "sha256": "8802c66a5594beb2420c8fdb9b0ba87088ff102ca71c819b37e53d4670c93ec8"
+    },
+    {
+      "path": "reveal.js/dist/theme/fonts/league-gothic/league-gothic.ttf",
+      "bytes": 64256,
+      "sha256": "38fcc72133411c61e3194afe3a11e64ae268c00d403a87cf3c66a5c07e2d9413"
+    },
+    {
+      "path": "reveal.js/dist/theme/fonts/league-gothic/league-gothic.woff",
+      "bytes": 30764,
+      "sha256": "5eef6df86135497f2d0a586c8aa3dc3ace8963234762c16081924714658da2db"
+    },
+    {
+      "path": "reveal.js/dist/theme/fonts/league-gothic/LICENSE",
+      "bytes": 92,
+      "sha256": "f8a741f43a00e8dc1ba89debfe7cc6c760de0315e9ee47406c17474f9246c692"
+    },
+    {
+      "path": "reveal.js/dist/theme/fonts/league-gothic/OFL.md",
+      "bytes": 4546,
+      "sha256": "6fa7527b6f9894e0dd8d5ae0050b51d37de15bcf7e6269d8dd690eb9df59aa40",
+      "source": "https://raw.githubusercontent.com/theleagueof/league-gothic/master/OFL.md"
+    },
+    {
+      "path": "reveal.js/dist/theme/fonts/source-sans-pro/LICENSE",
+      "bytes": 4632,
+      "sha256": "bb5f5f9b59ff3ab358efed2c5436e8aa2e12444959c4bde82167b874d5db1b1c"
+    },
+    {
+      "path": "reveal.js/dist/theme/fonts/source-sans-pro/source-sans-pro-italic.eot",
+      "bytes": 75720,
+      "sha256": "ad4b0799608b5dc860cc3bd7ff4781f2d9e13144e48a2e3d9321ce57c5a12f2a"
+    },
+    {
+      "path": "reveal.js/dist/theme/fonts/source-sans-pro/source-sans-pro-italic.ttf",
+      "bytes": 238084,
+      "sha256": "d13268affb2204223a1b6b8483afd989a0e2b20bff853eae05fe5d0d32de8ed9"
+    },
+    {
+      "path": "reveal.js/dist/theme/fonts/source-sans-pro/source-sans-pro-italic.woff",
+      "bytes": 98556,
+      "sha256": "05d3615fdbe7d35c62d6a1308dc48e3985016b69e65926ed37b99fe7e6b297dc"
+    },
+    {
+      "path": "reveal.js/dist/theme/fonts/source-sans-pro/source-sans-pro-regular.eot",
+      "bytes": 88070,
+      "sha256": "dce8869d25c3abcecb33a3486a3c70bb76aed17c21a74069ee83949b1d209c9b"
+    },
+    {
+      "path": "reveal.js/dist/theme/fonts/source-sans-pro/source-sans-pro-regular.ttf",
+      "bytes": 288008,
+      "sha256": "c1865d89d798bc2119872b17774361c7406974b9568121a617007e02af344981"
+    },
+    {
+      "path": "reveal.js/dist/theme/fonts/source-sans-pro/source-sans-pro-regular.woff",
+      "bytes": 114324,
+      "sha256": "d4eaa48ba450f4dd2d024ab5b0e895c73c81475718e5453fd1890254c16b7a57"
+    },
+    {
+      "path": "reveal.js/dist/theme/fonts/source-sans-pro/source-sans-pro-semibold.eot",
+      "bytes": 89897,
+      "sha256": "ebb8918da92bae172dfe322a3947929b3df2330dccc6f13c7d8e8ed3815e1696"
+    },
+    {
+      "path": "reveal.js/dist/theme/fonts/source-sans-pro/source-sans-pro-semibold.ttf",
+      "bytes": 284640,
+      "sha256": "a53e27232eff5f0bc1ba1c0af7e0759f0aaaf5c0636370b4c54f83c4652ba924"
+    },
+    {
+      "path": "reveal.js/dist/theme/fonts/source-sans-pro/source-sans-pro-semibold.woff",
+      "bytes": 115648,
+      "sha256": "b0abd2736335424f9fd3eb27974a36d03783b3db141e0801dca7d3a635218b46"
+    },
+    {
+      "path": "reveal.js/dist/theme/fonts/source-sans-pro/source-sans-pro-semibolditalic.eot",
+      "bytes": 75706,
+      "sha256": "dfe0b47abfa0fdb0504d7be14015fa3f1cf9647b97ffd8b3bfcceb25c60f4fa6"
+    },
+    {
+      "path": "reveal.js/dist/theme/fonts/source-sans-pro/source-sans-pro-semibolditalic.ttf",
+      "bytes": 240944,
+      "sha256": "e8ec22b619599ef4088c788ec410ea3e70481acc9ec43cc0a7fcd00da6441646"
+    },
+    {
+      "path": "reveal.js/dist/theme/fonts/source-sans-pro/source-sans-pro-semibolditalic.woff",
+      "bytes": 98816,
+      "sha256": "7225cacc06c2f360367c138daa4ce727c2a0d26e42875b1f9e802f181fdb81c5"
+    },
+    {
+      "path": "reveal.js/dist/theme/fonts/source-sans-pro/source-sans-pro.css",
+      "bytes": 1457,
+      "sha256": "5292b4fb38f4e609bf20cd98b3e5c039dbd7271d1c9174302305fbaaf42035cc"
+    },
+    {
+      "path": "reveal.js/dist/theme/league.css",
+      "bytes": 8174,
+      "sha256": "7fc64067f17c755c42d681c0980cfd908e679ca32ed1f2453dee11ff633c6ef3"
+    },
+    {
+      "path": "reveal.js/dist/theme/moon.css",
+      "bytes": 7251,
+      "sha256": "d3696656844b424d148936addd9e20f4d956fb967de8f23915bcb35d9df31730"
+    },
+    {
+      "path": "reveal.js/dist/theme/night.css",
+      "bytes": 7237,
+      "sha256": "fb73e4300d4217f80a8a17f1c4414a50fe654a409c8517486a19b73add3443b0"
+    },
+    {
+      "path": "reveal.js/dist/theme/serif.css",
+      "bytes": 7299,
+      "sha256": "39fd52f089ab189264a264db1a7d8d5a501ff6fe0ef23313e28bbb00a3e4e14f"
+    },
+    {
+      "path": "reveal.js/dist/theme/simple.css",
+      "bytes": 7396,
+      "sha256": "f04a7ec3204c65544f9a7bfba7690d56744f26084901b0c8e112c4b49d67b737"
+    },
+    {
+      "path": "reveal.js/dist/theme/sky.css",
+      "bytes": 7836,
+      "sha256": "b6b2f91ec0c9b12dab2b2a589d8d1984097015a50ef36a3e3807a449d54b6467"
+    },
+    {
+      "path": "reveal.js/dist/theme/solarized.css",
+      "bytes": 7066,
+      "sha256": "79fbcc47d85faffb3b68c00b048f137adc9693de8a4e078baa335d0872d6a1bd"
+    },
+    {
+      "path": "reveal.js/dist/theme/white_contrast_compact_verbatim_headers.css",
+      "bytes": 7205,
+      "sha256": "3a5b4a2c0c8916c10d6833d0ad87bb3d63fa3edb7abaaa2432bef6003ef26be4"
+    },
+    {
+      "path": "reveal.js/dist/theme/white-contrast.css",
+      "bytes": 7376,
+      "sha256": "54b5221ac686cb8ce3f243e390f5f69fd2bcd962d165a2166ad959d2aca502d0"
+    },
+    {
+      "path": "reveal.js/dist/theme/white.css",
+      "bytes": 7190,
+      "sha256": "97f64970ffd6c745ffab96ad26c504950f665e18fa851ac8864fc1851ce99780"
+    },
+    {
+      "path": "reveal.js/LICENSE",
+      "bytes": 1108,
+      "sha256": "34014800f4126ac2525e224166f099f26628612e95c41f76d70841b63138c989"
+    },
+    {
+      "path": "reveal.js/plugin/highlight/highlight.js",
+      "bytes": 940006,
+      "sha256": "38cb5c336e11fdc4a798b074555f7a2305f5f65c217ac29876e79526e58f818b"
+    },
+    {
+      "path": "reveal.js/plugin/highlight/LICENSE",
+      "bytes": 1514,
+      "sha256": "6c081431591d9df696c82dc598fe1423765b8a299b200ed00b281afd0f64c490",
+      "source": "https://raw.githubusercontent.com/highlightjs/highlight.js/11.9.0/LICENSE"
+    },
+    {
+      "path": "reveal.js/plugin/highlight/monokai.css",
+      "bytes": 940,
+      "sha256": "504e51314144f3f8327155dc69502ba10b1a4991ae4cc3fa70086cf155465999"
+    },
+    {
+      "path": "reveal.js/plugin/notes/notes.js",
+      "bytes": 69167,
+      "sha256": "df1201d19d03241a2897d39c3d38768177df1cbd4bde06327b321cb83461ae89"
+    },
+    {
+      "path": "reveal.js/THIRD-PARTY-NOTICES.txt",
+      "bytes": 10182,
+      "sha256": "2bd4b62ba555b5724a312b5e9d23c3a5a4822d18d31f6bb27b513dcbc0938a9e"
+    }
+  ]
+}
