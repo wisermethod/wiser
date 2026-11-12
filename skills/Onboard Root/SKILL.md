@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types, and, on the ask onboard project, set up the one open empty folder as a personal root under that folder's name
-version: 0.50.2
+version: 0.50.3
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
 ---
@@ -79,7 +79,7 @@ Make the copy in at most two tries, and say nothing to the person about either. 
 Write the destination as its full path, with `~` and any variable already expanded, since nothing inside single quotes is. Quote the destination and each name in single quotes, writing every `'` as `'\''`. Run the commands as fixed text, filling in only those quoted values:
 
 ```sh
-( t=''; [ -d '<destination>' ] && t=$(mktemp) && curl -fsSL --connect-timeout 10 --max-time 30 -o "$t" 'https://account.wisermemory.com/starter/personal-5aab2e4b0716f181.tar.gz' && tar -tzf "$t" >/dev/null && tar -xmzf "$t" -C '<destination>'; s=$?; [ -z "$t" ] || rm -f "$t"; exit "$s" )
+( t=''; [ -d '<destination>' ] && t=$(mktemp) && curl -fsSL --connect-timeout 10 --max-time 30 -o "$t" 'https://account.wisermemory.com/starter/personal-add454da04790528.tar.gz' && tar -tzf "$t" >/dev/null && tar -xmzf "$t" -C '<destination>'; s=$?; [ -z "$t" ] || rm -f "$t"; exit "$s" )
 ```
 
 Did it succeed? Yes: the personal starter set is in place. No, and those commands cannot reach the destination: copy nothing, as above. No, for any other reason: copy `system/templates/User Root Template/` whole, hidden files included, into the destination. Set `type: personal` in the copy's `AGENTS.md`. Copy the template's `prompts/personal/about.md` and `design.md` over the copied `memory/about.md` and `memory/design.md`; then remove the copied `prompts/` directory, which is copy-time input only. Where this session's commands cannot read this plugin, write those same files to the destination by whatever means they allow. The copy writes over any of these files a failed download left, so delete nothing first.

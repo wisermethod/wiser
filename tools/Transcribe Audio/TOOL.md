@@ -3,7 +3,7 @@ name: Transcribe Audio
 type: tool
 category: media
 description: Transcribes an audio file or aligns known English words to its sample clock on this machine
-version: 0.3.3
+version: 0.3.4
 runs: local
 local-only: runs Python and speech models locally so recordings stay on the member's machine
 gaps:
@@ -39,6 +39,8 @@ One audio file, named by `--audio` as an absolute path, in one of these formats:
 For `transcribe`, `--output` is a required absolute directory outside this tool where the transcript is written. For `align`, its file and known-word inputs are specified under Align known words. `--model-cache` is optional: omit it and weights use the person-scoped `models/` folder in `tools/AGENTS.md`. An explicit absolute `--model-cache` still wins. A destination that is the connector key file is refused. Do not put weights in a root: the tool screens the key file, not a composed root, so the caller must not pass one.
 
 ## Quick Start
+
+The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an installed tool.
 
 ```bash
 python3 scripts/transcribe.py help

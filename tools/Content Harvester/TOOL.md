@@ -3,7 +3,7 @@ name: Content Harvester
 type: tool
 category: research
 description: Turns one harvest request into a timeboxed, deduplicated, ranked bundle of source candidates with a record of what was rejected and what failed
-version: 0.1.8
+version: 0.1.9
 runs: both
 hosted:
   - run 1MiB 15s
@@ -26,6 +26,8 @@ It authenticates to nothing and reaches no other primitive. Material behind a lo
 One file, named by `--request`, in the shape `REQUEST_SCHEMA.md` defines: `<harvest_request>`. Everything the run does comes from it. Nothing about the calling project belongs in it; a rule that applies to one consumer's work stays with that consumer.
 
 ## Quick Start
+
+The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an installed tool.
 
 ```bash
 node scripts/harvest.js help

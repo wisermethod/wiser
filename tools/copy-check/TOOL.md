@@ -3,7 +3,7 @@ name: copy-check
 type: tool
 category: documents
 description: Count and match page copy against a ledger, a fact map, patterns, and a corpus, and return one JSON object
-version: 0.1.1
+version: 0.1.2
 runs: both
 hosted:
   - dashes 64KiB 15s
@@ -39,6 +39,8 @@ the core also guards the 4 MiB total output-file ceiling. Nothing is truncated.
 The existing Markdown and planted-control refusals still apply.
 
 ## Quick Start
+
+The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an installed tool.
 
 ```bash
 node scripts/copy-check.js help

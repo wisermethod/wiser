@@ -3,7 +3,7 @@ name: sitemap
 type: tool
 category: seo
 description: One deterministic snapshot of the URLs a site publishes in its sitemaps, and one JSON report of what changed between two snapshots of the same site
-version: 0.2.6
+version: 0.2.7
 runs: both
 hosted:
   - fetch 1MiB 15s
@@ -26,6 +26,8 @@ Do not use `diff` to fetch or refresh a sitemap; that is `fetch`, which produces
 It authenticates to nothing, holds no credential, and reaches no other primitive. `fetch` in network mode requests only the addresses its input names and the child sitemaps those name, none of which may be an address inside this machine or its network. `diff` makes no network request. A file is written only when the caller asks for one.
 
 ## Quick Start
+
+The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an installed tool.
 
 ```bash
 node scripts/sitemap.js help

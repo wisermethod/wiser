@@ -3,7 +3,7 @@ name: Subagent Runner
 type: tool
 category: automation
 description: Run one builder or reviewer through a vendor command-line tool named by flags, or survey the boundary that run would use
-version: 0.1.2
+version: 0.1.3
 runs: local
 local-only: runs the member's installed command-line AI against their attached folders
 ---
@@ -23,6 +23,8 @@ Do not use it to judge the delegate's work, to install a vendor tool, or to turn
 Classifier seam: none.
 
 ## Quick Start
+
+The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an installed tool.
 
 ```bash
 python3 scripts/subagent_runner.py help

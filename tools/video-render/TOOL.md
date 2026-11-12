@@ -3,7 +3,7 @@ name: video-render
 type: tool
 category: media
 description: Renders one local HTML page whose motion answers the tool's seek to a picture-only MP4, a PNG sequence, or stills at named times, the same frames on every run at a set worker count, under one pinned HyperFrames, with a cache keyed over every input
-version: 0.2.2
+version: 0.2.3
 runs: local
 local-only: renders a whole local HTML project folder with HyperFrames, Chrome and FFmpeg
 gaps:
@@ -41,6 +41,8 @@ This section is the one home of what a page must be for this tool to render it.
 ## Quick Start
 
 Run from this tool's directory. Check Node and FFmpeg as Dependencies says before the first run on a machine.
+
+The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an installed tool.
 
 ```bash
 node scripts/video-render.js help

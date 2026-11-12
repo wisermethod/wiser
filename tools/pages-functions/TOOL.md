@@ -3,7 +3,7 @@ name: pages-functions
 type: tool
 category: web
 description: The three files Cloudflare Pages takes for a site's functions folder, compiled offline
-version: 0.1.1
+version: 0.1.2
 runs: local
 local-only: compiles the site's functions and static-asset folders with local Wrangler
 ---
@@ -21,6 +21,8 @@ The output carries no bindings by design. A D1 binding belongs on the Pages proj
 Classifier seam: none.
 
 ## Quick Start
+
+The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an installed tool.
 
 ```bash
 node scripts/pages-functions.js help

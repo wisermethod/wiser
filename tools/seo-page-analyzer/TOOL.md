@@ -3,7 +3,7 @@ name: seo-page-analyzer
 type: tool
 category: seo
 description: Reports one page's on-page SEO elements from caller-supplied HTML, each element with its measurements and the checks it failed
-version: 0.1.4
+version: 0.1.5
 runs: both
 hosted:
   - analyze 1MiB 15s
@@ -75,6 +75,8 @@ with a plain reason. This command writes no files, so its total output-file size
 is zero and always below 4 MiB.
 
 ## Quick Start
+
+The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an installed tool.
 
 ```bash
 node scripts/analyze.js help

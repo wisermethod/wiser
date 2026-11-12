@@ -3,7 +3,7 @@ name: deck-export
 type: tool
 category: documents
 description: Writes a new reveal.js deck project on disk, from a brand template or as a self-contained starter, and renders a finished deck to a PDF or to one PNG per slide
-version: 0.2.10
+version: 0.2.11
 runs: both
 hosted:
   - pdf 8MiB 60s
@@ -39,6 +39,8 @@ Compatibility refusals: missing assets, references to files outside the named as
 A deadline or failed context close raises an error with `code: "browser_abandoned"` and `cleanup: Promise<{ closed: boolean }>`; cleanup also waits for context creation that completes after the deadline. The host must retain that promise with `waitUntil(error.cleanup)` (or await it outside a request lifetime). If it hangs or resolves with `closed: false`, discard the host browser. A pending close is never reported as completed.
 
 ## Quick Start
+
+The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an installed tool.
 
 ```bash
 node scripts/deck.js help

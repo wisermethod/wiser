@@ -3,7 +3,7 @@ name: tag-audit
 type: tool
 category: marketing
 description: One JSON report of which analytics and behavior tags a live page serves, with each tag's id where the served HTML exposes it
-version: 0.1.7
+version: 0.1.8
 runs: both
 hosted:
   - audit 2MiB 15s
@@ -20,6 +20,8 @@ Use when what a site is instrumented with is itself the question: before an enga
 Do not use when the question is what the analytics say rather than whether they exist; that is the platform's own connector. Do not use it to prove a tag is absent: it reads the served HTML, so a loader injected only after hydration will not appear, and a negative result is a prompt to check further rather than a finding.
 
 ## Quick Start
+
+The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an installed tool.
 
 ```bash
 node scripts/tag-audit.js help

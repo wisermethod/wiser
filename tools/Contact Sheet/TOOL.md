@@ -3,7 +3,7 @@ name: Contact Sheet
 type: tool
 category: media
 description: Write one self-contained HTML page of numbered options to pick from or whole brand boards, from local assets and licensed fonts
-version: 0.4.0
+version: 0.4.1
 runs: local
 local-only: image options and brand boards read local image and font files; page building is not yet split into a core
 ---
@@ -23,6 +23,8 @@ Classifier seam: none.
 ## Quick Start
 
 From this tool's directory:
+
+The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an installed tool.
 
 ```bash
 node scripts/contact-sheet.js help

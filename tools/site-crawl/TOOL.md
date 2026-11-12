@@ -3,7 +3,7 @@ name: site-crawl
 type: tool
 category: seo
 description: One JSON inventory of the URLs a bounded polite crawl can reach from one start URL
-version: 0.1.3
+version: 0.1.4
 runs: both
 hosted:
   - crawl 2KiB 15s
@@ -26,6 +26,8 @@ It is polite by default: 250 ms between requests, one host, a named user agent, 
 It authenticates to nothing, holds no credential, and reaches no other primitive. A file is written only to the directory `--output` names, and never overwritten.
 
 ## Quick Start
+
+The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an installed tool.
 
 ```bash
 node scripts/site-crawl.js help

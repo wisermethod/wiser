@@ -3,7 +3,7 @@ name: icon-set
 type: tool
 category: media
 description: Searches two pinned open-source sets, Phosphor 2.1.1 (MIT) and Health Icons 2.0.0 (CC0 icons, MIT package), and writes one icon recoloured at the caller's size as an SVG file or a fragment to place inside a drawing
-version: 0.2.2
+version: 0.2.3
 runs: both
 hosted:
   - search 2KiB 15s
@@ -26,6 +26,8 @@ Classifier seam: none.
 ## Quick Start
 
 Run these commands from this tool directory:
+
+The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an installed tool.
 
 ```bash
 node scripts/icon-set.js help

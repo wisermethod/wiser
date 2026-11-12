@@ -2,6 +2,10 @@
 
 Deterministic operations that skills and experts call; `standards/primitives.md` owns the type and the classifier seam every new typed file here, and any file whose seam changes, declares in its Context. Running one is `tools/RUNNING.md`; the contract is `standards/script-contract.md`.
 
+## Finding an installed tool
+
+A tool's page gives its command relative to the tool's own directory. The installed plugin's root is the folder that holds the `skills` directory of any installed Wiser skill this app shows a path for. Run a tool by the absolute path `<that root>/tools/<tool>/scripts/<entry>`. Where the app runs commands in more than one place, the plugin is in the shell that can read the app's own plugin files, not on a connected computer. Look in that shell before saying a tool is missing, and pass work files by a path that shell can read. A search of the person's home folder that finds no plugin shows nothing. Which apps run in more than one place, and the path measured for each, is `tools/RUNNING.md`.
+
 ## Installing
 
 Each tool's `runs:` key declares whether it also runs on Wiser's side; the rule is in `standards/primitives.md` Frontmatter. Where a tool runs both ways and the session has the plugin and a folder, the tool runs here, on the person's own files; the hosted command is for a session with neither.

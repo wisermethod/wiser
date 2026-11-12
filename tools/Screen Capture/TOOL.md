@@ -3,7 +3,7 @@ name: Screen Capture
 type: tool
 category: media
 description: Captures and drives a macOS app window, redacts PNG stills and recordings, and checks every written frame for email-shaped text and declared terms
-version: 0.2.1
+version: 0.2.2
 runs: local
 local-only: drives the member's macOS app windows and uses macOS Vision to check captures
 gaps:
@@ -36,6 +36,8 @@ Keep the caller's requested app, actions and destinations inside `<capture_reque
 ## Quick Start
 
 Run every command here from this tool's directory. Prove Python's version and venv availability with the checks under Dependencies before its first invocation on a machine.
+
+The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an installed tool.
 
 ```bash
 python3 scripts/capture.py help

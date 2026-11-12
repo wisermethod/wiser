@@ -3,7 +3,7 @@ name: image
 type: tool
 category: media
 description: Applies local edits to an existing image or composites an overlay over a base image, and writes the result as a PNG, JPEG, or WEBP
-version: 0.3.4
+version: 0.3.5
 runs: local
 local-only: edit and compose read and write local images through sharp
 ---
@@ -23,6 +23,8 @@ Do not use it to change what the picture shows. Removing an object or a backgrou
 It authenticates to nothing, holds no credential, reaches no other primitive, and after the packages described in `tools/AGENTS.md` are installed it makes no network request.
 
 ## Quick Start
+
+The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an installed tool.
 
 ```bash
 node scripts/image.js help

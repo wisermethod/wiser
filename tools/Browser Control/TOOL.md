@@ -3,7 +3,7 @@ name: Browser Control
 type: tool
 category: automation
 description: Drives a persistent Chromium session to read, navigate, and act on pages that need a real browser, answering every command with the page state that followed
-version: 0.9.2
+version: 0.9.3
 runs: local
 local-only: drives a persistent browser on the member's machine, including its saved sign-ins
 ---
@@ -23,6 +23,8 @@ This tool holds a session and drives it. Deciding what to do with a page belongs
 Classifier seam: none.
 
 ## Quick Start
+
+The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an installed tool.
 
 ```bash
 node scripts/browser.js help

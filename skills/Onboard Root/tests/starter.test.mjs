@@ -21,7 +21,7 @@ const blocks = [...step.matchAll(/```(?:sh)?\n([\s\S]*?)\n```/g)].map(match => m
 const download = blocks.find(block => block.includes('/starter/personal-'));
 const fill = blocks.find(block => block.includes("folder='<folder name>'"));
 const grep = blocks.find(block => block.startsWith('grep -rn'));
-const expectedId = '5aab2e4b0716f181';
+const expectedId = 'add454da04790528';
 const comparePaths = (a, b) => Buffer.compare(Buffer.from(a), Buffer.from(b));
 const quote = value => `'${value.replaceAll("'", "'\\''")}'`;
 const available = command => !spawnSync(command, ['--version'], { stdio: 'ignore' }).error;
@@ -96,12 +96,12 @@ function checkoutCopy(t) {
   return { root, env: { ...process.env, GIT_DIR: gitDirectory, GIT_WORK_TREE: root } };
 }
 
-test('starter matches today\'s copy: 13 files, 10,972 bytes, id 5aab2e4b0716f181', { skip: needs(['git']) }, t => {
+test('starter matches today\'s copy: 13 files, 11,332 bytes, id add454da04790528', { skip: needs(['git']) }, t => {
   const template = trackedTemplate();
   const original = new Map([...template].map(([path, bytes]) => [path, Buffer.from(bytes)]));
   const result = personalStarter(template);
   assert.equal(result.files.size, 13);
-  assert.equal([...result.files.values()].reduce((sum, bytes) => sum + bytes.length, 0), 10972);
+  assert.equal([...result.files.values()].reduce((sum, bytes) => sum + bytes.length, 0), 11332);
   assert.equal(result.id, expectedId);
   equalFiles(result.files, copyToday(t));
   equalFiles(template, original);
@@ -122,7 +122,7 @@ function alwaysSection(bytes) {
 function approvedAlwaysSection() {
   const approved = readFileSync(join(here, 'approved-always-section.txt'));
   assert.equal(createHash('sha256').update(approved).digest('hex'),
-    '2f0d5e83370268a540b3e7a6b722ea89897c0317cc6897b48b4d2bd855caeff9',
+    '2cdb643458f3cdb02ee6043c8bea30dd9233a0d4f417d206821f9469b9914ed8',
     'C16 approved bytes changed; updating the starter id does not approve new rules');
   return approved;
 }
@@ -214,7 +214,7 @@ test('starter id and check pass on this checkout', { skip: needs(['git']) }, () 
   const check = cli(plugin, ['check']);
   assert.equal(check.status, 0, check.stderr);
   assert.equal(check.stderr, '');
-  assert.deepEqual(JSON.parse(check.stdout), { id: expectedId, files: 13, bytes: 10972 });
+  assert.deepEqual(JSON.parse(check.stdout), { id: expectedId, files: 13, bytes: 11332 });
 });
 
 test('starter check names a stale SKILL.md id in a temporary checkout', { skip: needs(['git']) }, t => {

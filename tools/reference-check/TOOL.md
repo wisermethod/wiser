@@ -3,7 +3,7 @@ name: reference-check
 type: tool
 category: system
 description: Return a JSON scan of path-shaped and family-name references under --root, or take and restore an approved structural snapshot
-version: 0.1.3
+version: 0.1.4
 runs: local
 local-only: scans a whole local root folder and takes or restores structural snapshots there
 ---
@@ -23,6 +23,8 @@ Return references, fenced hits and path-only exclusions as one JSON object. The 
 ## Usage
 
 Run help before work:
+
+The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an installed tool.
 
 ```bash
 node check.cjs help

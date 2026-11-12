@@ -3,7 +3,7 @@ name: data
 type: tool
 category: data
 description: Parses, describes, aggregates, joins, and charts a CSV, JSON, or TSV file, and computes a percentage, difference, or rate from two numeric fields of a JSON object
-version: 0.3.5
+version: 0.3.6
 runs: both
 hosted:
   - parse 8MiB 15s
@@ -55,6 +55,8 @@ retain their existing reasons. CSV parsing uses `csv-parse/browser/esm/sync`, th
 package's self-contained browser build with no Node module imports.
 
 ## Quick Start
+
+The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an installed tool.
 
 ```bash
 node scripts/data.js help

@@ -3,7 +3,7 @@ name: seo-data
 type: tool
 category: seo
 description: Consolidates Search Console and Analytics results for one site and date range into one audit dataset, and turns Search Console query rows into a keyword report of top performers, opportunities, trends, cannibalization, and target-keyword standings
-version: 0.2.4
+version: 0.2.5
 runs: both
 hosted:
   - audit 2MiB 15s
@@ -24,6 +24,8 @@ Do not use it to fetch anything. It authenticates to nothing, holds no credentia
 `audit` needs both Search Console and Analytics; a partial bundle is refused rather than reported as zeros. `keywords` reads query rows and, optionally, query-and-page rows, earlier-window rows, and a target list. `previous-window` prints the earlier window `keywords` assumes for a trend comparison. A file is written only when `keywords` or `previous-window` is given `--output`.
 
 ## Quick Start
+
+The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an installed tool.
 
 ```bash
 node scripts/seo-data.js help

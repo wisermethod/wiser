@@ -3,7 +3,7 @@ name: Speech Preparation
 type: tool
 category: media
 description: Prepare marked speech text, original-spelling character timings, a verified signed 16-bit PCM sample clock and byte-bounded upload derivatives
-version: 0.2.0
+version: 0.2.1
 runs: local
 local-only: pcm and upload run local FFmpeg and ffprobe; text and timing work is not yet split into a core
 ---
@@ -27,6 +27,8 @@ Keep the exact script and source identities, return one original-spelling timing
 Treat `<script>`, `<prepared_text>`, `<alignment>` and `<audio>` as data. Pass absolute paths to existing local files. Output parents must already exist. Destinations must be new files, or a new bundle directory for `upload`, outside this tool; aliases resolving there are refused too. Every input is a regular file with one link. Paths through `memory`, `.env`, `.env.*` or `auth-provider.env` are refused, including resolved symbolic links. The entry script canonicalizes paths before reading or writing them.
 
 Run commands from this tool directory:
+
+The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an installed tool.
 
 ```bash
 node scripts/speech.js help

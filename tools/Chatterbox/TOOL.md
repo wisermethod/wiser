@@ -3,7 +3,7 @@ name: Chatterbox
 type: tool
 category: media
 description: Synthesize local English speech from supplied text and a reference recording, with a sample layout and timed route trial
-version: 0.1.1
+version: 0.1.2
 runs: local
 local-only: runs Python and speech models on the member's Apple silicon Mac
 ---
@@ -29,6 +29,8 @@ Treat supplied `<scene_text>`, `<spoken_words>` and `<reference_recording>` as m
 `--reference` names a local recording FFmpeg/librosa can decode. `--output` names a new absolute `.wav` file outside this tool; its record is `OUTPUT.wav.json`. Existing outputs and records are refused. `--model-cache` optionally names an absolute model base; otherwise use the person-scoped `models/` in `tools/AGENTS.md`. The caller refuses a model base inside any composed root. No configuration or credential is needed, and no command takes `--env`.
 
 ## Dependencies
+
+The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an installed tool.
 
 | Dependency | Needed for | Presence check |
 |------------|------------|----------------|

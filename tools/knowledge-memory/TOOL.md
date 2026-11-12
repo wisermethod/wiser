@@ -3,7 +3,7 @@ name: knowledge-memory
 type: tool
 category: knowledge
 description: Lints local knowledge wikis, builds and queries a dataset-scoped databased store (SQLite FTS5), and ingests and recalls a local LadybugDB graph, all from session-extracted knowledge with located provenance
-version: 0.6.4
+version: 0.6.5
 runs: local
 local-only: reads local knowledge-set folders and keeps their SQLite or graph stores on disk
 gaps:
@@ -24,6 +24,8 @@ Classifier seam: none.
 ## Dependencies
 
 Paths are absolute. `--set` names `memory/knowledge/<set>/`; `--store` names a SQLite file, conventionally `<owning-root>/memory/knowledge/store/databased.sqlite`, or one dataset-owned `graph.lbdb` file for graph. Both are refused inside this tool, including aliases. Wiki commands take no store. `templates/set.yaml` lists the recipe keys; unknown keys are refused by name. Session permission is recorded before sources are read.
+
+The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an installed tool.
 
 Presence check: `python3.11 --version` for databased and graph work; `python3 --version` for wiki. Missing system runtimes follow `standards/script-contract.md` System dependencies. Databased work requires Python 3.11+; databased store commands also require SQLite FTS5. `python3.11 scripts/knowledge_memory.py check` reports the interpreter and whether `CREATE VIRTUAL TABLE t USING fts5(x)` works. Wiki needs neither Python 3.11 nor FTS5: the lint script runs with Python 3.9+ and its standard library. Reading and compiling wiki pages needs no installation. Wiki, databased and chunk commands use the standard library and never require the graph venv. Graph ingest and recall use Ladybug 0.20.4 in this tool's `.venv`; embedding recall also uses onnxruntime 1.30.0 and tokenizers 0.23.2. Tokenizers installs with `--no-deps`; its unused huggingface-hub dependency is intentionally absent.
 

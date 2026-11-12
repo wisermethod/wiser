@@ -3,7 +3,7 @@ name: Book Publisher
 type: tool
 category: documents
 description: Builds a typeset print interior, a structurally checked PDF/X variant, and an EPUB from ordered Markdown chapters and a YAML config
-version: 0.1.0
+version: 0.1.1
 runs: local
 local-only: builds a local book project with pandoc and, for print, LaTeX and Ghostscript
 ---
@@ -251,6 +251,8 @@ Index markers become print index commands and are removed for EPUB. The EPUB cle
 A book may follow these optional EPUB front-matter conventions: a copyright block containing `All rights reserved.`, beginning around a preceding `Copyright 20...` line, is wrapped in smaller copyright styling. The block is the copyright page: it ends at the next heading as Pandoc's markdown reader finds one, an ATX `#` line at the start of a line or a setext heading, after a blank line and outside fenced code, so a chapter after it keeps its heading and its place in navigation; a line on that page containing ` is a trademark`, outside fenced code, ends it earlier, after that line. If `**Author's Note**`, a bold title line matching `title` with an initial `The ` removed, and that copyright block occur in order, the cleaner separates the note, title page and copyright with page breaks. These are conventions, not required book text. The EPUB postprocessor also unwraps a first title navigation entry holding every other entry, using that entry's matching boundaries in navigation and the NCX. It also unwraps Pandoc's duplicate title around authored lower-level title headings that share its target, including when it holds only front matter before later Parts. It removes the corresponding opening content wrapper unless a surviving navigation entry still targets its title, in which case that heading and target remain. A title entry beside the chapters stays in place, including its subtitle or other nested headings. These behaviors are on by default and need no setting. Native navigation follows the opening content, and the conventional opening figure caption `What You Get` is suppressed.
 
 ## Usage
+
+The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an installed tool.
 
 | Command | Accepted flags | Effect |
 |---------|----------------|--------|

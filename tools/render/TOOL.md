@@ -3,7 +3,7 @@ name: render
 type: tool
 category: media
 description: Renders a local HTML file to a PNG or JPEG, an SVG or a Mermaid diagram to a PNG, and captures a PNG of a live web page
-version: 0.2.7
+version: 0.2.8
 runs: both
 hosted:
   - html 8MiB 60s
@@ -43,6 +43,8 @@ Compatibility refusals: a local HTML file no longer reads neighboring files thro
 A deadline or failed context close raises an error with `code: "browser_abandoned"` and `cleanup: Promise<{ closed: boolean }>`; cleanup also waits for context creation that completes after the deadline. The host must retain that promise with `waitUntil(error.cleanup)` (or await it outside a request lifetime). If it hangs or resolves with `closed: false`, discard the host browser. A pending close is never reported as completed.
 
 ## Quick Start
+
+The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an installed tool.
 
 ```bash
 node scripts/render.js help

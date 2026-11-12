@@ -3,7 +3,7 @@ name: video-edit
 type: tool
 category: media
 description: Edits existing video with FFmpeg, including audio-correlated silent conform, exact decoded frame evidence, timed silent video composition, full-frame transparent composition, trim, resize, speed, text, audio removal, concatenation, sampled frames, GIF, narration mux, loudness and the final joined encode
-version: 0.4.1
+version: 0.4.2
 runs: local
 local-only: runs local FFmpeg on the member's recordings and other media files
 ---
@@ -25,6 +25,8 @@ It authenticates to nothing, holds no credential, reaches no other primitive, an
 Classifier seam: none.
 
 ## Quick Start
+
+The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an installed tool.
 
 ```bash
 node scripts/edit.js help

@@ -3,7 +3,7 @@ name: keynote-render
 type: tool
 category: documents
 description: Builds and edits native Keynote decks from JSON or markdown SSOT, with zArchive safety before every in-place mutation
-version: 0.2.5
+version: 0.2.6
 runs: local
 local-only: drives Keynote on the member's Mac
 ---
@@ -23,6 +23,8 @@ Do not use it to author a deck in HTML: reveal.js decks belong to `skills/Create
 It runs on macOS with Keynote installed, and nowhere else. It authenticates to nothing, holds no credential, takes no `--env`, and opens no network connection. Its carried compiled file includes the YAML package, so even a branded command needs no package install.
 
 ## Workstream (primary)
+
+The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an installed tool.
 
 ```bash
 node scripts/render.js sync --md /abs/slides.md --deck /abs/deck.key --brand /abs/brand.yaml --confirm
