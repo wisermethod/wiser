@@ -4,7 +4,7 @@ Deterministic operations that skills and experts call; `standards/primitives.md`
 
 ## Finding an installed tool
 
-A tool's page gives its command relative to the tool's own directory. The installed plugin's root is the folder that holds the `skills` directory of any installed Wiser skill this app shows a path for. Run a tool by the absolute path `<that root>/tools/<tool>/scripts/<entry>`. Where the app runs commands in more than one place, the plugin is in the shell that can read the app's own plugin files, not on a connected computer. Look in that shell before saying a tool is missing, and pass work files by a path that shell can read. A search of the person's home folder that finds no plugin shows nothing. Which apps run in more than one place, and the path measured for each, is `tools/RUNNING.md`.
+A tool's page gives its command relative to the tool's own directory. The installed plugin's root is the folder that holds the `skills` directory of any installed Wiser skill this app shows a path for. Run the command the tool's page shows, from `<that root>/tools/<tool>/` as the working directory, with each path in that command that is relative to the tool directory made absolute under that same directory. Where the app runs commands in more than one place, the plugin is in the shell that can read the app's own plugin files, not on a connected computer. Look in that shell before saying a tool is missing, and pass work files by a path that shell can read. A search of the person's home folder that finds no plugin shows nothing. Which apps run in more than one place, and the path measured for each, is `tools/RUNNING.md`.
 
 ## Installing
 

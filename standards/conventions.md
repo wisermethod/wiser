@@ -1,6 +1,6 @@
 ---
 standard: conventions
-version: 0.7.0
+version: 0.7.1
 description: The cross-cutting conventions every file and agent in a Wiser workspace follows: formatting, dates, portable names, working files, root layout, archives, sourcing, and evidence labels
 ---
 
@@ -67,7 +67,7 @@ Directories whose structure another standard already fixes are exempt:
 
 ## Archives
 
-Before deleting a file or rewriting it substantially, copy it to a `zArchive/` directory in the same directory as the file, unless the owning root's AGENTS.md declares a different archive home covering that file or declares git history as its recovery path. A declared home binds only the files its declaration names. Only a repository that is committed and current counts.
+Before deleting a file or rewriting it substantially, copy it to a `zArchive/` directory in the same directory as the file, unless the owning root's AGENTS.md declares a different archive home covering that file or declares git history as its recovery path. A declared home binds only the files its declaration names. Only a repository that is committed and current counts. The copy waits where `wiser/AGENTS.md` Irreversibles says the file is not copied until a yes.
 
 The archive name is the date, a space, V with the version number, then " - " and the file's original name and extension unchanged. Numbering starts at 1 and resets each day:
 

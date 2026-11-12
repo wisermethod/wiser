@@ -3,7 +3,7 @@ name: Build Voice
 type: skill
 category: onboarding
 description: Build or rebuild one user root's voice.md, for a personal root as a coach that first takes any writing samples the person wants to use, then asks a few short questions about them and three screens of quick taps, leaving out what the samples already show, shows them how they come across, and has them correct a first piece, and for every other type from real writing evidence routed to the register that root's outputs need
-version: 0.19.3
+version: 0.19.4
 memory:
   - voice
 ---
@@ -50,7 +50,7 @@ The table fixes whose voice this is, what evidence counts, and who confirms. It 
 
 **1. Resolve the owning root.** Enumerate the workspace's roots and read each AGENTS.md per the constitution's Workspace Model. The owning root is the one whose scope the request names; if more than one fits or none does, ask. Confirm its declared `type`, and confirm its Provides block binds `voice` to a path. Bound to nothing: stop and ask, because the binding is the root's declaration to make and not this skill's to add; name the repair, declaring `voice:` under Provides or finishing Onboard Root. Bound to a path missing on disk: recreate the stub by copying the headings and the standing lines above them from `system/templates/User Root Template/memory/voice.md`, then continue as a build.
 
-Then read the bound file. Every section still prompt lines: this is a build. A section carrying a `[Not available: ...]` label written over a prompt line when voice was not built, `[Not available: no writing supplied; Build Voice runs when writing is]` from `skills/Onboard Root/` or `[Not available: the voice coach has not finished; say "build my voice" to run it]` from `paths/coach.md`, counts as a prompt line for this test, so a labeled file is a build; the label is replaced like a prompt line, and it is this skill that removes it. Any heading already carrying real content: this is a rebuild, and the current file is archived before the bound path is replaced, in `paths/from-writing.md` step 10 or in `paths/coach.md` step 9. The archive and replacement keep any existing `## From your brand` section's bytes and position unchanged, with no second heading.
+Then read the bound file. Every section still prompt lines: this is a build. A section carrying a `[Not available: ...]` label written over a prompt line when voice was not built, `[Not available: no writing supplied; Build Voice runs when writing is]` from `skills/Onboard Root/` or `[Not available: the voice coach has not finished; say "build my voice" to run it]` from `paths/coach.md`, counts as a prompt line for this test, so a labeled file is a build; the label is replaced like a prompt line, and it is this skill that removes it. a rebuild is a bound voice file with an answered heading, by Workspace Model. The archive waits for the yes `paths/coach.md` step 9 or `paths/from-writing.md` step 10 asks. The archive and replacement keep any existing `## From your brand` section's bytes and position unchanged, with no second heading.
 
 ## Path
 

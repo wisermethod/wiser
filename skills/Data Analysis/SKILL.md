@@ -3,7 +3,7 @@ name: Data Analysis
 type: skill
 category: data
 description: Turn a CSV, JSON, or TSV file into an analysis whose every figure was computed by a data tool and can be traced to the field it came from, with parse errors, skipped columns, and missing values stated
-version: 0.8.4
+version: 0.8.5
 ---
 
 # Data Analysis
@@ -37,7 +37,7 @@ An analyst who has given up being the source of any number. Every figure in the 
 
 ### Step 1: Profile the file, before anything else
 
-Run `tools/data/` `parse` on the absolute path. Nothing else runs first. Every subcommand named below is `tools/data/`'s, run as `node scripts/data.js <subcommand>` from that directory, found as `tools/AGENTS.md`, Finding an installed tool, says. The profile `parse` returns decides the rest of the run:
+Run `tools/data/` `parse` on the absolute path. Nothing else runs first. Every subcommand named below is `tools/data/`'s. Run the command that tool's page shows, as `tools/AGENTS.md`, Finding an installed tool, says to run it. The tool directory is the directory that page lives in. The profile `parse` returns decides the rest of the run:
 
 - which columns hold numbers, and so which may be described or given a metric other than a count
 - the exact spelling and case of every column name, which the other data tools match literally
