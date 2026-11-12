@@ -4,6 +4,14 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.12, November 12, 2026
+
+- Wiser now asks before it replaces or removes anything in your about, voice, design or competitors file. Asked to swap or rewrite one of them, it names what the file holds that would be lost and waits for your yes before it copies or writes anything; your request for the change is not that yes. Adding to the file while everything already there stays does not ask. A build or rebuild you ask Onboard Root, Build Voice or Build Brand for runs on that skill's own confirmations, as before. The rule is in Wiser's own rules and in the Always section at the top of a Wiser folder's `AGENTS.md`, whose third and fourth lines change; Housekeeping replaces an older section on your approval when you ask it to update the folder. A new folder's starter files carry it. (da35f678, d673a4d4, 553f8c0e)
+- Asking for a website no longer gets a page designed by Marketing Page Design: that skill now hands a request to build a website, a one-page one included, to Site Author before anything is designed, written or published. (da35f678)
+- Asking for a native Keynote deck now starts at Create Presentation, which sends it to the keynote-render tool's page and offers no HTML deck or `.pptx` file in its place unless you ask for one. (da35f678, d673a4d4)
+- An installed tool is easier to find. `tools/AGENTS.md` says where the installed plugin is and how to run the command a tool's page shows, including in an app that runs commands in more than one place, where a search of your home folder that finds no plugin shows nothing; `tools/RUNNING.md` records where Claude Cowork keeps the plugin; every tool page and Data Analysis point there. (da35f678, d673a4d4)
+- Site Author's site kit installs on a current npm. Its lockfile gains two entries that npm 11.10.1, the one Node 25.7.0 carries, refused the file without; no package version changes. (8e8dc2fd, 0ff6fe55)
+
 ## v2026.11.11, November 11, 2026
 
 - Seven tools now ask for no install before their everyday commands: data, sitemap, tag-audit, Content Harvester, keynote-render, render's diagrams and deck-export's starter decks and exports. data, Content Harvester and keynote-render each carry one compiled file with their packages inside and use it when nothing is installed, or when what is installed differs from the versions the tool was built with, saying so in one line. sitemap, tag-audit and Content Harvester ask for one package only when a proxy variable is set. render reads Mermaid, and deck-export reads reveal.js with its themes and fonts, from copies carried in the tool, each with its licence beside it. Making a PDF or a picture still asks for the browser it needs, as before. (157f7830)
