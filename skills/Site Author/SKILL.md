@@ -3,7 +3,7 @@ name: Site Author
 type: skill
 category: web
 description: Stand up, content-edit, file site code, check, wrap, and upgrade a website, as a kit site envelope in sites/, in a folder named for its domain, or in the sites/ of a work folder when the site dies with that work, with the kit in site/, in an owning root that declares sites/
-version: 0.9.3
+version: 0.9.2
 memory:
   - about
   - design
@@ -19,7 +19,7 @@ gaps:
 
 # Site Author
 
-This is Site Author 0.9.3, and it ships site kit 0.5.0 in `kit/`. Stand up, `check` and Upgrade each print both versions as their first line, so a run says which copy it came from before it does anything.
+This is Site Author 0.9.2, and it ships site kit 0.5.0 in `kit/`. Stand up, `check` and Upgrade each print both versions as their first line, so a run says which copy it came from before it does anything.
 
 ## Context
 

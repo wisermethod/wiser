@@ -2,8 +2,6 @@
 
 System dependency: Node 22.12 or newer. Astro 7's floor. `node -v` must say so before `npm install`. This is a system dependency of stand-up, not a Wiser tool.
 
-The install downloads the site's packages from the public npm registry. Did `npm install` fail? Yes: run it once more. The second run succeeds: continue this setup. The second run fails: run `npm ping` once from the same shell. It exits 0: report that install error and stop. Try no other registry, copy in no `node_modules`, and build nothing by hand. Do not say the app cannot reach the registry. It exits non-zero and a request to allow the network is waiting: that request is the person's answer. Wait. It exits non-zero and no such request is waiting: say once, "Building this site needs the ChatGPT desktop app or a command-line app such as Claude Code, because this app can't download the packages a site is built from. The site's files are in your folder, ready to build there." Then stop. Try no other registry, copy in no `node_modules`, and build nothing by hand.
-
 Scripts live in `scripts/` beside this file. Quote the path; the skill directory name contains a space. `--kit` is this skill's `kit/` directory, the proven tree, never a rebuilt copy.
 
 ```
