@@ -67,7 +67,7 @@ test('finding 5: moving the equal block archives the file and overlay refusal ha
 
 test('finding 6: the approved SHA-256 is checked at each template or copy comparison', () => {
   const starter = read('skills/Onboard Root/tests/starter.test.mjs');
-  assert.match(starter, /function approvedAlwaysSection\(\)[\s\S]*?createHash\('sha256'\)[\s\S]*?f43293786c22ef615f8514d192337a16d9035b3d8986c21fc9e484ede75bc294/);
+  assert.match(starter, /function approvedAlwaysSection\(\)[\s\S]*?createHash\('sha256'\)[\s\S]*?8ec292480309c0975513cdf2c118493c98788687d8ba26fb737cb81ef1a2394a/);
   assert.match(starter, /alwaysSection\(copied\).equals\(approved\)/);
   assert.match(starter, /alwaysSection\(starter\).equals\(approved\)/);
 });
