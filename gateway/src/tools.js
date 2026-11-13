@@ -81,7 +81,7 @@ export const TOOLS = [
   },
   {
     name: 'standing_approvals',
-    description: "Propose a standing approval, grant it after the person's explicit yes to the warning, list approvals, or revoke one.",
+    description: "Propose a standing approval, grant it after the person's explicit yes to the warning, list approvals, or revoke one. A standing approval exists only once this tool has granted it: agreeing in the conversation creates none, and an empty list means none exists. When a person asks not to be asked before each action, do not simply agree in the conversation: propose one here, show them its warning unchanged, and grant only after their yes to that warning; where propose returns no warning, show none, grant nothing, and say what it returned. Wiser's Standing Approval skill has the steps.",
     inputSchema: {
       type: 'object',
       properties: {
