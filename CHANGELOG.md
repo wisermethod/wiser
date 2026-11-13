@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.13, November 13, 2026
+
+- Asked to stop asking before each action, Wiser no longer agrees in chat: that is a standing approval, and Wiser proposes one, shows you its warning and grants it only on your yes. The approvals tool now says so itself, for an app that reads nothing else first. (cd38f4de)
+- When a book or a video needs the Wiser plugin, Wiser now says you are already connected, that the plugin and a folder on your computer are also needed, and that adding it takes a few minutes, with the link. (cd38f4de)
+
 ## v2026.11.12, November 12, 2026
 
 - Wiser now asks before it replaces or removes anything in your about, voice, design or competitors file. Asked to swap or rewrite one of them, it names what the file holds that would be lost and waits for your yes before it copies or writes anything; your request for the change is not that yes. Adding to the file while everything already there stays does not ask. A build or rebuild you ask Onboard Root, Build Voice or Build Brand for runs on that skill's own confirmations, as before. The rule is in Wiser's own rules and in the Always section at the top of a Wiser folder's `AGENTS.md`, whose third and fourth lines change; Housekeeping replaces an older section on your approval when you ask it to update the folder. A new folder's starter files carry it. (da35f678, d673a4d4, 553f8c0e)
