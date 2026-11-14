@@ -4,6 +4,13 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.14.3, November 14, 2026
+
+- Bringing an existing folder up to date now marks it with the current layout number, so it reads as current afterwards. Housekeeping 0.9.3 and Onboard Root 0.50.7 take the number from the folder standard, where they named the previous one. (8e210a5f)
+- When Wiser asks before an action and you confirm, an earlier request not to be asked, or an agreement in the chat to stop asking, does not count as that confirmation. (8e210a5f)
+- The install steps start with the connector: add it to your app and sign in to get Wiser's skills and the tools that run on Wiser's side, and add the plugin for tools that work on your own computer and work you keep in a folder. (8e210a5f)
+- Marketing Page Design 0.5.1 and Webmaster 0.4.9 each correct one reference left by the previous release. (8e210a5f)
+
 ## v2026.11.14.2, November 14, 2026
 
 - Site building and publishing move to DevOps as one chain: Site Author and its kit, Cloudflare Pages, Vercel Deploy, pages-functions, and Site Publisher's publish gate. Webmaster retains site audits and the search-artifact gate. SEO Assets, Illustrator, Animated Explainer and Profile Page hand site work over as files. Marketing Page Design retains page design without a product-wide website denial. Cloudflare account setup, DNS and every connector stay in Wiser.
