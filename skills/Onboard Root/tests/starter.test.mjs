@@ -21,7 +21,7 @@ const blocks = [...step.matchAll(/```(?:sh)?\n([\s\S]*?)\n```/g)].map(match => m
 const download = blocks.find(block => block.includes('/starter/personal-'));
 const fill = blocks.find(block => block.includes("folder='<folder name>'"));
 const grep = blocks.find(block => block.startsWith('grep -rn'));
-const expectedId = '674f8c403f2ada68';
+const expectedId = 'b16fc63c21ffec54';
 const comparePaths = (a, b) => Buffer.compare(Buffer.from(a), Buffer.from(b));
 const quote = value => `'${value.replaceAll("'", "'\\''")}'`;
 const available = command => !spawnSync(command, ['--version'], { stdio: 'ignore' }).error;
@@ -96,12 +96,12 @@ function checkoutCopy(t) {
   return { root, env: { ...process.env, GIT_DIR: gitDirectory, GIT_WORK_TREE: root } };
 }
 
-test('starter matches today\'s copy: 13 files, 11,901 bytes, id 674f8c403f2ada68', { skip: needs(['git']) }, t => {
+test('starter matches today\'s copy: 13 files, 11,951 bytes, id b16fc63c21ffec54', { skip: needs(['git']) }, t => {
   const template = trackedTemplate();
   const original = new Map([...template].map(([path, bytes]) => [path, Buffer.from(bytes)]));
   const result = personalStarter(template);
   assert.equal(result.files.size, 13);
-  assert.equal([...result.files.values()].reduce((sum, bytes) => sum + bytes.length, 0), 11901);
+  assert.equal([...result.files.values()].reduce((sum, bytes) => sum + bytes.length, 0), 11951);
   assert.equal(result.id, expectedId);
   equalFiles(result.files, copyToday(t));
   equalFiles(template, original);
@@ -155,18 +155,18 @@ test('C16 pin refuses a coordinated template, stored-copy and starter-metadata c
 });
 
 for (const type of ['personal', 'org', 'client', 'department', 'industry']) {
-  test(`template copy for ${type} carries C16 byte for byte and layout 5`, { skip: needs(['git']) }, t => {
+  test(`template copy for ${type} carries C16 byte for byte and layout 6`, { skip: needs(['git']) }, t => {
     const approved = approvedAlwaysSection();
     const copied = copyToday(t, type).get('AGENTS.md');
     assert.ok(alwaysSection(copied).equals(approved));
     assert.equal((copied.toString('utf8').match(/^layout:/gm) || []).length, 1);
-    assert.match(copied.toString('utf8'), /^layout: 5$/m);
+    assert.match(copied.toString('utf8'), /^layout: 6$/m);
     assert.equal((alwaysSection(copied).toString('utf8').match(/^- /gm) || []).length, 5);
     assert.equal(copied.toString('utf8').match(/^## .+$/gm)[0], '## Always', 'C16 precedes all other sections');
     if (type === 'personal') {
       const starter = personalStarter(trackedTemplate()).files.get('AGENTS.md');
       assert.ok(alwaysSection(starter).equals(approved));
-      assert.match(starter.toString('utf8'), /^layout: 5$/m);
+      assert.match(starter.toString('utf8'), /^layout: 6$/m);
     }
   });
 }
@@ -214,7 +214,7 @@ test('starter id and check pass on this checkout', { skip: needs(['git']) }, () 
   const check = cli(plugin, ['check']);
   assert.equal(check.status, 0, check.stderr);
   assert.equal(check.stderr, '');
-  assert.deepEqual(JSON.parse(check.stdout), { id: expectedId, files: 13, bytes: 11901 });
+  assert.deepEqual(JSON.parse(check.stdout), { id: expectedId, files: 13, bytes: 11951 });
 });
 
 test('starter check names a stale SKILL.md id in a temporary checkout', { skip: needs(['git']) }, t => {

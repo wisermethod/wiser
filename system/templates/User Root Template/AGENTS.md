@@ -1,7 +1,7 @@
 ---
 root: [name]
 type:
-layout: 5
+layout: 6
 classifier_refusal: no
 ---
 
@@ -33,7 +33,7 @@ Competitors follows the constitution's Workspace Model. Knowledge sets are not P
 |-----------|-------|--------------------|
 | `work/` | Projects with a written completion condition at `work/<slug>/`. Unsure defaults here. Router: `work/AGENTS.md` | ships, with router |
 | `programs/` | Standing concerns without a completion condition at `programs/<slug>/`. Programs contain their projects at `programs/<slug>/<project>/`. Router: `programs/AGENTS.md` | ships, with router, no slug folders |
-| `sites/` | One envelope per domain wrapping `site/` (the kit), named for the registrable host, lowercase, no scheme, no `www` unless `www` is a distinct property. Envelope internals belong to Webmaster | declared always; created on first use, never empty |
+| `sites/` | One envelope per domain containing the site's implementation in `site/`, named for the registrable host, lowercase, no scheme, no `www` unless `www` is a distinct property. Envelope internals follow the site's installed authoring capability | declared always; created on first use, never empty |
 | `sources/` | Classified originals, as received. Do not edit in place. Router: `sources/AGENTS.md` | ships, with router |
 | `inbox/` | Unclassified captures | ships |
 | `memory/` | Bound files for about, voice, design, and competitors only when bound. Provides binds files, never this directory | ships bound stubs |

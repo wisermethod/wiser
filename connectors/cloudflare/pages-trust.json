@@ -1,0 +1,16 @@
+{
+  "format": 1,
+  "purpose": "cloudflare.pages.deploy",
+  "publishers": {
+    "wiser": {
+      "keys": [
+        {
+          "id": "67d424dc40b23ed9",
+          "ed25519": "MeXSDrYhrdC7XE1m8LFX5SPkOA6RXXWaSgmPPVoZf48="
+        }
+      ],
+      "catalog": "https://releases.wisermemory.com/pages/wiser/layouts.json",
+      "catalog_signature": "https://releases.wisermemory.com/pages/wiser/layouts.sig"
+    }
+  }
+}

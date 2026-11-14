@@ -1,6 +1,7 @@
-import { createHash, randomUUID, webcrypto } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { extname } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
+import { verifiedKeyId } from './signature.js';
 
 const APP = /^[a-z0-9](?:[a-z0-9-]{0,40}[a-z0-9])?$/;
 const VERSION = /^(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})$/;
@@ -173,11 +174,8 @@ async function loadManifest(input, ctx) {
   if (raw.error) return { error: raw.error };
   const sig = await fetchFile(prefix + 'manifest.sig', 64);
   if (sig.error) return { error: sig.error };
-  let keyId;
-  for (const key of config.apps[input.app].keys) {
-    const publicKey = await webcrypto.subtle.importKey('raw', Buffer.from(key.ed25519, 'base64'), { name: 'Ed25519' }, false, ['verify']);
-    if (sig.bytes.length === 64 && await webcrypto.subtle.verify('Ed25519', publicKey, sig.bytes, raw.bytes)) { keyId = key.id; break; }
-  }
+  // Only this app's keys, over the raw manifest bytes with no domain prefix.
+  const keyId = await verifiedKeyId(config.apps[input.app].keys, sig.bytes, raw.bytes, null);
   if (!keyId) return { error: before('release signature invalid', { fetched, calls }) };
   let manifest;
   try { manifest = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(raw.bytes)); }

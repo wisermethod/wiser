@@ -4,7 +4,7 @@ The skills here are built to work together: state your voice and facts once, the
 
 ## What it is for
 
-Knowledge work in your own voice, on your own material: writing, research, design, data, sites and marketing. The work lands in a folder you own, never inside Wiser, so one copy serves every folder you point it at.
+Knowledge work in your own voice, on your own material: writing, research, design, data, site audits and marketing. The work lands in a folder you own, never inside Wiser, so one copy serves every folder you point it at. Wiser audits sites, prepares search artifacts and designs pages for existing sites.
 
 ## How it works
 

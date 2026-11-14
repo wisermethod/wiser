@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const within = (p, b) => p === b || p.startsWith(b + path.sep);
-// A site kit's design-token stylesheet. Exempt from the name screen as a regular file only; a directory of that name is still screened.
+// A design-token stylesheet. Exempt from the name screen as a regular file only; a directory of that name is still screened.
 const designTokens = n => /^tokens\.(?:css|scss|sass|less)$/i.test(n);
 const sensitive = n => /^\.env(?:\.|$)/i.test(n) || /^(secrets?|credentials?)(?:\.|$)/i.test(n) || /api[-_]?key|token|password|private[-_]?key/i.test(n);
 const inode = p => { const s = fs.statSync(p); return s.dev + ':' + s.ino; };

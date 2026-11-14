@@ -7,7 +7,7 @@ import { INSTALL_ONCE, INSTALL_HELP } from '../consent.js';
 
 const nodeScripts = [
   'Form/scripts/form.js', 'tag-audit/scripts/tag-audit.js', 'sitemap/scripts/sitemap.js', 'Content Harvester/scripts/harvest.js',
-  'image/scripts/image.js', 'pages-functions/scripts/pages-functions.js', 'keynote-render/scripts/render.js',
+  'image/scripts/image.js', 'keynote-render/scripts/render.js',
   'data/scripts/data.js', 'icon-set/scripts/icon-set.js', 'render/scripts/render.js',
   'deck-export/scripts/deck.js', 'Browser Control/scripts/browser.js', 'video-render/scripts/video-render.js',
   '../skills/Build Brand/scripts/fonts.mjs',

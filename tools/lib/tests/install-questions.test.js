@@ -21,7 +21,6 @@ const rows = [
   ['video-render','video-render.js','turn an animated page into a video'],
   ['image','image.js','edit images and layer one image over another'],
   ['keynote-render','render.js','build and edit Keynote decks'],
-  ['pages-functions','pages-functions.js',"prepare your website's functions for Cloudflare Pages"],
   ['data','data.js','read your data files and draw charts from them'],
   ['Build Brand','fonts.mjs',"set your brand's type"],
   ['Build Brand family','fonts.mjs',"set your brand's type"],
@@ -41,7 +40,7 @@ for (const [tool,script,purpose] of rows) test(`${tool} refusal opens with the e
   const diagram=join(f.root,'diagram.mmd');writeFileSync(diagram,'graph TD; A-->B');
   const spec=join(f.root,'spec.json');writeFileSync(spec,JSON.stringify({slides:[{layout:'Title',title:'Test'}]}));
   const brand=join(f.root,'brand.yaml');writeFileSync(brand,'theme: Basic');
-  const functions=join(f.root,'functions'), assets=join(f.root,'assets');mkdirSync(functions);mkdirSync(assets);
+  const assets=join(f.root,'assets');mkdirSync(assets);
   const project=join(f.root,'project');mkdirSync(project);writeFileSync(join(project,'index.html'),'<main data-video-root>test</main>');
   const pack=join(f.root,'pack.tar');writeFileSync(pack,'fixture');
   const library=join(source,'skills/Build Brand/parts/parts.json');
@@ -61,7 +60,6 @@ for (const [tool,script,purpose] of rows) test(`${tool} refusal opens with the e
     'video-render':['sequence','--project',project,'--output',join(f.root,'frames'),'--width','32','--height','24','--fps','1','--duration','1'],
     image:['edit','--file',file,'--output',output,'--grayscale'],
     'keynote-render':['build','--spec',spec,'--brand',brand,'--out',join(f.root,'deck.key')],
-    'pages-functions':['build','--functions',functions,'--assets',assets,'--out',join(f.root,'compiled')],
     data:['parse','--file',data],
     'Build Brand':['check','--library',library,'--directory',join(f.root,'fonts'),'--from',pack],
     'Build Brand family':['check','--library',library,'--directory',join(f.root,'fonts'),'--from',assets,'--family',Object.keys(JSON.parse(readFileSync(library)).fonts)[0]],
@@ -92,7 +90,6 @@ for (const [tool,script,purpose] of rows) test(`${tool} refusal opens with the e
     'video-render': ["the HyperFrames video renderer (and the copy of Chrome it uses, if you don't have it yet)",'140 MB, or about 340 MB with Chrome'],
     image: ['the sharp image library','17 MB'],
     'keynote-render': ['a small file-format library','1.3 MB'],
-    'pages-functions': ["Cloudflare's Wrangler tool",'210 MB'],
     data: ['a spreadsheet-file reader','1.5 MB'],
     'Build Brand': ["Wiser's brand font pack"],
     'Build Brand family': ['the Bodoni Moda typeface'],

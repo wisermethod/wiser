@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync,
@@ -7,6 +7,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { modules, walkPages } from '../index.js';
+import {
+  ALTERNATE_LAYOUT, CONNECTOR_SOURCE, SYNTHETIC_LAYOUT, blockNetwork, catalogUrls, connectorCopy, fixtureIdentity,
+  publisherServer, trustJson,
+} from './pages-release-fixture.js';
 
 import { existsSync as __exists } from 'node:fs';
 import { dirname as __dirname_, join as __join } from 'node:path';
@@ -32,6 +36,23 @@ const OTHER = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const TOKEN = 'PLANTED_SITE_TOKEN_9f3c2a';
 const SNIPPET = 'PLANTED_SNIPPET_9f3c2b';
 const JWT = 'static-upload-jwt';
+
+// deploy_static reads every configured publisher's signed layout catalog before
+// its first Cloudflare call. Its cases run on a byte-identical copy of this
+// connector whose Pages trust is an in-memory FIXTURE key, with a fake publisher
+// serving a FIXTURE-signed catalog of two synthetic layouts. The shipping trust
+// is never modified and the process's own fetch is blocked.
+const NETWORK = blockNetwork();
+const PUB = fixtureIdentity('static-suite');
+const STATIC_COPY = connectorCopy({ trust: trustJson({ 'fixture-pub': [PUB.key] }) });
+const { modules: copied } = await STATIC_COPY.load();
+after(() => {
+  STATIC_COPY.cleanup();
+  assert.deepEqual(NETWORK, [], 'no test may reach the network through a default fetch');
+});
+function catalogServer() {
+  return publisherServer({ 'fixture-pub': { identity: PUB, layouts: [SYNTHETIC_LAYOUT, ALTERNATE_LAYOUT] } });
+}
 
 function scratch() {
   return realpathSync(mkdtempSync(join(tmpdir(), 'cf-static-')));
@@ -72,14 +93,16 @@ function formParts(binary) {
 }
 
 async function granted() {
-  const { gw, store, fake } = await createTestGateway({ connectorDirs: [CONNECTORS] });
+  const { gw, store, fake } = await createTestGateway({ connectorDirs: [CONNECTORS], fetchImpl: catalogServer().fetchImpl });
   await putActive(store, fake, { service: 'cloudflare', module: 'pages' });
   return { gw, fake };
 }
 
 function deployCtx(onProxy) {
   const calls = [];
+  const server = catalogServer();
   const ctx = {
+    fetchRelease: (url, opts) => server.fetchRelease(url, opts),
     async proxy(req) {
       calls.push(req);
       if (onProxy) return onProxy(req, calls);
@@ -92,16 +115,23 @@ function deployCtx(onProxy) {
       return envelope({});
     },
   };
-  return { calls, ctx };
+  return { calls, ctx, server };
 }
 
 async function deploy(dir, onProxy) {
-  const { calls, ctx } = deployCtx(onProxy);
-  const result = await modules.pages.deploy_static({
+  const { calls, ctx, server } = deployCtx(onProxy);
+  const result = await copied.pages.deploy_static({
     account_id: ACCOUNT, project_name: PROJECT, dir,
   }, ctx);
-  return { result, calls };
+  return { result, calls, fetched: server.urls() };
 }
+
+test('the deploy_static cases run on a byte-identical copy that differs only in its Pages trust', () => {
+  for (const name of ['index.js', 'pages-release.js', 'signature.js', 'worker-release.js', 'manifest.json', 'release.json']) {
+    assert.ok(readFileSync(join(STATIC_COPY.dir, name)).equals(readFileSync(join(CONNECTOR_SOURCE, name))), name);
+  }
+  assert.equal(readFileSync(join(STATIC_COPY.dir, 'pages-trust.json')).equals(readFileSync(join(CONNECTOR_SOURCE, 'pages-trust.json'))), false);
+});
 
 function callNames(calls) {
   return calls.map((req) => {
@@ -197,23 +227,73 @@ function refuse(label, reason, arrange) {
   });
 }
 
-refuse('a kit site/dist', 'kit payload: use cloudflare.pages.deploy', (root) => {
-  const dir = site(root, 'site', 'dist');
-  writeFileSync(join(root, 'site', 'kit.json'), '{}\n');
+// The release payload marker is the word kit.json, which S2 permits a verifier
+// to read in a payload. Any directory at or below one holding it is refused.
+const PAYLOAD = 'release payload: use cloudflare.pages.deploy';
+
+refuse('an output directory beside a payload marker', PAYLOAD, (root) => {
+  const dir = site(root, 'pkg', 'out');
+  writeFileSync(join(root, 'pkg', 'kit.json'), '{}\n');
   return dir;
 });
 
-refuse('a directory inside a kit dist', 'kit payload: use cloudflare.pages.deploy', (root) => {
-  const dir = site(root, 'site', 'dist', 'public');
-  writeFileSync(join(root, 'site', 'kit.json'), '{}\n');
+refuse('a directory inside a payload output directory', PAYLOAD, (root) => {
+  const dir = site(root, 'pkg', 'out', 'public');
+  writeFileSync(join(root, 'pkg', 'kit.json'), '{}\n');
   return dir;
 });
 
-refuse('a directory whose parent holds kit.json', 'kit payload: use cloudflare.pages.deploy', (root) => {
+refuse('a directory whose parent holds kit.json', PAYLOAD, (root) => {
   const dir = site(root, 'holder', 'out');
   writeFileSync(join(root, 'holder', 'kit.json'), '{}\n');
   return dir;
 });
+
+refuse('a directory several levels below one holding kit.json', PAYLOAD, (root) => {
+  const dir = site(root, 'holder', 'a', 'b', 'c');
+  writeFileSync(join(root, 'holder', 'kit.json'), '{}\n');
+  return dir;
+});
+
+refuse('a directory that itself holds kit.json', PAYLOAD, (root) => {
+  const dir = site(root, 'out');
+  writeFileSync(join(dir, 'kit.json'), '{}\n');
+  return dir;
+});
+
+refuse('a directory below a kit.json that is a directory', PAYLOAD, (root) => {
+  const dir = site(root, 'holder', 'out');
+  mkdirSync(join(root, 'holder', 'kit.json'));
+  return dir;
+});
+
+// S2 case F8, closed by the publisher layout catalog. The released connector
+// refused one release layout's output by its names alone, with no marker. The
+// base no longer carries any release's names: each configured publisher signs a
+// catalog of its layouts, and a directory that is a listed layout's assets, or
+// below them, is a release payload whatever it holds. These cases use synthetic
+// layouts only; the real legacy layout's case is the publisher's own test.
+for (const [label, parts] of [
+  ['a listed layout\'s assets with no marker or identity file', ['holder', SYNTHETIC_LAYOUT.root_name, ...SYNTHETIC_LAYOUT.assets.split('/')]],
+  ['a directory below a listed layout\'s assets', ['holder', SYNTHETIC_LAYOUT.root_name, ...SYNTHETIC_LAYOUT.assets.split('/'), 'blog']],
+  ['the second listed layout\'s assets', ['x', ALTERNATE_LAYOUT.root_name, ...ALTERNATE_LAYOUT.assets.split('/')]],
+]) {
+  test(`deploy_static refuses ${label} after reading the catalog, with no Cloudflare call`, async () => {
+    const root = scratch();
+    try {
+      const dir = site(root, ...parts);
+      const { result, calls, fetched } = await deploy(dir);
+      assert.equal(result.status, 'invalid_arguments', JSON.stringify(result));
+      assert.equal(result.field, 'dir');
+      assert.equal(result.reason, PAYLOAD);
+      assert.equal(calls.length, 0);
+      const urls = catalogUrls('fixture-pub');
+      assert.deepEqual(fetched, [urls.catalog, urls.catalog_signature]);
+    } finally {
+      cleanup(root);
+    }
+  });
+}
 
 refuse('_worker.js at the root', 'server code: _worker.js; use cloudflare.pages.deploy_with_functions', (root) => {
   const dir = site(root, 'out');

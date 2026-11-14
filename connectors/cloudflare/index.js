@@ -1,11 +1,14 @@
 import { workerActions } from './worker-release.js';
+import {
+  CATALOG_MAX_BYTES, CONTRACT_MAX_BYTES, SIGNATURE_BYTES, layoutHolds, loadPagesTrust, parseContract, parseFunctionRecord,
+  parseLayoutCatalog, recordString, rootRoleNames, screenData, verifyLayoutCatalog, verifyPagesContract,
+} from './pages-release.js';
 import { createHash, randomUUID } from 'node:crypto';
 import {
   closeSync, constants as fsConstants, fstatSync, lstatSync, openSync, readFileSync, readSync, readdirSync, realpathSync, statSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, extname, isAbsolute, join, normalize, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 // Copied from the vercel connector's path screen. A module may not import
 // another connector (standards/script-contract.md, Connector modules), which
@@ -175,43 +178,6 @@ function assetHash(bytes, extension) {
   return createHash('sha256').update(material).digest('hex').slice(0, 32);
 }
 
-function screenDeployDir(input, refused) {
-  const lexical = resolve(String(input));
-  if (basename(lexical) !== 'dist') return { error: invalid('dir', 'basename is not dist') };
-  if (basename(dirname(lexical)) !== 'site') return { error: invalid('dir', 'parent basename is not site') };
-  const resolved = canonicalize(lexical);
-  if (!resolved) return { error: invalid('dir', 'unresolvable') };
-  // The path the person approved is the path deployed. A symbolic link at site/ or
-  // at dist/ would let an approved spelling publish some other kit, so the two
-  // named segments must resolve to themselves under their canonical grandparent.
-  const above = canonicalize(dirname(dirname(lexical)));
-  if (!above || resolved !== join(above, 'site', 'dist')) {
-    return { error: invalid('dir', 'site or dist is a symbolic link') };
-  }
-  let stats;
-  try {
-    stats = statSync(resolved);
-  } catch {
-    return { error: invalid('dir', 'not found') };
-  }
-  if (!stats.isDirectory()) return { error: invalid('dir', 'not a directory') };
-  const parent = dirname(resolved);
-  let kitStat;
-  try {
-    kitStat = lstatSync(join(parent, 'kit.json'));
-  } catch {
-    return { error: invalid('dir', 'kit.json missing') };
-  }
-  if (!kitStat.isFile()) return { error: invalid('dir', 'kit.json missing') };
-  const id = `${stats.dev}:${stats.ino}`;
-  if (refused.ids.has(id)) return { error: invalid('dir', 'credential directory') };
-  if (refused.dir && (isInside(resolved, refused.dir) || isInside(refused.dir, resolved))) {
-    return { error: invalid('dir', 'credential directory') };
-  }
-  if (refused.home && resolved === refused.home) return { error: invalid('dir', 'home directory') };
-  return { resolved };
-}
-
 function isDirectoryPath(path) {
   try {
     return statSync(path).isDirectory();
@@ -291,7 +257,7 @@ function resolvedPathIsServerCode(root, resolved) {
   return FOREIGN_REFUSED.has(last) || segments.slice(0, -1).some((segment) => segment.toLowerCase() === 'functions');
 }
 
-export function walkPages(root, refused, kitRule = true, sourceHashes = null, staticSite = false) {
+export function walkPages(root, refused, releaseRule = true, sourceHashes = null, staticSite = false) {
   const assets = [];
   const skipped = [];
   let headers = null;
@@ -318,13 +284,13 @@ export function walkPages(root, refused, kitRule = true, sourceHashes = null, st
     for (const entry of entries) {
       const full = join(dir, entry.name);
       const logical = relativeName(root, full);
-      if (kitRule && atRoot && entry.name === '_worker.js') {
-        return { error: invalid('dir', 'static kit output only') };
+      if (releaseRule && atRoot && entry.name === '_worker.js') {
+        return { error: invalid('dir', 'static release output only') };
       }
-      if (kitRule && atRoot && entry.name === 'functions' && (entry.isDirectory() || isDirectoryPath(full))) {
-        return { error: invalid('dir', 'static kit output only') };
+      if (releaseRule && atRoot && entry.name === 'functions' && (entry.isDirectory() || isDirectoryPath(full))) {
+        return { error: invalid('dir', 'static release output only') };
       }
-      if (!kitRule) {
+      if (!releaseRule) {
         const lower = entry.name.toLowerCase();
         if (staticSite && isServerCode(entry, full)) {
           return { error: invalid('dir', serverCodeReason(logical)) };
@@ -474,7 +440,7 @@ export function walkPages(root, refused, kitRule = true, sourceHashes = null, st
 // exception that lets one oversized file travel alone: deploy refuses any asset
 // whose single-entry body exceeds the cap before this runs, so every item here
 // fits in a bucket of its own and no bucket is emitted over the cap.
-// Facts, 2026-10-07. A 73-file kit site batched as 29 files (4.94 MiB of base64)
+// Facts, 2026-10-07. A 73-file site batched as 29 files (4.94 MiB of base64)
 // then 43 files (1.83 MiB of base64). The first request came back HTTP 413
 // through the provider's proxy and nothing was published. wisermemory.com batches as
 // one request of 81 files, 2.08 MiB of base64, and has uploaded and served on
@@ -663,8 +629,8 @@ function isServerCode(entry, full) {
 }
 
 // zArchive is the archive folder standards/conventions.md puts beside a file
-// being replaced, so build output never holds one; the site kit moves one out
-// of public/ for that reason. Its presence means a working folder.
+// being replaced, so build output never holds one. Its presence means a working
+// folder.
 function isStaticWalkMarker(name) {
   const lower = name.toLowerCase();
   return lower === 'agents.md' || lower === 'claude.md' || lower === '.git' || lower === '.env' || lower.startsWith('.env.')
@@ -829,25 +795,98 @@ function screenNotBuildOutput(root) {
   return null;
 }
 
-// The same predicate deploy_with_functions applies: a parent kit.json of any
-// type, a directory inside some ancestor's dist when that ancestor holds a
-// regular kit.json, or a directory named dist whose parent is named site.
-function kitPayloadError(resolved) {
-  let kitMarker = null;
-  try {
-    kitMarker = lstatSync(join(dirname(resolved), 'kit.json'));
-  } catch { /* none */ }
-  let insideKit = false;
-  for (let above = dirname(resolved); ; above = dirname(above)) {
+// The foreign routes refuse a release payload, or any part of it: a directory
+// that holds the payload marker, or any directory below one that does, whatever
+// the marker's type. This is deliberately wider than any one release's output
+// directory, and it offers no unsigned path to pages.deploy's payload.
+function releasePayloadError(resolved) {
+  for (let above = resolved; ; above = dirname(above)) {
     let marker = null;
     try {
-      marker = lstatSync(join(above, 'kit.json'));
+      marker = lstatSync(join(above, RELEASE_PAYLOAD_MARKER));
     } catch { /* none */ }
-    if (marker && marker.isFile() && isInside(resolved, join(above, 'dist'))) insideKit = true;
+    if (marker) return invalid('dir', 'release payload: use cloudflare.pages.deploy');
     if (dirname(above) === above) break;
   }
-  if (kitMarker || insideKit || (basename(resolved) === 'dist' && basename(dirname(resolved)) === 'site')) {
-    return invalid('dir', 'kit payload: use cloudflare.pages.deploy');
+  return null;
+}
+
+// ---- Publisher layout catalogs ------------------------------------------------
+//
+// Every Pages deploy route reads each configured publisher's signed layout
+// catalog before its first Cloudflare call, through ctx.fetchRelease only: an
+// unauthenticated, bounded GET of the two URLs pages-trust.json names, on the
+// Pages module's release_hosts. The caller supplies no URL, key, publisher or
+// catalog, and nothing is cached between calls. A missing or malformed trust
+// file, a missing fetch capability, an unavailable, oversized, unsigned,
+// untrusted or malformed catalog, from any one publisher, refuses the deploy.
+
+const SIZE_REASONS = new Set(['release content-length exceeds maxBytes', 'release body exceeds maxBytes']);
+
+async function readPublisherFile(ctx, url, maxBytes) {
+  try {
+    const got = await ctx.fetchRelease(url, { maxBytes });
+    const bytes = got && got.bytes instanceof Uint8Array ? Buffer.from(got.bytes) : null;
+    if (!bytes) return { unavailable: true };
+    if (bytes.length > maxBytes) return { tooLarge: true };
+    return { bytes };
+  } catch (err) {
+    const object = err && err.object;
+    if (object && SIZE_REASONS.has(object.reason)) return { tooLarge: true };
+    return { unavailable: true, http_status: object && Number.isInteger(object.http_status) ? object.http_status : null };
+  }
+}
+
+// { trust, layouts: [{ publisher, root_name, assets, segments }] } or { error }.
+// trustReason words the trust refusal for the calling route.
+async function publisherLayouts(ctx, field, trustReason) {
+  const trust = await loadPagesTrust();
+  if (trust.error) return { error: invalid(trustReason.field, trustReason.text(trust.error)) };
+  if (!ctx || typeof ctx.fetchRelease !== 'function') {
+    return { error: invalid(field, 'publisher layout catalogs cannot be fetched here') };
+  }
+  const layouts = [];
+  for (const label of Object.keys(trust.config.publishers).sort()) {
+    const entry = trust.config.publishers[label];
+    const unavailable = (got) => ({
+      error: {
+        status: 'vendor_error', field, reason: `publisher layout catalog unavailable: ${label}`,
+        ...(got.http_status ? { http_status: got.http_status } : {}),
+      },
+    });
+    const catalog = await readPublisherFile(ctx, entry.catalog, CATALOG_MAX_BYTES);
+    if (catalog.tooLarge) return { error: invalid(field, `publisher layout catalog over 64 KiB: ${label}`) };
+    if (catalog.unavailable) return unavailable(catalog);
+    const signature = await readPublisherFile(ctx, entry.catalog_signature, SIGNATURE_BYTES);
+    if (signature.tooLarge) return { error: invalid(field, `publisher layout catalog signature is not 64 bytes: ${label}`) };
+    if (signature.unavailable) return unavailable(signature);
+    if (signature.bytes.length !== SIGNATURE_BYTES) {
+      return { error: invalid(field, `publisher layout catalog signature is not 64 bytes: ${label}`) };
+    }
+    // The signature first, over the exact bytes; only then is the catalog parsed.
+    const keyId = await verifyLayoutCatalog(entry.keys, catalog.bytes, signature.bytes);
+    if (!keyId) return { error: invalid(field, `publisher layout catalog is not signed by its publisher: ${label}`) };
+    const parsed = parseLayoutCatalog(catalog.bytes, label);
+    if (parsed.error) return { error: invalid(field, `publisher layout catalog is malformed: ${label}: ${parsed.error}`) };
+    for (const layout of parsed.layouts) layouts.push({ publisher: label, ...layout });
+  }
+  return { trust: trust.config, layouts };
+}
+
+const FOREIGN_TRUST = {
+  field: 'dir',
+  text: (state) => `pages-trust.json is ${state}; refusing every Pages deploy`,
+};
+
+// The foreign routes' catalog screen: dir, by its canonical path, is a listed
+// layout's assets or below them. Run after every local screen and before the
+// first Cloudflare call.
+async function catalogPayloadError(ctx, resolved) {
+  const read = await publisherLayouts(ctx, 'dir', FOREIGN_TRUST);
+  if (read.error) return read.error;
+  const segments = resolved.split(sep).filter((segment) => segment.length > 0);
+  if (read.layouts.some((layout) => layoutHolds(segments, layout))) {
+    return invalid('dir', 'release payload: use cloudflare.pages.deploy');
   }
   return null;
 }
@@ -980,7 +1019,7 @@ function oversizeAssetError(assets) {
     field: 'dir',
     reason: `file over the 3 MiB upload request limit: ${files[0]}`,
     files,
-    fallback: 'Deploy with Wrangler, per skills/Cloudflare Pages/SETUP.md',
+    fallback: 'Deploy with Wrangler: wrangler pages deploy',
   };
 }
 
@@ -1321,119 +1360,234 @@ function collateralChanges(env, before, after, binding) {
   return names;
 }
 
-// The kit Function is code, so _worker.js is admitted only when its sha256 is
-// listed beside this module. _routes.json and schedule.bin are the site's own
-// and carry no code: they are screened by shape, and can only send more or
-// fewer requests to that Function. Read once per deploy; a missing or
-// malformed list fails closed for every kit Function deploy.
-const KIT_FUNCTION_FILES = ['_worker.js', '_routes.json', 'schedule.bin', 'function.json'];
-const FUNCTION_RECORD_KEYS = new Set(['kitVersion', 'buildTime', 'worker', 'routes', 'schedule', 'carried', 'notCarried', 'paths']);
-const SHA256_HEX = /^[0-9a-f]{64}$/;
+// ---- Signed Pages release (pages.deploy) ------------------------------------
+//
+// pages.deploy publishes a release payload only under a contract its publisher
+// signed (pages-release.js). The contract names the layout under its release
+// root, the approved worker fingerprint and its records' field names; nothing
+// here names one release's paths. The worker is code and runs on the request, so
+// its bytes must equal the signed sha256; the routes and data are the build's
+// own, carry no code, and are screened by shape. Every relative path the
+// contract names is treated as hostile after verification: read from the
+// release root segment by segment, never through a link, and bounded before a
+// buffer is allocated for it.
+const IDENTITY_MAX_BYTES = 256 * 1024;
+const BUILD_RECORD_MAX_BYTES = 256 * 1024;
+const FUNCTION_RECORD_MAX_BYTES = 1024 * 1024;
+// The one payload word the foreign routes recognise (S2 permits a verifier to
+// read it in a payload it is handed). It is not a path or a layout.
+const RELEASE_PAYLOAD_MARKER = 'kit.json';
 
 function sha256Hex(bytes) {
   return createHash('sha256').update(bytes).digest('hex');
 }
 
-function loadKitFingerprints() {
-  const path = fileURLToPath(new URL('./kit-function.json', import.meta.url));
-  let bytes;
+// Opens without following a link, checks the handle is the screened file, and
+// refuses one larger than max before allocating for it. A file that grows past
+// its own size while it is read is refused too.
+function readScreenedBounded(resolved, id, max) {
+  let fd;
   try {
-    bytes = readFileSync(path);
+    fd = openSync(resolved, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW || 0));
   } catch {
-    return { error: invalid('dir', 'kit-function.json is missing; refusing the kit Function') };
+    return { error: 'unreadable' };
   }
-  let parsed;
   try {
-    parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+    const st = fstatSync(fd);
+    if (!st.isFile() || `${st.dev}:${st.ino}` !== id) return { error: 'unreadable' };
+    if (st.size > max) return { error: 'too large' };
+    const buf = Buffer.alloc(st.size + 1);
+    let offset = 0;
+    while (offset < buf.length) {
+      const n = readSync(fd, buf, offset, buf.length - offset, null);
+      if (n <= 0) break;
+      offset += n;
+    }
+    if (offset > st.size) return { error: 'too large' };
+    return { bytes: buf.subarray(0, offset) };
   } catch {
-    return { error: invalid('dir', 'kit-function.json is malformed; refusing the kit Function') };
+    return { error: 'unreadable' };
+  } finally {
+    closeSync(fd);
   }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || Object.keys(parsed).length !== 1
-    || !Array.isArray(parsed.fingerprints) || parsed.fingerprints.length === 0) {
-    return { error: invalid('dir', 'kit-function.json is malformed; refusing the kit Function') };
-  }
-  const seen = new Set();
-  for (const entry of parsed.fingerprints) {
-    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
-      return { error: invalid('dir', 'kit-function.json is malformed; refusing the kit Function') };
-    }
-    const keys = Object.keys(entry);
-    if (keys.length !== 2 || !Object.prototype.hasOwnProperty.call(entry, 'kitVersion') || !Object.prototype.hasOwnProperty.call(entry, 'sha256')
-      || typeof entry.kitVersion !== 'string' || entry.kitVersion.length === 0
-      || typeof entry.sha256 !== 'string' || !SHA256_HEX.test(entry.sha256) || seen.has(entry.sha256)) {
-      return { error: invalid('dir', 'kit-function.json is malformed; refusing the kit Function') };
-    }
-    seen.add(entry.sha256);
-  }
-  return { fingerprints: parsed.fingerprints };
 }
 
-function parseFunctionRecord(bytes) {
-  let parsed;
-  try {
-    parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
-  } catch {
-    return { error: 'function.json is not JSON' };
-  }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return { error: 'function.json is not an object' };
-  const keys = Object.keys(parsed);
-  if (keys.length !== FUNCTION_RECORD_KEYS.size || keys.some((key) => !FUNCTION_RECORD_KEYS.has(key))) {
-    return { error: 'function.json is not the kit record' };
-  }
-  if (typeof parsed.kitVersion !== 'string' || parsed.kitVersion.length === 0) return { error: 'function.json kitVersion is missing' };
-  if (typeof parsed.buildTime !== 'string') return { error: 'function.json buildTime is missing' };
-  for (const name of ['worker', 'routes', 'schedule']) {
-    if (typeof parsed[name] !== 'string' || !SHA256_HEX.test(parsed[name])) return { error: `function.json ${name} is not a sha256` };
-  }
-  if (!Array.isArray(parsed.carried) || !Array.isArray(parsed.notCarried)) return { error: 'function.json carried is not an array' };
-  if (typeof parsed.paths !== 'number' || !Number.isInteger(parsed.paths) || parsed.paths < 0) {
-    return { error: 'function.json paths is not a count' };
-  }
-  return { record: parsed };
+// An absolute input file in the platform's normal form with no link anywhere in
+// its spelling, screened as a credential and read within max bytes.
+function screenInputFile(input, field, refused, max) {
+  if (typeof input !== 'string' || codePoints(input) < 1) return { error: invalid(field) };
+  if (!isAbsolute(input)) return { error: invalid(field, 'path must be absolute') };
+  if (notNormalForm(input)) return { error: invalid(field, 'path is not in normal form') };
+  const lexical = resolve(input);
+  const resolved = canonicalize(input);
+  if (!resolved) return { error: invalid(field, 'unresolvable') };
+  if (resolved !== lexical) return { error: invalid(field, 'symbolic link in path') };
+  const screened = screenFile(resolved, refused);
+  if (screened.refused) return { error: invalid(field, screened.refused) };
+  const read = readScreenedBounded(screened.resolved, screened.id, max);
+  if (read.error === 'too large') return { tooLarge: true };
+  if (read.error) return { error: invalid(field, 'unreadable') };
+  return { resolved: screened.resolved, id: screened.id, bytes: read.bytes };
 }
 
-function screenKitRoutes(bytes) {
+// Walks a signed relative path from the (link-free) release root, refusing a
+// link at any segment rather than following it.
+function lstatRole(root, segments) {
+  let here = root;
+  for (let i = 0; i < segments.length; i += 1) {
+    here = join(here, segments[i]);
+    let st;
+    try {
+      st = lstatSync(here);
+    } catch (err) {
+      if (err && err.code === 'ENOENT') return { absent: true };
+      return { unreadable: true };
+    }
+    if (st.isSymbolicLink()) return { link: true };
+    if (i < segments.length - 1) {
+      if (!st.isDirectory()) return { unreadable: true };
+      continue;
+    }
+    return { path: here, stats: st };
+  }
+  return { unreadable: true };
+}
+
+function readRole(root, segments, max, refused) {
+  const at = lstatRole(root, segments);
+  if (!at.path) return at;
+  if (!at.stats.isFile()) return { notFile: true };
+  const resolved = canonicalize(at.path);
+  if (!resolved || resolved !== at.path) return { link: true };
+  const screened = screenFile(resolved, refused, root);
+  if (screened.refused) return { unreadable: true };
+  const read = readScreenedBounded(screened.resolved, screened.id, max);
+  if (read.error) return { unreadable: true };
+  return { resolved: screened.resolved, id: screened.id, bytes: read.bytes };
+}
+
+function rootPayloadError(root, refused) {
+  if (dirname(root) === root) return 'release root is the filesystem root';
+  const id = identity(root);
+  if (id && refused.ids.has(id)) return 'release root is a credential directory';
+  if (refused.dir && (isInside(root, refused.dir) || isInside(refused.dir, root))) return 'release root is a credential directory';
+  if (refused.home && root === refused.home) return 'release root is the home directory';
+  return null;
+}
+
+// The identity file at the release root names the release it was built for.
+function readIdentity(root, parsed, refused) {
+  const layout = parsed.contract.layout.identity;
+  const read = readRole(root, parsed.segments.identity, IDENTITY_MAX_BYTES, refused);
+  if (read.absent || read.link || read.notFile) return { error: invalid('dir', 'release identity missing') };
+  if (!read.bytes) return { error: invalid('dir', 'release identity unreadable') };
+  const version = recordString(read.bytes, layout.version);
+  if (version === null) return { error: invalid('dir', 'release identity unreadable') };
+  if (version !== parsed.contract.release) return { error: invalid('dir', 'release version mismatch') };
+  return { file: { name: layout.path, resolved: read.resolved, id: read.id, bytes: read.bytes } };
+}
+
+function readBuildTime(root, parsed, refused) {
+  const layout = parsed.contract.layout.build;
+  const read = readRole(root, parsed.segments.build, BUILD_RECORD_MAX_BYTES, refused);
+  if (read.absent) return { error: invalid('dir', 'missing build record') };
+  if (!read.bytes) return { error: invalid('dir', 'build record unreadable') };
+  const time = recordString(read.bytes, layout.time);
+  if (time === null) return { error: invalid('dir', 'build record unreadable') };
+  return { time, file: { name: layout.path, resolved: read.resolved, id: read.id, bytes: read.bytes } };
+}
+
+// Screens the explicit inputs, verifies the contract's signature over its exact
+// bytes against the connector's own Pages trust, parses the closed schema and
+// binds the request to it. Everything here runs before any provider call.
+async function screenRelease(input, refused) {
+  const dir = screenAbsoluteDir(input.dir, 'dir', refused);
+  if (dir.error) return dir;
+  const contractFile = screenInputFile(input.release_contract, 'release_contract', refused, CONTRACT_MAX_BYTES);
+  if (contractFile.tooLarge) return { error: invalid('release_contract', 'release contract over 16 KiB') };
+  if (contractFile.error) return contractFile;
+  const signatureFile = screenInputFile(input.release_signature, 'release_signature', refused, SIGNATURE_BYTES);
+  if (signatureFile.tooLarge) return { error: invalid('release_signature', 'release signature is not 64 bytes') };
+  if (signatureFile.error) return signatureFile;
+  if (signatureFile.bytes.length !== SIGNATURE_BYTES) return { error: invalid('release_signature', 'release signature is not 64 bytes') };
+  const trust = await loadPagesTrust();
+  if (trust.error) return { error: invalid('release_signature', `pages-trust.json is ${trust.error}; refusing every signed release`) };
+  const signer = await verifyPagesContract(trust.config, contractFile.bytes, signatureFile.bytes);
+  if (!signer) return { error: invalid('release_signature', 'release signature is not from a trusted Pages publisher') };
+  const parsed = parseContract(contractFile.bytes);
+  if (parsed.error) return { error: invalid('release_contract', parsed.error) };
+  const { contract } = parsed;
+  if (contract.publisher !== signer.publisher) return { error: invalid('release_contract', 'release contract names another publisher') };
+  const root = dirname(contractFile.resolved);
+  if (basename(root) !== contract.layout.root_name) return { error: invalid('release_contract', 'release root name does not match the contract') };
+  const rootError = rootPayloadError(root, refused);
+  if (rootError) return { error: invalid('release_contract', rootError) };
+  const roles = rootRoleNames(parsed);
+  if (roles.has(basename(contractFile.resolved).toLowerCase())) return { error: invalid('release_contract', 'release contract aliases a signed role') };
+  const assets = join(root, ...parsed.segments.assets);
+  if (dir.resolved !== assets) return { error: invalid('dir', 'dir is not the signed assets directory') };
+  const fnDir = join(root, ...parsed.segments.function);
+  const signatureLower = signatureFile.resolved.toLowerCase();
+  if (signatureFile.resolved === contractFile.resolved
+    || isInside(signatureLower, assets.toLowerCase()) || isInside(signatureLower, fnDir.toLowerCase())
+    || (dirname(signatureFile.resolved) === root && roles.has(basename(signatureFile.resolved).toLowerCase()))) {
+    return { error: invalid('release_signature', 'release signature inside the payload') };
+  }
+  // Not a working folder: neither the assets, their parent, nor the release root
+  // is a declared root, and the assets hold no working marker at their top.
+  const declared = screenDeclaredRoots(assets);
+  if (declared) return { error: declared };
+  if (dirname(assets) !== root) {
+    const top = declaredRootAt(root);
+    if (top.error) return { error: top.error };
+    if (top.declared) return { error: invalid('dir', 'working folder: the release root is a declared root') };
+  }
+  let entries;
+  try {
+    entries = readdirSync(assets, { withFileTypes: true });
+  } catch {
+    return { error: invalid('dir', 'unreadable') };
+  }
+  const marker = rootMarkerError(entries, assets);
+  if (marker) return { error: marker };
+  const identityFile = readIdentity(root, parsed, refused);
+  if (identityFile.error) return identityFile;
+  return {
+    root,
+    dir: assets,
+    parsed,
+    signer,
+    records: [
+      { name: basename(contractFile.resolved), ...contractFile },
+      { name: basename(signatureFile.resolved), ...signatureFile },
+      identityFile.file,
+    ],
+  };
+}
+
+function screenReleaseRoutes(bytes, name) {
+  const rename = (error) => ({ error: error.replace(/^_routes\.json/, name) });
   let parsed;
   try {
     parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
   } catch {
-    return { error: '_routes.json is not JSON' };
+    return rename('_routes.json is not JSON');
   }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return { error: '_routes.json is not an object' };
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return rename('_routes.json is not an object');
   for (const key of Object.keys(parsed)) {
-    if (key !== 'version' && key !== 'include' && key !== 'exclude') return { error: `_routes.json has an unexpected key: ${key}` };
+    if (key !== 'version' && key !== 'include' && key !== 'exclude') return rename(`_routes.json has an unexpected key: ${key}`);
   }
   const routes = parseRoutes(bytes);
-  if (routes.error) return routes;
+  if (routes.error) return rename(routes.error);
   for (const rule of [...routes.include, ...routes.exclude]) {
-    if (codePoints(rule) > 100) return { error: '_routes.json rule is longer than 100 characters' };
+    if (codePoints(rule) > 100) return rename('_routes.json rule is longer than 100 characters');
   }
   return routes;
 }
 
-function screenSchedule(bytes) {
-  if (bytes.length < 4 || bytes.subarray(0, 4).toString('latin1') !== 'WKS1') {
-    return { error: 'schedule.bin does not start with WKS1' };
-  }
-  if (bytes.length < 8) return { error: 'schedule.bin header does not parse' };
-  const length = bytes.readUInt32BE(4);
-  if (length > bytes.length - 8) return { error: 'schedule.bin header does not parse' };
-  let head;
-  try {
-    head = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(8, 8 + length)));
-  } catch {
-    return { error: 'schedule.bin header does not parse' };
-  }
-  // The header's other fields, and every byte after it, are data. They are not interpreted.
-  if (!head || typeof head !== 'object' || Array.isArray(head) || head.v !== 1) {
-    return { error: 'schedule.bin header v is not 1' };
-  }
-  return { ok: true };
-}
-
-function kitWorkerBundle(worker, schedule) {
-  const metadata = Buffer.from('{"main_module":"_worker.js"}', 'utf8');
-  const bodies = [metadata, worker, schedule];
+function releaseWorkerBundle(moduleName, worker, dataName, data) {
+  const metadata = Buffer.from(JSON.stringify({ main_module: moduleName }), 'utf8');
+  const bodies = [metadata, worker, data];
   let boundary;
   do {
     boundary = `wiser-${randomUUID()}`;
@@ -1442,11 +1596,11 @@ function kitWorkerBundle(worker, schedule) {
     Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="metadata"\r\n\r\n`, 'utf8'),
     metadata,
     Buffer.from('\r\n', 'utf8'),
-    Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="_worker.js"; filename="_worker.js"\r\nContent-Type: application/javascript+module\r\n\r\n`, 'utf8'),
+    Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${moduleName}"; filename="${moduleName}"\r\nContent-Type: application/javascript+module\r\n\r\n`, 'utf8'),
     worker,
     Buffer.from('\r\n', 'utf8'),
-    Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="schedule.bin"; filename="schedule.bin"\r\nContent-Type: application/octet-stream\r\n\r\n`, 'utf8'),
-    schedule,
+    Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${dataName}"; filename="${dataName}"\r\nContent-Type: application/octet-stream\r\n\r\n`, 'utf8'),
+    data,
     Buffer.from('\r\n', 'utf8'),
     Buffer.from(`--${boundary}--\r\n`, 'utf8'),
   ]);
@@ -1458,103 +1612,33 @@ function kitWorkerBundle(worker, schedule) {
   return { canonical: parsed.canonical };
 }
 
-function readKitVersion(site, refused) {
-  const full = join(site, 'kit.json');
-  let linked;
-  try {
-    linked = lstatSync(full);
-  } catch {
-    return { error: invalid('dir', 'kit.json missing') };
-  }
-  if (linked.isSymbolicLink() || !linked.isFile()) return { error: invalid('dir', 'kit.json missing') };
-  const resolved = canonicalize(full);
-  if (!resolved || resolved !== resolve(full)) return { error: invalid('dir', 'kit.json missing') };
-  const screened = screenFile(resolved, refused, site);
-  if (screened.refused) return { error: invalid('dir', `kit.json ${screened.refused}`) };
-  const bytes = readScreened(screened.resolved, screened.id);
-  if (!bytes) return { error: invalid('dir', 'kit.json unreadable') };
-  let parsed;
-  try {
-    parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
-  } catch {
-    return { error: invalid('dir', 'kit.json unreadable') };
-  }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || typeof parsed.kitVersion !== 'string') {
-    return { error: invalid('dir', 'kitVersion mismatch') };
-  }
-  return { kitVersion: parsed.kitVersion };
-}
-
-function readBuildRecord(site, refused) {
-  const astro = join(site, '.astro');
-  let astroStat;
-  try {
-    astroStat = lstatSync(astro);
-  } catch {
-    return { error: invalid('dir', 'missing build record') };
-  }
-  if (astroStat.isSymbolicLink() || !astroStat.isDirectory()) return { error: invalid('dir', 'kit build record unreadable') };
-  const full = join(astro, 'kit-build.json');
-  let linked;
-  try {
-    linked = lstatSync(full);
-  } catch {
-    return { error: invalid('dir', 'missing build record') };
-  }
-  if (linked.isSymbolicLink() || !linked.isFile()) return { error: invalid('dir', 'kit build record unreadable') };
-  const resolved = canonicalize(full);
-  if (!resolved || resolved !== resolve(full) || resolved !== join(site, '.astro', 'kit-build.json')) {
-    return { error: invalid('dir', 'kit build record unreadable') };
-  }
-  const screened = screenFile(resolved, refused, site);
-  if (screened.refused) return { error: invalid('dir', 'kit build record unreadable') };
-  const bytes = readScreened(screened.resolved, screened.id);
-  if (!bytes) return { error: invalid('dir', 'kit build record unreadable') };
-  let parsed;
-  try {
-    parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
-  } catch {
-    return { error: invalid('dir', 'kit build record unreadable') };
-  }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || typeof parsed.buildTime !== 'string') {
-    return { error: invalid('dir', 'kit build record unreadable') };
-  }
-  return { buildTime: parsed.buildTime };
-}
-
-function readKitFunctionFile(root, name, refused) {
-  const full = join(root, name);
-  const resolved = canonicalize(full);
-  if (!resolved || resolved !== resolve(full)) return { error: invalid('dir', `symbolic link: ${name}`) };
-  const screened = screenFile(resolved, refused, root);
-  if (screened.refused) return { error: invalid('dir', `${screened.refused}: ${name}`) };
-  const bytes = readScreened(screened.resolved, screened.id);
-  if (!bytes) return { error: invalid('dir', `unreadable: ${name}`) };
-  return { name, resolved: screened.resolved, id: screened.id, bytes };
-}
-
-// site is the canonical parent of the dist screenDeployDir accepted. Absent
-// means this deploy is the static one. Anything other than the four regular
-// files refuses before a byte is trusted.
-function readKitFunction(site, refused) {
-  const lexical = join(site, 'dist-function');
-  let linked;
-  try {
-    linked = lstatSync(lexical);
-  } catch (err) {
-    if (err && err.code === 'ENOENT') return { absent: true };
-    return { error: invalid('dir', 'dist-function unreadable') };
-  }
-  if (linked.isSymbolicLink()) return { error: invalid('dir', 'dist-function is a symbolic link') };
-  if (!linked.isDirectory()) return { error: invalid('dir', 'dist-function is not a directory') };
-  const resolved = canonicalize(lexical);
-  if (!resolved || resolved !== lexical) return { error: invalid('dir', 'dist-function is a symbolic link') };
+// Absent means this deploy is the static one. A present Function directory
+// holds exactly the four signed regular files, or the deploy refuses before a
+// byte is trusted.
+function readReleaseFunction(root, parsed, refused) {
+  const { contract } = parsed;
+  const layout = contract.layout.function;
+  const at = lstatRole(root, parsed.segments.function);
+  if (at.absent) return { absent: true };
+  if (contract.worker === null) return { error: invalid('dir', 'static-only release forbids the Function directory') };
+  if (at.link) return { error: invalid('dir', 'Function directory is a symbolic link') };
+  if (!at.path) return { error: invalid('dir', 'Function directory unreadable') };
+  if (!at.stats.isDirectory()) return { error: invalid('dir', 'Function directory is not a directory') };
+  const resolved = canonicalize(at.path);
+  if (!resolved || resolved !== at.path) return { error: invalid('dir', 'Function directory is a symbolic link') };
   let entries;
   try {
     entries = readdirSync(resolved, { withFileTypes: true });
   } catch {
-    return { error: invalid('dir', 'dist-function unreadable') };
+    return { error: invalid('dir', 'Function directory unreadable') };
   }
+  const roles = [
+    ['worker', layout.worker, BUNDLE_MAX_BYTES],
+    ['routes', layout.routes, MAX_UPLOAD_BYTES],
+    ['data', layout.data, BUNDLE_MAX_BYTES],
+    ['record', layout.record, FUNCTION_RECORD_MAX_BYTES],
+  ];
+  const names = roles.map(([, name]) => name);
   const present = new Set();
   for (const entry of entries) {
     const full = join(resolved, entry.name);
@@ -1566,59 +1650,62 @@ function readKitFunction(site, refused) {
     }
     if (st.isSymbolicLink()) return { error: invalid('dir', `symbolic link: ${entry.name}`) };
     if (!st.isFile()) return { error: invalid('dir', `not a regular file: ${entry.name}`) };
-    if (!KIT_FUNCTION_FILES.includes(entry.name) || present.has(entry.name)) {
+    if (!names.includes(entry.name) || present.has(entry.name)) {
       return { error: invalid('dir', `unexpected entry: ${entry.name}`) };
     }
     present.add(entry.name);
   }
-  for (const name of KIT_FUNCTION_FILES) {
+  for (const name of names) {
     if (!present.has(name)) return { error: invalid('dir', `missing ${name}`) };
   }
-  const files = [];
-  for (const name of KIT_FUNCTION_FILES) {
-    const read = readKitFunctionFile(resolved, name, refused);
-    if (read.error) return read;
-    files.push(read);
+  const files = {};
+  for (const [role, name, max] of roles) {
+    const full = join(resolved, name);
+    const real = canonicalize(full);
+    if (!real || real !== full) return { error: invalid('dir', `symbolic link: ${name}`) };
+    const screened = screenFile(real, refused, resolved);
+    if (screened.refused) return { error: invalid('dir', `${screened.refused}: ${name}`) };
+    const over = role === 'worker' || role === 'data' ? 'bundle over 2 MiB' : `${name} over ${role === 'routes' ? '3' : '1'} MiB`;
+    if (screened.size > max) return { error: invalid('dir', over) };
+    const read = readScreenedBounded(screened.resolved, screened.id, max);
+    if (read.error === 'too large') return { error: invalid('dir', over) };
+    if (read.error) return { error: invalid('dir', `unreadable: ${name}`) };
+    files[role] = { name: `${layout.directory}/${name}`, resolved: screened.resolved, id: screened.id, bytes: read.bytes };
   }
-  const byName = Object.fromEntries(files.map((file) => [file.name, file]));
-  const list = loadKitFingerprints();
-  if (list.error) return list;
-  const workerSha = sha256Hex(byName['_worker.js'].bytes);
-  const routesSha = sha256Hex(byName['_routes.json'].bytes);
-  const scheduleSha = sha256Hex(byName['schedule.bin'].bytes);
-  const match = list.fingerprints.find((entry) => entry.sha256 === workerSha);
-  if (!match) return { error: invalid('dir', 'unlisted fingerprint') };
-  const parsed = parseFunctionRecord(byName['function.json'].bytes);
-  if (parsed.error) return { error: invalid('dir', parsed.error) };
-  const meta = parsed.record;
-  if (meta.worker !== workerSha || meta.routes !== routesSha || meta.schedule !== scheduleSha) {
-    const which = meta.worker !== workerSha ? 'worker' : meta.routes !== routesSha ? 'routes' : 'schedule';
-    return { error: invalid('dir', `function.json hash mismatch: ${which}`) };
+  // The signed fingerprint first: a self-consistent record cannot admit other code.
+  const workerSha = sha256Hex(files.worker.bytes);
+  if (workerSha !== contract.worker.sha256) return { error: invalid('dir', 'unapproved worker fingerprint') };
+  const record = parseFunctionRecord(files.record.bytes, contract, layout.record);
+  if (record.error) return { error: invalid('dir', record.error) };
+  const meta = record.record;
+  const routesSha = sha256Hex(files.routes.bytes);
+  const dataSha = sha256Hex(files.data.bytes);
+  if (meta.worker !== workerSha || meta.routes !== routesSha || meta.data !== dataSha) {
+    const which = meta.worker !== workerSha ? 'worker' : meta.routes !== routesSha ? 'routes' : 'data';
+    return { error: invalid('dir', `${layout.record} hash mismatch: ${which}`) };
   }
-  const kit = readKitVersion(site, refused);
-  if (kit.error) return kit;
-  if (meta.kitVersion !== match.kitVersion || kit.kitVersion !== match.kitVersion) {
-    return { error: invalid('dir', 'kitVersion mismatch') };
-  }
-  const build = readBuildRecord(site, refused);
+  if (meta.version !== contract.release) return { error: invalid('dir', 'release version mismatch') };
+  const build = readBuildTime(root, parsed, refused);
   if (build.error) return build;
-  if (build.buildTime !== meta.buildTime) return { error: invalid('dir', 'buildTime mismatch') };
-  const routes = screenKitRoutes(byName['_routes.json'].bytes);
+  if (build.time !== meta.time) return { error: invalid('dir', 'build time mismatch') };
+  const routes = screenReleaseRoutes(files.routes.bytes, layout.routes);
   if (routes.error) return { error: invalid('dir', routes.error) };
-  const schedule = screenSchedule(byName['schedule.bin'].bytes);
-  if (schedule.error) return { error: invalid('dir', schedule.error) };
-  const bundle = kitWorkerBundle(byName['_worker.js'].bytes, byName['schedule.bin'].bytes);
+  const data = screenData(files.data.bytes, contract, parsed.magic, layout.data);
+  if (data.error) return { error: invalid('dir', data.error) };
+  const bundle = releaseWorkerBundle(contract.worker.module_name, files.worker.bytes, layout.data, files.data.bytes);
   if (bundle.error) return { error: invalid('dir', bundle.error) };
   return {
     payload: {
-      files,
-      routesBytes: byName['_routes.json'].bytes,
+      files: [files.worker, files.routes, files.data, files.record],
+      records: [build.file],
+      routesBytes: files.routes.bytes,
       bundle: bundle.canonical,
       carried: meta.carried,
       report: {
-        kit_version: meta.kitVersion,
+        release: meta.version,
         worker_sha256: workerSha,
-        schedule_bytes: byName['schedule.bin'].bytes.length,
+        module_name: contract.worker.module_name,
+        data_bytes: files.data.bytes.length,
         routes: { include: routes.include.length, exclude: routes.exclude.length },
         carried: meta.carried,
         not_carried: meta.notCarried,
@@ -3067,13 +3154,13 @@ export const modules = {
       return proxyData(ctx, { endpoint, method: 'DELETE' });
     },
     async deploy(input, ctx) {
-      if (!requiredString(input && input.account_id)) return invalid('account_id');
-      if (!requiredString(input && input.project_name)) return invalid('project_name');
-      if (!requiredString(input && input.dir)) return invalid('dir');
+      for (const field of ['account_id', 'project_name', 'dir', 'release_contract', 'release_signature']) {
+        if (!requiredString(input && input[field])) return invalid(field);
+      }
       const refused = refusedSet();
-      const root = screenDeployDir(input.dir, refused);
-      if (root.error) return root.error;
-      const walked = walkPages(root.resolved, refused);
+      const release = await screenRelease(input, refused);
+      if (release.error) return release.error;
+      const walked = walkPages(release.dir, refused);
       if (walked.error) return walked.error;
       if (walked.assets.length === 0) {
         return { status: 'invalid_arguments', field: 'dir', reason: 'no uploadable files', skipped: walked.skipped };
@@ -3086,10 +3173,17 @@ export const modules = {
       // hashes yet, and a refusal sends nothing.
       const oversize = oversizeAssetError(walked.assets);
       if (oversize) return oversize;
-      // site/dist-function/ is the sibling of the dist this screen accepted.
-      // Absent, the deploy is the static one and function is null.
-      const fn = readKitFunction(dirname(root.resolved), refused);
+      // The signed Function directory, outside the assets. Absent, the deploy is
+      // the static one and function is null.
+      const fn = readReleaseFunction(release.root, release.parsed, refused);
       if (fn.error) return fn.error;
+      // Every release file screened here is re-read before the deployment, and
+      // none of them may be published as an asset, under any name.
+      const screened = [...release.records, ...(fn.payload ? [...fn.payload.files, ...fn.payload.records] : [])];
+      const protectedIds = new Set(screened.map((file) => file.id));
+      for (const item of [...walked.assets, ...[walked.headers, walked.redirects].filter(Boolean).map((kept) => ({ ...kept, rel: basename(kept.resolved) }))]) {
+        if (protectedIds.has(item.id)) return invalid('dir', `release file in dir: ${item.rel}`);
+      }
       const manifest = manifestFor(walked.assets);
       let prepared = null;
       if (fn.payload) {
@@ -3110,17 +3204,30 @@ export const modules = {
         const form = buildMultipart(deploymentParts(manifest, walked.headers, walked.redirects, extra));
         const encoded = base64Length(form.body.length);
         if (encoded > MAX_UPLOAD_BYTES) {
-          const pages = fn.payload.carried.length;
+          const entries = fn.payload.carried.length;
           return {
             status: 'invalid_arguments',
             field: 'dir',
-            reason: `deployment request over the 3 MiB limit; the kit Function carries ${pages} scheduled instants`,
+            reason: `deployment request over the 3 MiB limit; the Function record carries ${entries} entries`,
             bytes: encoded,
-            scheduled_instants: pages,
+            carried_entries: entries,
             fallback: 'Deploy with Wrangler: wrangler pages deploy',
           };
         }
         prepared = form;
+      }
+      // Last before any Cloudflare call: every publisher's signed layout catalog,
+      // and this contract's own layout listed by its own publisher, so a signed
+      // release cannot be deployed before its foreign-route protection exists.
+      const catalogs = await publisherLayouts(ctx, 'release_contract', {
+        field: 'release_signature',
+        text: (state) => `pages-trust.json is ${state}; refusing every signed release`,
+      });
+      if (catalogs.error) return catalogs.error;
+      const { layout } = release.parsed.contract;
+      if (!catalogs.layouts.some((listed) => listed.publisher === release.signer.publisher
+        && listed.root_name === layout.root_name && listed.assets === layout.assets)) {
+        return invalid('release_contract', 'release layout is not in its publisher\'s layout catalog');
       }
       const tokenEndpoint = accountPath(input.account_id, input.project_name, 'upload-token');
       const tokenData = await proxyData(ctx, { endpoint: tokenEndpoint, method: 'GET' });
@@ -3134,13 +3241,16 @@ export const modules = {
       if (changed) return changed;
       const upserted = await assetCall(ctx, jwt, '/pages/assets/upsert-hashes', { hashes: sent.allHashes });
       if (!envelopeOk(upserted)) return vendorError('/pages/assets/upsert-hashes', 'POST');
-      // The four Function files are re-read immediately before the deployment
-      // request. A change stops the deploy, and no byte of them is an asset.
-      if (fn.payload) {
-        for (const file of fn.payload.files) {
-          const now = readScreened(file.resolved, file.id);
-          if (!now || !now.equals(file.bytes)) return invalid('dir', `file changed during deploy: ${file.name}`);
-        }
+      // The contract, its signature, the identity and build records and the four
+      // Function files are re-read immediately before the deployment request. A
+      // change to any of them stops the deploy.
+      for (const file of screened) {
+        const now = readScreenedBounded(file.resolved, file.id, file.bytes.length);
+        if (!now.bytes || !now.bytes.equals(file.bytes)) return invalid('dir', `file changed during deploy: ${file.name}`);
+      }
+      if (release.parsed.contract.worker === null) {
+        const again = readReleaseFunction(release.root, release.parsed, refused);
+        if (again.error) return again.error;
       }
       const form = prepared || buildMultipart(deploymentParts(manifest, walked.headers, walked.redirects));
       const deploymentsEndpoint = accountPath(input.account_id, input.project_name, 'deployments');
@@ -3148,12 +3258,13 @@ export const modules = {
       if (posted.error) return posted.error;
       return redact({
         deployment: posted.deployment,
-        dir: root.resolved,
+        dir: release.dir,
         files: walked.assets.length,
         uploaded: sent.uploaded,
         already_present: sent.alreadyPresent,
         manifest: Object.keys(manifest),
         skipped: walked.skipped,
+        release: { publisher: release.signer.publisher, release: release.parsed.contract.release, key_id: release.signer.keyId },
         function: fn.payload ? fn.payload.report : null,
       }, jwt);
     },
@@ -3239,10 +3350,10 @@ export const modules = {
       const refused = refusedSet();
       const root = screenAbsoluteDir(input.dir, 'dir', refused);
       if (root.error) return root.error;
-      // A kit payload goes through pages.deploy, whose screens and gate are the
-      // kit's; this action never carries a Function onto a kit site.
-      const kit = kitPayloadError(root.resolved);
-      if (kit) return kit;
+      // A release payload goes through pages.deploy, whose signed contract and
+      // screens gate it; this action never carries a Function onto one.
+      const payload = releasePayloadError(root.resolved);
+      if (payload) return payload;
       const blocked = screenNotBuildOutput(root.resolved);
       if (blocked) return blocked;
       const buildRoot = screenAbsoluteDir(input.functions_build, 'functions_build', refused);
@@ -3336,6 +3447,10 @@ export const modules = {
           fallback: 'Deploy with Wrangler: wrangler pages deploy',
         };
       }
+      // Every local screen has passed; the publisher catalogs are read last
+      // before the first Cloudflare call.
+      const listed = await catalogPayloadError(ctx, root.resolved);
+      if (listed) return listed;
       let jwt = null;
       let uploaded = 0;
       let alreadyPresent = 0;
@@ -3387,8 +3502,8 @@ export const modules = {
       const refused = refusedSet();
       const root = screenAbsoluteDir(input.dir, 'dir', refused);
       if (root.error) return root.error;
-      const kit = kitPayloadError(root.resolved);
-      if (kit) return kit;
+      const payload = releasePayloadError(root.resolved);
+      if (payload) return payload;
       const declared = screenDeclaredRoots(root.resolved);
       if (declared) return declared;
       const blocked = screenStaticRoot(root.resolved);
@@ -3412,6 +3527,8 @@ export const modules = {
           fallback: 'Deploy with Wrangler: wrangler pages deploy',
         };
       }
+      const listed = await catalogPayloadError(ctx, root.resolved);
+      if (listed) return listed;
       const tokenEndpoint = accountPath(input.account_id, input.project_name, 'upload-token');
       const tokenData = await proxyData(ctx, { endpoint: tokenEndpoint, method: 'GET' });
       const jwt = readJwt(tokenData);

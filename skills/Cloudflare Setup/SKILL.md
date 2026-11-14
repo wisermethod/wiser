@@ -3,7 +3,7 @@ name: Cloudflare Setup
 type: skill
 category: development
 description: Take a member from no Cloudflare connection to one account-owned token, made from the pre-filled link for their job and pasted once, with each Cloudflare module their job needs proved by a read through it, the account id and, where an app needs sign-in, the Zero Trust team domain handed back, and a domain's DNS move handed to Zone Publisher
-version: 0.1.1
+version: 0.2.0
 gaps:
   - a token link for installing an app on Cloudflare Workers, its staff sign-in included
 ---
@@ -12,9 +12,9 @@ gaps:
 
 ## Context
 
-Use when a member's Cloudflare is not connected to Wiser at all and their work needs it: they have no Cloudflare account, no token, or no Cloudflare module connected; a caller such as `skills/Cloudflare Pages/` or `skills/Zone Publisher/` met `needs_connect` on a Cloudflare module while no other Cloudflare module is connected; an app needs Cloudflare Access's team domain for staff sign-in; or a connected member's next job needs a permission their token lacks.
+Use when a member's Cloudflare is not connected to Wiser at all and their work needs it: they have no Cloudflare account, no token, or no Cloudflare module connected; a caller such as `skills/Zone Publisher/` met `needs_connect` on a Cloudflare module while no other Cloudflare module is connected; an app needs Cloudflare Access's team domain for staff sign-in; or a connected member's next job needs a permission their token lacks.
 
-Not for one missing module while another Cloudflare module already answers: that is `skills/Connect Account/` for that module. Not for a status object after a call, which is `skills/Connection Troubleshooter/`, nor for signing in to Wiser or attaching the gateway, which is `skills/Set Up Connectors/`. This skill writes nothing to the Cloudflare account: a DNS record, a zone, a redirect or a setting is `skills/Zone Publisher/`'s under `experts/IT Expert/`, and a Pages project is `skills/Cloudflare Pages/`'s. A domain's DNS moved onto Cloudflare is handed to Zone Publisher; moving a domain's registration to another registrar is done nowhere in this root.
+Not for one missing module while another Cloudflare module already answers: that is `skills/Connect Account/` for that module. Not for a status object after a call, which is `skills/Connection Troubleshooter/`, nor for signing in to Wiser or attaching the gateway, which is `skills/Set Up Connectors/`. This skill writes nothing to the Cloudflare account: a DNS record, a zone, a redirect or a setting is `skills/Zone Publisher/`'s under `experts/IT Expert/`. A caller that manages a Pages project owns that change; this skill only connects the account. A domain's DNS moved onto Cloudflare is handed to Zone Publisher; moving a domain's registration to another registrar is done nowhere in this root.
 
 The member making the token is this skill's gate: the link's permissions were fixed when it was written, and a domain move it hands on is gated inside Zone Publisher.
 
@@ -70,7 +70,7 @@ The member does not narrow these rows: the domain being moved is not on the acco
 
 ## Steps
 
-1. **Settle the route.** Gateway tools missing, or a call answers `needs_provider`: stop; `skills/Set Up Connectors/` is the next human turn. Does the job deploy a site or apply a D1 migration, which run on the local gateway only (`skills/Cloudflare Pages/`)?
+1. **Settle the route.** Gateway tools missing, or a call answers `needs_provider`: stop; `skills/Set Up Connectors/` is the next human turn. Does the job deploy a site or apply a D1 migration, which the `connectors/cloudflare/CONNECTOR.md` pages module marks local-only?
    - Yes, and this session is on the Wiser endpoint: say so and stop before any call; Set Up Connectors attaches the local gateway, on request in a command-line harness, and this skill runs again there.
    - Yes, on the local gateway; or no: call `list_connections` with `{}`.
 

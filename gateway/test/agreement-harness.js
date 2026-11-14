@@ -42,15 +42,25 @@
  *   residual no schema change can close, so no adversarial exemplar probes for it.
  * - **`vercel deployments.upload_file` requires `path` to name a readable file.** That is
  *   filesystem state. Its baseline row and its fixture are permanent.
- * - **`cloudflare pages.deploy` requires `dir` to be a kit `site/dist` directory beside a
- *   `site/kit.json`.** Filesystem state again, of the same class, so its baseline row and its
- *   fixture are permanent for the same reason. Added 2026-09-24 with the action.
+ * - **`cloudflare pages.deploy` requires `dir` to be the assets directory of a release whose
+ *   contract is signed by a publisher the connector's Pages trust lists.** Filesystem and
+ *   trust state again, of the same class, so its baseline row and its fixture are permanent
+ *   for the same reason. Added 2026-09-24 with the action; since S2 the fixture is a
+ *   synthetic release signed by an in-memory FIXTURE key, run against a temporary copy of
+ *   the connector, byte for byte, whose `pages-trust.json` trusts only that key. The
+ *   shipping trust cannot accept a fixture signature, and must not.
+ * - **The three Pages deploy actions read each publisher's signed layout catalog through
+ *   `ctx.fetchRelease` before their first Cloudflare call.** Reading that catalog is not the
+ *   vendor, so for those three actions alone the context's `fetchRelease` serves the
+ *   fixture's FIXTURE-signed catalog bytes instead of the reach sentinel, and only a
+ *   transport past it, the Cloudflare proxy, counts as reached. Every other action keeps
+ *   `fetchRelease` as a reach, as before.
  * - **`cloudflare pages.d1_apply_migration` `file` and `cloudflare pages.deploy_with_functions` `dir`
  *   are filesystem-state rows of the same permanent class**, added 2026-10-07 with their actions.
  *   `d1_apply_migration` needs a real `.sql` file. `deploy_with_functions` needs a static directory
  *   and a functions build directory holding a valid minimal bundle. No schema can publish that.
  * - **`cloudflare pages.deploy_static` `dir` is a filesystem-state row of the same permanent class**,
- *   added 2026-10-10 with the action. It needs a real static directory that is no kit payload, no
+ *   added 2026-10-10 with the action. It needs a real static directory that is no release payload, no
  *   declared root and no working folder, and it reuses the `deploy_with_functions` static fixture.
  *
  * - **`youtube videos.upload`, `youtube videos.set_thumbnail` and `youtube captions.insert`
@@ -74,7 +84,8 @@
  * carries a validator. What direction B still measures against the module alone is the
  * constraints the gateway leaves to it: `maxLength`, `minimum`, `maximum` and `maxItems`.
  */
-import { readFileSync, readdirSync, existsSync, writeFileSync, mkdtempSync, mkdirSync, realpathSync, rmSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, writeFileSync, mkdtempSync, mkdirSync, realpathSync, rmSync, cpSync } from 'node:fs';
+import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import { join } from 'node:path';
 import { chdir, cwd } from 'node:process';
 import { tmpdir } from 'node:os';
@@ -227,7 +238,8 @@ let FIXTURE_YOUTUBE_CAPTION = '';
 let FIXTURE_ELEVENLABS_AUDIO = '';
 let FIXTURE_HEYGEN_AUDIO = '';
 let FIXTURE_FILE = '';
-let FIXTURE_DIST = '';
+// The synthetic signed Pages release, its connector copy and its catalog transport.
+let PAGES_FIXTURE = null;
 let FIXTURE_MIGRATION = '';
 let FIXTURE_STATIC = '';
 let FIXTURE_FUNCTIONS_BUILD = '';
@@ -247,7 +259,7 @@ const FIXTURES = {
   'youtube:captions.insert': () => ({ path: FIXTURE_YOUTUBE_CAPTION }),
   // Resolved at call time, because FIXTURE_FILE is created per run rather than at import.
   'vercel:deployments.upload_file': () => ({ path: FIXTURE_FILE }),
-  'cloudflare:pages.deploy': () => ({ dir: FIXTURE_DIST }),
+  'cloudflare:pages.deploy': () => ({ ...PAGES_FIXTURE.input }),
   'cloudflare:pages.d1_apply_migration': () => ({ file: FIXTURE_MIGRATION }),
   'cloudflare:pages.deploy_with_functions': () => ({ dir: FIXTURE_STATIC, functions_build: FIXTURE_FUNCTIONS_BUILD }),
   'cloudflare:pages.deploy_static': () => ({ dir: FIXTURE_STATIC }),
@@ -490,7 +502,7 @@ function withGatewayValidation(schema, run) {
 
 const REACHED = Symbol('reached-vendor');
 
-export function makeCtx(service, module, action, input, declaration = {}) {
+export function makeCtx(service, module, action, input, declaration = {}, transport = {}) {
   let reached = false;
   const execution = new AbortController();
   const reach = () => { reached = true; const e = new Error('reached vendor'); e[REACHED] = true; throw e; };
@@ -508,13 +520,15 @@ export function makeCtx(service, module, action, input, declaration = {}) {
   // These probes observe only the first transport, never a real download or
   // authenticated request. Measurement above stays pure and is not a reach.
   ctx.http = reach;
-  ctx.fetchRelease = reach;
+  // A publisher read is not the vendor only where a caller supplies the release bytes it
+  // serves: the Pages deploy actions' signed layout catalog. Everywhere else it is a reach.
+  ctx.fetchRelease = typeof transport.fetchRelease === 'function' ? transport.fetchRelease : reach;
   if (declaration.download_media && declaration.output_file) ctx.downloadMedia = reach;
   return { ctx, reached: () => reached, release: () => execution.abort() };
 }
 
-export async function call(fn, input, service, module, action, declaration) {
-  const probe = makeCtx(service, module, action, input, declaration);
+export async function call(fn, input, service, module, action, declaration, transport) {
+  const probe = makeCtx(service, module, action, input, declaration, transport);
   try {
     const res = await fn(input, probe.ctx);
     // Modules may sanitize a caught transport error. The observed call, rather than
@@ -582,6 +596,149 @@ export async function checkComposition(schema, base, run) {
   return { probes, divergences, errors };
 }
 
+function writeStaticFixtures(realScratch) {
+  FIXTURE_STATIC = join(realScratch, 'static-site');
+  mkdirSync(FIXTURE_STATIC);
+  writeFileSync(join(FIXTURE_STATIC, 'index.html'), '<!doctype html>\n');
+  FIXTURE_FUNCTIONS_BUILD = join(realScratch, 'functions-build');
+  mkdirSync(FIXTURE_FUNCTIONS_BUILD);
+  const bundleBoundary = 'WiserBoundary';
+  writeFileSync(join(FIXTURE_FUNCTIONS_BUILD, '_worker.bundle'), [
+    `--${bundleBoundary}\r\nContent-Disposition: form-data; name="metadata"\r\n\r\n${JSON.stringify({ main_module: 'worker.js' })}\r\n`,
+    `--${bundleBoundary}\r\nContent-Disposition: form-data; name="worker.js"; filename="worker.js"\r\nContent-Type: application/javascript+module\r\n\r\nexport default {}\r\n`,
+    `--${bundleBoundary}--\r\n`,
+  ].join(''));
+  writeFileSync(join(FIXTURE_FUNCTIONS_BUILD, '_routes.json'), `${JSON.stringify({ version: 1, include: ['/api/*'], exclude: [] })}\n`);
+  writeFileSync(join(FIXTURE_FUNCTIONS_BUILD, 'functions-filepath-routing-config.json'), `${JSON.stringify({ routes: [] })}\n`);
+  writeFileSync(join(FIXTURE_FUNCTIONS_BUILD, 'build.json'), `${JSON.stringify({ assets: FIXTURE_STATIC, functions: join(realScratch, 'functions-src'), sources: [{ path: 'api/x.js', sha256: '5f2b1e7c0d9a8b6c4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d' }] })}\n`);
+}
+
+const PAGES_RELEASE_ACTIONS = new Set(['pages.deploy', 'pages.deploy_static', 'pages.deploy_with_functions']);
+// Stated here independently of the connector's own constants, so a changed domain fails.
+const PAGES_CONTRACT_DOMAIN = Buffer.from('wiser.pages-release.v1\u0000', 'latin1');
+const PAGES_LAYOUTS_DOMAIN = Buffer.from('wiser.pages-layouts.v1\u0000', 'latin1');
+const PAGES_FIXTURE_PUBLISHER = 'agreement-fixture';
+
+/**
+ * A synthetic static release signed by an in-memory FIXTURE key, a byte-identical copy of the
+ * cloudflare connector whose `pages-trust.json` trusts only that key, and a transport whose
+ * `fetchRelease` serves that publisher's FIXTURE-signed layout catalog listing the release's
+ * layout. The private key never leaves this function. The layout names are synthetic.
+ */
+async function pagesReleaseFixture(realScratch) {
+  const { publicKey, privateKey } = generateKeyPairSync('ed25519');
+  const ed25519 = Buffer.from(publicKey.export({ format: 'jwk' }).x, 'base64url').toString('base64');
+  const key = { id: createHash('sha256').update(ed25519).digest('hex').slice(0, 16), ed25519 };
+  const source = join(CONNECTORS, 'cloudflare');
+  const dir = join(realScratch, 'pages-connector', 'cloudflare');
+  mkdirSync(dir, { recursive: true });
+  for (const entry of readdirSync(source)) {
+    if (entry === 'tests' || entry === 'pages-trust.json') continue;
+    cpSync(join(source, entry), join(dir, entry), { recursive: true });
+  }
+  const [host] = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8')).modules.pages.release_hosts;
+  const urls = {
+    catalog: `https://${host}/pages/${PAGES_FIXTURE_PUBLISHER}/layouts.json`,
+    catalog_signature: `https://${host}/pages/${PAGES_FIXTURE_PUBLISHER}/layouts.sig`,
+  };
+  writeFileSync(join(dir, 'pages-trust.json'), `${JSON.stringify({
+    format: 1, purpose: 'cloudflare.pages.deploy', publishers: { [PAGES_FIXTURE_PUBLISHER]: { keys: [key], ...urls } },
+  })}\n`);
+  const layout = { root_name: 'agreement-release', assets: 'public' };
+  const contract = {
+    format: 1,
+    purpose: 'cloudflare.pages.deploy',
+    publisher: PAGES_FIXTURE_PUBLISHER,
+    release: '1.0.0',
+    layout: {
+      ...layout,
+      identity: { path: 'release-id.json', version: 'tag' },
+      build: { path: 'stamp.json', time: 'at' },
+      function: { directory: 'edge', worker: 'entry.mjs', routes: 'paths.json', data: 'table.dat', record: 'record.json' },
+    },
+    worker: { sha256: 'e'.repeat(64), module_name: 'main.mjs' },
+    data: { magic: Buffer.from('AGR1').toString('base64'), container: 'u32be-json', version_field: 'v', version: 1 },
+    record: {
+      version: 'rel', time: 'at', hashes: { worker: 'h_w', routes: 'h_r', data: 'h_d' }, carried: 'inc', not_carried: 'exc', paths: 'n',
+    },
+  };
+  const root = join(realScratch, 'pages-release', layout.root_name);
+  const assets = join(root, layout.assets);
+  mkdirSync(assets, { recursive: true });
+  writeFileSync(join(assets, 'index.html'), '<!doctype html>\n');
+  writeFileSync(join(root, 'release-id.json'), `${JSON.stringify({ tag: contract.release })}\n`);
+  const contractBytes = Buffer.from(`${JSON.stringify(contract)}\n`);
+  writeFileSync(join(root, 'release.contract.json'), contractBytes);
+  writeFileSync(join(root, 'release.contract.sig'), sign(null, Buffer.concat([PAGES_CONTRACT_DOMAIN, contractBytes]), privateKey));
+  const catalog = Buffer.from(`${JSON.stringify({
+    format: 1, purpose: 'cloudflare.pages.layouts', publisher: PAGES_FIXTURE_PUBLISHER, layouts: [layout],
+  })}\n`);
+  const served = new Map([
+    [urls.catalog, catalog],
+    [urls.catalog_signature, sign(null, Buffer.concat([PAGES_LAYOUTS_DOMAIN, catalog]), privateKey)],
+  ]);
+  const fetches = [];
+  const unavailable = () => Object.assign(new Error('not served'), {
+    object: { status: 'vendor_error', reason: 'release HTTP error', http_status: 404 },
+  });
+  return {
+    impl: await import(pathToFileURL(join(dir, 'index.js')).href),
+    dir,
+    urls,
+    fetches,
+    input: {
+      dir: assets,
+      release_contract: join(root, 'release.contract.json'),
+      release_signature: join(root, 'release.contract.sig'),
+    },
+    transport: {
+      async fetchRelease(url, { maxBytes } = {}) {
+        fetches.push(url);
+        const bytes = served.get(url);
+        if (!bytes || bytes.length > maxBytes) throw unavailable();
+        return { status: 200, bytes: new Uint8Array(bytes), content_type: 'application/octet-stream' };
+      },
+    },
+    unavailable: { async fetchRelease(url) { fetches.push(url); throw unavailable(); } },
+  };
+}
+
+/**
+ * The Pages fixture's own controls, for `agreement.test.js`: each of the three deploy actions'
+ * accepted baseline, run with the catalog transport, with an unavailable catalog, and with the
+ * generic reach transport. Returns the kinds and the publisher reads so the test can show the
+ * baseline is accepted only by a Cloudflare reach, never by the catalog read itself.
+ */
+export async function pagesReleaseControls() {
+  const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'wiser-agreement-pages-')));
+  try {
+    const fixture = await pagesReleaseFixture(scratch);
+    writeStaticFixtures(scratch);
+    const manifest = JSON.parse(readFileSync(join(fixture.dir, 'manifest.json'), 'utf8'));
+    const bases = {
+      deploy: { account_id: 'a', project_name: 'agreement-site', ...fixture.input },
+      deploy_static: { account_id: '0123456789abcdef0123456789abcdef', project_name: 'agreement-site', dir: FIXTURE_STATIC },
+      deploy_with_functions: {
+        account_id: '0123456789abcdef0123456789abcdef', project_name: 'agreement-site', dir: FIXTURE_STATIC, functions_build: FIXTURE_FUNCTIONS_BUILD,
+      },
+    };
+    const out = {};
+    for (const [act, base] of Object.entries(bases)) {
+      const ad = manifest.modules.pages.actions[act];
+      const fn = withGatewayValidation(ad.input, fixture.impl.modules.pages[act]);
+      const row = {};
+      for (const [label, transport] of [['catalog', fixture.transport], ['unavailable', fixture.unavailable], ['generic', undefined]]) {
+        const before = fixture.fetches.length;
+        row[label] = { ...(await call(fn, base, 'cloudflare', 'pages', act, ad, transport)), fetched: fixture.fetches.slice(before) };
+      }
+      out[act] = row;
+    }
+    return { urls: fixture.urls, out };
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
 /**
  * Collect every divergence, as stable `direction connector module.action detail` keys.
  * Exported so `regenerate-baseline.mjs` writes the file from the same code that asserts
@@ -597,13 +754,10 @@ export async function collectDivergences() {
   const previousCwd = cwd();
   FIXTURE_FILE = join(scratch, 'upload-fixture.txt');
   writeFileSync(FIXTURE_FILE, 'agreement fixture\n');
-  FIXTURE_DIST = join(scratch, 'site', 'dist');
-  mkdirSync(FIXTURE_DIST, { recursive: true });
-  writeFileSync(join(scratch, 'site', 'kit.json'), '{}\n');
-  writeFileSync(join(FIXTURE_DIST, 'index.html'), '<!doctype html>\n');
   // New filesystem fixtures use the real spelling. On macOS the temp directory's
   // spelling contains a symbolic link, and these two actions refuse that.
   const realScratch = realpathSync(scratch);
+  PAGES_FIXTURE = await pagesReleaseFixture(realScratch);
   FIXTURE_YOUTUBE_VIDEO = join(realScratch, 'youtube-video.mp4');
   writeFileSync(FIXTURE_YOUTUBE_VIDEO, 'invented video fixture');
   FIXTURE_YOUTUBE_THUMBNAIL = join(realScratch, 'youtube-thumbnail.jpg');
@@ -618,20 +772,7 @@ export async function collectDivergences() {
   writeFileSync(FIXTURE_ELEVENLABS_AUDIO, 'invented audio fixture');
   FIXTURE_MIGRATION = join(realScratch, 'migration.sql');
   writeFileSync(FIXTURE_MIGRATION, 'SELECT 1;\n');
-  FIXTURE_STATIC = join(realScratch, 'static-site');
-  mkdirSync(FIXTURE_STATIC);
-  writeFileSync(join(FIXTURE_STATIC, 'index.html'), '<!doctype html>\n');
-  FIXTURE_FUNCTIONS_BUILD = join(realScratch, 'functions-build');
-  mkdirSync(FIXTURE_FUNCTIONS_BUILD);
-  const bundleBoundary = 'WiserBoundary';
-  writeFileSync(join(FIXTURE_FUNCTIONS_BUILD, '_worker.bundle'), [
-    `--${bundleBoundary}\r\nContent-Disposition: form-data; name="metadata"\r\n\r\n${JSON.stringify({ main_module: 'worker.js' })}\r\n`,
-    `--${bundleBoundary}\r\nContent-Disposition: form-data; name="worker.js"; filename="worker.js"\r\nContent-Type: application/javascript+module\r\n\r\nexport default {}\r\n`,
-    `--${bundleBoundary}--\r\n`,
-  ].join(''));
-  writeFileSync(join(FIXTURE_FUNCTIONS_BUILD, '_routes.json'), `${JSON.stringify({ version: 1, include: ['/api/*'], exclude: [] })}\n`);
-  writeFileSync(join(FIXTURE_FUNCTIONS_BUILD, 'functions-filepath-routing-config.json'), `${JSON.stringify({ routes: [] })}\n`);
-  writeFileSync(join(FIXTURE_FUNCTIONS_BUILD, 'build.json'), `${JSON.stringify({ assets: FIXTURE_STATIC, functions: join(realScratch, 'functions-src'), sources: [{ path: 'api/x.js', sha256: '5f2b1e7c0d9a8b6c4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d' }] })}\n`);
+  writeStaticFixtures(realScratch);
   chdir(scratch);
   try {
     return await collect();
@@ -655,12 +796,18 @@ async function collect() {
 
     for (const [mod, md] of Object.entries(manifest.modules)) {
       for (const [act, ad] of Object.entries(md.actions)) {
+        // The Pages deploy actions run on the fixture's byte-identical connector copy, with the
+        // catalog transport. Every other action runs on the shipped module with reach sentinels.
         const raw = impl.modules?.[mod]?.[act];
+        const pagesRelease = name === 'cloudflare' && PAGES_RELEASE_ACTIONS.has(`${mod}.${act}`);
+        const target = pagesRelease ? PAGES_FIXTURE.impl.modules?.[mod]?.[act] : raw;
+        const transport = pagesRelease ? PAGES_FIXTURE.transport : undefined;
         const where = `${name} ${mod}.${act}`;
-        if (typeof raw !== 'function') { errors.push(`${where}: not a function`); continue; }
+        if (typeof raw !== 'function' || typeof target !== 'function') { errors.push(`${where}: not a function`); continue; }
         const schema = ad.input;
         if (!schema) continue;
-        const fn = withGatewayValidation(schema, raw);
+        const fn = withGatewayValidation(schema, target);
+        const run = (input) => call(fn, input, manifest.service, mod, act, ad, transport);
 
         let base;
         try { base = { ...validInstance(schema), ...SAMPLE_STATE[`${name}:${mod}.${act}`]?.() }; }
@@ -669,7 +816,7 @@ async function collect() {
         if (bad) { errors.push(`${where}: sample fails its own schema: ${bad}`); continue; }
 
         // A. measured before legacy fixture overrides: the module refuses what its schema permits.
-        const plain = await call(fn, base, manifest.service, mod, act, ad);
+        const plain = await run(base);
         if (plain.kind === 'refused') found.add(`A ${where} ${plain.field}`);
 
         const entry = FIXTURES[`${name}:${mod}.${act}`];
@@ -679,13 +826,13 @@ async function collect() {
           const bad2 = schemaViolation(schema, base);
           if (bad2) { errors.push(`${where}: fixture fails the schema: ${bad2}`); continue; }
         }
-        const accepted = fixture ? await call(fn, base, manifest.service, mod, act, ad) : plain;
+        const accepted = fixture ? await run(base) : plain;
         // Every direction below needs a baseline the module accepts; without one a refusal
         // after a mutation may be the baseline's own refusal repeated.
         if (accepted.kind !== 'reached') { found.add(`F ${where} no-accepted-baseline`); continue; }
 
         // C and D. the undeclared key.
-        const rx = await call(fn, { ...base, __agreement_undeclared__: 'x' }, manifest.service, mod, act, ad);
+        const rx = await run({ ...base, __agreement_undeclared__: 'x' });
         const closed = schema.additionalProperties === false;
         if (closed && rx.kind === 'reached') found.add(`C ${where} undeclared-key-accepted`);
         if (!closed && rx.kind === 'refused') found.add(`D ${where} ${rx.field}`);
@@ -694,7 +841,7 @@ async function collect() {
         // Composition is left to the module by the gateway validator. Both valid
         // and invalid probes are judged, retaining the exclusive-choice ratchet keys.
         const composition = await checkComposition(schema, base,
-          (input) => call(fn, input, manifest.service, mod, act, ad));
+          (input) => run(input));
         for (const { direction, detail } of composition.divergences) found.add(`${direction} ${where} ${detail}`);
         for (const error of composition.errors) errors.push(`${where}: ${error}`);
 
@@ -706,7 +853,7 @@ async function collect() {
             if (!new RegExp(ps.pattern).test(cand)) continue;
             if (ps.maxLength !== undefined && [...cand].length > ps.maxLength) continue;
             if (ps.minLength !== undefined && [...cand].length < ps.minLength) continue;
-            const rp = await call(fn, { ...base, [pn]: cand }, manifest.service, mod, act, ad);
+            const rp = await run({ ...base, [pn]: cand });
             if (rp.kind === 'refused') found.add(`E ${where} ${pn} ${JSON.stringify(cand)}`);
           }
 
@@ -745,7 +892,7 @@ async function collect() {
           else if (ps.type === 'array') muts.push(['type', 'not-an-array']);
 
           for (const [why, value] of muts) {
-            const rr = await call(fn, { ...base, [pn]: value }, manifest.service, mod, act, ad);
+            const rr = await run({ ...base, [pn]: value });
             // Only a value that reached the vendor proves the module let it through. A throw
             // is neither enforcement nor acceptance and is recorded as its own thing.
             if (rr.kind === 'reached') found.add(`B ${where} ${pn} ${why}`);

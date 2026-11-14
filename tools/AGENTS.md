@@ -56,9 +56,9 @@ The one list; a tool's pages point here.
 |------|-------|-------------|
 | Build Brand's font pack | `skills/Build Brand/parts/fonts/`; download in an OS-temporary directory removed at the end, staging inside `fonts/` removed at the end | `skills/Build Brand/scripts/fonts.mjs` |
 | Plugin consent markers | `.wiser-consent` in the platform user-config directory (`gateway/SETUP.md`), mode 0600 in a directory created 0700 where absent, plus the matching copy marker at the plugin root | every tool that installs |
-| Node packages | `node_modules/` in the tool's directory | the 13 tools whose `package.json` declares a dependency, Form included (development tests only); `pages-functions` is about 210 MB of them, Wrangler and its `workerd` runtime |
+| Node packages | `node_modules/` in the tool's directory | the 12 tools whose `package.json` declares a dependency, Form included (development tests only) |
 | Content Harvester’s proxy-only install manifests and packages before copying `undici` into the tool | one `wiser-harvester-proxy-*` directory in system temporary storage, removed on ordinary success or failure | `Content Harvester` when compiled parsing or a valid installed parser needs only `undici` |
-| npm's cache and logs | npm's configured cache, `~/.npm` by default, outside this plugin | the same 13, and the shared browser runtime |
+| npm's cache and logs | npm's configured cache, `~/.npm` by default, outside this plugin | the same 12, and the shared browser runtime |
 | Python packages | `.venv/` in the tool's directory; pip's cache is switched off | `Screen Capture`, `Transcribe Audio`, `knowledge-memory` graph commands |
 | Chatterbox's pinned Python environment, about 1.3 GiB | `Chatterbox/.venv/`, native CPython 3.11, including `chatterbox-tts` 0.1.7, `resemble-perth` 1.0.1 and torch/torchaudio 2.6.0, with the complete resolution in `requirements.lock`; pip cache is off and installer temporary files stay in `.venv/cache/`. An environment whose interpreter is unusable is retained under `Chatterbox/.venv-recovery/<id>/` before its replacement is created, never deleted automatically. | `Chatterbox` `install` |
 | Chatterbox voice weights, about 3.0 GiB (3,191,966,992 bytes) | `chatterbox-0.1.7-5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18/` under the person-scoped `models/` base below, or under absolute `--model-cache`; all Hugging Face caches are inside that versioned folder. Hub resumes incomplete downloads; invalid completed files are fetched again with consent, never used. The whole route's disk check includes a separate 0.4 GiB caller alignment budget and an estimated 2.0 GiB install reserve. | `Chatterbox` `install` |
@@ -99,7 +99,6 @@ The one list; a tool's pages point here.
 | A knowledge store: databased SQLite or one native graph `graph.lbdb` file per dataset, at caller-named `--store` | exactly the path the caller passes as `--store`, by convention `memory/knowledge/store/` in the owning root; wiki writes no store | `knowledge-memory` |
 | A classifier trial's per-run state: a trial gateway home per run, whose key file is a symbolic link to the person's key file or three empty lines, a copied synthetic root, an empty secrets directory, and a tree exported from a commit | one directory in the platform's temporary directory, `wiser-classifier-trial-<random>`, removed at the end of the run and after a stop unless `--keep-temp` | `tools/lib/classifier/trial.mjs` `run` |
 | A classifier trial's records: spec, plan, runs, blind packets, scores, verdict, safety record | the caller-named `--work` directory in the owning root; a ceiling file at the caller-named `--ceiling-file` | `tools/lib/classifier/trial.mjs` |
-| Wrangler's own working files while it compiles: a log, `.wrangler/tmp`, its preferences under a stand-in home directory, and its update check's cache under a stand-in temporary directory | one directory in the platform's temporary directory, `wiser-pages-functions-<random>`, removed when the run ends, including on failure | `pages-functions` |
 | A knowledge set's own records: corpus, wiki or extraction, review items, reports | inside the set directory the caller passes as `--set`, at `corpus/`, `wiki/`, `extraction/`, `review/`, and `reports/` as the backend uses them | `knowledge-memory` |
 | A delegate's run record: the prompt, the vendor's two output streams, the parsed report, and `status.json` (`started` with the vendor's process and group ids, then the final state) | one folder under the caller-named `--runs`, which may not sit inside this plugin; a refusal before the vendor starts writes none | `Subagent Runner` |
 
@@ -181,12 +180,6 @@ The gateway's writes are listed in `gateway/AGENTS.md`, Everything the gateway w
 | `reference-check/TOOL.md` | Return a JSON scan of path-shaped and family-name references under --root, or take and restore an approved structural snapshot |
 
 <!-- /generated:index -->
-
-### Web
-
-| Tool | Description |
-|------|-------------|
-| `pages-functions/TOOL.md` | The three files Cloudflare Pages takes for a site's functions folder, compiled offline |
 
 ## Structural recovery writes
 

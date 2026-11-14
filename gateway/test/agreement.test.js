@@ -20,7 +20,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { call, collectDivergences, schemaViolation } from './agreement-harness.js';
+import { call, collectDivergences, pagesReleaseControls, schemaViolation } from './agreement-harness.js';
 
 const BASELINE = JSON.parse(readFileSync(new URL('./agreement-baseline.json', import.meta.url), 'utf8'));
 
@@ -40,6 +40,23 @@ test('agreement distinguishes a refusal before transport from a return or unexpe
   assert.deepEqual(await call(() => ({}), {}), { kind: 'returned' });
   assert.deepEqual(await call(() => { throw new Error('fixture failure'); }, {}),
     { kind: 'threw', detail: 'fixture failure' });
+});
+
+// The three Pages deploy actions read a signed publisher layout catalog through fetchRelease
+// before any Cloudflare call. Their accepted baselines must be a Cloudflare reach, never the
+// catalog read: with the catalog served they reach, with it unavailable they do not, and only
+// the generic reach transport would count the catalog read itself as the vendor.
+test('Pages deploy fixtures are accepted by a Cloudflare reach, not by reading the publisher catalog', async () => {
+  const { urls, out } = await pagesReleaseControls();
+  for (const act of ['deploy', 'deploy_static', 'deploy_with_functions']) {
+    const row = out[act];
+    assert.equal(row.catalog.kind, 'reached', `${act} ${JSON.stringify(row.catalog)}`);
+    assert.deepEqual(row.catalog.fetched, [urls.catalog, urls.catalog_signature], act);
+    assert.notEqual(row.unavailable.kind, 'reached', `${act} ${JSON.stringify(row.unavailable)}`);
+    assert.deepEqual(row.unavailable.fetched, [urls.catalog], act);
+    assert.equal(row.generic.kind, 'reached', `${act}: the generic sentinel counts the catalog read`);
+    assert.deepEqual(row.generic.fetched, [], act);
+  }
 });
 
 test('every connector action agrees with its own published schema, in both directions', async () => {

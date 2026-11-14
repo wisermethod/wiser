@@ -3,7 +3,7 @@ name: Profile Page
 type: skill
 category: writing
 description: A gated copy package for a single page about one person, every fact on it checked against a claims ledger, stopped for review by that person or their named approver, then handed to whoever builds the page
-version: 0.2.1
+version: 0.3.0
 memory:
   - voice
   - about
@@ -15,7 +15,7 @@ memory:
 
 Use when someone wants the copy for a single page about one person, their own or someone they write for, that reporters, analysts, investors, customers, or event organisers will check.
 
-Not for a company page or a campaign page; that is `skills/Marketing Page Design/`. Not for a bio alone with no page, a press kit, or a speaker introduction; that is `skills/Content Author/`, with the nearest type. Not for building or deploying the site; that is `skills/Site Author/`, `skills/SEO Assets/`, and the deploy skills. Not for researching a genre.
+Not for a company page or a campaign page; that is `skills/Marketing Page Design/`. Not for a bio alone with no page, a press kit, or a speaker introduction; that is `skills/Content Author/`, with the nearest type. Not for building or deploying the site; this skill hands its copy package to whoever places the page. `skills/SEO Assets/` builds the search artifacts. Not for researching a genre.
 
 This skill runs other skills by name where its steps say so, per `standards/primitives.md` Invocation, and never reaches inside them. The page format and its evidence are `skills/Content Author/profile-page.md`. The checks are `tools/copy-check/TOOL.md`.
 
@@ -58,7 +58,7 @@ Each question is answered from the brief, the owning root's `AGENTS.md`, and the
 
 **What does the person sell, and is speaking, training, or advisory engagement that business?** The branch is the one `skills/Content Author/profile-page.md` states. Stated: record yes or no. Not stated: ask. Never infer it from the person's title.
 
-**Which site does the page go on?** A site built with this plugin's site kit: record that. Another site: record that. Not yet decided: record undecided. Undecided is allowed until the hand-off step.
+**Which site does the page go on?** Record the destination site and its platform where known. Not yet decided: record undecided. Undecided is allowed until the hand-off step.
 
 **Who approves the page?** The brief names no one: the person it is about, and record their name. It names the person, or one other approver with the reason: record that name. It names several, or someone other than the person with no reason given: ask which one approves.
 
@@ -111,7 +111,7 @@ Stop here, and say so. The package is ready for review by the approver the Frame
 
 After approval, or the requester's recorded decision to publish without it. This skill deploys nothing.
 
-**Which site does the page go on?** A site built with this plugin's site kit: hand the copy to `skills/Site Author/` by name for a content edit or a stand-up, and with it the facts about the person that the ledger confirms, for the kit's `person` declaration in `site/kit.json`, which that content job writes and the kit turns into Person and ProfilePage structured data (site kit 0.4.0 or later; `skills/Site Author/kit/KIT.md` names the fields). Only confirmed rows go into it, and a field the ledger does not confirm stays out. Never tell anyone to edit the kit's layout. Another site: deliver the copy package as the hand-over to whoever places the copy. Then hand `skills/SEO Assets/` the findability brief as a decided change from the requester, since they asked for a page whose format carries it, unless they said they do not want the markup: with it go the approved copy and its hash, the page's address and platform where the brief or the requester gives them, and the condition that the markup goes live only with the approved copy, so it is built from what the new page displays. SEO Assets builds the Person and ProfilePage blocks and `experts/Webmaster/` gates each. Never write to that site. Not yet decided: ask.
+**Which site does the page go on?** Decided: deliver the copy package as the hand-over to whoever places the copy. Then hand `skills/SEO Assets/` the findability brief as a decided change from the requester, since they asked for a page whose format carries it, unless they said they do not want the markup: with it go the approved copy and its hash, the page's address and platform where the brief or the requester gives them, and the condition that the markup goes live only with the approved copy, so it is built from what the new page displays. SEO Assets builds the Person and ProfilePage blocks and `experts/Webmaster/` gates each. Never write to that site. Not yet decided: ask.
 
 ### 8. Cold-reader validation, offered
 
@@ -135,5 +135,5 @@ A human step the requester may run, never a gate, and never run by this skill. T
 - No claim whose evidence label is `Unverified: requires confirmation` is usable.
 - Each gate the run reached returned a verdict, or the requester's decline is named: Research Expert's where External Research ran, the concept gate where Build Concepts ran, and the page gate.
 - The run stopped at the named approver's review and the record is written, or the run named why it stopped earlier.
-- The hand-off named its route, and on a kit site handed the ledger's confirmed facts for the kit's `person` declaration.
+- The hand-off named who places the copy and handed the findability brief, carrying only the ledger's confirmed facts, to SEO Assets unless the requester declined markup.
 - Nothing was deployed.

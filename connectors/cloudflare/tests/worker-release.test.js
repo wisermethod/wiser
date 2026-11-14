@@ -78,9 +78,9 @@ async function setup(t, options = {}) {
   const connectors = join(home, 'connectors');
   const dir = join(connectors, 'cloudflare');
   mkdirSync(dir, { recursive: true });
-  // Copy only the Worker runtime files. The existing kit tests temporarily
-  // move kit-function.json, so copying that unrelated fixture would race them.
-  for (const name of ['index.js', 'worker-release.js', 'manifest.json']) {
+  // Copy only the Worker runtime files and the modules index.js imports. The
+  // Pages trust file is not copied: this copy serves no Pages release.
+  for (const name of ['index.js', 'worker-release.js', 'signature.js', 'pages-release.js', 'manifest.json']) {
     cpSync(fileURLToPath(new URL('../' + name, import.meta.url)), join(dir, name));
   }
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ type: 'module' }));
@@ -148,7 +148,13 @@ test('the shipped release config names a listed host and the workers module owns
   assert.ok(manifest.modules.workers.release_hosts.includes(new URL(CONFIG.base).hostname));
   assert.ok(Object.hasOwn(CONFIG.apps, INPUT.app));
   assert.equal(manifest.modules.workers.auth.toolkit, 'CLOUDFLARE_API_KEY');
-  assert.equal(manifest.modules.pages.release_hosts, undefined);
+  // The Pages module reads its publisher layout catalogs from the same single
+  // publisher host; neither module's host list is wider than that one host.
+  assert.deepEqual(manifest.modules.workers.release_hosts, [new URL(CONFIG.base).hostname]);
+  assert.deepEqual(manifest.modules.pages.release_hosts, [new URL(CONFIG.base).hostname]);
+  for (const [name, mod] of Object.entries(manifest.modules)) {
+    if (name !== 'workers' && name !== 'pages') assert.equal(mod.release_hosts, undefined, name);
+  }
   for (const name of ['workers_subdomain', 'get_worker', 'deploy_worker_release', 'delete_worker']) {
     assert.ok(manifest.modules.workers.actions[name]);
     assert.equal(manifest.modules.pages.actions[name], undefined);

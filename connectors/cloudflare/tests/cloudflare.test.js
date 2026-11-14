@@ -1,12 +1,15 @@
 import { confirmCall } from '../../../gateway/test/fake-provider.js';
 import { randomBytes } from 'node:crypto';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { modules } from '../index.js';
+import {
+  SYNTHETIC_LAYOUT, blockNetwork, connectorCopy, fixtureIdentity, makeRelease, publisherServer, trustJson,
+} from './pages-release-fixture.js';
 
 // The gateway is found by walking up from this file, so the test runs at the
 // template's depth and at a connector's depth after it is copied.
@@ -191,22 +194,20 @@ test('create_record confirms a proxy write and returns one record rather than a 
   assert.equal(Object.hasOwn(result, 'headers'), false);
 });
 
-function makeTree({ parentName = 'site', distName = 'dist', kit = true, files = {} } = {}) {
-  const root = mkdtempSync(join(tmpdir(), 'pages-kit-'));
-  const parent = join(root, parentName);
-  const dist = join(parent, distName);
-  mkdirSync(dist, { recursive: true });
-  if (kit) writeFileSync(join(parent, 'kit.json'), '{}\n');
-  for (const [rel, content] of Object.entries(files)) {
-    const path = join(dist, ...rel.split('/'));
-    mkdirSync(join(path, '..'), { recursive: true });
-    writeFileSync(path, content);
-  }
-  return {
-    root,
-    dist,
-    cleanup() { rmSync(root, { recursive: true, force: true }); },
-  };
+// pages.deploy cases run on a synthetic signed release. The key is an in-memory
+// FIXTURE identity trusted only by a temporary copy of this connector.
+const PUB = fixtureIdentity('cloudflare-suite');
+const TRUSTED = connectorCopy({ trust: trustJson({ 'fixture-pub': [PUB.key] }) });
+// Every publisher catalog read is served by this fake; the process's own fetch is blocked.
+const NETWORK = blockNetwork();
+const CATALOGS = () => publisherServer({ 'fixture-pub': { identity: PUB, layouts: [SYNTHETIC_LAYOUT] } });
+after(() => {
+  TRUSTED.cleanup();
+  assert.deepEqual(NETWORK, [], 'no test may reach the network through a default fetch');
+});
+
+function makeTree({ files = {} } = {}) {
+  return makeRelease({ identity: PUB, fn: false, assets: files });
 }
 
 function formParts(binary) {
@@ -330,8 +331,8 @@ test('pages.add_domain confirms every call and posts the domain name', async () 
   assert.equal(requests.length, 1);
 });
 
-async function pagesGateway() {
-  const { gw, store, fake } = await createTestGateway({ connectorDirs: [CONNECTORS] });
+async function pagesGateway(connectors = CONNECTORS) {
+  const { gw, store, fake } = await createTestGateway({ connectorDirs: [connectors], fetchImpl: CATALOGS().fetchImpl });
   await putActive(store, fake, { service: 'cloudflare', module: 'pages' });
   const requests = [];
   const original = fake.auth.proxy;
@@ -342,36 +343,37 @@ async function pagesGateway() {
   return { gw, requests };
 }
 
-test('pages.deploy refuses a dir that is not site/dist', async () => {
-  const { gw, requests } = await pagesGateway();
-  const tree = makeTree({ parentName: 'site', distName: 'public', kit: true, files: { 'index.html': '<h1>Hi</h1>' } });
+test('pages.deploy refuses a dir that is not the signed assets directory', async () => {
+  const { gw, requests } = await pagesGateway(TRUSTED.connectors);
+  const tree = makeTree({ files: { 'index.html': '<h1>Hi</h1>' } });
   try {
     const result = await confirmCall(gw, {
       action: 'cloudflare.pages.deploy',
-      input: { account_id: 'acct-1', project_name: 'kit-site', dir: tree.dist },
+      input: tree.input({ dir: join(tree.root, 'out') }),
       confirm: true,
     });
     assert.equal(result.status, 'invalid_arguments');
     assert.equal(result.field, 'dir');
-    assert.equal(result.reason, 'basename is not dist');
+    assert.equal(result.reason, 'dir is not the signed assets directory');
     assert.equal(requests.length, 0);
   } finally {
     tree.cleanup();
   }
 });
 
-test('pages.deploy refuses site/dist without site/kit.json', async () => {
-  const { gw, requests } = await pagesGateway();
-  const tree = makeTree({ kit: false, files: { 'index.html': '<h1>Hi</h1>' } });
+test('pages.deploy refuses a signed release whose identity file is missing', async () => {
+  const { gw, requests } = await pagesGateway(TRUSTED.connectors);
+  const tree = makeTree({ files: { 'index.html': '<h1>Hi</h1>' } });
+  rmSync(join(tree.root, 'release-id.json'));
   try {
     const result = await confirmCall(gw, {
       action: 'cloudflare.pages.deploy',
-      input: { account_id: 'acct-1', project_name: 'kit-site', dir: tree.dist },
+      input: tree.input(),
       confirm: true,
     });
     assert.equal(result.status, 'invalid_arguments');
     assert.equal(result.field, 'dir');
-    assert.equal(result.reason, 'kit.json missing');
+    assert.equal(result.reason, 'release identity missing');
     assert.equal(requests.length, 0);
   } finally {
     tree.cleanup();
@@ -383,15 +385,15 @@ test('pages.deploy refuses _worker.js and a functions directory at the dist root
   const functions = makeTree({ files: { 'index.html': '<h1>Hi</h1>', 'functions/api.js': 'export function onRequest() {}\n' } });
   try {
     for (const tree of [worker, functions]) {
-      const { gw, requests } = await pagesGateway();
+      const { gw, requests } = await pagesGateway(TRUSTED.connectors);
       const result = await confirmCall(gw, {
         action: 'cloudflare.pages.deploy',
-        input: { account_id: 'acct-1', project_name: 'kit-site', dir: tree.dist },
+        input: tree.input(),
         confirm: true,
       });
       assert.equal(result.status, 'invalid_arguments');
       assert.equal(result.field, 'dir');
-      assert.equal(result.reason, 'static kit output only');
+      assert.equal(result.reason, 'static release output only');
       assert.equal(requests.length, 0);
     }
   } finally {
@@ -417,7 +419,7 @@ test('pages.deploy confirms on every call and uploads only missing assets', asyn
       '.well-known/security.txt': 'Contact: mailto:security@example.com\n',
     },
   });
-  const { gw, store, fake } = await createTestGateway({ connectorDirs: [CONNECTORS] });
+  const { gw, store, fake } = await createTestGateway({ connectorDirs: [TRUSTED.connectors], fetchImpl: CATALOGS().fetchImpl });
   await putActive(store, fake, { service: 'cloudflare', module: 'pages' });
   const calls = [];
   fake.auth.proxy = async (request) => {
@@ -437,7 +439,7 @@ test('pages.deploy confirms on every call and uploads only missing assets', asyn
         status: 200,
         data: {
           success: true,
-          result: { id: 'dep-1', url: 'https://kit-site.pages.dev', environment: 'production', latest_stage: { name: 'deploy', status: 'success' } },
+          result: { id: 'dep-1', url: 'https://synthetic-site.pages.dev', environment: 'production', latest_stage: { name: 'deploy', status: 'success' } },
           errors: [],
           messages: [],
         },
@@ -448,7 +450,7 @@ test('pages.deploy confirms on every call and uploads only missing assets', asyn
   };
   const call = {
     action: 'cloudflare.pages.deploy',
-    input: { account_id: 'acct-1', project_name: 'kit-site', dir: tree.dist },
+    input: tree.input(),
   };
   try {
     assert.equal((await gw.execute(call)).status, 'needs_confirmation');
@@ -456,11 +458,11 @@ test('pages.deploy confirms on every call and uploads only missing assets', asyn
     const result = await confirmCall(gw, { ...call, confirm: true });
     assert.equal((await gw.execute(call)).status, 'needs_confirmation');
     assert.deepEqual(calls.map((item) => `${item.method} ${item.endpoint}`), [
-      'GET /accounts/acct-1/pages/projects/kit-site/upload-token',
+      'GET /accounts/acct-1/pages/projects/synthetic-site/upload-token',
       'POST /pages/assets/check-missing',
       'POST /pages/assets/upload',
       'POST /pages/assets/upsert-hashes',
-      'POST /accounts/acct-1/pages/projects/kit-site/deployments',
+      'POST /accounts/acct-1/pages/projects/synthetic-site/deployments',
     ]);
     for (const item of calls) {
       const asset = item.endpoint.startsWith('/pages/assets/');
@@ -489,13 +491,13 @@ test('pages.deploy confirms on every call and uploads only missing assets', asyn
     assert.equal(form.parts.find((part) => part.name === '_headers').value, headers);
     assert.equal(form.parts.find((part) => part.name === '_redirects').value, redirects);
     assert.equal(result.deployment.id, 'dep-1');
-    assert.equal(result.deployment.url, 'https://kit-site.pages.dev');
+    assert.equal(result.deployment.url, 'https://synthetic-site.pages.dev');
     assert.equal(result.deployment.environment, 'production');
     assert.equal(result.files, 3);
     assert.equal(result.uploaded, 1);
     assert.equal(result.already_present, 2);
     assert.deepEqual(result.manifest.sort(), Object.keys(manifest).sort());
-    assert.ok(result.dir.endsWith(join('site', 'dist')));
+    assert.equal(result.dir, tree.dist);
     assert.ok(result.skipped.some((item) => item.file === '.DS_Store' && item.reason === 'hidden'));
     assert.ok(result.skipped.some((item) => item.file === '.dev.vars' && item.reason === 'hidden'));
     assert.ok(result.skipped.some((item) => item.file === 'deploy.key' && item.reason === 'credential'));
@@ -506,30 +508,31 @@ test('pages.deploy confirms on every call and uploads only missing assets', asyn
   }
 });
 
-test('pages.deploy refuses a symbolic link at site or at dist', async () => {
+test('pages.deploy refuses a symbolic link at the release root or at the assets directory', async () => {
   const real = makeTree({ files: { 'index.html': '<h1>Real</h1>' } });
-  const holder = mkdtempSync(join(tmpdir(), 'pages-link-'));
+  const linked = makeTree({ files: { 'index.html': '<h1>Linked</h1>' } });
+  const holder = realpathSync(mkdtempSync(join(tmpdir(), 'pages-link-')));
   try {
-    // dist is a link to another kit's dist.
-    mkdirSync(join(holder, 'a', 'site'), { recursive: true });
-    writeFileSync(join(holder, 'a', 'site', 'kit.json'), '{}\n');
-    symlinkSync(real.dist, join(holder, 'a', 'site', 'dist'));
-    // site is a link to another kit's site.
-    mkdirSync(join(holder, 'b'), { recursive: true });
-    symlinkSync(join(real.root, 'site'), join(holder, 'b', 'site'));
-    for (const dir of [join(holder, 'a', 'site', 'dist'), join(holder, 'b', 'site', 'dist')]) {
-      const { gw, requests } = await pagesGateway();
-      const result = await confirmCall(gw, {
-        action: 'cloudflare.pages.deploy',
-        input: { account_id: 'acct-1', project_name: 'kit-site', dir },
-        confirm: true,
-      });
-      assert.equal(result.status, 'invalid_arguments', dir);
-      assert.equal(result.reason, 'site or dist is a symbolic link', dir);
+    // The release root reached through a link.
+    symlinkSync(real.root, join(holder, 'bundle-root'));
+    const viaLink = join(holder, 'bundle-root');
+    // The assets directory replaced by a link to another release's assets.
+    rmSync(linked.dist, { recursive: true, force: true });
+    symlinkSync(real.dist, linked.dist);
+    const inputs = [
+      real.input({ dir: join(viaLink, 'out', 'public'), release_contract: join(viaLink, 'release.contract.json'), release_signature: join(viaLink, 'release.contract.sig') }),
+      linked.input(),
+    ];
+    for (const input of inputs) {
+      const { gw, requests } = await pagesGateway(TRUSTED.connectors);
+      const result = await confirmCall(gw, { action: 'cloudflare.pages.deploy', input, confirm: true });
+      assert.equal(result.status, 'invalid_arguments', input.dir);
+      assert.equal(result.reason, 'symbolic link in path', input.dir);
       assert.equal(requests.length, 0);
     }
   } finally {
     real.cleanup();
+    linked.cleanup();
     rmSync(holder, { recursive: true, force: true });
   }
 });
@@ -538,7 +541,7 @@ test('pages.deploy stops at the first envelope that says success: false', async 
   const steps = ['/upload-token', '/pages/assets/check-missing', '/pages/assets/upload', '/pages/assets/upsert-hashes', '/deployments'];
   for (const failing of steps) {
     const tree = makeTree({ files: { 'index.html': '<h1>Hi</h1>\n' } });
-    const { gw, store, fake } = await createTestGateway({ connectorDirs: [CONNECTORS] });
+    const { gw, store, fake } = await createTestGateway({ connectorDirs: [TRUSTED.connectors], fetchImpl: CATALOGS().fetchImpl });
     await putActive(store, fake, { service: 'cloudflare', module: 'pages' });
     const seen = [];
     fake.auth.proxy = async (request) => {
@@ -558,7 +561,7 @@ test('pages.deploy stops at the first envelope that says success: false', async 
     try {
       const result = await confirmCall(gw, {
         action: 'cloudflare.pages.deploy',
-        input: { account_id: 'acct-1', project_name: 'kit-site', dir: tree.dist },
+        input: tree.input(),
         confirm: true,
       });
       assert.equal(result.status, 'vendor_error', failing);
@@ -573,7 +576,7 @@ test('pages.deploy stops at the first envelope that says success: false', async 
 test('pages.deploy stops when a file changes mid-deploy, even one already present', async () => {
   for (const target of ['index.html', '_headers']) {
     const tree = makeTree({ files: { 'index.html': '<h1>Hi</h1>\n', '_headers': '/*\n  X-Frame-Options: DENY\n' } });
-    const { gw, store, fake } = await createTestGateway({ connectorDirs: [CONNECTORS] });
+    const { gw, store, fake } = await createTestGateway({ connectorDirs: [TRUSTED.connectors], fetchImpl: CATALOGS().fetchImpl });
     await putActive(store, fake, { service: 'cloudflare', module: 'pages' });
     const seen = [];
     fake.auth.proxy = async (request) => {
@@ -590,7 +593,7 @@ test('pages.deploy stops when a file changes mid-deploy, even one already presen
     try {
       const result = await confirmCall(gw, {
         action: 'cloudflare.pages.deploy',
-        input: { account_id: 'acct-1', project_name: 'kit-site', dir: tree.dist },
+        input: tree.input(),
         confirm: true,
       });
       assert.equal(result.status, 'invalid_arguments', target);
@@ -755,14 +758,14 @@ test('pages.deploy keeps every upload request at or under 3 MiB of serialized bo
   const files = {};
   for (let i = 0; i < 6; i += 1) files[`part-${i}.bin`] = randomBytes(900 * 1024);
   const tree = makeTree({ files });
-  const { gw, store, fake } = await createTestGateway({ connectorDirs: [CONNECTORS] });
+  const { gw, store, fake } = await createTestGateway({ connectorDirs: [TRUSTED.connectors], fetchImpl: CATALOGS().fetchImpl });
   await putActive(store, fake, { service: 'cloudflare', module: 'pages' });
   const jwt = 'pages-upload-jwt-batch-cap';
   const calls = installDeployProxy(fake, { jwt });
   try {
     const result = await confirmCall(gw, {
       action: 'cloudflare.pages.deploy',
-      input: { account_id: 'acct-1', project_name: 'kit-site', dir: tree.dist },
+      input: tree.input(),
       confirm: true,
     });
     const uploads = calls.filter((call) => call.endpoint === '/pages/assets/upload');
@@ -798,13 +801,13 @@ test('pages.deploy sends a file just under the cap in an upload request of its o
       'index.html': html,
     },
   });
-  const { gw, store, fake } = await createTestGateway({ connectorDirs: [CONNECTORS] });
+  const { gw, store, fake } = await createTestGateway({ connectorDirs: [TRUSTED.connectors], fetchImpl: CATALOGS().fetchImpl });
   await putActive(store, fake, { service: 'cloudflare', module: 'pages' });
   const calls = installDeployProxy(fake, { jwt: 'pages-upload-jwt-just-under' });
   try {
     const result = await confirmCall(gw, {
       action: 'cloudflare.pages.deploy',
-      input: { account_id: 'acct-1', project_name: 'kit-site', dir: tree.dist },
+      input: tree.input(),
       confirm: true,
     });
     const uploads = calls.filter((call) => call.endpoint === '/pages/assets/upload');
@@ -826,18 +829,18 @@ test('pages.deploy refuses a file over the upload cap before any proxy call', as
   const binBytes = smallestBinOverCap();
   assert.ok(singleEntryBody(binBytes, 'application/octet-stream') > UPLOAD_CAP);
   const tree = makeTree({ files: { 'heavy.bin': randomBytes(binBytes) } });
-  const { gw, requests } = await pagesGateway();
+  const { gw, requests } = await pagesGateway(TRUSTED.connectors);
   try {
     const result = await confirmCall(gw, {
       action: 'cloudflare.pages.deploy',
-      input: { account_id: 'acct-1', project_name: 'kit-site', dir: tree.dist },
+      input: tree.input(),
       confirm: true,
     });
     assert.equal(result.status, 'invalid_arguments');
     assert.equal(result.field, 'dir');
     assert.equal(result.reason, 'file over the 3 MiB upload request limit: heavy.bin');
     assert.deepEqual(result.files, ['heavy.bin']);
-    assert.equal(result.fallback, 'Deploy with Wrangler, per skills/Cloudflare Pages/SETUP.md');
+    assert.equal(result.fallback, 'Deploy with Wrangler: wrangler pages deploy');
     assert.equal(requests.length, 0);
   } finally {
     tree.cleanup();
@@ -847,7 +850,7 @@ test('pages.deploy refuses a file over the upload cap before any proxy call', as
 test('pages.deploy maps an upload 413 to request too large', async () => {
   const jwt = 'pages-upload-jwt-413-sentinel';
   const tree = makeTree({ files: { 'index.html': '<h1>Hi</h1>\n' } });
-  const { gw, store, fake } = await createTestGateway({ connectorDirs: [CONNECTORS] });
+  const { gw, store, fake } = await createTestGateway({ connectorDirs: [TRUSTED.connectors], fetchImpl: CATALOGS().fetchImpl });
   await putActive(store, fake, { service: 'cloudflare', module: 'pages' });
   const calls = installDeployProxy(fake, {
     jwt,
@@ -858,7 +861,7 @@ test('pages.deploy maps an upload 413 to request too large', async () => {
   try {
     const result = await confirmCall(gw, {
       action: 'cloudflare.pages.deploy',
-      input: { account_id: 'acct-1', project_name: 'kit-site', dir: tree.dist },
+      input: tree.input(),
       confirm: true,
     });
     const upload = calls.find((call) => call.endpoint === '/pages/assets/upload');

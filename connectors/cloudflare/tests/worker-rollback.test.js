@@ -43,7 +43,7 @@ async function setup(t, options = {}) {
   t.after(() => rmSync(home, { recursive: true, force: true }));
   const dir = join(home, 'connectors/cloudflare');
   mkdirSync(dir, { recursive: true });
-  for (const name of ['index.js', 'worker-release.js', 'manifest.json']) {
+  for (const name of ['index.js', 'worker-release.js', 'signature.js', 'pages-release.js', 'manifest.json']) {
     cpSync(fileURLToPath(new URL('../' + name, import.meta.url)), join(dir, name));
   }
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ type: 'module' }));

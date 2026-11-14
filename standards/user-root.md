@@ -1,6 +1,6 @@
 ---
 standard: user-root
-version: 0.13.0
+version: 0.14.0
 description: One declared user-root tree and the clauses used to score its layout
 ---
 
@@ -12,7 +12,7 @@ Applies to personal, org, client, department, and industry user roots. This is t
 
 ## C1 Identification
 
-The constitution's Workspace Model (`wiser/AGENTS.md`) owns root identification. Its declaration is in root `AGENTS.md`: `type:`, a Provides block, the Wiser constitution citation, the Onboarding section (C15), and the declared-directory table. A folder set never identifies a user root. The frontmatter also carries `root:` and `layout:`, the latter this standard's current tree version (5). Increment that integer when this standard changes the tree; a version difference is a converge input, never permission to re-onboard. `skills/Housekeeping/` owns layout migration on a declared Wiser user root and is callable any time to bring its shelves and filing declarations into conformance with this standard. A missing layout version on an already-declared Wiser root is drift, not foreign identity.
+The constitution's Workspace Model (`wiser/AGENTS.md`) owns root identification. Its declaration is in root `AGENTS.md`: `type:`, a Provides block, the Wiser constitution citation, the Onboarding section (C15), and the declared-directory table. A folder set never identifies a user root. The frontmatter also carries `root:` and `layout:`, the latter this standard's current tree version (6). Increment that integer when this standard changes the tree; a version difference is a converge input, never permission to re-onboard. `skills/Housekeeping/` owns layout migration on a declared Wiser user root and is callable any time to bring its shelves and filing declarations into conformance with this standard. A missing layout version on an already-declared Wiser root is drift, not foreign identity.
 
 That integer is the root **contract** version: the tree above, and whatever else this standard requires of a root before it counts as current. Increment it equally when a row of the table below requires something a tree change does not cover. One integer and no minor part; a row says whether it is required or advisory, so severity lives in the row and not in the number.
 
@@ -21,10 +21,11 @@ The table states, per integer, what a root must carry to reach it, which primiti
 | Contract | What a root must carry | Who brings it there | Required or advisory |
 |---|---|---|---|
 | 1 | No record. This standard declared 2 in its first commit and no commit in this repository introduces `layout: 1`. Nothing is reconstructed here | - | - |
-| 2 | The C3 declared directories, their routers, and the C2 to C11 clauses as this standard now states them, less the `memory/knowledge/` router cell that row 3 owns and the `memory/answers/` row that row 4 owns. Those clauses are otherwise unchanged since 2026-09-10, except that C4 came to permit nested programs on 2026-10-09, which asks nothing of a root that holds none, so an installed copy carrying no git history scores this row from the text in front of it | `skills/Onboard Root/` at instantiation, `skills/Housekeeping/` afterwards | required |
+| 2 | The C3 declared directories, their routers, and the C2 to C11 clauses as this standard now states them, less the `memory/knowledge/` router cell that row 3 owns and the `memory/answers/` row that row 4 owns. Those clauses are otherwise unchanged since 2026-09-10, except for the site ownership change row 6 owns and C4 coming to permit nested programs on 2026-10-09, which asks nothing of a root that holds none, so an installed copy carrying no git history scores this row from the text in front of it | `skills/Onboard Root/` at instantiation, `skills/Housekeeping/` afterwards | required |
 | 3 | C12 Set registration and the C3 `memory/knowledge/` router cell, both of which entered this standard on 2026-09-15 without moving the integer and therefore bound no root by number; and the stamp read as this contract rather than as the tree alone | `skills/Housekeeping/` for the router cell, which is a tree change; the Sets row per C12, which Housekeeping names and hands off, is written by `skills/Knowledge Set Onboarding/` and updated by `skills/Knowledge Curation/`, and is owed only where C12 scores the root anything: a root with **neither a set nor a row** takes C12's vacuous case, owes those two nothing, and is not held short of this contract by a certification for work that does not exist. A set without a row, or a row naming no set directory, is C12's absent or misfiled and is still owed | required |
 | 4 | The C3 `memory/answers/` row in the root's Work Directories table, the directory `memory/answers/`, and its router `memory/answers/AGENTS.md` copied from the template. An answers file is not owed: a directory with none takes C14's vacuous case | `skills/Onboard Root/` at instantiation, by copying the template; `skills/Housekeeping/` afterwards, which adds the table row and the missing router and writes no answers file and no bound file | required |
 | 5 | Exactly one C16 `## Always` section in the root's `AGENTS.md`, equal to the template's and first as C16 requires | `skills/Onboard Root/` at instantiation, by copying the template; `skills/Housekeeping/` afterwards, which adds or replaces the section and nothing else in the file's prose | required |
+| 6 | The C3 `sites/` row and C9's implementation-neutral site ownership, with no dependency on one plugin's site builder or publish gate | `skills/Onboard Root/` at instantiation, by copying the template; `skills/Housekeeping/` afterwards, which updates the `sites/` row and preserves the root's other declarations | required |
 
 ## C2 One tree
 
@@ -38,7 +39,7 @@ The root's Work Directories table projects these rows. A first-use row is presen
 |-----------|-------|--------------------|
 | `work/` | Projects with a written completion condition at `work/<slug>/`. Unsure defaults here. Router: `work/AGENTS.md` | ships, with router |
 | `programs/` | Standing concerns without a completion condition at `programs/<slug>/`. Programs contain their projects at `programs/<slug>/<project>/`. Router: `programs/AGENTS.md` | ships, with router, no slug folders |
-| `sites/` | One envelope per domain wrapping `site/` (the kit), named for the registrable host, lowercase, no scheme, no `www` unless `www` is a distinct property. Envelope internals belong to Webmaster | declared always; created on first use, never empty |
+| `sites/` | One envelope per domain containing the site's implementation in `site/`, named for the registrable host, lowercase, no scheme, no `www` unless `www` is a distinct property. Envelope internals follow the site's installed authoring capability | declared always; created on first use, never empty |
 | `sources/` | Classified originals, as received. Do not edit in place. Router: `sources/AGENTS.md` | ships, with router |
 | `inbox/` | Unclassified captures | ships |
 | `memory/` | Bound files for about, voice, design, and competitors only when bound. Provides binds files, never this directory | ships bound stubs |
@@ -87,7 +88,7 @@ The silent playbook home for a run that changes the root is `zBuilds/playbooks/`
 
 ## C9 Sites first use
 
-The Work Directories table must have a first cell exactly `sites/`, backticked. Prose elsewhere is not a declaration. Declare the row for every type; do not create an empty directory. Site Author Context and Stand-up (`skills/Site Author/SKILL.md`) consume this row. Webmaster owns envelope internals.
+The Work Directories table must have a first cell exactly `sites/`, backticked. Prose elsewhere is not a declaration. Declare the row for every type; do not create an empty directory. The site's installed authoring capability consumes this row and owns envelope internals.
 
 ## C10 Records
 

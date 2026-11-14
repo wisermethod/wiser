@@ -30,14 +30,14 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 
 | Skill | Description | Owner |
 |-------|-------------|-------|
-| `Animated Explainer/SKILL.md` | One animated explainer, an illustrated picture that moves to show how something works or what happened, true to its sources, built so its finished picture shows wherever motion cannot run, and delivered to a site built with the plugin's site kit, any other site, one deck slide, or a video. | Creative Director |
+| `Animated Explainer/SKILL.md` | One animated explainer, an illustrated picture that moves to show how something works or what happened, true to its sources, built so its finished picture shows wherever motion cannot run, and delivered for a site, one deck slide, or a video. | Creative Director |
 | `Color Palette Design/SKILL.md` | Produce a complete OKLCH color palette with defined roles, WCAG-validated contrast, and optional dark mode, derived from brand context and delivered as CSS custom properties | Creative Director |
 | `Component Design/SKILL.md` | Design a single UI component as self-contained, renderable HTML and CSS with every applicable state, semantic markup, and design tokens | Creative Director |
 | `Create Presentation/SKILL.md` | Build a single-file reveal.js HTML slide deck with a narrative arc, conclusion headlines, and brand-consistent design, including a request for a native Keynote deck, which the body routes to the tool that builds it | Ghost Writer, Creative Director |
 | `Design System/SKILL.md` | Compose existing color and type tokens into a complete design system, delivered as an agent-readable specification, a combined CSS token file, and optional Tailwind configuration | Creative Director |
 | `Designer/SKILL.md` | Run a design job end to end, from brief and visual direction through foundations, composition, and validation, producing the wireframe, style guide, or extracted system itself and directing every other phase to the design skill that owns it | Creative Director |
-| `Illustrator/SKILL.md` | One still picture that explains or illustrates, an illustration of how something works, an infographic of sourced figures, a spot illustration beside a section, slide or article, or a diagram drawn as a picture, in the owning root's design unless the project or requester names other design instructions, its structure placed by code, true to its sources, and delivered to a site built with the plugin's site kit, any other site, one deck slide, an image file, or a skill that moves it. | Creative Director |
-| `Marketing Page Design/SKILL.md` | Design a complete marketing page as responsive HTML with a narrative scroll arc, clear visual hierarchy, and one primary action | Creative Director |
+| `Illustrator/SKILL.md` | One still picture that explains or illustrates, an illustration of how something works, an infographic of sourced figures, a spot illustration beside a section, slide or article, or a diagram drawn as a picture, in the owning root's design unless the project or requester names other design instructions, its structure placed by code, true to its sources, and delivered for a site, one deck slide, an image file, or a skill that moves it. | Creative Director |
+| `Marketing Page Design/SKILL.md` | Design one marketing page for an existing site as responsive HTML with a narrative scroll arc, clear visual hierarchy, and one primary action | Creative Director |
 | `Typography Design/SKILL.md` | Design a modular type system delivered as CSS custom properties with a type specimen, chosen from brand personality and usage context | Creative Director |
 | `Visualizer/SKILL.md` | Turn source material into one diagram whose geometry matches the structure the material actually has, delivered as a self-contained HTML file or as Mermaid for markdown | Creative Director |
 
@@ -102,7 +102,7 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 
 | Skill | Description | Owner |
 |-------|-------------|-------|
-| `SEO Assets/SKILL.md` | Produce the ready-to-use artifacts a site's decided search changes need, each built from evidence pulled for it, held to its own standards, and written into an envelope's site/ kit tree or handed over for someone else to deploy | Webmaster |
+| `SEO Assets/SKILL.md` | Produce the ready-to-use artifacts a site's decided search changes need, each built from evidence pulled for it, held to its own standards, and handed over as files with placement and verification instructions. | Webmaster |
 
 ### System
 
@@ -121,14 +121,6 @@ Capabilities a user invokes by name for their output; `standards/primitives.md` 
 | `Connect Account/SKILL.md` | Connect one service module, asked by name or in plain words such as connect GitHub, in its own human turn through start_connect then connect_status, on the Wiser endpoint or the local gateway, never taking a key in the conversation | Connector Advisor |
 | `Connection Troubleshooter/SKILL.md` | Name one next step for a gateway status object or audit line, from the Wiser endpoint or the local gateway, covering needs_provider, needs_connect, expired, denied, needs_connector, local_only, vendor_error, needs_subscription, the endpoint's daily limit, and a teardown that did not finish | Connector Advisor |
 | `Connector Author/SKILL.md` | Build a connector from an approved Connector Advisor plan, with its manifest, module, auth guide, tests, and gateway loading instructions | Connector Advisor |
-
-### Web
-
-| Skill | Description | Owner |
-|-------|-------------|-------|
-| `Site Author/SKILL.md` | Stand up, content-edit, file site code, check, wrap, and upgrade a website, as a kit site envelope in sites/, in a folder named for its domain, or in the sites/ of a work folder when the site dies with that work, with the kit in site/, in an owning root that declares sites/ | Webmaster |
-| `Cloudflare Pages/SKILL.md` | List and get a Cloudflare Pages project, list its deployments, create a project, add or remove a domain, read a custom domain's activation and retry its validation, delete a project, deploy the kit site/dist/ payload, carrying the kit's Function from site/dist-function/ when an article is scheduled, a foreign site's build output with its Pages Functions, or a plain static build output, switch on Cloudflare Web Analytics for a project by attaching an existing site or creating one, list and delete the account's Web Analytics sites, and create, migrate, query, bind and delete the D1 database such a site uses, with confirmation on every write | Webmaster |
-| `Vercel Deploy/SKILL.md` | List and get a Vercel project, list its domains and deployments, remove a domain, and create a deployment from the isolated site/ payload, uploaded by reference, with confirmation always | Webmaster |
 
 ### Writing
 

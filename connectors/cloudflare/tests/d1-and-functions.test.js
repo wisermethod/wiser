@@ -1,5 +1,5 @@
 import { confirmCall } from '../../../gateway/test/fake-provider.js';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync,
@@ -9,6 +9,9 @@ import { dirname, join, posix, win32 } from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { modules } from '../index.js';
+import {
+  CONNECTOR_SOURCE, SYNTHETIC_LAYOUT, blockNetwork, connectorCopy, fixtureIdentity, makeRelease, publisherServer, trustJson,
+} from './pages-release-fixture.js';
 
 import { existsSync as __exists } from 'node:fs';
 import { dirname as __dirname_, join as __join } from 'node:path';
@@ -60,7 +63,7 @@ function routesJson(overrides = {}) {
 function writeBuild(dir, { bundle, routes, routing, extra, linkName, assets, functions, build } = {}) {
   mkdirSync(dir, { recursive: true });
   const provenance = build !== undefined ? build : {
-    tool: 'pages-functions',
+    tool: 'fixture-functions-builder',
     assets: assets || join(dirname(dir), 'static'),
     functions: functions || join(dirname(dir), 'functions-src'),
     // The sha256 of a function source that is not in the static fixture.
@@ -99,8 +102,22 @@ function formParts(binary) {
   return { boundary, parts };
 }
 
-async function granted(moduleName) {
-  const { gw, store, fake } = await createTestGateway({ connectorDirs: [CONNECTORS] });
+// An in-memory FIXTURE identity, trusted only by a temporary byte-identical
+// connector copy. The Pages deploy routes read the publisher layout catalog
+// first, so the deploy cases run on that copy with a fake publisher serving a
+// FIXTURE-signed catalog; d1 and binding cases keep the shipping connector. The
+// process's own fetch is blocked.
+const NETWORK = blockNetwork();
+const PUB = fixtureIdentity('d1-suite');
+const TRUSTED = connectorCopy({ trust: trustJson({ 'fixture-pub': [PUB.key] }) });
+after(() => {
+  TRUSTED.cleanup();
+  assert.deepEqual(NETWORK, [], 'no test may reach the network through a default fetch');
+});
+const catalogs = () => publisherServer({ 'fixture-pub': { identity: PUB, layouts: [SYNTHETIC_LAYOUT] } });
+
+async function granted(moduleName, connectors = CONNECTORS) {
+  const { gw, store, fake } = await createTestGateway({ connectorDirs: [connectors], fetchImpl: catalogs().fetchImpl });
   await putActive(store, fake, { service: 'cloudflare', module: moduleName });
   return { gw, store, fake };
 }
@@ -483,8 +500,14 @@ function deployProxy(calls, { mutate } = {}) {
   };
 }
 
+test('the deploy_with_functions cases run on a byte-identical copy that differs only in its Pages trust', () => {
+  for (const name of ['index.js', 'pages-release.js', 'signature.js', 'worker-release.js', 'manifest.json', 'release.json']) {
+    assert.ok(readFileSync(join(TRUSTED.dir, name)).equals(readFileSync(join(CONNECTOR_SOURCE, name))), name);
+  }
+});
+
 test('deploy_with_functions sends the three build files and skips screened names', async () => {
-  const { gw, fake } = await granted('pages');
+  const { gw, fake } = await granted('pages', TRUSTED.connectors);
   const tree = staticAndBuild();
   const calls = [];
   fake.auth.proxy = deployProxy(calls);
@@ -533,7 +556,7 @@ test('deploy_with_functions sends the three build files and skips screened names
 });
 
 test('deploy_with_functions refuses build output, overlap, and a bad bundle before any call', async () => {
-  const { gw } = await granted('pages');
+  const { gw } = await granted('pages', TRUSTED.connectors);
   const names = ['functions', '_worker.js', '_worker.bundle', 'functions-filepath-routing-config.json', 'package.json', 'wrangler.toml', 'wrangler.json', 'wrangler.jsonc'];
   // Each name is also tried in another letter case: a case-insensitive filesystem
   // serves Functions/ as functions/, so the screen compares lowercased names.
@@ -585,7 +608,7 @@ test('deploy_with_functions refuses build output, overlap, and a bad bundle befo
 });
 
 test('deploy_with_functions refuses a bad functions_build before any call', async () => {
-  const { gw, fake } = await granted('pages');
+  const { gw, fake } = await granted('pages', TRUSTED.connectors);
   const calls = [];
   fake.auth.proxy = async (request) => {
     calls.push(request);
@@ -647,8 +670,8 @@ function dirOf(build) {
   return build;
 }
 
-test('deploy_with_functions stops when a build file changes and pages.deploy still rejects a kit worker', async () => {
-  const { gw, fake } = await granted('pages');
+test('deploy_with_functions stops when a build file changes and pages.deploy still rejects a release worker', async () => {
+  const { gw, fake } = await granted('pages', TRUSTED.connectors);
   const tree = staticAndBuild();
   const seen = [];
   fake.auth.proxy = async (request) => {
@@ -673,36 +696,34 @@ test('deploy_with_functions stops when a build file changes and pages.deploy sti
   } finally {
     cleanup(tree.root);
   }
-  const kit = realpathSync(mkdtempSync(join(tmpdir(), 'kit-still-')));
-  const dist = join(kit, 'site', 'dist');
-  mkdirSync(dist, { recursive: true });
-  writeFileSync(join(kit, 'site', 'kit.json'), '{}\n');
-  writeFileSync(join(dist, 'index.html'), '<h1>Hi</h1>\n');
-  writeFileSync(join(dist, '_worker.js'), 'export default {}\n');
-  const functions = join(dist, 'functions');
+  // pages.deploy, on a synthetic signed release, still refuses a worker or a
+  // functions directory at the root of its assets.
+  const trusted = TRUSTED.connectors;
+  const { gw: signedGw } = await granted('pages', trusted);
+  const signed = makeRelease({ identity: PUB, fn: false, assets: { 'index.html': '<h1>Hi</h1>\n', '_worker.js': 'export default {}\n' } });
   try {
-    const worker = await confirmCall(gw, {
+    const worker = await confirmCall(signedGw, {
       action: 'cloudflare.pages.deploy',
-      input: { account_id: 'acct-1', project_name: 'kit-site', dir: dist },
+      input: signed.input(),
     });
-    assert.equal(worker.reason, 'static kit output only');
-    rmSync(join(dist, '_worker.js'));
-    mkdirSync(functions);
-    writeFileSync(join(functions, 'api.js'), 'export {}\n');
-    const fn = await confirmCall(gw, {
+    assert.equal(worker.reason, 'static release output only');
+    rmSync(join(signed.dist, '_worker.js'));
+    mkdirSync(join(signed.dist, 'functions'));
+    writeFileSync(join(signed.dist, 'functions', 'api.js'), 'export {}\n');
+    const fn = await confirmCall(signedGw, {
       action: 'cloudflare.pages.deploy',
-      input: { account_id: 'acct-1', project_name: 'kit-site', dir: dist },
+      input: signed.input(),
     });
-    assert.equal(fn.reason, 'static kit output only');
+    assert.equal(fn.reason, 'static release output only');
   } finally {
-    cleanup(kit);
+    signed.cleanup();
   }
 });
 
 // Adversarial review round 1, 2026-10-07: one case per supported finding.
 
 test('review 1: a bundle whose part headers two parsers could read differently is refused', async () => {
-  const { gw, fake } = await granted('pages');
+  const { gw, fake } = await granted('pages', TRUSTED.connectors);
   const calls = [];
   fake.auth.proxy = deployProxy(calls);
   const B = 'Spoof';
@@ -736,7 +757,7 @@ test('review 1: a bundle whose part headers two parsers could read differently i
 });
 
 test('review 2: a path spelled with . or .. or an empty segment is refused, not normalized', async () => {
-  const { gw, fake } = await granted('pages');
+  const { gw, fake } = await granted('pages', TRUSTED.connectors);
   fake.auth.proxy = deployProxy([]);
   const tree = staticAndBuild();
   try {
@@ -762,26 +783,26 @@ test('review 2: a path spelled with . or .. or an empty segment is refused, not 
   }
 });
 
-test('review 3: kit payloads, nested server files and a mismatched build.json are refused; nested source files are skipped', async () => {
-  const { gw, fake } = await granted('pages');
+test('review 3: release payloads, nested server files and a mismatched build.json are refused; nested source files are skipped', async () => {
+  const { gw, fake } = await granted('pages', TRUSTED.connectors);
   const calls = [];
   fake.auth.proxy = deployProxy(calls);
   const deploy = (dir, build) => confirmCall(gw, {
     action: 'cloudflare.pages.deploy_with_functions',
     input: { account_id: ACCOUNT, project_name: PROJECT, dir, functions_build: build },
   });
-  // A kit payload: site/dist beside site/kit.json.
-  const kitRoot = scratch();
+  // A release payload: an output directory beside the kit.json marker.
+  const payloadRoot = scratch();
   try {
-    const dist = join(kitRoot, 'site', 'dist');
+    const dist = join(payloadRoot, 'pkg', 'out');
     mkdirSync(dist, { recursive: true });
-    writeFileSync(join(kitRoot, 'site', 'kit.json'), '{}\n');
+    writeFileSync(join(payloadRoot, 'pkg', 'kit.json'), '{}\n');
     writeFileSync(join(dist, 'index.html'), 'x\n');
-    const build = join(kitRoot, 'build');
+    const build = join(payloadRoot, 'build');
     writeBuild(build, { assets: dist });
-    assert.equal((await deploy(dist, build)).reason, 'kit payload: use cloudflare.pages.deploy');
+    assert.equal((await deploy(dist, build)).reason, 'release payload: use cloudflare.pages.deploy');
   } finally {
-    cleanup(kitRoot);
+    cleanup(payloadRoot);
   }
   // Nested server files stop the deploy, in any case.
   for (const name of ['_worker.bundle', '_Worker.js', 'functions-filepath-routing-config.json']) {
@@ -855,7 +876,7 @@ test('review 4: a failed migration table or history statement stops before the m
 });
 
 test('review 5: a change to an environment the bind did not name is reported', async () => {
-  const { gw, fake } = await granted('pages');
+  const { gw, fake } = await granted('pages', TRUSTED.connectors);
   fake.auth.proxy = async (request) => {
     if (request.method === 'GET') {
       return envelope({ deployment_configs: {
@@ -878,7 +899,7 @@ test('review 5: a change to an environment the bind did not name is reported', a
 });
 
 test('bind_d1 does not report an empty setting rewritten in another shape (null to {}, seen live)', async () => {
-  const { gw, fake } = await granted('pages');
+  const { gw, fake } = await granted('pages', TRUSTED.connectors);
   fake.auth.proxy = async (request) => {
     if (request.method === 'GET') {
       return envelope({ deployment_configs: { production: { env_vars: null, fail_open: true }, preview: { env_vars: null, fail_open: true } } });
@@ -909,7 +930,7 @@ test('bind_d1 does not report an empty setting rewritten in another shape (null 
 // Adversarial review round 2, 2026-10-07: one case per supported finding.
 
 test('review 2.1: a function source published under any name, or an unresolved source path, is refused', async () => {
-  const { gw, fake } = await granted('pages');
+  const { gw, fake } = await granted('pages', TRUSTED.connectors);
   fake.auth.proxy = deployProxy([]);
   const deploy = (tree) => confirmCall(gw, {
     action: 'cloudflare.pages.deploy_with_functions',
@@ -967,14 +988,14 @@ test('review 2.5: a migration table or history statement without success true st
   }
 });
 
-test('review 2.6: a directory inside a kit dist is a kit payload', async () => {
-  const { gw, fake } = await granted('pages');
+test('review 2.6: a directory inside a payload output directory is a release payload', async () => {
+  const { gw, fake } = await granted('pages', TRUSTED.connectors);
   fake.auth.proxy = deployProxy([]);
   const root = scratch();
   try {
-    const nested = join(root, 'site', 'dist', 'public');
+    const nested = join(root, 'pkg', 'out', 'public');
     mkdirSync(nested, { recursive: true });
-    writeFileSync(join(root, 'site', 'kit.json'), '{}\n');
+    writeFileSync(join(root, 'pkg', 'kit.json'), '{}\n');
     writeFileSync(join(nested, 'index.html'), 'x\n');
     const build = join(root, 'build');
     writeBuild(build, { assets: nested });
@@ -982,14 +1003,44 @@ test('review 2.6: a directory inside a kit dist is a kit payload', async () => {
       action: 'cloudflare.pages.deploy_with_functions',
       input: { account_id: ACCOUNT, project_name: PROJECT, dir: nested, functions_build: build },
     });
-    assert.equal(result.reason, 'kit payload: use cloudflare.pages.deploy');
+    assert.equal(result.reason, 'release payload: use cloudflare.pages.deploy');
+  } finally {
+    cleanup(root);
+  }
+});
+
+// S2 case F8 on deploy_with_functions: a listed layout's assets, with no marker
+// and no identity file, are a release payload by the publisher's signed catalog.
+test('deploy_with_functions refuses a catalog-listed layout\'s assets and a directory below them with no call', async () => {
+  const root = scratch();
+  try {
+    for (const tail of [[], ['blog']]) {
+      const server = catalogs();
+      const { gw, store, fake } = await createTestGateway({ connectorDirs: [TRUSTED.connectors], fetchImpl: server.fetchImpl });
+      await putActive(store, fake, { service: 'cloudflare', module: 'pages' });
+      const calls = [];
+      fake.auth.proxy = deployProxy(calls);
+      const dir = join(root, 'holder', SYNTHETIC_LAYOUT.root_name, ...SYNTHETIC_LAYOUT.assets.split('/'), ...tail);
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, 'index.html'), 'x\n');
+      const build = join(root, `build-${tail.length}`);
+      writeBuild(build, { assets: dir });
+      const result = await confirmCall(gw, {
+        action: 'cloudflare.pages.deploy_with_functions',
+        input: { account_id: ACCOUNT, project_name: PROJECT, dir, functions_build: build },
+      });
+      assert.equal(result.status, 'invalid_arguments', JSON.stringify(result));
+      assert.equal(result.reason, 'release payload: use cloudflare.pages.deploy');
+      assert.equal(calls.length, 0);
+      assert.equal(server.requests.length, 2);
+    }
   } finally {
     cleanup(root);
   }
 });
 
 test('review 2.7: a failed bind still reports collateral changes', async () => {
-  const { gw, fake } = await granted('pages');
+  const { gw, fake } = await granted('pages', TRUSTED.connectors);
   fake.auth.proxy = async (request) => {
     if (request.method === 'GET') {
       return envelope({ deployment_configs: { production: {}, preview: { d1_databases: { OTHER: { id: DATABASE } } } } });
@@ -1005,7 +1056,7 @@ test('review 2.7: a failed bind still reports collateral changes', async () => {
 });
 
 test('review 2.8: a bundle part name that is not plain ASCII is refused', async () => {
-  const { gw, fake } = await granted('pages');
+  const { gw, fake } = await granted('pages', TRUSTED.connectors);
   fake.auth.proxy = deployProxy([]);
   const B = 'Ascii';
   const name = Buffer.from('café.js', 'utf8').toString('latin1');

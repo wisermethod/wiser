@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.14.2, November 14, 2026
+
+- Site building and publishing move to DevOps as one chain: Site Author and its kit, Cloudflare Pages, Vercel Deploy, pages-functions, and Site Publisher's publish gate. Webmaster retains site audits and the search-artifact gate. SEO Assets, Illustrator, Animated Explainer and Profile Page hand site work over as files. Marketing Page Design retains page design without a product-wide website denial. Cloudflare account setup, DNS and every connector stay in Wiser.
+- Pages deployment verifies publisher-signed release contracts and a signed layout catalog against independent publisher trust, retaining payload and credential screens. The site-owning plugin carries its release layouts and approved Function facts.
+- User-root site declarations follow the installed site-authoring capability; the root template carries contract 6.
+
 ## v2026.11.14, November 14, 2026
 
 - Pages on a new or upgraded site now include X / Twitter card metadata with their existing title, description and share image. Site Author 0.9.3 adds the tags to the shared layout; Upgrade installs them on an existing site. (50a672ab)
