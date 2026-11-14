@@ -187,6 +187,10 @@ const icon = typeof site.icon === 'string' && site.icon ? site.icon : '';
     <meta property="og:type" content={article ? 'article' : 'website'} />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={image} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={image} />
     {!organization && <meta name="kit:organization" content="Organization facts omitted: no published about page with organization details is bound." />}
     <script type="application/ld+json" set:html={jsonLd} />
     {articlesOn && <link rel="alternate" type="application/rss+xml" title="Articles" href={`${SITE_URL}/rss.xml`} />}
