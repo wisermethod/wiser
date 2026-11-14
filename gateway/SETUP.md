@@ -13,6 +13,8 @@ Neither works offline: every connector call reaches the provider over the networ
 
 **Its address has one home: the `url` of the `wiser` server in this plugin's `.mcp.json`.** Every step below that needs the address reads it there.
 
+You can also add the endpoint alone, with no plugin: in your app's connector or MCP server settings, add the address from `.mcp.json` as a remote server and sign in. That gives you Wiser's skills and the tools that run on Wiser's side. Install the plugin later if you need a tool that runs on your own computer; the plugin then uses the connector you already added, and your app still shows one Wiser.
+
 An app that installs this plugin and reads its `.mcp.json` attaches the endpoint with it, and until you sign in the endpoint offers no tools, so the next step is yours:
 
 - **Claude Code, with this plugin installed:** run `/mcp`, choose Wiser, and sign in on the page that opens, or ask Wiser to set up connectors, which hands you the sign-in link. If you added Wiser as a folder with `/add-dir` instead, nothing declared the endpoint: run `claude mcp add --transport http --scope user wiser "<address>"` with the address from `.mcp.json`, then `/mcp`.

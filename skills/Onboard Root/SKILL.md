@@ -3,7 +3,7 @@ name: Onboard Root
 type: skill
 category: onboarding
 description: Create a user root from the unified template, adopt a populated folder, or bring an existing folder, declared or not, up to current specs by running only missing shelves, identity, and memory work, with a personal short path and a full path for other types, and, on the ask onboard project, set up the one open empty folder as a personal root under that folder's name
-version: 0.50.6
+version: 0.50.7
 gaps:
   - judgment on whether a recorded competitor set names a competitor rather than describing one
 ---

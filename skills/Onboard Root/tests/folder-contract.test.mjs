@@ -38,8 +38,8 @@ test('finding 2: adoption explicitly invokes Housekeeping after declaration and 
 
 test('finding 3: the stamp write requires a unique equal first block and duplicates have an apply path', () => {
   const step7 = house.split('7. **Routing.**')[1].split('8. **Plan.**')[0];
-  assert.match(step7, /set layout to 5 only when exactly one body `## Always` section has bytes equal to the template's and is the first section at the recorded destination/);
-  assert.match(adoption, /Set layout to 5 only when exactly one body section has the template's bytes and is first/);
+  assert.match(step7, /set layout to the integer `standards\/user-root\.md` C1 names only when exactly one body `## Always` section has bytes equal to the template's and is the first section at the recorded destination/);
+  assert.match(adoption, /Set layout to the integer `standards\/user-root\.md` C1 names only when exactly one body section has the template's bytes and is first/);
   assert.match(standard, /misfiled when there is more than one/);
   const duplicates = house.split('**More than one:**')[1].split('\n\n')[0];
   assert.match(duplicates, /After the answer, propose one `update` row removing all the old section spans and inserting exactly one template section/);

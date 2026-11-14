@@ -14,7 +14,7 @@ Wiser is made of five kinds of part:
 
 - **Skills** produce something you ask for by name: a post, a brief, a page, a palette, an analysis.
 - **Experts** judge work through one perspective, and most check it before it ships, in a second context that did not write it.
-- **Tools** do the parts that should come out the same every time, such as parsing data, rendering images, or driving a browser. The first time a tool needs packages, Wiser asks once, then installs them into its own folder; later tools install without asking.
+- **Tools** do the parts that should come out the same every time, such as parsing data, rendering images, or driving a browser. Some also run on Wiser's side, so they work with only the connector. From the plugin, the everyday tools need nothing installed; a tool that needs a browser or other large software asks once before it downloads it, and later ones install without asking.
 - **Connectors** reach the outside accounts you connect, through the Wiser endpoint: installing Wiser brings it where your app allows, and you sign in to it once with your Wiser account. The grants are held by an authentication provider, never on your machine, and the accounts stay yours. In a command-line harness you can ask for the gateway to run locally instead, with a provider account of your own.
 - **Standards** say how every other part is written, so each one reads and behaves alike.
 
@@ -24,7 +24,13 @@ Each family keeps its own index: `skills/AGENTS.md`, `experts/AGENTS.md`, `tools
 
 Install Wiser, sign in to the Wiser endpoint, then attach your working folder. If your folder has no `AGENTS.md` yet, ask Wiser to set it up; it can start a new folder or adopt one that already holds work. To connect accounts, ask Wiser to **set up connectors**; `gateway/SETUP.md` is the recipe it follows, and its section 1 adds the endpoint by hand in an app that does not list it after install.
 
-Wiser reaches an app two ways from one release: the plugin and the connector, the Wiser endpoint at the address in `.mcp.json`. Today the connector alone carries sign-in, connections, preferences and forms, but none of Wiser's skills, so install the plugin, which brings the connector with it. The connector alone is the route only where an app installs no plugins, such as ChatGPT on the web. Each app should then show one Wiser.
+Wiser reaches an app two ways from one release: the connector, the Wiser endpoint at the address in `.mcp.json`, and the plugin.
+
+**Start with the connector.** Add it to your app, sign in, and you have Wiser's skills, your connections, your preferences, forms in the chat, and the tools that can run on Wiser's side. Nothing is installed on your computer.
+
+**Add the plugin when you need what only your computer can do:** a tool that works on your own files, screen, apps or recordings, and any work you keep and come back to, such as a book or a video, which lives in a folder of yours. The plugin brings the connector with it, so each app should still show one Wiser. When a step needs the plugin, Wiser says so and gives you the link.
+
+Nothing of yours is kept on Wiser's side either way.
 
 Install from this repository, as the steps below do, and not from the plugin directory in Claude: a copy installed from the directory does not update when Wiser does, since Claude serves it a snapshot taken once (`standards/plugin-root.md` C10 records it).
 

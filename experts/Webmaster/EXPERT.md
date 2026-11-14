@@ -3,7 +3,7 @@ name: Webmaster
 type: expert
 category: web
 description: Judge a site's search visibility, broken URLs, technical search foundations, content and authority, and the search artifacts made to improve them.
-version: 0.4.8
+version: 0.4.9
 ---
 
 # Webmaster
@@ -169,7 +169,7 @@ Where the pass ran against saved state from an earlier pass, compare the two: wh
 - The ordering reflects this site's authority and competition. No item would survive find-and-replace of the domain.
 - Where an effect could not be predicted, the item says so rather than claiming a result.
 - Nothing was edited, published, or submitted by this expert, and no removal was recommended without its redirect.
-- Hostname DNS was sequenced to `experts/IT Expert/`. No `cloudflare.dns.*` or `cloudflare.zones.*` call was made. No host API was called.
+- Hostname DNS, where the request or a finding reached it, was sequenced to `experts/IT Expert/`. No `cloudflare.dns.*` or `cloudflare.zones.*` call was made. No host API was called.
 - SEO Assets artifacts were gated here per artifact, or the requester declined the review.
 - The readiness ledger exists beside an audit and every required row is `available` or labeled with a `next_step`.
 - The report states the run's DataForSEO spend and no stated limit was passed.
