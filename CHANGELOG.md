@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.14, November 14, 2026
+
+- Pages on a new or upgraded site now include X / Twitter card metadata with their existing title, description and share image. Site Author 0.9.3 adds the tags to the shared layout; Upgrade installs them on an existing site. (50a672ab)
+
 ## v2026.11.13, November 13, 2026
 
 - Asked to stop asking before each action, Wiser no longer agrees in chat: that is a standing approval, and Wiser proposes one, shows you its warning and grants it only on your yes. The approvals tool now says so itself, for an app that reads nothing else first. (cd38f4de)
