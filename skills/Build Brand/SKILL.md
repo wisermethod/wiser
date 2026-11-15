@@ -20,7 +20,7 @@ memory:
 
 Use to build or rebuild the owning root's bound `design` file. The full path takes six steps for a person, seven for an organisation, client or department, and ends complete at the lock in one sitting. It creates no Playbook. Onboarding hands `full` into that sitting immediately and receives the completed result.
 
-Onboarding's light fill belongs to `skills/Onboard Root/`; design work with an existing direction belongs to `skills/Designer/`. Writing voice belongs to `skills/Build Voice/`. This skill writes only the short `From your brand` section of a real `voice.md`, on Keep it at the full path's lock (`lock.md` Voice note); `about.md` stays read only. It draws no mark, icon or illustration. Logo creation, naming and trademark search remain the declared gaps; an unavailable capability is named, never improvised.
+Onboarding's light fill belongs to `skills/Onboard Root/`; design work with an existing direction belongs to `skills/Designer/`. Writing voice belongs to `skills/Build Voice/`. This skill writes only the short `From your brand` section of a real `voice.md`, on Keep it at the full path's lock (`lock.md` Voice note); `about.md` stays read only. It draws no mark, icon or illustration. Logo creation, naming and trademark search remain the declared gaps; within this skill an unavailable capability is named, never improvised, and a person who asks for a logo or a name is still served by the session's own ability, as the constitution says of a gap, while a trademark search is never made up.
 
 Classifier seam: routing, where `hooks/route.mjs` may open this skill for an ask. Else: the routing table, read as `AGENTS.md` states.
 
