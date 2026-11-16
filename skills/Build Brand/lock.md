@@ -63,7 +63,7 @@ On a caller, return `locked` with `design`, `offers` as data, and `waitsOn` only
 
 ## Offers, only on the member's ask
 
-- Logo, new or refreshed: hand the locked direction and kept logo to Brand Mark where installed. Where absent, name logo creation as owed and draw nothing; do not downgrade the completed design.
+- Logo, new or refreshed: hand the locked direction and kept logo to Brand Mark where installed. Where absent, name logo creation as owed and draw nothing in this skill; do not downgrade the completed design. A logo the person then asks for is the session's own work, as the constitution says of a gap: a file in the work directory, said not to be a Wiser mark, and written under the Mark heading only on their word.
 - One-page guide: use the locked board as its first page, values and usage from design, with no invented mark rules. Draft its prose through Content Author in the bound voice, and keep its own gates.
 - A page to share: show the locked brand and its chosen words for the people named at O3. It does not reopen the lock or wait for their approval to mark design complete.
 - Website, slides or other real work: run Designer with `<user_request>`, locked direction and bound design in `<design_context>`, assets in `<source_material>` and settings in `<existing_tokens>`. The Creative Director's Audit judges the applications in a second context, under Designer's own gates. Do not publish without the member's go.

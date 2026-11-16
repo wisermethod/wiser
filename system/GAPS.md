@@ -4,7 +4,7 @@ What this plugin does not do, declared by the primitive that names it.
 
 A gap is a capability this root does not provide that a primitive's own body names as missing (`standards/primitives.md`). This file collects every declared `gaps` entry, by hand, and is corrected whenever a primitive's gaps change.
 
-**A gap says what no Wiser primitive covers, never what a person may ask for:** the session still does the work with the host's own ability, as the constitution says, and only a result that cannot be fetched is left out. **This file carries capability gaps only.** What the operator plans to build is a separate record and is not a user's business, so nothing about future work appears here. **A gap names the capability that is missing, never where that capability went.**
+**A gap says what no Wiser primitive covers, never what a person may ask for:** what the session still makes for them with the host's own ability, and what stays a stop, is the absence rule in `AGENTS.md`, Behavioral Core. **This file carries capability gaps only.** What the operator plans to build is a separate record and is not a user's business, so nothing about future work appears here. **A gap names the capability that is missing, never where that capability went.**
 
 Counted 2026-11-13: 48 gaps across 29 primitives. The count and each bullet are checked against the primitives' own `gaps:` frontmatter in both directions. Historical count and change records predating this cleanup are preserved in `CHANGELOG.md` under Historical gap counts.
 

@@ -3,7 +3,7 @@ name: Designer
 type: skill
 category: design
 description: Run a design job end to end, from brief and visual direction through foundations, composition, and validation, producing the wireframe, style guide, or extracted system itself and directing every other phase to the design skill that owns it
-version: 0.9.12
+version: 0.9.13
 memory:
   - design
 gaps:
@@ -26,7 +26,7 @@ Not for judging design that exists, which is `experts/Creative Director/`, in it
 
 ## Objective
 
-One delivered design artifact, plus the record of what produced it: the brief it answers, the direction it commits to including the single element it will be remembered by, the foundations it stands on and who produced each, and a validation pass naming every check that ran. Every visual decision in the artifact can state its job and its reason, no unjustified entry of the prohibited-defaults taxonomy survives it (a brief-fixed or Phase 2 signature is recorded with its justification, not replaced), its text and interface elements clear WCAG AA, and anything the request asked for that this root produces nowhere is named as unproduced rather than approximated. Verified against Success, below.
+One delivered design artifact, plus the record of what produced it: the brief it answers, the direction it commits to including the single element it will be remembered by, the foundations it stands on and who produced each, and a validation pass naming every check that ran. Every visual decision in the artifact can state its job and its reason, no unjustified entry of the prohibited-defaults taxonomy survives it (a brief-fixed or Phase 2 signature is recorded with its justification, not replaced), its text and interface elements clear WCAG AA, and anything the request asked for that this root produces nowhere is named as not this root's work rather than approximated: unproduced, or, for a brand mark the person asked for, the session's own (Composing). Verified against Success, below.
 
 ## Inputs
 
@@ -110,7 +110,7 @@ The brand row below is Context's direct route. For every other deliverable, buil
 | A style guide documenting a system | This skill (Reference: Style guides) |
 | A system extracted from existing work | This skill (Reference: Brand extraction), feeding `skills/Design System/` |
 
-Two things this root does not compose, each said plainly rather than approximated. A brand mark or logo is out of this skill's scope (Context): asked for one, the session makes it with the host's own ability and says once that no Wiser skill covers it. An application screen, a dashboard, a settings view, an admin panel, is composed by no skill here: `skills/Component Design/` produces the parts and declines the page, and `skills/Marketing Page Design/` declines anything that is not a persuasion page. Say so, deliver what this root does produce, the brief, the direction, the foundations, a wireframe of the screen, and each component through `skills/Component Design/`, and name the assembly as the part that was not composed.
+Two things this root does not compose, each said plainly rather than approximated. A brand mark or logo is out of this skill's scope (Context): asked for one, the session makes it with the host's own ability, as the constitution says of a gap, and says once that no Wiser primitive covers it; it is the session's work and no skill's, and it becomes the bound design's mark only on the person's word. An application screen, a dashboard, a settings view, an admin panel, is composed by no skill here: `skills/Component Design/` produces the parts and declines the page, and `skills/Marketing Page Design/` declines anything that is not a persuasion page. Say so, deliver what this root does produce, the brief, the direction, the foundations, a wireframe of the screen, and each component through `skills/Component Design/`, and name the assembly as the part that was not composed.
 
 What ships from this phase is code that renders in a browser. Where the user needs a static image instead, produce it rather than handing over the steps: `tools/render/` `html` for an HTML artifact, `tools/render/` `svg` for an SVG, `tools/render/` `url` for a page already live at an address.
 
@@ -209,4 +209,4 @@ Group the findings blocking, then major, then minor, each naming its location an
 - The accessibility pass ran on every axis the deliverable gave it, any axis with no surface named as not applicable, and its findings were fixed or reported with severity and location.
 - For a UI or page deliverable, `experts/Creative Director/` returned a verdict in a second context and its findings were worked before delivery, or the requester declined the review and the delivery says so, or a degraded review is named. Decks follow Create Presentation's gates, not this row.
 - A wireframe is grayscale, system-font, annotated, and readable as hierarchy without color; a style guide opens in a browser and is styled by the system it documents; an extracted system marks what was approximate and names what a person must confirm.
-- Anything the request asked for that no skill in this root produces is named as unproduced, never approximated.
+- Anything the request asked for that no skill in this root produces is named as not this root's work, never approximated as a skill's: unproduced, or, for a brand mark the person asked for, made by the session and said to be its own.
