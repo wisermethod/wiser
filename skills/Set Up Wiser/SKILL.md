@@ -3,7 +3,7 @@ name: Set Up Wiser
 type: skill
 category: onboarding
 description: Take a new member, in one chat, from no folder open to their own Wiser folder on their Desktop, set up and with their voice and look recorded, and then to a project in their app with that folder attached, checking their Wiser connection first, on the ask set up wiser (also setup wiser)
-version: 0.4.3
+version: 0.4.4
 ---
 
 # Set Up Wiser
@@ -14,7 +14,7 @@ Use when a person types the named ask **set up wiser** (also "setup wiser") in C
 
 Not for writing into the folder itself: `skills/Onboard Root/` fills it. Not for connecting a vendor account, which is `skills/Connect Account/`. Not for a command-line session, whose working directory is already its folder: tell them to start it in an empty folder named with their first name and type "Onboard Project", and stop. Not for Claude or ChatGPT in a web browser, where Wiser's skills do not run: say that Wiser's setup runs in Claude Cowork or the ChatGPT desktop app, and stop.
 
-The person may be new to all of this and may not yet know what a folder is for. Every line this skill says that uses the word folder or project says in plain words what it is; it never says root or path, never asks what kind of folder this is, and never asks them to copy text from one app into another. Typing the short phrases "Wiser Managed Project" and, on the fallback, "Onboard Project" is theirs to do and is not copying.
+The person may be new to all of this and may not yet know what a folder is for. Every line this skill says that uses the word folder or project says in plain words what it is; it never says root or path, never asks what kind of folder this is, and never asks them to copy text from one app into another. Typing the short phrase "Onboard Project", on the fallback, is theirs to do and is not copying. The one thing they copy is the project description in Claude Cowork, from step 6's message or its page into the project they are making: it is too long to type, and it is what makes every chat in the project look for Wiser's skill first.
 
 A folder is **empty** here as `skills/Onboard Root/` tests it: nothing in it but `.DS_Store`, sync machinery, or hidden files and directories whose names start with a period. A folder is a **Wiser folder** where its `AGENTS.md` declares a user root by `standards/user-root.md` C1.
 
@@ -22,7 +22,7 @@ Classifier seam: none.
 
 ## Objective
 
-In this one chat, the person ends with a folder named with their first name inside a folder named Wiser on their Desktop, set up by `skills/Onboard Root/` with their voice and look recorded, or the Wiser folder of that name they already had; and with every step, and a page of them, for a project in their app named with their first name, with that folder attached and, where the app has a description, the description "Wiser Managed Project". Verified by reading the folder back on disk where this session can reach it, its `AGENTS.md` carrying the Onboarding section Onboard Root closes, and by step 6's message holding that app's steps and the page's address. Whether the project is made is the person's to do once this chat has ended, so this chat does not wait for it.
+In this one chat, the person ends with a folder named with their first name inside a folder named Wiser on their Desktop, set up by `skills/Onboard Root/` with their voice and look recorded, or the Wiser folder of that name they already had; and with every step, and a page of them, for a project in their app named with their first name, with that folder attached and, where the app has a description, the project description step 6 gives. Verified by reading the folder back on disk where this session can reach it, its `AGENTS.md` carrying the Onboarding section Onboard Root closes, and by step 6's message holding that app's steps and the page's address. Whether the project is made is the person's to do once this chat has ended, so this chat does not wait for it.
 
 ## Identity
 
@@ -72,14 +72,20 @@ Was the folder new or empty, and made where this session can write it? Yes: run 
 
 They will leave this chat to make the project, so give every step in one message and do not wait between them. Open the message with: "One last step, and it's the one that makes this stick: you'll make a project. A project is a space in your app where every chat already knows about your folder, so you never have to point me to it again. You'll leave this chat to do it, so here's every step at once." Then give that app's steps below as one numbered list, writing in their first name where a step names the project and the folder's name where it names the folder, and end the list with the last step for their folder. After the list, give the same steps as a page they can keep open beside the app: the address is the `url` of the `wiser` server in this plugin's `.mcp.json` with its path replaced by `/setup/claude` for Claude Cowork or `/setup/chatgpt` for the ChatGPT desktop app, then `#name=` and their first name, URL-encoded; where the folder's name is not their first name, as when step 4 took another name or dropped a character, `&folder=` and the folder's name, URL-encoded; and where step 4 could not make the folders, `&make=1`, so the page gives the same folder step and last step as this message; say "Here are the same steps on a page you can keep open:" and the address. Where this session can run a command on their computer, open that address in their browser too. Then stop: this chat is done.
 
-- **Claude Cowork:** open Projects and choose New project; under What are you working on, type their first name; under What are you trying to achieve, type Wiser Managed Project; choose Use a folder, then Desktop, then Wiser, then their folder, and choose Open; choose Create project.
+- **Claude Cowork:** open Projects and choose New project; under What are you working on, type their first name; under What are you trying to achieve, paste the project description below; choose Use a folder, then Desktop, then Wiser, then their folder, and choose Open; choose Create project.
 - **The ChatGPT desktop app:** open Projects and make a new project on this computer, named with their first name; open its menu and choose Edit project, then Add folder; choose Desktop, then Wiser, then their folder; where it offers Make primary, choose it. There is no description to fill in.
+
+The project description for Claude Cowork goes in the message in a block of its own, directly under the step that names it, so it copies whole. Give it word for word and change nothing in it: Claude Cowork shows a project's description to every chat in that project and does not show a connector's own instructions, so this sentence is what sends a chat to Wiser's skill before it works alone (measured 2026-11-16: Wiser was consulted in eight chats of nine with it and five of nine without).
+
+```
+Wiser Managed Project. Before any task in this project, call the Wiser connector's find_skill tool with my request in my own words, load the skill it names with load_skill, and follow it. Only a plain question of fact needs none.
+```
 
 Where step 4 could not make the folders, the step that chooses the folder makes them instead: in that window, open the Desktop, choose New Folder and name it Wiser, open it, choose New Folder again and name it with the folder's name, and choose it; the rest of that step, such as Make primary, stays.
 
 The last step depends on step 5. Onboard Root closed in this chat, or step 4 kept a Wiser folder without step 5: "Open a new task inside your project and start working." Onboarding did not run, because this chat could not reach the folder: "Open a new task inside your project and type Onboard Project. That's where I'll set up your folder and get to know how you write."
 
-Where they come back and say the screens differ from these steps, ask what they see, in their words, and guide from that; never send them to type a location or paste text.
+Where they come back and say the screens differ from these steps, ask what they see, in their words, and guide from that; never send them to type a location or paste text other than that description.
 
 ## Pitfalls
 
@@ -88,4 +94,4 @@ Where they come back and say the screens differ from these steps, ask what they 
 
 ## Success
 
-The folder with their first name exists inside Wiser on their Desktop and was set up by Onboard Root in this chat, or was already a Wiser folder, or, where this chat could not reach it, the person made it in step 6 and was told to type "Onboard Project" in the project; the person was given their app's project steps in one message and the page with their name in its address; no line used folder or project without saying what it is, none said root or path, and nothing was copied between apps.
+The folder with their first name exists inside Wiser on their Desktop and was set up by Onboard Root in this chat, or was already a Wiser folder, or, where this chat could not reach it, the person made it in step 6 and was told to type "Onboard Project" in the project; the person was given their app's project steps in one message and the page with their name in its address; no line used folder or project without saying what it is, none said root or path, the Claude Cowork steps carried the project description word for word in its own block; and nothing else was copied between apps.
