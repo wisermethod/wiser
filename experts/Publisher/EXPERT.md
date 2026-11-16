@@ -3,7 +3,7 @@ name: Publisher
 type: expert
 category: operations
 description: Judge a book's production specifications before writing or ingestion and its built editions for distribution, returning readiness or routed findings against current platform requirements
-version: 0.1.0
+version: 0.1.1
 gaps:
   - producing a print interior with bleed
   - producing a print cover with its spine
@@ -71,7 +71,7 @@ Does the evidence establish production readiness in that scope, apart from PDF/X
 ## Rules
 
 1. Book Publisher's PDF/X checks are structural and return `certified: false`. Never call a file PDF/X-1a conformant on those checks. Conformance requires evidence from the printer's own upload preflight or Adobe Acrobat Pro's Preflight for these exact files. Send a conformance finding to Publish Book's preflight hand-off; any concrete correction it identifies still receives its route under Verdicts. Absent evidence is pending conformance, separate from Job 3's readiness scope.
-2. No primitive in this root produces a print interior with bleed or a print cover with its spine. Book Publisher has no bleed setting and builds interiors. A requested build of either remains unproduced here: name the gap and withhold dependent artifact readiness, per the constitution's Behavioral Core. At setup, a platform's bleed requirement is a specification finding unless Production requirements record the member's waiver.
+2. No primitive in this root produces a print interior with bleed or a print cover with its spine. Book Publisher has no bleed setting and builds interiors. A requested build of either remains unproduced by this root: name the gap and withhold dependent artifact readiness, per the constitution's Behavioral Core; a file the session makes itself on the member's ask, as that rule allows, is said to be the session's and carries no readiness verdict. At setup, a platform's bleed requirement is a specification finding unless Production requirements record the member's waiver.
 3. Select and hand over skills under `standards/primitives.md` Invocation, and do no skill's work inside a verdict.
 
 ## Pitfalls
