@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.16, November 16, 2026
+
+- Asking for something Wiser names as a gap no longer gets a refusal where your app can make it itself. A logo or a name is made by the session, which says once that no Wiser skill covers it, and it becomes your brand's mark only when you say so. A result that can only be looked up or judged, such as a trademark search or a security opinion, is still never made up. Designer 0.9.13, Build Brand 0.6.1 and Publisher 0.1.1 follow the rule. (38bc7f4c, 17918767, b35b9a2d)
+- Set Up Wiser 0.4.4 gives a Claude Cowork project a longer description to paste, where your account gets Wiser's skills through the connector: one sentence that has every chat in the project look for Wiser's skill before it starts. Other accounts still type the three words. (ee45f822, 17918767, b35b9a2d)
+
 ## v2026.11.14.3, November 14, 2026
 
 - Bringing an existing folder up to date now marks it with the current layout number, so it reads as current afterwards. Housekeeping 0.9.3 and Onboard Root 0.50.7 take the number from the folder standard, where they named the previous one. (8e210a5f)
