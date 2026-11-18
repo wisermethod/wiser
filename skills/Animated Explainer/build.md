@@ -21,8 +21,8 @@ A response on a site also keeps these:
 - Scrolling is the browser's. Scroll, wheel, touch and key listeners are passive and never call `preventDefault`; the script never sets a scroll position, a snap or an overscroll rule. The piece's own stage may hold in view by CSS `position: sticky` while its own section scrolls past; nothing outside its footprint is pinned, and the section's height is content the page can read.
 - It reads and writes inside its own root. Its page reads are the scroll position, viewport size, its own root's rectangle and `document.fonts.ready`; measure geometry after fonts load. Lifecycle and input signals provide visibility, motion preference, print, export and pointer state. An offset or other value the page owns reaches the piece as a custom property the placement note names. Each entry point catches its own errors and falls back to the still; bind no window-wide error listener.
 - Entering view starts a once motion at the threshold the Frame states. It plays once, never replays, and its end value is the markup's own text. A count reads its target from its display text, in that text's format, never from an attribute.
-- The Frame states byte budgets for the script, CSS and markup, and a frame budget. Measure them on the renders and put the numbers in the delivery record, naming a physical device as proved or owed. One script per piece; a page with several pieces runs several, and the record gives their count and combined bytes.
-- The script finds its root by the piece's own unique class, never by `document.currentScript`, so it runs as a classic script and as a module. One instance of a piece per page.
+- The Frame states byte budgets for the script, CSS and markup, a frame budget, and the page's built JavaScript ceiling, the most site-owned JavaScript the page may carry once this piece and every other piece on it are built. Measure them on the renders and put the numbers in the delivery record, naming a physical device as proved or owed. One script per piece; a page with several pieces runs several, and the record gives their count and combined bytes.
+- The script finds its root by the piece's own unique class, never by `document.currentScript`, so it runs as a classic script and as a module. One instance of an own-script response piece per page.
 
 On a site, a piece holds no `h1`; the page owns its heading. Its CSS is scoped under its root class and styles only its own elements, restating no host typography, spacing or grid. What the page must supply, an offset, a stage size or where the piece sits, is a named placement input. Write CSS lengths and percentages to at most four decimal places, or as custom properties the browser resolves, so a site's CSS minifier leaves them as written.
 
@@ -64,7 +64,7 @@ One engine serves every `.ax-loop` on a page, each on its own clock, and includi
 
 ## Once
 
-One figure or one outcome that lands is a once piece, from `starters/once/`. With motion wanted, it stays hidden until a quarter of it is in view, or until its slide is current, then plays once and holds. A figure already a quarter in view when the script arms it, off a slide, keeps the finished figure and never plays: where the figure will sit in the first screen, Step 6's message and a placement note say it shows its finished figure there and counts only lower on the page. Several on one page take turns in document order.
+One figure or one outcome that lands is a once piece, from `starters/once/`. Its own quarter-in-view start is part of its timeline, not a site response. With motion wanted, it stays hidden until a quarter of it is in view, or until its slide is current, then plays once and holds. A figure already a quarter in view when the script arms it, off a slide, keeps the finished figure and never plays: where the figure will sit in the first screen, Step 6's message and a placement note say it shows its finished figure there and counts only lower on the page. Several on one page take turns in document order.
 
 `.ax-num` holds one quantity the engine can read, with words or symbols around it; it counts in the markup's own format, which the once starter's header sets out, and ends on the markup's own text. A year, a code, or anything that is not a quantity: `data-count="off"`. A second number, a range, a negative or an ambiguous separator such as `1.250,5`: the engine fades it in instead of counting. `window.AxOnce.scan()` starts a figure added after load.
 
@@ -83,7 +83,7 @@ A piece for a video plays its timeline once from the renderer's time, never the 
 
 ## Measuring and drawing
 
-Lines (`path[data-from][data-to]`) and flights (`.ax-fly`) are optional: use them where something travels or connects. They are measured between anchors, as fractions of each element's box: `data-fx`, `data-fy`, `data-tx`, `data-ty`. An anchor is an HTML element laid out inside the stage, which the engine reads from layout, so its own entrance transform changes nothing. An SVG shape is read from its on-screen box instead, so it anchors only while neither it nor any group around it carries a transform, its entrance included; anchor to an HTML element where the drawing moves. Leave measuring to the engine: never add a measurement with `getBoundingClientRect`, whose box counts padding, an entrance transform and a slide's scale. The stage carries no padding and no border; space around the picture goes on the frame or the page.
+Lines (`path[data-from][data-to]`) and flights (`.ax-fly`) are optional: use them where something travels or connects. They are measured between anchors, as fractions of each element's box: `data-fx`, `data-fy`, `data-tx`, `data-ty`. An anchor is an HTML element laid out inside the stage, which the engine reads from layout, so its own entrance transform changes nothing. An SVG shape is read from its on-screen box instead, so it anchors only while neither it nor any group around it carries a transform, its entrance included; anchor to an HTML element where the drawing moves. For the starter engines' line and flight anchors, leave measuring to the engine: never add a measurement with `getBoundingClientRect`, whose box counts padding, an entrance transform and a slide's scale. A response script may read its own root's rectangle under `## The contract`. The stage carries no padding and no border; space around the picture goes on the frame or the page.
 
 A line's default path in the markup is its finished shape, in its overlay's units, so the still shows it. Does every line have a default path computed with the engine's curve? No, or one was drawn by hand: open the piece with its script once, call `window.AxLoop.wirePath(a, b, head)` with `a` and `b` as `{x, y}` points and `head` a length, all in the overlay's units, and write the returned path into its `d`. `data-head` is a percent of the stage's width. Lines draw with `pathLength="1"` and a dash of 1.
 
@@ -91,7 +91,8 @@ A line's default path in the markup is its finished shape, in its overlay's unit
 
 Every piece meets this floor in every destination. Each line is checkable on the renders or in the markup.
 
-- Without JavaScript, under reduced motion at load or switched on later, on the piece's own script error, in print or PDF, and at `?export`, the finished picture shows. In a video, the still, rendered with no script, shows it.
+- Without JavaScript, under reduced motion at load or switched on later, in print or PDF, and at `?export`, the finished picture shows. In a video, the still, rendered with no script, shows it.
+- A piece on its own script shows the finished picture on its own script error.
 - On a page or a slide, a loop has a pause control (WCAG 2.2.2), stops off-screen and on a hidden tab, and resumes where it stopped. In a video, no control is drawn, since the player carries pause, and the piece plays once and holds. This line is the one home of when a control is drawn.
 - A once piece plays once and holds, hidden rather than shown at zero until it plays.
 - A response paints nothing off-screen or on a hidden tab. A scroll listener may wake it to check, and does no more.
@@ -112,12 +113,12 @@ For a page or a slide, Step 5 captures through `tools/Browser Control/`, at 1440
 - A loop paused mid-motion. A once piece waiting and playing, where it loads below the fold.
 - A deck slide playing, and the deck exported through `tools/deck-export/`: its `pdf` opens the deck on `?print-pdf` and its `png` with the export query, so both show the finished picture.
 
-For a response, add the applicable captures and measurements to the page's renders:
+For a response, add these captures and measurements to the page's renders, using only the inputs the Frame names:
 
-- At 0, 25, 50, 75 and 100 percent of its scroll travel, forward then reversed; name the positions and compare their computed states after settling.
-- With the pointer at centre and two opposite corners, then released; compare the returned computed state with the earlier one.
+- For scroll, at 0, 25, 50, 75 and 100 percent of its scroll travel, forward then reversed; name the positions and compare their computed states after settling.
+- For pointer, with the pointer at centre and two opposite corners, then released; compare the returned computed state with the earlier one.
 - With reduced motion switched on at 50 percent travel and the pointer off centre; for a piece using only one input, switch during that response. The finished still shows with nothing moving.
-- Entering view at the stated threshold, then leaving and entering again, with no replay.
+- For entering view, at the stated threshold, then leaving and entering again, with no replay.
 - From mid-response to its own error, print and `?export`, each showing the finished still.
 - Bytes for script, CSS and markup, and frame measurements against the stated budgets. Count frames requested in 1,100 ms starting one settle time after the last input, after scroll and after pointer release where used: each count must be 0. Check that nothing paints off-screen or on a hidden tab, and name the physical-device proof or what is owed.
 
