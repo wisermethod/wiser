@@ -38,15 +38,15 @@ test('manifest declares project domain actions', () => {
 
 test('list_domains and remove_domain proxy to the project domain routes', async () => {
   const listed = recording(async () => ({ data: { domains: [{ name: 'www.example.com' }] } }));
-  const domains = await modules.projects.list_domains({ id_or_name: 'effectivesc', team_id: 'team-1' }, listed.ctx);
+  const domains = await modules.projects.list_domains({ id_or_name: 'example-site', team_id: 'team-1' }, listed.ctx);
   assert.deepEqual(domains, { domains: [{ name: 'www.example.com' }] });
   assert.equal(listed.calls[0].method, 'GET');
-  assert.equal(listed.calls[0].endpoint, '/v9/projects/effectivesc/domains?teamId=team-1');
+  assert.equal(listed.calls[0].endpoint, '/v9/projects/example-site/domains?teamId=team-1');
   assert.equal(Object.hasOwn(listed.calls[0], 'body'), false);
 
   const bare = recording(async () => ({ data: { domains: [] } }));
-  await modules.projects.list_domains({ id_or_name: 'effectivesc' }, bare.ctx);
-  assert.equal(bare.calls[0].endpoint, '/v9/projects/effectivesc/domains');
+  await modules.projects.list_domains({ id_or_name: 'example-site' }, bare.ctx);
+  assert.equal(bare.calls[0].endpoint, '/v9/projects/example-site/domains');
 
   const dotted = recording(async (req) => {
     assert.equal(req.endpoint, '/v9/projects/my.project/domains');
@@ -56,13 +56,13 @@ test('list_domains and remove_domain proxy to the project domain routes', async 
 
   const removed = recording(async () => ({ data: { name: 'www.example.com' } }));
   const gone = await modules.projects.remove_domain({
-    id_or_name: 'effectivesc',
+    id_or_name: 'example-site',
     domain: 'www.example.com',
     team_id: 'team-1',
   }, removed.ctx);
   assert.deepEqual(gone, { name: 'www.example.com' });
   assert.equal(removed.calls[0].method, 'DELETE');
-  assert.equal(removed.calls[0].endpoint, '/v9/projects/effectivesc/domains/www.example.com?teamId=team-1');
+  assert.equal(removed.calls[0].endpoint, '/v9/projects/example-site/domains/www.example.com?teamId=team-1');
   assert.equal(Object.hasOwn(removed.calls[0], 'body'), false);
 
   const { calls, ctx } = recording(async () => { throw new Error('called'); });
@@ -76,8 +76,8 @@ test('list_domains and remove_domain proxy to the project domain routes', async 
   refused(await modules.projects.remove_domain({ id_or_name: '.', domain: 'www.example.com' }, ctx), 'id_or_name');
   refused(await modules.projects.remove_domain({ id_or_name: '..', domain: 'www.example.com' }, ctx), 'id_or_name');
   refused(await modules.projects.remove_domain({ id_or_name: '.hidden', domain: 'www.example.com' }, ctx), 'id_or_name');
-  refused(await modules.projects.list_domains({ id_or_name: 'effectivesc', team_id: 12 }, ctx), 'team_id');
-  refused(await modules.projects.remove_domain({ id_or_name: 'effectivesc', domain: 'localhost' }, ctx), 'domain');
-  refused(await modules.projects.remove_domain({ id_or_name: 'effectivesc', domain: '..' }, ctx), 'domain');
+  refused(await modules.projects.list_domains({ id_or_name: 'example-site', team_id: 12 }, ctx), 'team_id');
+  refused(await modules.projects.remove_domain({ id_or_name: 'example-site', domain: 'localhost' }, ctx), 'domain');
+  refused(await modules.projects.remove_domain({ id_or_name: 'example-site', domain: '..' }, ctx), 'domain');
   assert.equal(calls.length, 0);
 });

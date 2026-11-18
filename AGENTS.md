@@ -16,7 +16,7 @@ The general knowledge-work plugin: the skills, experts, tools, connectors, and s
 
 **This file is this root's constitution.** Where a primitive cites "the constitution", it means this file. The chain, the sequence of `AGENTS.md` files a session loads, starts here: load it before the first read or write under this root. The words this root uses with a fixed meaning are defined in `GLOSSARY.md`.
 
-This root is a capability product, owned by EffectiveSC.
+This root is a capability product, owned by First Strategy LLC.
 
 ## What this root is
 

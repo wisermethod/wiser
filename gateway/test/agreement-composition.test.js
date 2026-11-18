@@ -125,7 +125,7 @@ test('Gmail thread and draft ids share an existing satisfying pattern exemplar',
   const draft = GOOGLE.modules.gmail.actions.send_draft;
   const threadPattern = GOOGLE.modules.gmail.actions.create_draft.input.properties.thread_id.pattern;
   assert.equal(threadPattern, draft.input.properties.draft_id.pattern);
-  for (const draft_id of ['effectivesc', 'r-example-17', 'thread-example_1']) {
+  for (const draft_id of ['example-site', 'r-example-17', 'thread-example_1']) {
     assert.equal(schemaViolation(draft.input, { draft_id }), null);
     assert.equal((await run(google, 'google', 'gmail', 'send_draft', draft, { draft_id })).kind, 'reached');
   }

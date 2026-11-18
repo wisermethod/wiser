@@ -199,7 +199,7 @@ const PATTERN_OK = {
   // vercel project ids. The first character is a letter, digit, underscore or
   // hyphen, so `.` and `..` are not ids. Google Drive ids and Gmail thread/draft
   // ids share this pattern and its existing exemplar.
-  '^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}$': 'effectivesc',
+  '^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}$': 'example-site',
   // google: an email address in a draft or an event, header text with no line break or
   // NUL, and a calendar date or RFC 3339 date-time.
   '^[^\\s@\\u0000]+@[^\\s@\\u0000]+$': 'person@example.com',

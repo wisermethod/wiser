@@ -484,8 +484,8 @@ test('simple ruleset and pages reads and the pages validation retry', async () =
     [modules.rulesets.list_page_rules, { zone_id: ZONE }, 'GET', `/zones/${ZONE}/pagerules`],
     [modules.rulesets.list_lists, { account_id: ACCOUNT }, 'GET', `/accounts/${ACCOUNT}/rules/lists`],
     [modules.rulesets.get_bulk_operation, { account_id: ACCOUNT, operation_id: OP }, 'GET', `/accounts/${ACCOUNT}/rules/lists/bulk_operations/${OP}`],
-    [modules.pages.list_domains, { account_id: ACCOUNT, project_name: 'effectivesc' }, 'GET', `/accounts/${ACCOUNT}/pages/projects/effectivesc/domains`],
-    [modules.pages.get_domain, { account_id: ACCOUNT, project_name: 'effectivesc', domain: 'www.example.com' }, 'GET', `/accounts/${ACCOUNT}/pages/projects/effectivesc/domains/www.example.com`],
+    [modules.pages.list_domains, { account_id: ACCOUNT, project_name: 'example-site' }, 'GET', `/accounts/${ACCOUNT}/pages/projects/example-site/domains`],
+    [modules.pages.get_domain, { account_id: ACCOUNT, project_name: 'example-site', domain: 'www.example.com' }, 'GET', `/accounts/${ACCOUNT}/pages/projects/example-site/domains/www.example.com`],
   ];
   for (const [fn, input, method, endpoint] of reads) {
     const { calls, ctx } = recording(async () => envelope({ id: 'one' }));
@@ -497,12 +497,12 @@ test('simple ruleset and pages reads and the pages validation retry', async () =
   }
   const retry = recording(async () => envelope({ status: 'pending' }));
   const retried = await modules.pages.retry_domain_validation(
-    { account_id: ACCOUNT, project_name: 'effectivesc', domain: 'www.example.com' },
+    { account_id: ACCOUNT, project_name: 'example-site', domain: 'www.example.com' },
     retry.ctx,
   );
   assert.equal(retried.success, true);
   assert.equal(retry.calls[0].method, 'PATCH');
-  assert.equal(retry.calls[0].endpoint, `/accounts/${ACCOUNT}/pages/projects/effectivesc/domains/www.example.com`);
+  assert.equal(retry.calls[0].endpoint, `/accounts/${ACCOUNT}/pages/projects/example-site/domains/www.example.com`);
   assert.equal(Object.hasOwn(retry.calls[0], 'body'), false);
 
   const { calls, ctx } = recording(async () => { throw new Error('called'); });
@@ -511,12 +511,12 @@ test('simple ruleset and pages reads and the pages validation retry', async () =
   refused(await modules.rulesets.get_bulk_operation({ account_id: ACCOUNT, operation_id: 'op/1' }, ctx), 'operation_id');
   refused(await modules.rulesets.list_list_items({ account_id: ACCOUNT, list_id: '' }, ctx), 'list_id');
   refused(await modules.pages.list_domains({ account_id: ACCOUNT, project_name: 'Bad_Name' }, ctx), 'project_name');
-  refused(await modules.pages.get_domain({ account_id: ACCOUNT, project_name: 'effectivesc', domain: 'localhost' }, ctx), 'domain');
-  refused(await modules.pages.retry_domain_validation({ account_id: ACCOUNT, project_name: 'effectivesc', domain: '..' }, ctx), 'domain');
+  refused(await modules.pages.get_domain({ account_id: ACCOUNT, project_name: 'example-site', domain: 'localhost' }, ctx), 'domain');
+  refused(await modules.pages.retry_domain_validation({ account_id: ACCOUNT, project_name: 'example-site', domain: '..' }, ctx), 'domain');
   assert.equal(calls.length, 0);
 
   const falseEnvelope = await modules.pages.list_domains(
-    { account_id: ACCOUNT, project_name: 'effectivesc' },
+    { account_id: ACCOUNT, project_name: 'example-site' },
     recording(async () => ({ data: { success: false, errors: [{ code: 1 }] } })).ctx,
   );
   assert.equal(falseEnvelope.status, 'vendor_error');
