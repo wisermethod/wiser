@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.18.2, November 18, 2026
+
+- Animated Explainer 0.5.0 makes a picture on a site respond to scroll, pointer or entering view, alone or after a load timeline, with a finished still wherever motion cannot run. Its handover records the input mapping, rendered positions and measured budgets. Marketing Page Design 0.5.2 and Component Design 0.2.8 send a picture's scroll or pointer motion there, and Creative Director 0.6.3 judges a response's timing by the settle time its brief states; page effects, form behaviour and canvas pictures stay outside the route. (ee11aa26, 9645d6a4, 1f976d99, e02d9d15)
+- Pages deployments require the publisher's signed layout catalog to match the exact SHA-256 pinned in independent connector trust, as well as verifying its signature. An older validly signed catalog cannot replace the approved layout list. Every Pages deploy route keeps the online check and refuses a mismatch before any Cloudflare call. (7e750ba1)
+
 ## v2026.11.18, November 18, 2026
 
 - The license now names First Strategy LLC, which operates Wiser Memory, as the holder of Wiser, where it named EffectiveSC. It is Wiser Plugins License 1.3; what you may and may not do is unchanged, and an organization asks for its license at wisermemory.com. A new domain plugin starts with Wiser Domain Plugin License 1.2, which names the same holder. (9b0fb1db)
