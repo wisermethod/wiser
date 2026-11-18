@@ -36,8 +36,8 @@ function copyWith(options) {
   copies.push(copy);
   return copy;
 }
-const TRUSTED = copyWith({ trust: trustJson({ 'fixture-pub': [PUB.key] }) });
-const TWO = copyWith({ trust: trustJson({ 'fixture-pub': [PUB.key], 'fixture-second': [SECOND.key] }) });
+const TRUSTED = copyWith({ trust: trustJson({ 'fixture-pub': [PUB.key] }, { 'fixture-pub': catalogBytes('fixture-pub', [SYNTHETIC_LAYOUT, ALTERNATE_LAYOUT]) }) });
+const TWO = copyWith({ trust: trustJson({ 'fixture-pub': [PUB.key], 'fixture-second': [SECOND.key] }, { 'fixture-pub': catalogBytes('fixture-pub', [SYNTHETIC_LAYOUT]), 'fixture-second': catalogBytes('fixture-second', [ALTERNATE_LAYOUT]) }) });
 after(() => {
   for (const copy of copies) copy.cleanup();
   for (const dir of scratches) rmSync(dir, { recursive: true, force: true });
@@ -262,7 +262,7 @@ describe('layout catalog: every configured publisher, no caller subset', { concu
     const dir = html(join(base, 'holder', 'bundle-root', 'out', 'public'));
     // A direct module call ignores keys the gateway would refuse; the trusted URLs are still the only reads.
     const extras = {
-      catalog: 'https://evil.example/layouts.json', catalog_signature: 'https://evil.example/layouts.sig',
+      catalog: 'https://evil.example/layouts.json', catalog_signature: 'https://evil.example/layouts.sig', catalog_sha256: 'a'.repeat(64),
       publisher: 'fixture-second', publishers: ['fixture-second'], trust: { keys: [OTHER.key] }, layouts: [],
     };
     refused(await run('deploy_static', { ...staticInput(dir), ...extras }),
@@ -332,8 +332,10 @@ describe('layout catalog: fail closed', { concurrency: false }, () => {
     const shape = (publisher) => JSON.stringify({ ...good, publishers: { 'fixture-pub': publisher } });
     const variants = {
       missing: null,
-      'no catalog URL': shape({ keys: entry.keys, catalog_signature: entry.catalog_signature }),
-      'no signature URL': shape({ keys: entry.keys, catalog: entry.catalog }),
+      'no digest pin': shape({ keys: entry.keys, catalog: entry.catalog, catalog_signature: entry.catalog_signature }),
+      ...Object.fromEntries([null, 7, '', 'a'.repeat(63), 'a'.repeat(65), 'A'.repeat(64), 'g'.repeat(64)].map((pin, i) => [`bad pin ${i}`, shape({ ...entry, catalog_sha256: pin })])),
+      'no catalog URL': shape({ keys: entry.keys, catalog_signature: entry.catalog_signature, catalog_sha256: entry.catalog_sha256 }),
+      'no signature URL': shape({ keys: entry.keys, catalog: entry.catalog, catalog_sha256: entry.catalog_sha256 }),
       'extra publisher key': shape({ ...entry, cache: true }),
       'http catalog': shape({ ...entry, catalog: entry.catalog.replace('https:', 'http:') }),
       'unlisted host': shape({ ...entry, catalog: entry.catalog.replace(RELEASE_HOST, 'releases.example.test') }),
@@ -346,7 +348,7 @@ describe('layout catalog: fail closed', { concurrency: false }, () => {
       'trailing slash': shape({ ...entry, catalog: `https://${RELEASE_HOST}/pages/fixture-pub/` }),
       'same URL twice': shape({ ...entry, catalog_signature: entry.catalog }),
       'not a string': shape({ ...entry, catalog: 7 }),
-      'shared across publishers': JSON.stringify({ ...good, publishers: { 'fixture-pub': entry, 'fixture-second': { keys: [SECOND.key], catalog: entry.catalog, catalog_signature: SECOND_URLS.catalog_signature } } }),
+      'shared across publishers': JSON.stringify({ ...good, publishers: { 'fixture-pub': entry, 'fixture-second': { keys: [SECOND.key], catalog: entry.catalog, catalog_signature: SECOND_URLS.catalog_signature, catalog_sha256: entry.catalog_sha256 } } }),
     };
     for (const [label, text] of Object.entries(variants)) {
       const copy = copyWith({ trust: text });
@@ -418,8 +420,9 @@ describe('layout catalog: fail closed', { concurrency: false }, () => {
       const { tree, cases } = routes(base);
       try {
         for (const [action, input, field] of cases) {
+          const copy = copyWith({ trust: trustJson({ 'fixture-pub': [PUB.key] }, { 'fixture-pub': bytes }) });
           const server = serverFor({ 'fixture-pub': { identity: PUB, bytes } });
-          refused(await run(action, input, { server }), { field, reason: `publisher layout catalog is malformed: fixture-pub: ${what}` }, `${label} ${action}`);
+          refused(await run(action, input, { server, copy }), { field, reason: `publisher layout catalog is malformed: fixture-pub: ${what}` }, `${label} ${action}`);
         }
       } finally {
         tree.cleanup();
@@ -450,7 +453,7 @@ describe('layout catalog: fail closed', { concurrency: false }, () => {
       const { tree, cases: routeCases } = routes(base);
       try {
         for (const [action, input, field] of routeCases) {
-          const server = serverFor({ 'fixture-pub': { identity: PUB, layouts: [SYNTHETIC_LAYOUT], ...entry } });
+          const server = serverFor({ 'fixture-pub': { identity: PUB, layouts: [SYNTHETIC_LAYOUT, ALTERNATE_LAYOUT], ...entry } });
           refused(await run(action, input, { server }), { field, reason, status }, `${label} ${action}`);
         }
       } finally {
@@ -518,7 +521,7 @@ describe('layout catalog: pages.deploy requires its own layout listed by its own
   test('a contract whose layout its publisher lists deploys', async () => {
     const tree = makeRelease({ identity: PUB });
     try {
-      const out = await run('deploy', tree.input(), { server: serverFor({ 'fixture-pub': { identity: PUB, layouts: [SYNTHETIC_LAYOUT] } }) });
+      const out = await run('deploy', tree.input(), { server: serverFor({ 'fixture-pub': { identity: PUB, layouts: [SYNTHETIC_LAYOUT, ALTERNATE_LAYOUT] } }) });
       deployed(out);
       assert.deepEqual(out.fetched, [PUB_URLS.catalog, PUB_URLS.catalog_signature]);
     } finally {
@@ -526,19 +529,22 @@ describe('layout catalog: pages.deploy requires its own layout listed by its own
     }
   });
 
-  for (const [label, entries, copy] of [
-    ['an omitted layout', { 'fixture-pub': { identity: PUB, layouts: [ALTERNATE_LAYOUT] } }, () => TRUSTED],
-    ['a layout listed only with its assets changed', { 'fixture-pub': { identity: PUB, layouts: [{ root_name: 'bundle-root', assets: 'out' }] } }, () => TRUSTED],
-    ['a letter-case variant of the layout', { 'fixture-pub': { identity: PUB, layouts: [{ root_name: 'Bundle-Root', assets: 'out/public' }] } }, () => TRUSTED],
+  for (const [label, entries] of [
+    ['an omitted layout', { 'fixture-pub': { identity: PUB, layouts: [ALTERNATE_LAYOUT] } }],
+    ['a layout listed only with its assets changed', { 'fixture-pub': { identity: PUB, layouts: [{ root_name: 'bundle-root', assets: 'out' }] } }],
+    ['a letter-case variant of the layout', { 'fixture-pub': { identity: PUB, layouts: [{ root_name: 'Bundle-Root', assets: 'out/public' }] } }],
     ['the layout listed only by another configured publisher', {
       'fixture-pub': { identity: PUB, layouts: [ALTERNATE_LAYOUT] },
       'fixture-second': { identity: SECOND, layouts: [SYNTHETIC_LAYOUT] },
-    }, () => TWO],
+    }],
   ]) {
     test(`${label} refuses before any Cloudflare call`, async () => {
       const tree = makeRelease({ identity: PUB });
       try {
-        refused(await run('deploy', tree.input(), { copy: copy(), server: serverFor(entries) }),
+        const declaredKeys = Object.fromEntries(Object.entries(entries).map(([label, entry]) => [label, [entry.identity.key]]));
+        const declaredCatalogs = Object.fromEntries(Object.entries(entries).map(([label, entry]) => [label, catalogBytes(label, entry.layouts)]));
+        const pinned = copyWith({ trust: trustJson(declaredKeys, declaredCatalogs) });
+        refused(await run('deploy', tree.input(), { copy: pinned, server: serverFor(entries) }),
           { field: 'release_contract', reason: 'release layout is not in its publisher\'s layout catalog' }, label);
       } finally {
         tree.cleanup();
@@ -554,7 +560,7 @@ describe('layout catalog: pages.deploy requires its own layout listed by its own
       writeFileSync(join(tree.root, 'layouts.sig'), PUB.signLayouts(planted));
       writeFileSync(join(tree.root, 'pages-trust.json'), trustJson({ 'fixture-pub': [PUB.key] }));
       refused(await run('deploy', tree.input(), { server: serverFor({ 'fixture-pub': { identity: PUB, layouts: [ALTERNATE_LAYOUT] } }) }),
-        { field: 'release_contract', reason: 'release layout is not in its publisher\'s layout catalog', fetched: [PUB_URLS.catalog, PUB_URLS.catalog_signature] });
+        { field: 'release_contract', reason: 'publisher layout catalog SHA-256 does not match trusted pin: fixture-pub', fetched: [PUB_URLS.catalog, PUB_URLS.catalog_signature] });
     } finally {
       tree.cleanup();
     }
@@ -574,7 +580,7 @@ describe('layout catalog: pages.deploy requires its own layout listed by its own
     const tree = makeRelease({ identity: PUB });
     try {
       const { modules } = await TRUSTED.load();
-      const server = serverFor({ 'fixture-pub': { identity: PUB, layouts: [SYNTHETIC_LAYOUT] } });
+      const server = serverFor({ 'fixture-pub': { identity: PUB, layouts: [SYNTHETIC_LAYOUT, ALTERNATE_LAYOUT] } });
       const calls = [];
       const ctx = {
         fetchRelease: (url, opts) => server.fetchRelease(url, opts),
@@ -656,7 +662,7 @@ describe('layout catalog: through the gateway\'s own release fetcher', { concurr
     assert.deepEqual(labels, ['wiser']);
     const urls = { catalog: shipping.publishers.wiser.catalog, catalog_signature: shipping.publishers.wiser.catalog_signature };
     assert.deepEqual(urls, catalogUrls('wiser'));
-    const server = publisherServer({ wiser: { identity: PUB, layouts: [SYNTHETIC_LAYOUT] } });
+    const server = publisherServer({ wiser: { identity: PUB, layouts: [SYNTHETIC_LAYOUT, ALTERNATE_LAYOUT] } });
     const base = scratch();
     const dir = html(join(base, 'plain', 'out'));
     for (const [action, input] of [['deploy_static', staticInput(dir)], ['deploy_with_functions', functionsInput(base, dir)]]) {
@@ -686,4 +692,62 @@ describe('layout catalog: through the gateway\'s own release fetcher', { concurr
     // The blocker saw the attempt; clear it so the file's own guard checks only unintended ones.
     assert.deepEqual(NETWORK.splice(before), [PUB_URLS.catalog]);
   });
+});
+
+describe('layout catalog: independent exact byte pin prevents signed rollback', { concurrency: false }, () => {
+  const newer = catalogBytes('fixture-pub', [SYNTHETIC_LAYOUT, ALTERNATE_LAYOUT]);
+  const older = catalogBytes('fixture-pub', [SYNTHETIC_LAYOUT]);
+  for (const action of ['deploy_static', 'deploy_with_functions', 'deploy']) {
+    for (const [label, bytes] of [
+      ['a validly signed older narrower catalog', older],
+      ['a validly signed byte change (whitespace)', Buffer.concat([newer, Buffer.from(' ')])],
+    ]) {
+      test(`${action}: newer independent trust rejects ${label} before any provider call`, async () => {
+        const base = scratch();
+        // No kit marker: the narrower catalog would omit this protected layout.
+        const dir = html(join(base, 'pkg-alpha', 'build', 'web', 'static'));
+        const tree = makeRelease({ identity: PUB });
+        try {
+          const input = action === 'deploy' ? tree.input() : action === 'deploy_static' ? staticInput(dir) : functionsInput(base, dir);
+          const server = serverFor({ 'fixture-pub': { identity: PUB, bytes } });
+          refused(await run(action, input, { server }), {
+            field: action === 'deploy' ? 'release_contract' : 'dir',
+            reason: 'publisher layout catalog SHA-256 does not match trusted pin: fixture-pub',
+          });
+        } finally { tree.cleanup(); }
+      });
+    }
+
+    test(`${action}: exact new pinned catalog works and still needs its signature`, async () => {
+      const base = scratch();
+      const dir = html(join(base, 'ordinary', 'out'));
+      const tree = makeRelease({ identity: PUB });
+      try {
+        const input = action === 'deploy' ? tree.input() : action === 'deploy_static' ? staticInput(dir) : functionsInput(base, dir);
+        deployed(await run(action, input, { server: serverFor({ 'fixture-pub': { identity: PUB, bytes: newer } }) }));
+        const server = serverFor({ 'fixture-pub': { identity: PUB, bytes: newer, signature: OTHER.signLayouts(newer) } });
+        refused(await run(action, input, { server }), {
+          field: action === 'deploy' ? 'release_contract' : 'dir',
+          reason: 'publisher layout catalog is not signed by its publisher: fixture-pub',
+        });
+      } finally { tree.cleanup(); }
+    });
+
+    test(`${action}: a second publisher's pin mismatch refuses despite the first matching`, async () => {
+      const base = scratch();
+      const dir = html(join(base, 'ordinary', 'out'));
+      const tree = makeRelease({ identity: PUB });
+      try {
+        const input = action === 'deploy' ? tree.input() : action === 'deploy_static' ? staticInput(dir) : functionsInput(base, dir);
+        const server = serverFor({
+          'fixture-pub': { identity: PUB, layouts: [SYNTHETIC_LAYOUT] },
+          'fixture-second': { identity: SECOND, layouts: [SYNTHETIC_LAYOUT] },
+        });
+        refused(await run(action, input, { copy: TWO, server }), {
+          field: action === 'deploy' ? 'release_contract' : 'dir',
+          reason: 'publisher layout catalog SHA-256 does not match trusted pin: fixture-second',
+        });
+      } finally { tree.cleanup(); }
+    });
+  }
 });

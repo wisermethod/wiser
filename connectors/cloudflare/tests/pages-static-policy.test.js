@@ -8,7 +8,7 @@ import { execFileSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import {
-  blockNetwork, connectorCopy, deployProxy, deploymentCalls,
+  blockNetwork, catalogBytes, connectorCopy, deployProxy, deploymentCalls,
   fixtureIdentity, formParts, makeRelease, publisherServer, syntheticContract, trustJson,
 } from './pages-release-fixture.js';
 
@@ -219,8 +219,11 @@ test('static policy requires its own publisher catalog listing and reads every p
   const out = await run(treeFor(), { copy, server });
   assert.equal(out.result.deployment?.id, 'dep-synthetic', JSON.stringify(out.result));
   assert.equal(out.reads.length, 4);
-  const omitted = publisherServer({ 'fixture-pub': { identity: PUB, layouts: [{ root_name: 'other', assets: 'public' }] } });
-  refused(await run(treeFor(), { server: omitted }), /release layout is not in its publisher's layout catalog/, 2);
+  const omittedLayouts = [{ root_name: 'other', assets: 'public' }];
+  const omitted = publisherServer({ 'fixture-pub': { identity: PUB, layouts: omittedLayouts } });
+  const omittedCopy = connectorCopy({ trust: trustJson({ 'fixture-pub': [PUB.key] }, { 'fixture-pub': catalogBytes('fixture-pub', omittedLayouts) }) });
+  copies.push(omittedCopy);
+  refused(await run(treeFor(), { copy: omittedCopy, server: omitted }), /release layout is not in its publisher's layout catalog/, 2);
   const unavailable = publisherServer({ 'fixture-pub': { identity: PUB } });
   const refusedOut = await run(treeFor(), { copy, server: unavailable });
   assert.equal(refusedOut.result.status, 'vendor_error');

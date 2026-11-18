@@ -866,6 +866,11 @@ async function publisherLayouts(ctx, field, trustReason) {
     // The signature first, over the exact bytes; only then is the catalog parsed.
     const keyId = await verifyLayoutCatalog(entry.keys, catalog.bytes, signature.bytes);
     if (!keyId) return { error: invalid(field, `publisher layout catalog is not signed by its publisher: ${label}`) };
+    // Independent trust pins the exact raw catalog, including whitespace. A
+    // valid signature alone cannot authorize a replayed, narrower catalog.
+    if (createHash('sha256').update(catalog.bytes).digest('hex') !== entry.catalog_sha256) {
+      return { error: invalid(field, `publisher layout catalog SHA-256 does not match trusted pin: ${label}`) };
+    }
     const parsed = parseLayoutCatalog(catalog.bytes, label);
     if (parsed.error) return { error: invalid(field, `publisher layout catalog is malformed: ${label}: ${parsed.error}`) };
     for (const layout of parsed.layouts) layouts.push({ publisher: label, ...layout });

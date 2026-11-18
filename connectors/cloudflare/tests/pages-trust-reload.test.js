@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   ALTERNATE_LAYOUT, SYNTHETIC_LAYOUT, blockNetwork, connectorCopy, deployProxy, deploymentCalls,
-  fixtureIdentity, makeRelease, publisherServer, trustJson,
+  catalogBytes, fixtureIdentity, makeRelease, publisherServer, sha, trustJson,
 } from './pages-release-fixture.js';
 
 const NETWORK = blockNetwork();
@@ -73,7 +73,7 @@ function functionsBuild(base, assets) {
 // unrelated static output on the two foreign routes, and two signed releases
 // (one by the first fixture key, one by the rotated key) on pages.deploy.
 async function harness() {
-  const copy = connectorCopy({ trust: trustJson({ 'fixture-pub': [PUB.key] }) });
+  const copy = connectorCopy({ trust: trustJson({ 'fixture-pub': [PUB.key] }, { 'fixture-pub': catalogBytes('fixture-pub', [SYNTHETIC_LAYOUT, ALTERNATE_LAYOUT]) }) });
   copies.push(copy);
   const trustPath = join(copy.dir, 'pages-trust.json');
   const mod = await copy.load();
@@ -134,6 +134,27 @@ async function allRefused(run, state, label) {
 const posix = process.platform !== 'win32';
 
 describe('Pages trust is read afresh on every deploy action', { concurrency: false }, () => {
+  test('changing only the catalog pin takes effect on the next call for all three routes', async () => {
+    const { trustPath, run } = await harness();
+    await allDeploy(run, 'initial pinned catalog');
+    const original = readFileSync(trustPath, 'utf8');
+    const changed = JSON.parse(original);
+    changed.publishers['fixture-pub'].catalog_sha256 = sha(catalogBytes('fixture-pub', [SYNTHETIC_LAYOUT]));
+    writeFileSync(trustPath, JSON.stringify(changed));
+    for (const action of ACTIONS) {
+      const out = await run(action);
+      assert.equal(out.result.status, 'invalid_arguments', action);
+      assert.equal(out.result.reason, 'publisher layout catalog SHA-256 does not match trusted pin: fixture-pub', action);
+      assert.equal(out.calls.length, 0, action);
+      assert.equal(out.fetched.length, 2, action);
+    }
+    delete changed.publishers['fixture-pub'].catalog_sha256;
+    writeFileSync(trustPath, JSON.stringify(changed));
+    await allRefused(run, 'malformed', 'removed mandatory pin');
+    writeFileSync(trustPath, original);
+    await allDeploy(run, 'restored independent pin');
+  });
+
   test('deleting pages-trust.json after a successful load refuses all three routes, and restoring it deploys again', async () => {
     const { trustPath, run } = await harness();
     await allDeploy(run, 'initial');
@@ -170,7 +191,7 @@ describe('Pages trust is read afresh on every deploy action', { concurrency: fal
     const { trustPath, run } = await harness();
     await allDeploy(run, 'initial');
     // The fixture publisher now trusts only the rotated key: the first key is revoked.
-    writeFileSync(trustPath, trustJson({ 'fixture-pub': [ROTATED.key] }));
+    writeFileSync(trustPath, trustJson({ 'fixture-pub': [ROTATED.key] }, { 'fixture-pub': catalogBytes('fixture-pub', [SYNTHETIC_LAYOUT, ALTERNATE_LAYOUT]) }));
     const signed = await run('deploy');
     assert.equal(signed.result.status, 'invalid_arguments', JSON.stringify(signed.result));
     assert.equal(signed.result.reason, 'release signature is not from a trusted Pages publisher');
@@ -188,7 +209,7 @@ describe('Pages trust is read afresh on every deploy action', { concurrency: fal
   test('a fresh valid replacement is honoured on the next call: the rotated key deploys, the old one does not', async () => {
     const { trustPath, run, rotatedInput } = await harness();
     await allDeploy(run, 'initial');
-    writeFileSync(trustPath, trustJson({ 'fixture-pub': [ROTATED.key] }));
+    writeFileSync(trustPath, trustJson({ 'fixture-pub': [ROTATED.key] }, { 'fixture-pub': catalogBytes('fixture-pub', [SYNTHETIC_LAYOUT, ALTERNATE_LAYOUT]) }));
     for (const action of ['deploy_static', 'deploy_with_functions']) {
       deployed(await run(action, { signer: ROTATED }), `rotated ${action}`);
     }
@@ -197,10 +218,10 @@ describe('Pages trust is read afresh on every deploy action', { concurrency: fal
     assert.equal(old.result.reason, 'release signature is not from a trusted Pages publisher');
     assert.equal(old.calls.length, 0);
     // Both keys, then back to the first key alone.
-    writeFileSync(trustPath, trustJson({ 'fixture-pub': [PUB.key, ROTATED.key] }));
+    writeFileSync(trustPath, trustJson({ 'fixture-pub': [PUB.key, ROTATED.key] }, { 'fixture-pub': catalogBytes('fixture-pub', [SYNTHETIC_LAYOUT, ALTERNATE_LAYOUT]) }));
     deployed(await run('deploy'), 'both keys: first signer');
     deployed(await run('deploy', { signer: ROTATED, input: rotatedInput }), 'both keys: rotated signer');
-    writeFileSync(trustPath, trustJson({ 'fixture-pub': [PUB.key] }));
+    writeFileSync(trustPath, trustJson({ 'fixture-pub': [PUB.key] }, { 'fixture-pub': catalogBytes('fixture-pub', [SYNTHETIC_LAYOUT, ALTERNATE_LAYOUT]) }));
     await allDeploy(run, 'first key again');
     const rotatedOnce = await run('deploy', { signer: PUB, input: rotatedInput });
     assert.equal(rotatedOnce.result.reason, 'release signature is not from a trusted Pages publisher');
@@ -210,7 +231,7 @@ describe('Pages trust is read afresh on every deploy action', { concurrency: fal
   test('an oversized pages-trust.json is refused unparsed, even when it is otherwise valid JSON', async () => {
     const { trustPath, run } = await harness();
     await allDeploy(run, 'initial');
-    const good = trustJson({ 'fixture-pub': [PUB.key] });
+    const good = trustJson({ 'fixture-pub': [PUB.key] }, { 'fixture-pub': catalogBytes('fixture-pub', [SYNTHETIC_LAYOUT, ALTERNATE_LAYOUT]) });
     // At the bound exactly, padded with JSON whitespace: still valid and read.
     writeFileSync(trustPath, good + ' '.repeat(TRUST_MAX_BYTES - Buffer.byteLength(good)));
     assert.equal(readFileSync(trustPath).length, TRUST_MAX_BYTES);
@@ -227,7 +248,7 @@ describe('Pages trust is read afresh on every deploy action', { concurrency: fal
     const { trustPath, run, base } = await harness();
     await allDeploy(run, 'initial');
     const elsewhere = join(base, 'linked-trust.json');
-    writeFileSync(elsewhere, trustJson({ 'fixture-pub': [PUB.key] }));
+    writeFileSync(elsewhere, trustJson({ 'fixture-pub': [PUB.key] }, { 'fixture-pub': catalogBytes('fixture-pub', [SYNTHETIC_LAYOUT, ALTERNATE_LAYOUT]) }));
     unlinkSync(trustPath);
     symlinkSync(elsewhere, trustPath);
     await allRefused(run, 'a symbolic link', 'link to a valid file');
@@ -241,19 +262,19 @@ describe('Pages trust is read afresh on every deploy action', { concurrency: fal
     await allDeploy(run, 'initial');
     unlinkSync(trustPath);
     mkdirSync(trustPath);
-    writeFileSync(join(trustPath, 'index.json'), trustJson({ 'fixture-pub': [PUB.key] }));
+    writeFileSync(join(trustPath, 'index.json'), trustJson({ 'fixture-pub': [PUB.key] }, { 'fixture-pub': catalogBytes('fixture-pub', [SYNTHETIC_LAYOUT, ALTERNATE_LAYOUT]) }));
     await allRefused(run, 'not a regular file', 'directory');
     rmSync(trustPath, { recursive: true, force: true });
     // A FIFO with no writer: opening it for a blocking read would hang.
     execFileSync('mkfifo', [trustPath]);
     await allRefused(run, 'not a regular file', 'FIFO');
     unlinkSync(trustPath);
-    writeFileSync(trustPath, trustJson({ 'fixture-pub': [PUB.key] }));
+    writeFileSync(trustPath, trustJson({ 'fixture-pub': [PUB.key] }, { 'fixture-pub': catalogBytes('fixture-pub', [SYNTHETIC_LAYOUT, ALTERNATE_LAYOUT]) }));
     await allDeploy(run, 'regular file again');
   });
 
   test('the first read of a fresh copy refuses an oversized or linked trust file too', { skip: !posix }, async () => {
-    const good = trustJson({ 'fixture-pub': [PUB.key] });
+    const good = trustJson({ 'fixture-pub': [PUB.key] }, { 'fixture-pub': catalogBytes('fixture-pub', [SYNTHETIC_LAYOUT, ALTERNATE_LAYOUT]) });
     const big = connectorCopy({ trust: good + ' '.repeat(TRUST_MAX_BYTES) });
     const linked = connectorCopy({ trust: null });
     copies.push(big, linked);
@@ -263,7 +284,7 @@ describe('Pages trust is read afresh on every deploy action', { concurrency: fal
     const dir = html(join(scratch(), 'plain', 'out'));
     for (const [copy, state] of [[big, 'too large'], [linked, 'a symbolic link']]) {
       const { modules } = await copy.load();
-      const server = publisherServer({ 'fixture-pub': { identity: PUB, layouts: [SYNTHETIC_LAYOUT] } });
+      const server = publisherServer({ 'fixture-pub': { identity: PUB, layouts: [SYNTHETIC_LAYOUT, ALTERNATE_LAYOUT] } });
       const calls = [];
       const out = await modules.pages.deploy_static(
         { account_id: ACCOUNT, project_name: PROJECT, dir },

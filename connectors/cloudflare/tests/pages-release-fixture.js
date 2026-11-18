@@ -62,11 +62,13 @@ export function catalogUrls(label) {
 }
 
 // publishers: { label: keys[] } for the default catalog URLs, or
-// { label: { keys, catalog, catalog_signature } } to set them.
-export function trustJson(publishers) {
+// { label: { keys, catalog, catalog_signature, catalog_sha256 } } to set them.
+// The default pin is computed from the declared default fixture catalog, never
+// from whatever a fake fetch happens to return. Custom catalogs need explicit pins.
+export function trustJson(publishers, catalogs = {}) {
   const out = { format: 1, purpose: 'cloudflare.pages.deploy', publishers: {} };
   for (const [label, value] of Object.entries(publishers)) {
-    out.publishers[label] = Array.isArray(value) ? { keys: value, ...catalogUrls(label) } : value;
+    out.publishers[label] = Array.isArray(value) ? { keys: value, ...catalogUrls(label), catalog_sha256: sha(catalogs[label] ?? catalogBytes(label)) } : value;
   }
   return `${JSON.stringify(out, null, 2)}\n`;
 }

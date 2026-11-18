@@ -641,9 +641,6 @@ async function pagesReleaseFixture(realScratch) {
     catalog: `https://${host}/pages/${PAGES_FIXTURE_PUBLISHER}/layouts.json`,
     catalog_signature: `https://${host}/pages/${PAGES_FIXTURE_PUBLISHER}/layouts.sig`,
   };
-  writeFileSync(join(dir, 'pages-trust.json'), `${JSON.stringify({
-    format: 1, purpose: 'cloudflare.pages.deploy', publishers: { [PAGES_FIXTURE_PUBLISHER]: { keys: [key], ...urls } },
-  })}\n`);
   const layout = { root_name: 'agreement-release', assets: 'public' };
   const contract = {
     format: 1,
@@ -672,6 +669,9 @@ async function pagesReleaseFixture(realScratch) {
   writeFileSync(join(root, 'release.contract.sig'), sign(null, Buffer.concat([PAGES_CONTRACT_DOMAIN, contractBytes]), privateKey));
   const catalog = Buffer.from(`${JSON.stringify({
     format: 1, purpose: 'cloudflare.pages.layouts', publisher: PAGES_FIXTURE_PUBLISHER, layouts: [layout],
+  })}\n`);
+  writeFileSync(join(dir, 'pages-trust.json'), `${JSON.stringify({
+    format: 1, purpose: 'cloudflare.pages.deploy', publishers: { [PAGES_FIXTURE_PUBLISHER]: { keys: [key], ...urls, catalog_sha256: createHash('sha256').update(catalog).digest('hex') } },
   })}\n`);
   const served = new Map([
     [urls.catalog, catalog],

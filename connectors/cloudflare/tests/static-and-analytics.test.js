@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { modules, walkPages } from '../index.js';
 import {
-  ALTERNATE_LAYOUT, CONNECTOR_SOURCE, SYNTHETIC_LAYOUT, blockNetwork, catalogUrls, connectorCopy, fixtureIdentity,
+  ALTERNATE_LAYOUT, CONNECTOR_SOURCE, SYNTHETIC_LAYOUT, blockNetwork, catalogUrls, connectorCopy, catalogBytes, fixtureIdentity,
   publisherServer, trustJson,
 } from './pages-release-fixture.js';
 
@@ -44,7 +44,7 @@ const JWT = 'static-upload-jwt';
 // is never modified and the process's own fetch is blocked.
 const NETWORK = blockNetwork();
 const PUB = fixtureIdentity('static-suite');
-const STATIC_COPY = connectorCopy({ trust: trustJson({ 'fixture-pub': [PUB.key] }) });
+const STATIC_COPY = connectorCopy({ trust: trustJson({ 'fixture-pub': [PUB.key] }, { 'fixture-pub': catalogBytes('fixture-pub', [SYNTHETIC_LAYOUT, ALTERNATE_LAYOUT]) }) });
 const { modules: copied } = await STATIC_COPY.load();
 after(() => {
   STATIC_COPY.cleanup();

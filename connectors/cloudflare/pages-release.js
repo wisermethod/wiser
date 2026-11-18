@@ -92,8 +92,8 @@ export function validPagesTrust(config, hosts) {
   const urls = new Set();
   for (const label of labels) {
     const entry = config.publishers[label];
-    if (!LABEL.test(label) || !closed(entry, ['keys', 'catalog', 'catalog_signature']) || !Array.isArray(entry.keys)
-      || entry.keys.length < 1 || entry.keys.length > MAX_KEYS) return false;
+    if (!LABEL.test(label) || !closed(entry, ['keys', 'catalog', 'catalog_signature', 'catalog_sha256']) || !Array.isArray(entry.keys)
+      || entry.keys.length < 1 || entry.keys.length > MAX_KEYS || !string(entry.catalog_sha256, SHA256_HEX)) return false;
     for (const url of [entry.catalog, entry.catalog_signature]) {
       if (!trustedCatalogUrl(url, hosts) || urls.has(url)) return false;
       urls.add(url);

@@ -10,7 +10,8 @@
         }
       ],
       "catalog": "https://releases.wisermemory.com/pages/wiser/layouts.json",
-      "catalog_signature": "https://releases.wisermemory.com/pages/wiser/layouts.sig"
+      "catalog_signature": "https://releases.wisermemory.com/pages/wiser/layouts.sig",
+      "catalog_sha256": "429a4e82f8d6d1300a1f64d9ea01de889ec06974c501092a6b2d34b5cfc9f6f6"
     }
   }
 }
