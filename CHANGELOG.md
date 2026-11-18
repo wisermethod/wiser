@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.17, November 17, 2026
+
+- The license now names First Strategy LLC, which operates Wiser Memory, as the holder of Wiser, where it named EffectiveSC. It is Wiser Plugins License 1.3; what you may and may not do is unchanged, and an organization asks for its license at wisermemory.com. A new domain plugin starts with Wiser Domain Plugin License 1.2, which names the same holder. (9b0fb1db)
+
 ## v2026.11.16, November 16, 2026
 
 - Asking for something Wiser names as a gap no longer gets a refusal where your app can make it itself. A logo or a name is made by the session, which says once that no Wiser skill covers it, and it becomes your brand's mark only when you say so. A result that can only be looked up or judged, such as a trademark search or a security opinion, is still never made up. Designer 0.9.13, Build Brand 0.6.1 and Publisher 0.1.1 follow the rule. (38bc7f4c, 17918767, b35b9a2d)
