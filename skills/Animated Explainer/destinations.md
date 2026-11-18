@@ -18,14 +18,14 @@ How a finished piece is packaged, rendered and handed over at each of the three 
 **The placement note** is written for the person who places the bundle, in the order they work, under five headings, each a few lines:
 
 - **Who places it**: the person or team the requester named, or else the requester.
-- **Where each file goes**: the snippet's place in the page, and the CSS and JS files' paths, with the exact tags that load them.
+- **Where each file goes**: the snippet's place in the page, and the CSS and JS files' paths, with the exact tags that load them; each named placement input the page must supply, its custom property and value or rule.
 - **What the site must allow**: the policy the bundle needs.
-- **Content added after load**: `window.AxLoop.scan()` for a loop piece, `window.AxOnce.scan()` for a once piece.
+- **Content added after load**: `window.AxLoop.scan()` for a loop piece, `window.AxOnce.scan()` for a once piece; for an own-script piece, its start procedure.
 - **Who publishes**: whoever publishes the page owns the publish gate; placement, publication and that gate remain owed after this handover.
 
 Each limit the approver accepted that the placer would meet, a browser not proved for instance, is one line under the heading it touches. Nothing is written into that site's tree and nothing is published, following this skill's declared site-placement gap.
 
-**Delivery record:** the files that ship, with a SHA-256 of each; the complete word/data inventory with source locations; the placement note; the renders; whether a supplied policy admits the bundle; the Audit's verdict and known limits the approver accepted; and placement, publication and the publisher's gate as owed.
+**Delivery record:** the files that ship, with a SHA-256 of each; the complete word/data inventory with source locations; the placement note; the renders; for a response, the input mapping (which input drives what), settle time, entering-view threshold where used, named scroll and pointer positions rendered, the stated budgets and measured byte and frame numbers under `build.md` `## Renders`, the script count and combined bytes for a page with several pieces, the physical device proved or owed, and the placement inputs the page must supply; whether a supplied policy admits the bundle; the Audit's verdict and known limits the approver accepted; and placement, publication and the publisher's gate as owed.
 
 ## A deck slide
 

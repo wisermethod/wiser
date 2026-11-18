@@ -1,19 +1,34 @@
 # Build
 
-This file is the one home of how a piece is built so that its finished picture shows whatever happens. `skills/Animated Explainer/SKILL.md` reads it at Steps 4 and 5. `## The contract` holds for every piece; the rest is how the two starters keep it. A starter is an engine, not a look: copy it, replace its picture and its words entirely, and keep its engine rules and its script as they are. The class names the engine reads (`ax-loop`, `ax-once`, `ax-stage`, `ax-wires`, `ax-fly`, `ax-btn`, and the rest the starter's header lists) are never renamed. A piece is named by its own class beside the root, as `ax-demo` is in the loop starter.
+This file is the one home of how a piece is built so that its finished picture shows whatever happens. `skills/Animated Explainer/SKILL.md` reads it at Steps 4 and 5. `## The contract` holds for every piece; the starter sections say how the two engines keep it. A starter is an engine, not a look: copy it, replace its picture and its words entirely, and keep its engine rules and its script as they are. The class names the engine reads (`ax-loop`, `ax-once`, `ax-stage`, `ax-wires`, `ax-fly`, `ax-btn`, and the rest the starter's header lists) are never renamed. A piece is named by its own class beside the root, as `ax-demo` is in the loop starter.
 
 ## The contract
 
 Every piece keeps these, whether it runs on a starter's engine or on its own script.
 
 - The base CSS is the finished picture. Every rule that hides, dims or moves anything sits inside one `@media screen and (prefers-reduced-motion: no-preference)` block, the piece's own hidden states included, after the engine rules. With that done, no script, reduced motion at load or switched on later, print, a reveal.js `?print-pdf` view, and an address carrying `?export` all show the finished picture.
-- The script only arms what that block animates. Falling back to the still, it cancels every running animation, because in Chrome a transition already running keeps going after its rule stops applying.
+- The script arms what that block animates. On a site, a response to scroll position, pointer position or entering view may also set `transform`, `opacity`, and custom properties feeding those or a paint-only property (`stroke-width`, `stroke-dashoffset`, `fill-opacity`, `stroke-opacity`) on each frame, never a layout property. Everything it changes starts at its finished value with no script. Falling back to the still from any state, it cancels every running animation, stops its frame loop and clears every property it wrote or writes the still's value, because in Chrome a transition already running keeps going after its rule stops applying.
 - The still matches the picture at the end of the motion, every connection drawn.
 - Every visible word is in the markup: the labels, the text description beside the `aria-hidden` picture, the control's names, any caption. The script writes no word, apart from a count's intermediate digits.
 - A loop on a page or a slide stops off-screen and on a hidden tab and resumes where it stopped, and draws its pause control where `## The accessibility floor` says one is drawn. On a slide, the piece plays only while its slide is current. In a video, the piece plays once, as `## Video` says.
-- It loads nothing from another origin, and its rules are scoped under its own class, so two pieces on one page never restyle each other.
+- It has no dependency and loads nothing from another origin, and its rules are scoped under its own class, so two pieces on one page never restyle each other.
+- On a site, a load timeline that plays once ends inside five seconds; anything that runs by itself longer is a loop and carries the floor's pause control.
 
-The engines keep every line of this, proved in Chromium. A piece on its own script proves each line on its renders.
+A response on a site also keeps these:
+
+- After any load timeline and the settle time, a scroll or pointer response's computed state, every style, matrix and box the script drives, is a function of the inputs alone: the same scroll and pointer positions give the same state. Scrolling back or the pointer leaving returns the exact earlier computed state. This compares computed state, not raster pixels.
+- It may ease toward its input. The Frame states one settle time of at most 1,000 ms; that long after the last input, the script has requested its last frame.
+- Scrolling is the browser's. Scroll, wheel, touch and key listeners are passive and never call `preventDefault`; the script never sets a scroll position, a snap or an overscroll rule. The piece's own stage may hold in view by CSS `position: sticky` while its own section scrolls past; nothing outside its footprint is pinned, and the section's height is content the page can read.
+- It reads and writes inside its own root. Its page reads are the scroll position, viewport size, its own root's rectangle and `document.fonts.ready`; measure geometry after fonts load. Lifecycle and input signals provide visibility, motion preference, print, export and pointer state. An offset or other value the page owns reaches the piece as a custom property the placement note names. Each entry point catches its own errors and falls back to the still; bind no window-wide error listener.
+- Entering view starts a once motion at the threshold the Frame states. It plays once, never replays, and its end value is the markup's own text. A count reads its target from its display text, in that text's format, never from an attribute.
+- The Frame states byte budgets for the script, CSS and markup, and a frame budget. Measure them on the renders and put the numbers in the delivery record, naming a physical device as proved or owed. One script per piece; a page with several pieces runs several, and the record gives their count and combined bytes.
+- The script finds its root by the piece's own unique class, never by `document.currentScript`, so it runs as a classic script and as a module. One instance of a piece per page.
+
+On a site, a piece holds no `h1`; the page owns its heading. Its CSS is scoped under its root class and styles only its own elements, restating no host typography, spacing or grid. What the page must supply, an offset, a stage size or where the piece sits, is a named placement input. Write CSS lengths and percentages to at most four decimal places, or as custom properties the browser resolves, so a site's CSS minifier leaves them as written.
+
+A parallax background, anything pinned outside the footprint, a page transition, a cursor trail, a form's behaviour and a picture painted on a canvas stay out.
+
+The engines keep every line that applies to them, proved in Chromium. A piece on its own script proves every applicable line on its renders.
 
 ## The picture
 
@@ -21,7 +36,7 @@ The picture is the inline SVG `skills/Illustrator/` drew to its `drawing.md` `##
 
 Engine markup is the root, frame, stage and layout wrappers, cover and pause control; the engine's classes and timing, anchor, line, flight and count attributes named here and in the starter's header; `pathLength="1"` and the line's dash; a line the engine measures, its default `d` computed by `wirePath` per `## Measuring and drawing`, in place of the drawn line between the same two objects; an HTML anchor overlay the engine measures from, where an SVG anchor would carry a transform; and the `aria-hidden` wrapper and text description `## The accessibility floor` requires. Any other change to finished geometry runs `skills/Illustrator/` again by name as a revision, naming the change, as `SKILL.md` Pitfalls says.
 
-Motion is transform and opacity, per Performance in `skills/Component Design/motion-design.md`. A drawn shape turns on by the class `on` the timeline gives it, and its moving rules sit in the motion block. Id prefixes follow `skills/Illustrator/drawing.md` `## The file`; where one component may sit twice on a page, add a suffix it takes as a prop. A once piece's drawing moves on the root's classes: hidden inside the motion block under `.ax-armed:not(.ax-go)`, entering under `.ax-go`.
+Starter motion is transform and opacity, per Performance in `skills/Component Design/motion-design.md`; a response uses The contract's motion model. On a starter, a drawn shape turns on by the class `on` the timeline gives it. Every moving rule sits in the motion block. Id prefixes follow `skills/Illustrator/drawing.md` `## The file`; where one component may sit twice on a page, add a suffix it takes as a prop. A once piece's drawing moves on the root's classes: hidden inside the motion block under `.ax-armed:not(.ax-go)`, entering under `.ax-go`.
 
 The engine's colours are custom properties set on the piece's class (the loop's `--ax-ground`, `--ax-ink`, `--ax-muted`, `--ax-box`, `--ax-line` and `--ax-focus`; the once's `--ax-ground`, `--ax-ink` and `--ax-muted`); the picture's own properties are the ones Illustrator set, named for their roles, and the engine's take their values from the same design sources. The starters' greys are placeholders and never ship. The loop's cover, which hides the stage at each wrap, is `--ax-ground`: set it to the picture's own backdrop colour, or the stage blinks to another at every cycle. On a site, keep the piece's properties apart from the site's palette names, so a palette change elsewhere cannot recolour the piece unseen. On a deck, set them from the deck's `:root` brand properties with `var()`, so a change to the deck's look reaches the slide, as `skills/Create Presentation/` makes every look change.
 
@@ -76,9 +91,11 @@ A line's default path in the markup is its finished shape, in its overlay's unit
 
 Every piece meets this floor in every destination. Each line is checkable on the renders or in the markup.
 
-- Without JavaScript, under reduced motion at load or switched on later, and in print or PDF, the finished picture shows. In a video, the still, rendered with no script, shows it.
+- Without JavaScript, under reduced motion at load or switched on later, on the piece's own script error, in print or PDF, and at `?export`, the finished picture shows. In a video, the still, rendered with no script, shows it.
 - On a page or a slide, a loop has a pause control (WCAG 2.2.2), stops off-screen and on a hidden tab, and resumes where it stopped. In a video, no control is drawn, since the player carries pause, and the piece plays once and holds. This line is the one home of when a control is drawn.
 - A once piece plays once and holds, hidden rather than shown at zero until it plays.
+- A response paints nothing off-screen or on a hidden tab. A scroll listener may wake it to check, and does no more.
+- A pointer response runs only where `(hover: hover) and (pointer: fine)` matches, and ignores touch. No content, word or action is reachable only through any response.
 - The picture is `aria-hidden`, with the text description beside it. A once piece's number and caption are the text. In a video, the text description travels with the segment, for the video's own description or transcript.
 - No word renders under 12px on a page from 320 to 1440 wide, under 16px on a slide in its own pixels, or, in a video, under 28 × (the frame's shorter side ÷ 1,080) pixels, 28px at 1920×1080, the smallest body text Amazon's Fire TV design guidelines allow on a 1080p screen (at least 14sp, about 28px; `developer.amazon.com/docs/fire-tv/design-and-user-experience-guidelines.html`, read 2026-10-25).
 - Every control meets criteria 4 and 5 of `skills/Component Design/SKILL.md`, and is reached and worked by keyboard.
@@ -94,6 +111,15 @@ For a page or a slide, Step 5 captures through `tools/Browser Control/`, at 1440
 - Under reduced motion, with that tool's `emulate set --reduced-motion reduce`, twice: set before the page loads, and switched on after it has started moving, when nothing may still be moving. The setting stays on the tab until `emulate reset`, which also resets the window's size, so set the width again after it.
 - A loop paused mid-motion. A once piece waiting and playing, where it loads below the fold.
 - A deck slide playing, and the deck exported through `tools/deck-export/`: its `pdf` opens the deck on `?print-pdf` and its `png` with the export query, so both show the finished picture.
+
+For a response, add the applicable captures and measurements to the page's renders:
+
+- At 0, 25, 50, 75 and 100 percent of its scroll travel, forward then reversed; name the positions and compare their computed states after settling.
+- With the pointer at centre and two opposite corners, then released; compare the returned computed state with the earlier one.
+- With reduced motion switched on at 50 percent travel and the pointer off centre; for a piece using only one input, switch during that response. The finished still shows with nothing moving.
+- Entering view at the stated threshold, then leaving and entering again, with no replay.
+- From mid-response to its own error, print and `?export`, each showing the finished still.
+- Bytes for script, CSS and markup, and frame measurements against the stated budgets. Count frames requested in 1,100 ms starting one settle time after the last input, after scroll and after pointer release where used: each count must be 0. Check that nothing paints off-screen or on a hidden tab, and name the physical-device proof or what is owed.
 
 For a video, the renders come from `tools/video-render/` at the caller's frame size and rate, one size only, all PNGs from its `frames`: at each beat, the first frame after the beat's time, which `frames` returns for the beat's own time with `--select after`, a beat at or past the last frame's time having no such frame, which `frames` refuses and the delivery record names; one mid-motion; the last frame, which is the hold; and the still, `frames` at time 0 on a copy of the project with its script tags removed. Is the last frame the still, pixel for pixel, both being PNGs from `frames`? Yes: the still matches the hold. No: back to `SKILL.md` Step 4. The segment, an MP4 its profile encodes, is what is handed over and never this comparison. Browser Control's widths, its reduced-motion captures, print and a deck's exports are the page's and the slide's, and a video has none of them.
 

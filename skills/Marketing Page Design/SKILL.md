@@ -3,7 +3,7 @@ name: Marketing Page Design
 type: skill
 category: design
 description: Design one marketing page for an existing site as responsive HTML with a narrative scroll arc, clear visual hierarchy, and one primary action
-version: 0.5.1
+version: 0.5.2
 memory:
   - design
 gaps:
@@ -16,7 +16,7 @@ gaps:
 
 Use to design a page whose job is persuasion: a landing page, a product or pricing page, a campaign, a launch page, or a waitlist page. The output is one complete, renderable HTML page with a narrative scroll arc and a single primary action.
 
-This skill designs a page for a site that already exists. Not for a press release, media pitch, statement, or newsroom page: the words are `skills/Content Author/`, and whether it is a story at all is a judgment no primitive in this root covers, so name that gap rather than deciding it inside a page. Do not design a pitch as a landing page. Not for app interfaces (dashboards, settings, data tables, detail views); those are interface design, not a persuasion page. Not for finished marketing copy: this skill generates realistic placeholder content to design against, not the words that ship. Not for producing images or illustrations: it references or leaves room for real assets rather than generating them. Not for e-commerce checkout flows, email templates, or scripted interactivity (scroll animation, form validation); it produces the HTML and CSS structure, and each of those is its own separate work. An animated explainer in one section of the page is `skills/Animated Explainer/`, handed that section and the page's tokens, and a still illustration or infographic for one section is `skills/Illustrator/`, handed the same.
+This skill designs a page for a site that already exists. Not for a press release, media pitch, statement, or newsroom page: the words are `skills/Content Author/`, and whether it is a story at all is a judgment no primitive in this root covers, so name that gap rather than deciding it inside a page. Do not design a pitch as a landing page. Not for app interfaces (dashboards, settings, data tables, detail views); those are interface design, not a persuasion page. Not for finished marketing copy: this skill generates realistic placeholder content to design against, not the words that ship. Not for producing images or illustrations: it references or leaves room for real assets rather than generating them. Not for e-commerce checkout flows, email templates, or scripted interactivity (page scroll effects, form validation); it produces the HTML and CSS structure, and each of those is its own separate work. A picture's scroll or pointer motion, or another animated explainer in one section of the page, is `skills/Animated Explainer/`, handed that section and the page's tokens, and a still illustration or infographic for one section is `skills/Illustrator/`, handed the same.
 
 ## Objective
 
