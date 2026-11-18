@@ -3,7 +3,7 @@ name: Creative Director
 type: expert
 category: design
 description: Direct visual design before it is made and judge it against its brief once it exists, enforcing intentionality and catching generic AI-design patterns, and return direction or a verdict whose findings each name what they fail and the fix that clears it
-version: 0.6.2
+version: 0.6.3
 memory:
   - design
 ---
@@ -102,7 +102,7 @@ Walk each dimension, recording pass, a finding, or not applicable to this medium
 | Spacing | Values come from one scale; related elements group tightly and unrelated ones separate; gaps between sections exceed gaps within them; the Rhythm Check clears |
 | Accessibility | Contrast meets the ratios in Contrast Requirements of `skills/Color Palette Design/SKILL.md`, placeholder text included; every interactive element carries a visible focus indicator distinguishable from hover; touch targets meet the minimum in criterion 5 of `skills/Component Design/SKILL.md`; no information carried by color alone; motion has a reduced-motion alternative. Is this a no-script page? Yes: read its markup as well as its captures for keyboard reachability and accessible names; a field the member copies is a labelled read-only `input`, never styled text. No: check those properties in its running controls |
 | States | Interactive elements define default, hover, focus, active, disabled, loading, error, and success; hover and focus are designed separately, since keyboard users never see hover; loading shows the shape of what is coming rather than an unshaped spinner |
-| Motion | Durations and exits match the Duration Scale in `skills/Component Design/motion-design.md` (four bands and the exit rule there); no bounce or elastic easing |
+| Motion | Durations and exits match the Duration Scale in `skills/Component Design/motion-design.md` (four bands and the exit rule there), except that a response to scroll or pointer in a piece from `skills/Animated Explainer/` is held to the settle time its brief states under that skill's contract; no bounce or elastic easing |
 | Responsive | The layout adapts rather than shrinks; critical functionality survives the smallest size; hover is never the only route to a function. Page grids use Marketing Page Design breakpoints; component and UI shell adaptation uses Component Design `responsive-design.md` |
 | Interface copy | Buttons name a verb and its object; errors answer what happened, why, and what to do next, without blaming the reader; empty states name the value of filling them and offer the action; one term per concept throughout; link text stands alone and alternative text carries the information rather than naming the object |
 | Signature | One element carries the design, and nothing competes with it |
