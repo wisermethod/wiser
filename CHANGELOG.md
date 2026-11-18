@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.18.3, November 18, 2026
+
+- Seven connector guides (xAI, ElevenLabs, HeyGen, Cloudflare, Vercel, YouTube, Bouncer) now say in one section which actions run only on your own computer, and why. Connector Author 0.5.5 calls a connector finished only once it is proved on the Wiser endpoint or its guide says why it cannot run there. (c13a86d3, aed7cf02)
+
 ## v2026.11.18.2, November 18, 2026
 
 - Animated Explainer 0.5.0 makes a picture on a site respond to scroll, pointer or entering view, alone or after a load timeline, with a finished still wherever motion cannot run. Its handover records the input mapping, rendered positions and measured budgets. Marketing Page Design 0.5.2 and Component Design 0.2.8 send a picture's scroll or pointer motion there, and Creative Director 0.6.3 judges a response's timing by the settle time its brief states; page effects, form behaviour and canvas pictures stay outside the route. (ee11aa26, 9645d6a4, 1f976d99, e02d9d15)
