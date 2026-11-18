@@ -4,7 +4,7 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
-## v2026.11.17, November 17, 2026
+## v2026.11.18, November 18, 2026
 
 - The license now names First Strategy LLC, which operates Wiser Memory, as the holder of Wiser, where it named EffectiveSC. It is Wiser Plugins License 1.3; what you may and may not do is unchanged, and an organization asks for its license at wisermemory.com. A new domain plugin starts with Wiser Domain Plugin License 1.2, which names the same holder. (9b0fb1db)
 
