@@ -16,9 +16,18 @@ Connect Account owns the human grant in its own turn. The connector has six modu
 1. Say “Connect HeyGen” and name `speech`, `voices`, `avatars`, `assets`, `videos` or `account`, and a workspace label if appropriate. The member may be asked to connect.
 2. The skill calls `start_connect`. Open its hosted link in your browser and enter your workspace API key only on that page. The gateway's provider holds it and injects `X-Api-Key`; the connector never receives it.
 3. The skill calls `connect_status` and inspects the actual ACTIVE bindings, permissions and wallet. Each module has its own record. A labelled connect binds all six modules under that label to one credential. Revoking that credential ends its bindings together. An unlabelled module may require its own Connect Account turn; do not infer bindings from another process or a scratch store.
-4. Use local stdio for speech output, clone uploads, narration asset uploads and MP4 downloads. Both output actions refuse without local output before provider access. A hosted service must withhold all four local actions, including `heygen.voices.add` and `heygen.assets.upload_audio`, before discovery/execution reaches filesystem or provider access. That separate service integration is not claimed by this connector. The nine other JSON actions, including both remote video-create alternatives, need no local file.
+4. Use local stdio for speech output, clone uploads, narration asset uploads and MP4 downloads. Both output actions refuse without local output before provider access. A hosted service must withhold all four, which the section Only on the local gateway below names, before discovery or execution reaches filesystem or provider access. The nine other JSON actions, including both remote video-create alternatives, need no local file.
 
 The gateway loads the connector on process start; use a fresh local gateway after installing it. `node gateway/server.js --check` from the plugin root checks loading without connecting. Attaching the local gateway is Set Up Connectors; it is not a vendor grant.
+
+## Only on the local gateway
+
+The Wiser endpoint cannot reach your computer, so these actions run only on the local gateway:
+
+- `heygen.speech.synthesize`: writes the audio file it makes on your computer.
+- `heygen.videos.download`: writes the MP4 it downloads on your computer.
+- `heygen.voices.add`: reads the recording to clone from your computer.
+- `heygen.assets.upload_audio`: reads the MP3 or WAV to upload from your computer.
 
 ## The route this connector does not use
 

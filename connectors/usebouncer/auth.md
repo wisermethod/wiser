@@ -16,6 +16,10 @@ Obtain an API key from Bouncer. In a file outside this plugin, set the variable 
 
 - `verify`: separate connect, write privilege.
 
+## Only on the local gateway
+
+This connector runs only on the local gateway. Its key is bound to a file on your own computer, which the local gateway reads and the Wiser endpoint cannot reach; the module never sees it.
+
 ## The route this connector does not use
 
 A hosted catalog grant is not a route for this service; it has no catalog toolkit. Bind the local file. Never paste a key into chat.

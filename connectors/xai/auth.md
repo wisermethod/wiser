@@ -19,7 +19,13 @@ The module's grant is `write` because speech synthesis creates billed output. Th
 2. Open that link in your own browser. Paste the ordinary API key into hosted connect's API-key field, without a header name or prefix.
 3. The skill calls `connect_status` on the returned connection. Only `ACTIVE` completes the connection.
 
-The gateway's provider holds the vendor key. The connector never reads it, unwraps it or stores it. Speech synthesis runs on the local gateway because the gateway writes the audio file; the hosted link still collects its key.
+The gateway's provider holds the vendor key. The connector never reads it, unwraps it or stores it. The hosted link collects the key for every action, speech synthesis included.
+
+## Only on the local gateway
+
+The Wiser endpoint cannot reach your computer, so this action runs only on the local gateway:
+
+- `xai.speech.synthesize`: writes the audio file it makes on your computer.
 
 ## The route this connector does not use
 

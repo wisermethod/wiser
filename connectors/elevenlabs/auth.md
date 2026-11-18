@@ -1,6 +1,6 @@
 # Connecting ElevenLabs
 
-Connect Account handles the human grant in its own turn. Speech and clone uploads need the local gateway, because they write or read a file on your own computer; the Wiser endpoint withholds both. Listing and deleting need no local file.
+Connect Account handles the human grant in its own turn. Speech and clone uploads run only on the local gateway, as the section of that name below says. Listing and deleting need no local file.
 
 ## On ElevenLabs, first
 
@@ -31,7 +31,14 @@ Clone upload accepts one readable regular MP3 from an absolute physical path, 1 
 
 File plus fixed boundary, headers and fields is below 3,002,000 bytes; base64 is at most 4,002,668 bytes; for a connected-account id of up to 1,024 characters the outer proxy wrapper adds less than 2,000 bytes, below 4,100,000 bytes sent. Do not split, truncate or automatically retry an upload. `requires_verification:true` is a vendor requirement, not readiness. The calling workflow owns the single consent ask; gateway confirmation is separate.
 
-Speech uses the gateway's generated output files, up to 16,777,216 decoded bytes, and cannot run without local stdio file output. That refusal does not cover an upload: a gateway that serves other people withholds both upload and speech, as the Wiser endpoint does.
+Speech uses the gateway's generated output files, up to 16,777,216 decoded bytes, and cannot run without local stdio file output. That refusal does not cover an upload: a gateway that serves other people withholds both upload and speech.
+
+## Only on the local gateway
+
+The Wiser endpoint cannot reach your computer, so these actions run only on the local gateway:
+
+- `elevenlabs.speech.synthesize`: writes the MP3 it makes on your computer.
+- `elevenlabs.voices.add`: reads the recording to clone from your computer.
 
 ## The route this connector does not use
 
