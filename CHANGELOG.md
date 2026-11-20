@@ -4,11 +4,16 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
-## v2026.11.20, November 20, 2026
+## v2026.11.20.2, November 20, 2026
 
 - Setting up Wiser now works in Claude Cowork with only the Wiser connector added and no plugin. Onboard Root 0.50.8 gets your starter files through the connector when Claude refuses the download, where before it left your folder empty, and Set Up Wiser 0.4.6 gives the project steps in the chat without a page it cannot open there. (a2f2d215, edf9c9ff, bf2b05a2)
 - Where your starter files cannot be fetched at all, Wiser says so, tells you what to try, and stops. It never writes them from memory. (bf2b05a2)
 - The Install steps for Claude Cowork start with the Wiser connector, added from one button on your Wiser account's Install page or through Claude's own menus, and add the plugin only for what your own computer does. The README, `gateway/SETUP.md` and Set Up Connectors 0.5.3 say so, and Set Up Wiser sends you to Wiser's page among Claude's connectors to sign in again. (6ccb8cbd, 54527222, a62d86ec, eca5f7cb, a2f2d215)
+
+## v2026.11.20, November 20, 2026
+
+- The Cloudflare connector installs Wiser CRM's lead intake beside the CRM from one signed release. `workers.deploy_worker_release` takes the app to install: the public intake Worker deploys with its own database and an email notice pinned to the address you give, and the CRM is bound to that same database. Before a migration or a deploy writes anything, the connector reads the database's own migration history and refuses one that belongs to the other app. Releases in the earlier format install as before. (8c92e048, ad7470bc, 654d7011, dda1b57e, fa77c062)
+- Three new Cloudflare actions read, turn on and remove Email Sending for a domain. Turning it on asks first and lists the five DNS records it adds; it changes none of the domain's existing mail records. The two that write need the Email Sending: Edit permission on your token, added on Cloudflare's token form. (8c92e048, ad7470bc)
 
 ## v2026.11.18.4, November 18, 2026
 

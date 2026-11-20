@@ -191,6 +191,7 @@ const PATTERN_OK = {
   '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$': '01234567-89ab-cdef-0123-456789abcdef',
   '^[A-Za-z_][A-Za-z0-9_]{0,63}$': 'DB',
   '^\\s*[Ss][Ee][Ll][Ee][Cc][Tt][^A-Za-z0-9_;][^;]*(?:;\\s*)?$': 'SELECT 1',
+  '^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$': 'example.com',
   // cloudflare zone settings, ruleset path ids, and redirect list names.
   '^[a-z0-9_]{1,64}$': 'ssl',
   '^[A-Za-z0-9_-]{1,64}$': 'rule_1',

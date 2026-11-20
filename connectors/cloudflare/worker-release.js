@@ -3,6 +3,10 @@ import { extname } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { verifiedKeyId } from './signature.js';
 
+const CRM = 'wiser-crm';
+const INTAKE = 'wiser-crm-intake';
+const MIGRATION_NAME = /^\d+_[A-Za-z0-9_-]+\.sql$/;
+
 const APP = /^[a-z0-9](?:[a-z0-9-]{0,40}[a-z0-9])?$/;
 const VERSION = /^(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})$/;
 const HASH = /^[0-9a-f]{64}$/;
@@ -84,67 +88,150 @@ function assetsConfig(config) {
     && ['none', '404-page', 'single-page-application'].includes(config.not_found_handling)
     && config.run_worker_first === true;
 }
-function checkedManifest(manifest, input) {
-  if (!orderedShape(manifest, ['format', 'app', 'version', 'created', 'source', 'checks', 'worker', 'assets', 'migrations']) || manifest.format !== 2) return { error: before('release manifest malformed') };
-  if (manifest.app !== input.app || manifest.version !== input.version) return { error: before('release names another version') };
+function checkedHeader(manifest, input, fields) {
+  if (!orderedShape(manifest, ['format', 'app', 'version', 'created', 'source', 'checks', ...fields])) return before('release manifest malformed');
+  if (manifest.app !== input.app || manifest.version !== input.version) return before('release names another version');
   if (!string(manifest.app, APP) || !string(manifest.version, VERSION)
     || !string(manifest.created, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/) || !Number.isFinite(Date.parse(manifest.created))
-    || new Date(manifest.created).toISOString().slice(0, 19) !== manifest.created.slice(0, 19)) return { error: before('release manifest malformed') };
+    || new Date(manifest.created).toISOString().slice(0, 19) !== manifest.created.slice(0, 19)) return before('release manifest malformed');
   const s = manifest.source;
   if (!orderedShape(s, ['repository', 'commit', 'upstream_commit', 'f1']) || s.repository !== 'wisermethod/wiser-crm'
     || !string(s.commit, COMMIT) || !string(s.upstream_commit, COMMIT)
     || !orderedShape(s.f1, ['count', 'limit']) || !Number.isSafeInteger(s.f1.count) || s.f1.count < 0
-    || !Number.isSafeInteger(s.f1.limit) || s.f1.limit < 0 || s.f1.count > s.f1.limit) return { error: before('release source malformed') };
+    || !Number.isSafeInteger(s.f1.limit) || s.f1.limit < 0 || s.f1.count > s.f1.limit) return before('release source malformed');
   if (!orderedShape(manifest.checks, ['lockfile', 'install_log', 'bundle_inputs'])
-    || !Object.values(manifest.checks).every((value) => value === 'PASS')) return { error: before('release checks malformed') };
+    || !Object.values(manifest.checks).every((value) => value === 'PASS')) return before('release checks malformed');
+}
+
+function workerFields(worker, keys) {
+  return orderedShape(worker, keys) && safePath(worker.main_module, false) && date(worker.compatibility_date)
+    && Array.isArray(worker.compatibility_flags) && worker.compatibility_flags.length <= 100
+    && worker.compatibility_flags.every((flag) => string(flag, /^[a-z][a-z0-9_]{0,127}$/))
+    && new Set(worker.compatibility_flags).size === worker.compatibility_flags.length
+    && Array.isArray(worker.modules) && worker.modules.length > 0 && worker.modules.length <= 50;
+}
+
+function checkedManifest2(manifest, input) {
+  const error = checkedHeader(manifest, input, ['worker', 'assets', 'migrations']);
+  if (error) return { error };
   const w = manifest.worker;
-  if (!orderedShape(w, ['main_module', 'compatibility_date', 'compatibility_flags', 'd1_binding', 'assets_binding', 'vars_required', 'modules'])
-    || !safePath(w.main_module, false) || !date(w.compatibility_date)
-    || !Array.isArray(w.compatibility_flags) || w.compatibility_flags.length > 100
-    || !w.compatibility_flags.every((flag) => string(flag, /^[a-z][a-z0-9_]{0,127}$/))
-    || new Set(w.compatibility_flags).size !== w.compatibility_flags.length
+  if (!workerFields(w, ['main_module', 'compatibility_date', 'compatibility_flags', 'd1_binding', 'assets_binding', 'vars_required', 'modules'])
     || !string(w.d1_binding, BINDING) || !string(w.assets_binding, BINDING) || w.d1_binding === w.assets_binding
     || !Array.isArray(w.vars_required) || !w.vars_required.every(plainName)
     || new Set(w.vars_required).size !== w.vars_required.length
-    || w.vars_required.includes(w.d1_binding) || w.vars_required.includes(w.assets_binding)
-    || !Array.isArray(w.modules) || !w.modules.length || w.modules.length > 50) return { error: before('release worker malformed') };
+    || w.vars_required.includes(w.d1_binding) || w.vars_required.includes(w.assets_binding)) return { error: before('release worker malformed') };
   const a = manifest.assets;
   if (!orderedShape(a, ['config', 'files']) || !assetsConfig(a.config) || !Array.isArray(a.files) || a.files.length > 20000) return { error: before('release assets malformed') };
   const m = manifest.migrations;
   if (!orderedShape(m, ['table', 'files']) || !string(m.table, /^[A-Za-z_][A-Za-z0-9_]*$/)
     || !Array.isArray(m.files)) return { error: before('release migrations malformed') };
-  const modules = new Set();
-  const paths = new Set();
-  const migrations = new Set();
+  return checkedFiles([manifest], false);
+}
+
+function compareMigrationNames(left, right) {
+  const a = BigInt(left.split('_', 1)[0]), b = BigInt(right.split('_', 1)[0]);
+  return a < b ? -1 : a > b ? 1 : left < right ? -1 : left > right ? 1 : 0;
+}
+
+function checkedFiles(entries, ordered) {
   const files = new Map();
   let total = 0;
-  for (const [items, kind] of [[w.modules, 'module'], [a.files, 'asset'], [m.files, 'migration']]) {
-    for (const file of items) {
-      const keys = kind === 'module' ? ['name', 'type', 'sha256', 'size']
-        : kind === 'asset' ? ['path', 'sha256', 'size', 'content_type'] : ['name', 'sha256', 'size'];
-      if (!orderedShape(file, keys) || !string(file.sha256, HASH) || !Number.isSafeInteger(file.size)
-        || file.size < 0 || file.size > MAX_FILE_BYTES) return { error: before(`release ${kind} malformed`) };
-      if (kind === 'module') {
-        if (!safePath(file.name, false) || file.name === 'metadata' || modules.has(file.name)
-          || !Object.hasOwn(MODULE_TYPES, extname(file.name)) || MODULE_TYPES[extname(file.name)] !== file.type) return { error: before('release module malformed') };
-        modules.add(file.name);
-      } else if (kind === 'asset') {
-        if (!safePath(file.path, true) || paths.has(file.path) || !mime(file.content_type)) return { error: before('release asset malformed') };
-        paths.add(file.path);
-      } else {
-        if (!safePath(file.name, false) || !/^\d+_[A-Za-z0-9_-]+\.sql$/.test(file.name)
-          || migrations.has(file.name)) return { error: before('release migration malformed') };
-        migrations.add(file.name);
+  for (const { worker, assets, migrations } of entries) {
+    for (const [items, kind] of [[worker.modules, 'module'], [assets?.files ?? [], 'asset'], [migrations.files, 'migration']]) {
+      const names = new Set();
+      let previous;
+      for (const file of items) {
+        const keys = kind === 'module' ? ['name', 'type', 'sha256', 'size']
+          : kind === 'asset' ? ['path', 'sha256', 'size', 'content_type'] : ['name', 'sha256', 'size'];
+        if (!orderedShape(file, keys) || !string(file.sha256, HASH) || !Number.isSafeInteger(file.size)
+          || file.size < 0 || file.size > MAX_FILE_BYTES) return { error: before(`release ${kind} malformed`) };
+        const name = kind === 'asset' ? file.path : file.name;
+        if (!safePath(name, kind === 'asset') || names.has(name)) return { error: before(`release ${kind} malformed`) };
+        if (kind === 'module' && (name === 'metadata' || !Object.hasOwn(MODULE_TYPES, extname(name))
+          || MODULE_TYPES[extname(name)] !== file.type)) return { error: before('release module malformed') };
+        if (kind === 'asset' && !mime(file.content_type)) return { error: before('release asset malformed') };
+        if (kind === 'migration' && !MIGRATION_NAME.test(name)) return { error: before('release migration malformed') };
+        if (ordered && previous !== undefined && (kind === 'migration' ? compareMigrationNames(previous, name) >= 0 : previous >= name)) {
+          return { error: before(`release ${kind} files out of order`) };
+        }
+        previous = name;
+        names.add(name);
+        total += file.size;
+        if (total > MAX_TOTAL_BYTES) return { error: before('release exceeds 64 MiB total') };
+        if (files.has(file.sha256) && files.get(file.sha256).size !== file.size) return { error: before('release hash has inconsistent sizes') };
+        files.set(file.sha256, file);
       }
-      total += file.size;
-      if (total > MAX_TOTAL_BYTES) return { error: before('release exceeds 64 MiB total') };
-      if (files.has(file.sha256) && files.get(file.sha256).size !== file.size) return { error: before('release hash has inconsistent sizes') };
-      files.set(file.sha256, file);
+      if (kind === 'module' && !names.has(worker.main_module)) return { error: before('release main module missing') };
     }
   }
-  if (!modules.has(w.main_module)) return { error: before('release main module missing') };
   return { files: [...files.values()] };
 }
+
+// Wiser CRM release/FORMAT.md, “Format 3”. The constants are the closed
+// admission contract. The installer reads the selected entry's declarations.
+const RELEASE_APPS = {
+  [CRM]: {
+    d1: [{ name: 'DB', database: 'crm' }, { name: 'INTAKE_DB', database: 'intake' }],
+    mail: [],
+    vars: { required: ['ACCESS_TEAM_DOMAIN', 'ACCESS_AUD', 'AGENT_CLIENT_ID', 'WISER_INSTANCE', 'WISER_READ_ONLY'], optional: [] },
+    baseline: '0001_baseline.sql',
+  },
+  [INTAKE]: {
+    d1: [{ name: 'INTAKE_DB', database: 'intake' }],
+    mail: [{ name: 'NOTICE', destination_var: 'NOTICE_TO', sender_var: 'NOTICE_FROM' }],
+    vars: { required: ['INTAKE_ORIGIN', 'INTAKE_RETURN_URL', 'NOTICE_TO', 'NOTICE_FROM'],
+      optional: ['INTAKE_MAX_PER_ADDRESS_PER_DAY', 'INTAKE_MAX_PER_HOUR', 'CRM_URL'] },
+    baseline: '0001_intake.sql',
+  },
+};
+const sameList = (actual, expected) => Array.isArray(actual) && actual.length === expected.length
+  && expected.every((value, index) => actual[index] === value);
+const sameRecords = (actual, expected, keys) => Array.isArray(actual) && actual.length === expected.length
+  && expected.every((value, index) => orderedShape(actual[index], keys) && keys.every((key) => actual[index][key] === value[key]));
+
+function checkedApp3(app, entry) {
+  const intake = app === INTAKE;
+  if (!orderedShape(entry, ['worker', 'assets', 'bindings', 'vars', 'migrations'])) return before(`release ${app} entry malformed`);
+  const { worker, assets, bindings, vars, migrations } = entry;
+  const workerKeys = ['main_module', 'compatibility_date', 'compatibility_flags', 'modules'];
+  if (intake) workerKeys.push('bundle_inputs');
+  if (!workerFields(worker, workerKeys)) return before(`release ${app} worker malformed`);
+  if (intake) {
+    if (assets !== null) return before('release intake must have no assets');
+    if (worker.modules.length !== 1 || worker.modules[0]?.type !== MODULE_TYPES['.js']) return before('release intake must have one ECMAScript module');
+    const inputs = worker.bundle_inputs;
+    if (!Array.isArray(inputs) || !inputs.includes('intake/worker.ts')
+      || !inputs.every((name, index) => string(name, /^intake\/[a-z][a-z0-9-]*\.ts$/) && (index === 0 || inputs[index - 1] < name))) {
+      return before('release intake bundle inputs malformed');
+    }
+  } else if (!orderedShape(assets, ['binding', 'config', 'files']) || assets.binding !== 'ASSETS'
+    || !assetsConfig(assets.config) || !Array.isArray(assets.files) || !assets.files.length || assets.files.length > 20000) {
+    return before('release CRM assets malformed');
+  }
+  const spec = RELEASE_APPS[app];
+  if (!orderedShape(bindings, ['d1', 'mail']) || !sameRecords(bindings.d1, spec.d1, ['name', 'database'])) return before(`release ${app} D1 bindings malformed`);
+  if (!sameRecords(bindings.mail, spec.mail, ['name', 'destination_var', 'sender_var'])) return before(`release ${app} mail binding malformed`);
+  if (!orderedShape(vars, ['required', 'optional']) || !sameList(vars.required, spec.vars.required)
+    || !sameList(vars.optional, spec.vars.optional)) return before(`release ${app} variable declarations malformed`);
+  if (!orderedShape(migrations, ['database', 'table', 'files']) || migrations.database !== spec.d1[0].database
+    || migrations.table !== 'd1_migrations' || !Array.isArray(migrations.files) || migrations.files[0]?.name !== spec.baseline) {
+    return before(`release ${app} migrations malformed`);
+  }
+}
+
+function checkedManifest3(manifest, input, raw) {
+  if (!Buffer.from(raw).equals(Buffer.from(JSON.stringify(manifest, null, 2) + '\n'))) return { error: before('release manifest is not canonical JSON') };
+  if (!orderedShape(manifest.apps, [CRM, INTAKE])) return { error: before('release apps malformed') };
+  if (!Object.hasOwn(manifest.apps, input.app)) return { error: before('release does not carry selected app') };
+  const headerError = checkedHeader(manifest, { ...input, app: CRM }, ['apps']);
+  if (headerError) return { error: headerError };
+  for (const [app, entry] of Object.entries(manifest.apps)) {
+    const error = checkedApp3(app, entry);
+    if (error) return { error };
+  }
+  return checkedFiles(Object.values(manifest.apps), true);
+}
+
 function varsShape(vars) {
   return object(vars) && [Object.prototype, null].includes(Object.getPrototypeOf(vars))
     && Object.entries(vars).every(([name, value]) => plainName(name) && typeof value === 'string' && [...value].length <= 512);
@@ -155,9 +242,11 @@ async function loadManifest(input, ctx) {
   if (loaded.error) return { error: loaded.error };
   const config = loaded.config;
   if (!Object.hasOwn(config.apps, input.app)) return { error: before('release app is not listed') };
+  const publisher = input.app === INTAKE ? CRM : input.app;
+  if (!Object.hasOwn(config.apps, publisher)) return { error: before('release publisher is not listed') };
   const fetched = [];
   const calls = [];
-  const prefix = `${input.app}/${input.version}/`;
+  const prefix = `${publisher}/${input.version}/`;
   async function fetchFile(path, maxBytes, hash) {
     fetched.push(path);
     try { return await ctx.fetchRelease(config.base + path, { maxBytes }); }
@@ -174,15 +263,48 @@ async function loadManifest(input, ctx) {
   if (raw.error) return { error: raw.error };
   const sig = await fetchFile(prefix + 'manifest.sig', 64);
   if (sig.error) return { error: sig.error };
-  // Only this app's keys, over the raw manifest bytes with no domain prefix.
-  const keyId = await verifiedKeyId(config.apps[input.app].keys, sig.bytes, raw.bytes, null);
+  // Wiser CRM release/FORMAT.md, “Files and signature” and “Format 3”.
+  const keys = config.apps[input.app].keys.filter((key) => config.apps[publisher].keys
+    .some((pin) => pin.id === key.id && pin.ed25519 === key.ed25519));
+  const keyId = await verifiedKeyId(keys, sig.bytes, raw.bytes, null);
   if (!keyId) return { error: before('release signature invalid', { fetched, calls }) };
   let manifest;
   try { manifest = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(raw.bytes)); }
   catch { return { error: before('release manifest malformed', { fetched, calls }) }; }
-  const checked = checkedManifest(manifest, input);
+  let checked;
+  if (manifest?.format === 2) checked = checkedManifest2(manifest, input);
+  else if (manifest?.format === 3) checked = checkedManifest3(manifest, input, raw.bytes);
+  else checked = { error: before('unknown release format') };
   if (checked.error) return { error: { ...checked.error, fetched, calls } };
-  return { fetched, calls, prefix, fetchFile, raw, keyId, manifest, checked };
+  const entry = manifest.format === 3 ? manifest.apps[input.app] : manifest;
+  return { fetched, calls, prefix, fetchFile, raw, keyId, manifest, entry, checked };
+}
+
+async function fetchCheckedFiles(loaded, records = loaded.checked.files) {
+  const { fetchFile, prefix, fetched, calls } = loaded;
+  const files = new Map();
+  for (const file of records) {
+    if (files.has(file.sha256)) continue;
+    // fetchRelease's minimum budget is one byte, including for an empty file.
+    const reply = await fetchFile(prefix + `files/${file.sha256}`, Math.max(1, file.size), file.sha256);
+    if (reply.error) return { error: reply.error };
+    const bytes = Buffer.from(reply.bytes);
+    if (bytes.length !== file.size || sha256(bytes) !== file.sha256) {
+      return { error: before(`release file mismatch: ${file.sha256}`, { fetched, calls }) };
+    }
+    files.set(file.sha256, bytes);
+  }
+  if (loaded.manifest.format === 3) {
+    // Wiser CRM release/FORMAT.md, “Format 3” (intake bundle inputs).
+    const intake = loaded.manifest.apps[INTAKE].worker;
+    let source;
+    try { source = new TextDecoder('utf-8', { fatal: true }).decode(files.get(intake.modules[0].sha256)); }
+    catch { return { error: before('release intake bundle is not UTF-8', { fetched, calls }) }; }
+    const sections = [...source.matchAll(/^\/\/ ([^\r\n]+\.[A-Za-z0-9]+)\r?$/gm)]
+      .map(([, name]) => `intake/${name}`).sort();
+    if (!sameList(sections, intake.bundle_inputs)) return { error: before('release intake bundle source sections do not match signed inputs', { fetched, calls }) };
+  }
+  return { files };
 }
 
 function endpoint(input, tail = '') {
@@ -231,15 +353,15 @@ function bindings(value = []) {
   }
   return out;
 }
-async function getWorker(input, ctx) {
+async function getWorker(input, ctx, calls, { verifyBindings = false, servingOnly = false } = {}) {
   const req = { endpoint: endpoint(input, '/deployments'), method: 'GET' };
-  const reply = await call(ctx, req);
+  const reply = await call(ctx, req, calls);
   if (reply.error) return reply.error.http_status === 404 ? { exists: false } : reply.error;
   const deployments = reply.result?.deployments;
   if (!Array.isArray(deployments)) return vendor(req);
   if (!deployments.length) {
     const settingsReq = { endpoint: endpoint(input, '/settings'), method: 'GET' };
-    const settings = await call(ctx, settingsReq);
+    const settings = await call(ctx, settingsReq, calls);
     if (settings.error) return settings.error.http_status === 404 ? { exists: false } : settings.error;
     const names = bindings(settings.result?.bindings);
     return names ? { exists: true, version_id: null, bindings: names } : vendor(settingsReq);
@@ -248,12 +370,15 @@ async function getWorker(input, ctx) {
   if (!Array.isArray(active) || !active.length || active.length > 100) return vendor(req);
   const versions = [];
   for (const version of active) {
+    if (servingOnly && version?.percentage === 0) continue;
     if (!string(version.version_id, UUID) || !Number.isFinite(version.percentage)
       || version.percentage < 0 || version.percentage > 100) return vendor(req);
     const versionReq = { endpoint: endpoint(input, `/versions/${version.version_id}`), method: 'GET' };
-    const detail = await call(ctx, versionReq);
-    if (detail.error) return detail.error.http_status === 404 ? { exists: false } : detail.error;
-    const names = bindings(detail.result?.resources?.bindings);
+    const detail = await call(ctx, versionReq, calls);
+    if (detail.error) return detail.error.http_status === 404 && !verifyBindings ? { exists: false } : detail.error;
+    const resources = detail.result?.resources?.bindings;
+    if (verifyBindings && !Array.isArray(resources)) return vendor(versionReq);
+    const names = bindings(resources);
     if (!names) return vendor(versionReq);
     versions.push({ version_id: version.version_id, percentage: version.percentage, bindings: names });
   }
@@ -396,24 +521,25 @@ async function rollback(input, ctx) {
 }
 
 // Neither an exception, a SQL diagnostic nor a returned row is an answer.
-async function d1Call(ctx, req) {
-  try { return await call(ctx, req); }
+async function d1Call(ctx, req, calls) {
+  try { return await call(ctx, req, calls); }
   catch { return { error: vendor(req) }; }
 }
-async function d1Query(input, ctx, sql, id = input.database_id) {
+async function d1Query(input, ctx, sql, id = input.database_id, calls) {
   const req = { endpoint: d1Path(input, id) + '/query', method: 'POST', body: { sql } };
-  const reply = await d1Call(ctx, req);
+  const reply = await d1Call(ctx, req, calls);
   if (reply.error) return reply;
   if (!Array.isArray(reply.result) || !reply.result.length) return { error: vendor(req) };
   const rows = reply.result.flat();
+  if (!rows.length) return { error: vendor(req) };
   for (let index = 0; index < rows.length; index++) {
     if (rows[index]?.success === false) return { error: { ...vendor(req), reason: 'statement failed', statement_index: index } };
     if (!object(rows[index]) || rows[index].success !== true) return { error: vendor(req) };
   }
   return { rows };
 }
-async function d1Select(input, ctx, sql, id = input.database_id) {
-  const reply = await d1Query(input, ctx, sql, id);
+async function d1Select(input, ctx, sql, id = input.database_id, calls) {
+  const reply = await d1Query(input, ctx, sql, id, calls);
   if (reply.error) return reply;
   if (reply.rows.length !== 1 || !Array.isArray(reply.rows[0].results)
     || !reply.rows[0].results.every(object)) {
@@ -422,45 +548,99 @@ async function d1Select(input, ctx, sql, id = input.database_id) {
   return { rows: reply.rows[0].results };
 }
 
+async function readMigrationNames(input, ctx, table, id = input.database_id, calls) {
+  const history = await d1Select(input, ctx, `SELECT name FROM ${table} ORDER BY id`, id, calls);
+  if (history.error) return history;
+  if (history.rows.some(({ name }) => typeof name !== 'string')) {
+    return { error: vendor({ endpoint: d1Path(input, id) + '/query', method: 'POST' }) };
+  }
+  return { names: new Set(history.rows.map(({ name }) => name)) };
+}
+
+async function inspectMigrationHistory(input, ctx, table, id = input.database_id, calls) {
+  // A failed query or a view of that name cannot prove the table is absent.
+  // Match SQLite's case-insensitive identifier lookup.
+  const sql = `SELECT name, type FROM sqlite_master WHERE name = ${sqlString(table)} COLLATE NOCASE AND type IN ('table', 'view')`;
+  const found = await d1Select(input, ctx, sql, id, calls);
+  if (found.error) return found;
+  if (!found.rows.length) return { exists: false, names: new Set() };
+  const [row] = found.rows;
+  if (found.rows.length !== 1 || row.type !== 'table' || typeof row.name !== 'string'
+    || row.name.toLowerCase() !== table.toLowerCase()) {
+    return { error: vendor({ endpoint: d1Path(input, id) + '/query', method: 'POST' }) };
+  }
+  const history = await readMigrationNames(input, ctx, table, id, calls);
+  return { ...history, exists: true };
+}
+
+function foreignMigrationReason(manifest, app, names) {
+  const other = app === CRM ? INTAKE : CRM;
+  if (manifest.apps[other].migrations.files.some(({ name }) => names.has(name))) {
+    return `this database holds ${other === CRM ? "the CRM's" : "intake's"} migrations`;
+  }
+}
+
 async function loadMigrations(input, ctx, maxBytes) {
   const loaded = await loadManifest(input, ctx);
   if (loaded.error) return loaded;
-  const { manifest, prefix, fetchFile, fetched, calls } = loaded;
+  const { manifest, entry } = loaded;
+  const selection = entry.migrations;
+  const verified = await fetchCheckedFiles(loaded, manifest.format === 2 ? selection.files : undefined);
+  if (verified.error) return { error: verified.error };
   const files = [];
-  const content = new Map();
-  for (const file of manifest.migrations.files) {
-    if (!content.has(file.sha256)) {
-      const reply = await fetchFile(prefix + `files/${file.sha256}`, Math.max(1, file.size), file.sha256);
-      if (reply.error) return { error: reply.error };
-      const bytes = Buffer.from(reply.bytes);
-      if (bytes.length !== file.size || sha256(bytes) !== file.sha256) {
-        return { error: before(`release file mismatch: ${file.sha256}`, { fetched, calls }) };
-      }
-      let text;
-      try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes); }
+  const decoded = new Map();
+  for (const file of selection.files) {
+    if (!decoded.has(file.sha256)) {
+      try { decoded.set(file.sha256, new TextDecoder('utf-8', { fatal: true }).decode(verified.files.get(file.sha256))); }
       catch { return { error: before('release migration is not UTF-8') }; }
-      content.set(file.sha256, text);
     }
-    const text = content.get(file.sha256);
-    const sql = `${text}\n${recordMigration(manifest.migrations.table, file.name)}`;
+    const text = decoded.get(file.sha256);
+    const sql = `${text}\n${recordMigration(selection.table, file.name)}`;
     if (Buffer.byteLength(JSON.stringify({ sql })) > maxBytes) return { error: before('migration query exceeds proxy request limit') };
     files.push({ name: file.name, text, sql });
   }
-  return { table: manifest.migrations.table, files: migrationOrder(files) };
+  return { manifest, table: selection.table, files: manifest.format === 2 ? migrationOrder(files) : files };
 }
 
 async function migrate(input, ctx, maxBytes) {
   const loaded = await loadMigrations(input, ctx, maxBytes);
   if (loaded.error) return loaded.error;
-  const { table, files } = loaded;
+  const { manifest, table, files } = loaded;
   const applied = [], skipped = [], ignored = [];
   const report = { database_id: input.database_id, table, applied, skipped, ignored };
-  const created = await d1Query(input, ctx, historyDDL(table));
-  if (created.error) return { ...created.error, ...report };
-  const history = await d1Select(input, ctx, `SELECT name FROM ${table} ORDER BY id`);
-  if (history.error) return { ...history.error, ...report };
-  if (history.rows.some((row) => typeof row.name !== 'string')) return { ...vendor({ endpoint: d1Path(input) + '/query', method: 'POST' }), ...report };
-  const names = new Set(history.rows.map(({ name }) => name));
+  const refuseDatabase = (reason) => ({ ...refused(reason), field: 'database_id', ...report });
+  const format3 = manifest.format === 3;
+  let history;
+  if (format3) {
+    history = await inspectMigrationHistory(input, ctx, table);
+    if (history.error) return { ...history.error, ...report };
+    const reason = foreignMigrationReason(manifest, input.app, history.names);
+    if (reason) return refuseDatabase(reason);
+    if (!files.some(({ name }) => history.names.has(name))) {
+      // GLOB treats the underscores in these prefixes literally.
+      const sql = `SELECT name FROM sqlite_master WHERE type = 'table' AND name <> ${sqlString(table)} COLLATE NOCASE`
+        + " AND LOWER(name) NOT GLOB 'sqlite_*' AND LOWER(name) NOT GLOB '_cf_*' LIMIT 1";
+      const tables = await d1Select(input, ctx, sql);
+      if (tables.error) return { ...tables.error, ...report };
+      if (tables.rows.length) {
+        return refuseDatabase('This database has application tables and no recorded migration for the selected app, so this action will not write to it. '
+          + 'workers.d1_adopt records a matching baseline for an existing CRM database when it has no history table. '
+          + 'Where a first migration stopped partway, use a new empty database on a first install or restore the bookmark taken before an upgrade. '
+          + 'An intake database must start empty.');
+      }
+    }
+  }
+  if (!history?.exists) {
+    const created = await d1Query(input, ctx, historyDDL(table));
+    if (created.error) return { ...created.error, ...report };
+    history = await readMigrationNames(input, ctx, table);
+    if (history.error) return { ...history.error, ...report };
+    if (format3) {
+      const reason = foreignMigrationReason(manifest, input.app, history.names);
+      if (reason) return refuseDatabase(reason);
+    }
+  }
+  const { names } = history;
   for (const name of names) {
     if (!files.some((file) => file.name === name)) {
       // History is member data: a non-filename cannot echo SQL or a diagnostic.
@@ -608,6 +788,109 @@ async function adopt(input, ctx, maxBytes) {
   return { ...result, temporary_database: cleanup };
 }
 
+function deploymentBindings(input, loaded) {
+  const { manifest, entry, fetched, calls } = loaded;
+  const invalid = (field, reason) => before(reason, { field, fetched, calls });
+  if (manifest.format === 2) {
+    const required = entry.worker.vars_required;
+    if (Object.keys(input.vars).length !== required.length || !required.every((name) => Object.hasOwn(input.vars, name))) {
+      return { error: invalid('vars', 'vars must exactly match release vars_required') };
+    }
+    if (input.intake_database_id !== undefined || input.peer_script_name !== undefined) {
+      return { error: invalid('release', 'intake deployment inputs require a format 3 release') };
+    }
+    return { vars: required, d1: [{ type: 'd1', name: entry.worker.d1_binding, database_id: input.database_id }], mail: [] };
+  }
+  const allowed = [...entry.vars.required, ...entry.vars.optional];
+  for (const { destination_var, sender_var } of entry.bindings.mail) {
+    if (!Object.hasOwn(input.vars, destination_var) || !input.vars[destination_var].trim()) return { error: invalid('vars', 'missing mail destination') };
+    if (!Object.hasOwn(input.vars, sender_var) || !input.vars[sender_var].trim()) return { error: invalid('vars', 'missing mail sender') };
+  }
+  if (entry.vars.required.some((name) => !Object.hasOwn(input.vars, name) || (name !== 'WISER_READ_ONLY' && !input.vars[name].trim()))) {
+    return { error: invalid('vars', 'missing or empty required variable') };
+  }
+  if (Object.keys(input.vars).some((name) => !allowed.includes(name))) return { error: invalid('vars', 'undeclared variable') };
+  if (input.app === CRM && input.intake_database_id === undefined) return { error: invalid('intake_database_id', 'intake_database_id is required for the CRM') };
+  const intakeId = input.app === CRM ? input.intake_database_id : input.database_id;
+  if (input.app === CRM && input.database_id === intakeId) return { error: invalid('intake_database_id', 'the CRM and intake need distinct databases') };
+  if (input.app === INTAKE && input.intake_database_id !== undefined && input.intake_database_id !== intakeId) {
+    return { error: invalid('intake_database_id', 'both Workers must use the same intake database') };
+  }
+  if (input.peer_script_name === undefined) return { error: invalid('peer_script_name', 'peer_script_name is required for format 3') };
+  if (input.peer_script_name === input.script_name) return { error: invalid('peer_script_name', 'the peer Worker must have a distinct script name') };
+  return {
+    intakeId,
+    vars: allowed.filter((name) => Object.hasOwn(input.vars, name)),
+    d1: entry.bindings.d1.map(({ name, database }) => ({ type: 'd1', name, database_id: database === 'intake' ? intakeId : input.database_id })),
+    mail: entry.bindings.mail.map(({ name, destination_var }) => ({ name, type: 'send_email', destination_address: input.vars[destination_var] })),
+  };
+}
+
+async function peerDatabase(input, ctx, loaded, intakeId) {
+  const installingIntake = input.app === INTAKE;
+  const peer = installingIntake ? CRM : INTAKE;
+  const script = { account_id: input.account_id, script_name: input.peer_script_name };
+  const current = await getWorker(script, ctx, loaded.calls, { verifyBindings: true });
+  if (current.status) return current;
+  if (!current.exists && installingIntake) return { peer: 'absent' };
+  const unreadable = () => before('peer Worker has no single live deployment with readable database bindings', { field: 'peer_script_name' });
+  if (!current.version_id) return unreadable();
+  const entry = loaded.manifest.apps[peer];
+  const intakeName = entry.bindings.d1.find(({ database }) => database === 'intake').name;
+  const databases = current.bindings.filter(({ type }) => type === 'd1');
+  const shared = databases.filter(({ name }) => name === intakeName);
+  if (installingIntake) {
+    const primaryName = entry.bindings.d1.find(({ database }) => database === 'crm').name;
+    const [primary, duplicate] = databases.filter(({ name }) => name === primaryName);
+    if (!primary?.database_id || duplicate || databases.length !== shared.length + 1) return unreadable();
+    if (primary.database_id === intakeId) return before('the CRM and intake need distinct databases', { field: 'database_id' });
+    // The legacy CRM may still be serving on the first upgrade to this pair.
+    if (!shared.length && current.bindings.some(({ name, type }) => name === entry.assets.binding && type === 'assets')) {
+      return { peer: 'format-2', peer_comparison: {
+        script_name: input.peer_script_name, database_id: primary.database_id, intake_database_id: intakeId,
+      } };
+    }
+  } else if (databases.length !== 1) return unreadable();
+  if (shared.length !== 1 || !shared[0].database_id) return unreadable();
+  if (shared[0].database_id !== intakeId) return before('both Workers must use the same intake database', { field: 'intake_database_id' });
+  return { peer: 'agrees' };
+}
+
+function hasLegacyCrmBindings(entry, bindings) {
+  const primaryName = entry.bindings.d1.find(({ database }) => database === 'crm').name;
+  const databases = bindings.filter(({ type }) => type === 'd1');
+  return databases.length === 1 && databases[0].name === primaryName && databases[0].database_id
+    && bindings.some(({ name, type }) => name === entry.assets.binding && type === 'assets');
+}
+
+async function checkIntakeDatabase(input, ctx, loaded, intakeId) {
+  const { manifest, entry, calls } = loaded;
+  const field = input.app === CRM ? 'intake_database_id' : 'database_id';
+  const { table, files } = manifest.apps[INTAKE].migrations;
+  const history = await inspectMigrationHistory(input, ctx, table, intakeId, calls);
+  if (history.error) return history.error;
+  const wrongApp = foreignMigrationReason(manifest, INTAKE, history.names);
+  if (wrongApp) return before(wrongApp, { field });
+  const missing = files.find(({ name }) => !history.names.has(name));
+  if (missing) return before(`this database is missing intake migration ${missing.name}; run the intake migrations before deploying`, { field });
+
+  const current = await getWorker(input, ctx, calls, { verifyBindings: true, servingOnly: true });
+  if (current.status) return current;
+  if (!current.exists) return;
+  const name = entry.bindings.d1.find(({ database }) => database === 'intake').name;
+  const serving = current.versions ?? [{ percentage: 100, bindings: current.bindings }];
+  for (const version of serving) {
+    const shared = version.bindings.filter((binding) => binding.name === name);
+    if (!shared.length && input.app === CRM && hasLegacyCrmBindings(entry, version.bindings)) continue;
+    if (shared.length !== 1 || !shared[0].database_id) {
+      return before(`the serving Worker has an unreadable ${name} binding`, { field: 'script_name' });
+    }
+    if (shared[0].database_id !== intakeId) {
+      return before(`the serving Worker's ${name} binding points to a different database; retry with its current database ID`, { field });
+    }
+  }
+}
+
 export function workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, redact }) {
   // The shape every live multipart through the provider's proxy has used
   // (index.js postDeployment, dns.import_zone, vercel's file upload): the body as
@@ -616,19 +899,17 @@ export function workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, red
     content_type: `multipart/form-data; boundary=${form.boundary}` } });
   const assetForm = (assets) => buildMultipart(assets.map((asset) => ({ name: asset.hash, filename: asset.hash,
     contentType: asset.content_type, value: Buffer.from(asset.bytes.toString('base64')) })));
-  const scriptForm = (manifest, input, files, jwt) => buildMultipart([
+  const scriptForm = (entry, input, declared, files, jwt) => buildMultipart([
     { name: 'metadata', contentType: 'application/json', value: Buffer.from(JSON.stringify({
-      main_module: manifest.worker.main_module,
-      compatibility_date: manifest.worker.compatibility_date,
-      compatibility_flags: manifest.worker.compatibility_flags,
-      bindings: [{ type: 'd1', name: manifest.worker.d1_binding, database_id: input.database_id },
-        { type: 'assets', name: manifest.worker.assets_binding },
-        // Cloudflare Upload Worker Module: metadata.bindings PlainText has name,
-        // text and type: 'plain_text'. https://developers.cloudflare.com/api/resources/workers/subresources/scripts/methods/update/
-        ...manifest.worker.vars_required.map((name) => ({ name, text: input.vars[name], type: 'plain_text' }))],
-      assets: { jwt, config: manifest.assets.config },
+      main_module: entry.worker.main_module,
+      compatibility_date: entry.worker.compatibility_date,
+      compatibility_flags: entry.worker.compatibility_flags,
+      bindings: [...declared.d1, ...declared.mail,
+        ...(entry.assets ? [{ type: 'assets', name: entry.assets.binding ?? entry.worker.assets_binding }] : []),
+        ...declared.vars.map((name) => ({ name, text: input.vars[name], type: 'plain_text' }))],
+      ...(entry.assets ? { assets: { jwt, config: entry.assets.config } } : {}),
     })) },
-    ...manifest.worker.modules.map((module) => ({ name: module.name, filename: module.name, contentType: module.type, value: files.get(module.sha256) })),
+    ...entry.worker.modules.map((module) => ({ name: module.name, filename: module.name, contentType: module.type, value: files.get(module.sha256) })),
   ]);
   function batchAssets(assets) {
     const batches = [];
@@ -660,9 +941,20 @@ export function workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, red
       const keys_set = Object.keys(input.vars);
       const loaded = await loadManifest(input, ctx);
       if (loaded.error) return loaded.error;
-      const { manifest } = loaded;
-      if (!Object.keys(input.vars).every((name) => manifest.worker.vars_required.includes(name))) {
-        return { ...refused('vars contains a name outside release vars_required'), field: 'vars' };
+      const { manifest, entry } = loaded;
+      const allowed = manifest.format === 2 ? entry.worker.vars_required : [...entry.vars.required, ...entry.vars.optional];
+      if (keys_set.some((name) => !allowed.includes(name))) {
+        return { ...refused(manifest.format === 2 ? 'vars contains a name outside release vars_required' : 'vars contains an undeclared variable'), field: 'vars' };
+      }
+      if (manifest.format === 3) {
+        if (entry.bindings.mail.some(({ destination_var }) => Object.hasOwn(input.vars, destination_var))) {
+          return { ...refused('redeploy the release to change the pinned mail destination'), field: 'vars' };
+        }
+        if (entry.vars.required.some((name) => name !== 'WISER_READ_ONLY' && Object.hasOwn(input.vars, name) && !input.vars[name].trim())) {
+          return { ...refused('required variables cannot be set to an empty value'), field: 'vars' };
+        }
+        const checked = await fetchCheckedFiles(loaded);
+        if (checked.error) return checked.error;
       }
       const req = { endpoint: endpoint(input, '/settings'), method: 'GET' };
       const current = await call(ctx, req);
@@ -787,24 +1079,15 @@ export function workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, red
       if (!varsShape(input.vars)) return { ...before('vars must contain only non-secret uppercase names and strings of at most 512 characters'), field: 'vars' };
       const loaded = await loadManifest(input, ctx);
       if (loaded.error) return loaded.error;
-      const { fetched, calls, prefix, fetchFile, raw, keyId, manifest, checked } = loaded;
-      if (Object.keys(input.vars).length !== manifest.worker.vars_required.length
-        || !manifest.worker.vars_required.every((name) => Object.hasOwn(input.vars, name))) {
-        return { ...before('vars must exactly match release vars_required', { fetched, calls }), field: 'vars' };
-      }
-      const files = new Map();
-      for (const file of checked.files) {
-        // fetchRelease's smallest budget is one byte; empty files still must be
-        // exactly zero bytes after fetching and must match SHA-256 below.
-        const reply = await fetchFile(prefix + `files/${file.sha256}`, Math.max(1, file.size), file.sha256);
-        if (reply.error) return reply.error;
-        const bytes = Buffer.from(reply.bytes);
-        if (bytes.length !== file.size || sha256(bytes) !== file.sha256) return before(`release file mismatch: ${file.sha256}`, { fetched, calls });
-        files.set(file.sha256, bytes);
-      }
-      const reserved = scriptForm(manifest, input, files, 'x'.repeat(TOKEN_BYTES));
+      const { fetched, calls, raw, keyId, manifest, entry } = loaded;
+      const declared = deploymentBindings(input, loaded);
+      if (declared.error) return declared.error;
+      const verified = await fetchCheckedFiles(loaded);
+      if (verified.error) return verified.error;
+      const { files } = verified;
+      const reserved = scriptForm(entry, input, declared, files, entry.assets ? 'x'.repeat(TOKEN_BYTES) : undefined);
       if (bodyBytes(reserved) > MAX_UPLOAD_BYTES) return before(`Worker upload request too large: ${bodyBytes(reserved)} bytes`, { request_bytes: bodyBytes(reserved), limit_bytes: MAX_UPLOAD_BYTES, fetched, calls });
-      const assets = manifest.assets.files.map((file) => ({ ...file, bytes: files.get(file.sha256), hash: assetHash(files.get(file.sha256), extname(file.path)) }));
+      const assets = (entry.assets?.files ?? []).map((file) => ({ ...file, bytes: files.get(file.sha256), hash: assetHash(files.get(file.sha256), extname(file.path)) }));
       const byHash = new Map();
       const assetManifest = {};
       for (const asset of assets) {
@@ -814,49 +1097,59 @@ export function workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, red
         byHash.set(asset.hash, asset);
         assetManifest[asset.path] = { hash: asset.hash, size: asset.size };
       }
-      // All release verification and all request-size refusals precede this call.
-      const session = await call(ctx, { endpoint: endpoint(input, '/assets-upload-session'), method: 'POST', body: { manifest: assetManifest } }, calls);
-      let completion;
+      let peer;
+      if (manifest.format === 3) {
+        peer = await peerDatabase(input, ctx, loaded, declared.intakeId);
+        if (peer.status) return { ...peer, fetched, calls };
+        const error = await checkIntakeDatabase(input, ctx, loaded, declared.intakeId);
+        if (error) return { ...error, fetched, calls };
+      }
       const tokens = [];
       const remember = (token) => { if (typeof token === 'string' && token.length) tokens.push(token); };
-      const finish = (result) => {
-        const out = tokens.reduce((value, token) => redact(value, token), result);
-        return out;
-      };
-      remember(session.result?.jwt);
+      const finish = (result) => tokens.reduce((value, token) => redact(value, token), result);
       const fail = (error) => finish({ ...error, fetched, calls });
-      if (session.error) return fail(session.error);
-      const jwtOk = (jwt) => typeof jwt === 'string' && jwt.length > 0 && Buffer.byteLength(jwt) <= TOKEN_BYTES && /^[A-Za-z0-9._-]+$/.test(jwt);
-      if (!jwtOk(session.result?.jwt) || !Array.isArray(session.result?.buckets) || session.result.buckets.length > byHash.size) return fail(vendor({ endpoint: endpoint(input, '/assets-upload-session'), method: 'POST' }));
-      const missing = new Set();
-      const batches = [];
-      for (const bucket of session.result.buckets) {
-        if (!Array.isArray(bucket) || !bucket.length || bucket.length > byHash.size) return fail(vendor({ endpoint: endpoint(input, '/assets-upload-session'), method: 'POST' }));
-        for (const hash of bucket) {
-          if (!byHash.has(hash) || missing.has(hash)) return fail(vendor({ endpoint: endpoint(input, '/assets-upload-session'), method: 'POST' }));
-          missing.add(hash);
+      let completion, assetReport = null;
+      if (entry.assets) {
+        // All release verification and request-size refusals precede this call.
+        const sessionEndpoint = endpoint(input, '/assets-upload-session');
+        const session = await call(ctx, { endpoint: sessionEndpoint, method: 'POST', body: { manifest: assetManifest } }, calls);
+        remember(session.result?.jwt);
+        if (session.error) return fail(session.error);
+        const jwtOk = (jwt) => typeof jwt === 'string' && jwt.length > 0 && Buffer.byteLength(jwt) <= TOKEN_BYTES && /^[A-Za-z0-9._-]+$/.test(jwt);
+        const sessionError = () => fail(vendor({ endpoint: sessionEndpoint, method: 'POST' }));
+        if (!jwtOk(session.result?.jwt) || !Array.isArray(session.result?.buckets) || session.result.buckets.length > byHash.size) return sessionError();
+        const missing = new Set();
+        const batches = [];
+        for (const bucket of session.result.buckets) {
+          if (!Array.isArray(bucket) || !bucket.length || bucket.length > byHash.size) return sessionError();
+          for (const hash of bucket) {
+            if (!byHash.has(hash) || missing.has(hash)) return sessionError();
+            missing.add(hash);
+          }
+          batches.push(...batchAssets(bucket.map((hash) => byHash.get(hash))));
         }
-        batches.push(...batchAssets(bucket.map((hash) => byHash.get(hash))));
-      }
-      completion = batches.length ? null : session.result.jwt;
-      const requests = [];
-      const uploadEndpoint = `/accounts/${input.account_id}/workers/assets/upload?base64=true`;
-      for (const batch of batches) {
-        const form = assetForm(batch);
-        const req = { endpoint: uploadEndpoint, method: 'POST', ...multipart(form),
-          parameters: [{ name: 'Authorization', value: `Bearer ${session.result.jwt}`, type: 'header' }] };
-        const reply = await call(ctx, req, calls);
-        if (reply.error) {
-          if (reply.error.http_status === 413) return fail({ ...reply.error, reason: 'request too large',
-            batch: { files: batch.length, bytes: bodyBytes(form) }, limit_bytes: MAX_UPLOAD_BYTES, batches_sent: requests.length, batches: batches.length });
-          return fail(reply.error);
+        completion = batches.length ? null : session.result.jwt;
+        const requests = [];
+        const uploadEndpoint = `/accounts/${input.account_id}/workers/assets/upload?base64=true`;
+        for (const batch of batches) {
+          const form = assetForm(batch);
+          const req = { endpoint: uploadEndpoint, method: 'POST', ...multipart(form),
+            parameters: [{ name: 'Authorization', value: `Bearer ${session.result.jwt}`, type: 'header' }] };
+          const reply = await call(ctx, req, calls);
+          if (reply.error) {
+            if (reply.error.http_status === 413) return fail({ ...reply.error, reason: 'request too large',
+              batch: { files: batch.length, bytes: bodyBytes(form) }, limit_bytes: MAX_UPLOAD_BYTES, batches_sent: requests.length, batches: batches.length });
+            return fail(reply.error);
+          }
+          requests.push({ files: batch.length, body_bytes: bodyBytes(form) });
+          completion = reply.result?.jwt;
+          remember(completion);
         }
-        requests.push({ files: batch.length, body_bytes: bodyBytes(form) });
-        completion = reply.result?.jwt;
-        remember(completion);
+        if (!jwtOk(completion)) return fail(vendor({ endpoint: uploadEndpoint, method: 'POST' }));
+        const uploaded = assets.filter((asset) => missing.has(asset.hash)).length;
+        assetReport = { files: assets.length, uploaded, already_present: assets.length - uploaded, requests };
       }
-      if (!jwtOk(completion)) return fail(vendor({ endpoint: uploadEndpoint, method: 'POST' }));
-      const form = scriptForm(manifest, input, files, completion);
+      const form = entry.assets ? scriptForm(entry, input, declared, files, completion) : reserved;
       const script = await call(ctx, { endpoint: endpoint(input), method: 'PUT', ...multipart(form) }, calls);
       if (script.error) return fail(script.error);
       const enabled = await call(ctx, { endpoint: endpoint(input, '/subdomain'), method: 'POST', body: { enabled: true, previews_enabled: false } }, calls);
@@ -867,11 +1160,11 @@ export function workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, red
       if (enabled.error && address.exists) return fail(enabled.error);
       return finish({ script_name: input.script_name, app: input.app, version: input.version, key_id: keyId, manifest_sha256: sha256(raw.bytes),
         // Hashed from the bytes the script request carried, so a reader can match them to the fetched files.
-        worker: { modules: manifest.worker.modules.map((module) => ({ name: module.name, bytes: files.get(module.sha256).length,
+        worker: { modules: entry.worker.modules.map((module) => ({ name: module.name, bytes: files.get(module.sha256).length,
           sha256: sha256(files.get(module.sha256)) })), request_bytes: bodyBytes(form) },
-        assets: { files: assets.length, uploaded: assets.filter((asset) => missing.has(asset.hash)).length,
-          already_present: assets.filter((asset) => !missing.has(asset.hash)).length, requests },
-        database_binding: { name: manifest.worker.d1_binding, database_id: input.database_id },
+        assets: assetReport,
+        database_binding: { name: declared.d1[0].name, database_id: input.database_id },
+        ...(manifest.format === 3 ? { ...peer, database_bindings: declared.d1.map(({ name, database_id }) => ({ name, database_id })) } : {}),
         url: address.exists ? `https://${input.script_name}.${address.subdomain}.workers.dev/` : null,
         ...(!address.exists ? { reason: 'account has no workers.dev subdomain' } : {}), fetched, calls });
     },

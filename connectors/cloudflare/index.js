@@ -2435,8 +2435,6 @@ function checkPagesRead(input, withDomain) {
   return null;
 }
 
-// Access uses the same proxy toolkit as Workers. Only numeric diagnostics cross
-// a failed request: a provider body, thrown message or organization can hold keys.
 const ACCESS_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const ACCESS_TOKEN_SHAPE = /eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}/;
 const ACCESS_WHOLE_TOKEN_SHAPE = /^[A-Za-z0-9_-]{40}$/;
@@ -2448,23 +2446,135 @@ const accessName = (v) => typeof v === 'string' && [...v].length >= 1 && [...v].
 const accessHostname = (v) => typeof v === 'string' && [...v].length <= 253
   && HOSTNAME.test(v) && !ACCESS_TOKEN_SHAPE.test(v) && !v.split('.').some((label) => ACCESS_WHOLE_TOKEN_SHAPE.test(label));
 const accessPath = (account) => `/accounts/${encodeURIComponent(account)}/access`;
-const accessVendor = (req, status) => ({ status: 'vendor_error', endpoint: req.endpoint.split('?')[0], method: req.method,
+// A failed proxy request exposes numeric diagnostics only.
+const strictVendorError = (req, status) => ({ status: 'vendor_error', endpoint: req.endpoint.split('?')[0], method: req.method,
   ...(Number.isInteger(status) ? { http_status: status } : {}) });
-async function accessRequest(ctx, req) {
+async function strictProxyResponse(ctx, req) {
   let res;
   try { res = await ctx.proxy(req); }
   catch (err) {
-    return { error: accessVendor(req, err?.object?.http_status), codes: err?.object?.provider_codes };
+    return { error: strictVendorError(req, err?.object?.http_status), codes: err?.object?.provider_codes };
   }
   const data = Object.hasOwn(res || {}, 'data') ? res.data : res;
   if (res?.status >= 400 || !data || data.success !== true) {
-    return { error: accessVendor(req, res?.status), codes: res?.error?.provider_codes ?? (Array.isArray(data?.errors) ? data.errors.map((e) => e?.code) : undefined) };
+    return { error: strictVendorError(req, res?.status), codes: res?.error?.provider_codes ?? (Array.isArray(data?.errors) ? data.errors.map((e) => e?.code) : undefined) };
   }
   return { result: data.result, info: data.result_info };
 }
+// Wrangler 4.165.0, email-routing/client.ts and sending/{dns-get,enable,disable}.ts.
+const emailSendingPath = ({ zone_id }) => `/zones/${zone_id}/email/sending/subdomains`;
+const emailSubdomain = (row) => asObject(row) && typeof row.name === 'string' && HOSTNAME.test(row.name)
+  && typeof row.tag === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(row.tag) && typeof row.enabled === 'boolean';
+
+async function emailSendingRequest(ctx, req) {
+  const reply = await strictProxyResponse(ctx, req);
+  if (!reply.error) return reply;
+  const codes = Array.isArray(reply.codes) ? [...new Set(reply.codes.filter(Number.isSafeInteger))].slice(0, 10) : [];
+  return { error: { ...reply.error, ...(codes.length ? { provider_codes: codes } : {}) } };
+}
+
+async function findEmailSendingDomain(input, ctx) {
+  const endpoint = emailSendingPath(input);
+  const domain = input.domain.toLowerCase();
+  const names = new Set(), tags = new Set(), cursors = new Set();
+  let match, cursor, advertisedTotal, advertisedPages;
+  for (let pages = 0; pages < 1000; pages++) {
+    const req = { endpoint, method: 'GET', ...(cursor ? { parameters: [{ name: 'cursor', type: 'query', value: cursor }] } : {}) };
+    const reply = await emailSendingRequest(ctx, req);
+    if (reply.error) return { error: reply.error };
+    if (!Array.isArray(reply.result)) return { error: strictVendorError(req) };
+    for (const row of reply.result) {
+      if (!emailSubdomain(row)) return { error: strictVendorError(req) };
+      const name = row.name.toLowerCase();
+      if (tags.has(row.tag) || names.has(name)) return { error: strictVendorError(req) };
+      tags.add(row.tag);
+      names.add(name);
+      if (name === domain) match = row;
+    }
+    if (reply.info != null && !asObject(reply.info)) return { error: strictVendorError(req) };
+    const total = reply.info?.total_count;
+    const pageCount = reply.info?.total_pages;
+    if ((total !== undefined && (!Number.isSafeInteger(total) || total < 0 || (advertisedTotal !== undefined && total !== advertisedTotal)))
+      || (pageCount !== undefined && (!Number.isSafeInteger(pageCount) || pageCount < 0 || (advertisedPages !== undefined && pageCount !== advertisedPages)))) {
+      return { error: strictVendorError(req) };
+    }
+    advertisedTotal ??= total;
+    advertisedPages ??= pageCount;
+    if (advertisedTotal !== undefined && advertisedTotal < names.size) return { error: strictVendorError(req) };
+    cursor = reply.info?.cursor;
+    if (cursor == null || cursor === '') {
+      if ((advertisedTotal !== undefined && advertisedTotal !== names.size) || advertisedPages > pages + 1) {
+        return { error: strictVendorError(req) };
+      }
+      return { domain, match };
+    }
+    if (typeof cursor !== 'string' || !/^[!-~]{1,4096}$/.test(cursor) || cursors.has(cursor)) {
+      return { error: strictVendorError(req) };
+    }
+    cursors.add(cursor);
+  }
+  return { error: { ...strictVendorError({ endpoint, method: 'GET' }), reason: 'Email Sending domain listing incomplete' } };
+}
+
+function emailDnsRecord(record, domain) {
+  if (!asObject(record) || typeof record.name !== 'string' || typeof record.content !== 'string'
+    || !/^[^\x00-\x1f\x7f]{1,4096}$/.test(record.content)
+    || (record.ttl !== undefined && (!Number.isSafeInteger(record.ttl) || record.ttl < 0))) return null;
+  const { type, name, content, priority, ttl } = record;
+  const owner = name.toLowerCase().replace(/\.$/, '');
+  if (type === 'MX') {
+    if (owner !== `cf-bounce.${domain}` || !Number.isInteger(priority) || priority < 0 || priority > 65535) return null;
+  } else if (type !== 'TXT' || priority !== undefined
+    || ![`cf-bounce.${domain}`, `cf-bounce._domainkey.${domain}`, `_dmarc.${domain}`].includes(owner)) return null;
+  return { type, name, content, ...(priority !== undefined ? { priority } : {}), ...(ttl !== undefined ? { ttl } : {}) };
+}
+
+async function getEmailSendingDomain(input, ctx) {
+  const { domain, match, error } = await findEmailSendingDomain(input, ctx);
+  if (error) return error;
+  if (!match) return { success: true, domain, onboarded: false, enabled: false, dns_records: [] };
+  const req = { endpoint: `${emailSendingPath(input)}/${match.tag}/dns`, method: 'GET' };
+  const reply = await emailSendingRequest(ctx, req);
+  if (reply.error) return reply.error;
+  const records = Array.isArray(reply.result) ? reply.result.map((row) => emailDnsRecord(row, domain)) : null;
+  if (!records || records.includes(null)) return strictVendorError(req);
+  return { success: true, domain, onboarded: true, enabled: match.enabled, dns_records: records };
+}
+
+async function onboardEmailSendingDomain(input, ctx) {
+  const { domain, match, error } = await findEmailSendingDomain(input, ctx);
+  if (error) return error;
+  if (match?.enabled) return { success: true, domain, onboarded: true, enabled: true };
+  // A listed but disabled domain is enabled by the same POST, as Wrangler's
+  // enable does. The POST's own body is not trusted for the outcome: the
+  // listing read before the write is read again after it.
+  const req = { endpoint: emailSendingPath(input), method: 'POST', body: { name: domain } };
+  const reply = await emailSendingRequest(ctx, req);
+  if (reply.error) return reply.error;
+  const after = await findEmailSendingDomain(input, ctx);
+  if (after.error) return { ...after.error, reason: 'onboarding submitted; domain read-back failed' };
+  if (!after.match?.enabled) return { ...strictVendorError(req), reason: 'onboarding submitted; domain not confirmed enabled' };
+  return { success: true, domain, onboarded: true, enabled: true };
+}
+
+async function removeEmailSendingDomain(input, ctx) {
+  const { domain, match, error } = await findEmailSendingDomain(input, ctx);
+  if (error) return error;
+  if (!match) return { success: true, domain, removed: false, read_back: 'absent' };
+  const req = { endpoint: `${emailSendingPath(input)}/${match.tag}`, method: 'DELETE' };
+  const reply = await emailSendingRequest(ctx, req);
+  if (reply.error) return reply.error;
+  // The DELETE's body is not the proof: the listing is read again and the
+  // domain must be gone from it.
+  const after = await findEmailSendingDomain(input, ctx);
+  if (after.error) return { ...after.error, reason: 'removal submitted; domain read-back failed' };
+  if (after.match) return { ...strictVendorError(req), reason: 'removal submitted; domain still listed' };
+  return { success: true, domain, removed: true, read_back: 'absent' };
+}
+
 async function accessTeam(input, ctx) {
   const req = { endpoint: `${accessPath(input.account_id)}/organizations`, method: 'GET' };
-  const reply = await accessRequest(ctx, req);
+  const reply = await strictProxyResponse(ctx, req);
   const off = reply.error && accessNotEnabled({ object: { ...reply.error, provider_codes: reply.codes } });
   if (off) {
     return { status: 'denied', access_enabled: false,
@@ -2472,7 +2582,7 @@ async function accessTeam(input, ctx) {
   }
   if (reply.error) return reply.error;
   if (!asObject(reply.result) || typeof reply.result.auth_domain !== 'string' || !HOSTNAME.test(reply.result.auth_domain)) {
-    return { ...accessVendor(req), reason: 'Zero Trust organization has no usable team domain; Access readiness could not be established.' };
+    return { ...strictVendorError(req), reason: 'Zero Trust organization has no usable team domain; Access readiness could not be established.' };
   }
   return null;
 }
@@ -2482,10 +2592,10 @@ async function accessListApps(input, ctx) {
   let total;
   for (let page = 1; page <= 10000; page += 1) {
     const req = { endpoint: `${root}?per_page=1000&page=${page}`, method: 'GET' };
-    const reply = await accessRequest(ctx, req);
+    const reply = await strictProxyResponse(ctx, req);
     if (reply.error) return reply.error;
-    if (!Array.isArray(reply.result) || reply.result.some((app) => !asObject(app))) return accessVendor(req);
-    const incomplete = { ...accessVendor(req), reason: 'Access application listing incomplete; a counted list could not be established.' };
+    if (!Array.isArray(reply.result) || reply.result.some((app) => !asObject(app))) return strictVendorError(req);
+    const incomplete = { ...strictVendorError(req), reason: 'Access application listing incomplete; a counted list could not be established.' };
     if (!Number.isSafeInteger(reply.info?.total_count) || reply.info.total_count < 0
       || (total !== undefined && total !== reply.info.total_count)) return incomplete;
     total = reply.info.total_count;
@@ -2503,7 +2613,7 @@ async function accessListApps(input, ctx) {
       return incomplete;
     }
   }
-  return { ...accessVendor({ endpoint: root, method: 'GET' }), reason: 'Access application listing exceeded the page bound.' };
+  return { ...strictVendorError({ endpoint: root, method: 'GET' }), reason: 'Access application listing exceeded the page bound.' };
 }
 async function accessDuplicate(input, ctx) {
   const listed = await accessListApps(input, ctx);
@@ -2539,11 +2649,11 @@ function accessPolicyProblem(policy) {
 }
 function accessPolicyRefusal(policyId, reason, req) {
   const id = typeof policyId === 'string' && ACCESS_UUID.test(policyId) ? policyId : null;
-  return { ...accessVendor(req), ...(id ? { policy_id: id } : {}), reason: `Policy ${id || '(unidentified)'}: ${reason}` };
+  return { ...strictVendorError(req), ...(id ? { policy_id: id } : {}), reason: `Policy ${id || '(unidentified)'}: ${reason}` };
 }
 async function accessReadPolicy(account, id, ctx) {
   const req = { endpoint: `${accessPath(account)}/policies/${encodeURIComponent(id)}`, method: 'GET' };
-  const reply = await accessRequest(ctx, req);
+  const reply = await strictProxyResponse(ctx, req);
   if (reply.error) return { ...reply.error, ...accessPolicyRefusal(id, 'Policy could not be read and checked.', req) };
   if (reply.result?.id !== id) return accessPolicyRefusal(id, 'Policy read-back id did not match the linked policy.', req);
   const problem = accessPolicyProblem(reply.result);
@@ -2565,21 +2675,21 @@ async function accessRemoveFailedApp(input, app, failure, ctx) {
     id = matches[0].id;
   }
   const req = { endpoint: `${accessPath(input.account_id)}/apps/${encodeURIComponent(id)}`, method: 'DELETE' };
-  const deleted = await accessRequest(ctx, req);
-  const readBack = await accessRequest(ctx, { ...req, method: 'GET' });
+  const deleted = await strictProxyResponse(ctx, req);
+  const readBack = await strictProxyResponse(ctx, { ...req, method: 'GET' });
   const removed = !deleted.error && readBack.error?.http_status === 404;
   return { ...failure, app_id: id, removed,
     reason: `Application ${id} ${removed ? 'was removed' : 'removal could not be confirmed'}. ${failure.reason || 'Created application could not be validated.'}` };
 }
 function accessAppResult(app, req, detail) {
-  if (!asObject(app) || !ACCESS_UUID.test(app.id) || typeof app.aud !== 'string' || !/^[0-9a-f]{64}$/.test(app.aud)) return accessVendor(req);
+  if (!asObject(app) || !ACCESS_UUID.test(app.id) || typeof app.aud !== 'string' || !/^[0-9a-f]{64}$/.test(app.aud)) return strictVendorError(req);
   const out = { success: true, id: app.id, aud: app.aud };
   if (!detail) {
     // The application-create response embeds policy details; links alone cannot
     // confirm what was attached after the preflight read.
     // https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/applications/methods/create/
     if (!Array.isArray(app.policies) || app.policies.length < 1 || app.policies.length > 50) {
-      return { ...accessVendor(req), reason: 'Application policies must contain 1 to 50 checked policy details.' };
+      return { ...strictVendorError(req), reason: 'Application policies must contain 1 to 50 checked policy details.' };
     }
     for (const policy of app.policies) {
       const problem = accessPolicyProblem(policy);
@@ -2590,13 +2700,13 @@ function accessAppResult(app, req, detail) {
   // https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/applications/methods/get/
   if (Array.isArray(app.destinations) && app.destinations.some((destination) => Object.hasOwn(destination || {}, 'overrides')
     && (!Array.isArray(destination.overrides) || destination.overrides.length > 0))) {
-    return { ...accessVendor(req), reason: 'Application destination overrides can bypass Access authentication for a path.' };
+    return { ...strictVendorError(req), reason: 'Application destination overrides can bypass Access authentication for a path.' };
   }
   // An optional header-name string in Cloudflare's application reference; Q7's single-header mode is on only when it names a header.
   // https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/applications/methods/create/
   const header = app.read_service_tokens_from_header;
   if (header !== undefined && header !== null && header !== false && header !== '') {
-    return { ...accessVendor(req), reason: 'Application single-header service-token authentication must be off.' };
+    return { ...strictVendorError(req), reason: 'Application single-header service-token authentication must be off.' };
   }
   for (const policy of Array.isArray(app.policies) ? app.policies : []) {
     if (asObject(policy) && policy.decision !== undefined && !['allow', 'non_identity'].includes(policy.decision)) {
@@ -2607,20 +2717,20 @@ function accessAppResult(app, req, detail) {
       if (problem) return accessPolicyRefusal(policy.id, problem, req);
     }
   }
-  if (app.type !== 'self_hosted' || !accessHostname(app.domain)) return accessVendor(req);
+  if (app.type !== 'self_hosted' || !accessHostname(app.domain)) return strictVendorError(req);
   const hostname = app.domain.toLowerCase();
   if (!Array.isArray(app.destinations) || app.destinations.length !== 1
     || app.destinations[0]?.type !== 'public' || typeof app.destinations[0]?.uri !== 'string'
-    || app.destinations[0].uri.toLowerCase() !== hostname) return accessVendor(req);
+    || app.destinations[0].uri.toLowerCase() !== hostname) return strictVendorError(req);
   // Deprecated by Cloudflare once destinations are sent, so an answer may omit it; present, it names only the hostname.
   if (app.self_hosted_domains !== undefined && (!Array.isArray(app.self_hosted_domains)
     || app.self_hosted_domains.length !== 1
-    || app.self_hosted_domains.some((v) => typeof v !== 'string' || v.toLowerCase() !== hostname))) return accessVendor(req);
+    || app.self_hosted_domains.some((v) => typeof v !== 'string' || v.toLowerCase() !== hostname))) return strictVendorError(req);
   if (!Array.isArray(app.policies) || app.policies.length < 1 || app.policies.length > 50) {
-    return { ...accessVendor(req), reason: 'Application policies must contain 1 to 50 checked policies.' };
+    return { ...strictVendorError(req), reason: 'Application policies must contain 1 to 50 checked policies.' };
   }
   const ids = app.policies.map((policy) => typeof policy === 'string' ? policy : policy?.id);
-  if (!ids.every((id) => typeof id === 'string' && ACCESS_UUID.test(id))) return accessVendor(req);
+  if (!ids.every((id) => typeof id === 'string' && ACCESS_UUID.test(id))) return strictVendorError(req);
   return { ...out, hostname, policy_ids: ids };
 }
 function accessStaffEmails(policy) {
@@ -2648,8 +2758,8 @@ function accessStaffProblem(policy, id) {
 }
 async function accessRemoveFailedPolicy(account, id, failure, ctx) {
   const req = { endpoint: `${accessPath(account)}/policies/${encodeURIComponent(id)}`, method: 'DELETE' };
-  const deleted = await accessRequest(ctx, req);
-  const readBack = await accessRequest(ctx, { ...req, method: 'GET' });
+  const deleted = await strictProxyResponse(ctx, req);
+  const readBack = await strictProxyResponse(ctx, { ...req, method: 'GET' });
   const removed = !deleted.error && readBack.error?.http_status === 404;
   return { ...failure, policy_id: id, removed,
     reason: `Policy ${id} ${removed ? 'was removed' : 'removal could not be confirmed'}. ${failure.reason || 'Created policy could not be validated.'}` };
@@ -2735,6 +2845,9 @@ export const modules = {
   },
 
   zones: {
+    get_email_sending_domain: getEmailSendingDomain,
+    onboard_email_sending_domain: onboardEmailSendingDomain,
+    remove_email_sending_domain: removeEmailSendingDomain,
     async list(input, ctx) {
       const onePage = input && input.page != null;
       const pageSize = (input && input.per_page) || 50;
@@ -2967,18 +3080,18 @@ export const modules = {
         destinations: [{ type: 'public', uri: input.hostname.toLowerCase() }],
         policies: input.policy_ids.map((id, i) => ({ id, precedence: i + 1 })),
       } };
-      const reply = await accessRequest(ctx, req);
+      const reply = await strictProxyResponse(ctx, req);
       if (reply.error) return reply.error;
       const result = accessAppResult(reply.result, req, false);
       let failure = result.status === 'vendor_error' ? result : null;
       let stored;
       if (!failure) {
         const readReq = { endpoint: `${req.endpoint}/${encodeURIComponent(result.id)}`, method: 'GET' };
-        const readBack = await accessRequest(ctx, readReq);
+        const readBack = await strictProxyResponse(ctx, readReq);
         stored = readBack.error || accessAppResult(readBack.result, readReq, true);
         if (stored.status === 'vendor_error') failure = stored;
         else if (stored.id !== result.id || stored.hostname !== input.hostname.toLowerCase()) {
-          failure = { ...accessVendor(readReq), reason: 'Stored application id or hostname did not match the request.' };
+          failure = { ...strictVendorError(readReq), reason: 'Stored application id or hostname did not match the request.' };
         }
       }
       if (!failure) {
@@ -2987,7 +3100,7 @@ export const modules = {
         const storedIds = new Set(stored.policy_ids);
         if (actual.size !== expected.size || [...actual].some((id) => !expected.has(id))
           || storedIds.size !== expected.size || [...storedIds].some((id) => !expected.has(id))) {
-          failure = { ...accessVendor(req), reason: 'Created application policy id set did not match the requested policy id set.' };
+          failure = { ...strictVendorError(req), reason: 'Created application policy id set did not match the requested policy id set.' };
         }
       }
       if (!failure) {
@@ -3015,15 +3128,15 @@ export const modules = {
         name: input.name, decision: input.decision,
         include: emails ? input.emails.map((email) => ({ email: { email } })) : [{ service_token: { token_id: input.service_token_id } }],
       } };
-      const reply = await accessRequest(ctx, req);
+      const reply = await strictProxyResponse(ctx, req);
       if (reply.error) return reply.error;
       if (!asObject(reply.result) || !ACCESS_UUID.test(reply.result.id)) {
-        return { ...accessVendor(req), policy_name: input.name, removed: false,
+        return { ...strictVendorError(req), policy_name: input.name, removed: false,
           reason: `Cloudflare answered the policy create with no usable id; a policy named ${JSON.stringify(input.name)} may now exist and was not removed. Check it in Cloudflare.` };
       }
       const id = reply.result.id;
       const readReq = { endpoint: `${req.endpoint}/${encodeURIComponent(id)}`, method: 'GET' };
-      const readBack = await accessRequest(ctx, readReq);
+      const readBack = await strictProxyResponse(ctx, readReq);
       const problem = readBack.error ? 'Created policy could not be read back.' : accessPolicyProblem(readBack.result)
         || (readBack.result.id !== id ? 'Policy read-back id did not match.' : null)
         || (readBack.result.reusable !== true ? 'Policy read-back must be reusable.' : null)
@@ -3039,7 +3152,7 @@ export const modules = {
       const team = await accessTeam(input, ctx);
       if (team) return team;
       const req = { endpoint: `${accessPath(input.account_id)}/policies/${encodeURIComponent(input.policy_id)}`, method: 'GET' };
-      const first = await accessRequest(ctx, req);
+      const first = await strictProxyResponse(ctx, req);
       if (first.error) return first.error;
       const before = accessStaffEmails(first.result);
       if (!before) return invalid('policy_id', 'Staff changes require a reusable Allow policy containing only 1 to 50 explicit email includes.');
@@ -3054,20 +3167,20 @@ export const modules = {
       if (changed) {
         const body = Object.fromEntries(ACCESS_POLICY_FIELDS.filter((key) => Object.hasOwn(first.result, key)).map((key) => [key, first.result[key]]));
         body.include = after.map((email) => ({ email: { email } }));
-        const written = await accessRequest(ctx, { ...req, method: 'PUT', body });
+        const written = await strictProxyResponse(ctx, { ...req, method: 'PUT', body });
         if (written.error) return written.error;
       }
-      const last = await accessRequest(ctx, req);
+      const last = await strictProxyResponse(ctx, req);
       if (last.error) return last.error;
       const readBack = accessStaffEmails(last.result);
       if (accessStaffProblem(last.result, input.policy_id) || !readBack || !sameStaff(after, readBack)) {
-        return { ...accessVendor(req), reason: 'Staff policy read-back did not confirm the requested emails and supported settings.' };
+        return { ...strictVendorError(req), reason: 'Staff policy read-back did not confirm the requested emails and supported settings.' };
       }
       return { success: true, policy_id: input.policy_id, changed, before, after: readBack };
     },
     async get_app(input, ctx) {
       const req = { endpoint: `${accessPath(input.account_id)}/apps/${encodeURIComponent(input.app_id)}`, method: 'GET' };
-      const reply = await accessRequest(ctx, req);
+      const reply = await strictProxyResponse(ctx, req);
       if (reply.error) return reply.error;
       const result = accessAppResult(reply.result, req, true);
       if (result.status === 'vendor_error') return result;

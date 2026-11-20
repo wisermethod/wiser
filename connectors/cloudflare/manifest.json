@@ -158,6 +158,57 @@
         "privilege": "write"
       },
       "actions": {
+        "get_email_sending_domain": {
+          "description": "Read whether Email Sending is onboarded for the named domain in this zone and the DNS records Cloudflare reports, including any DMARC guidance.",
+          "privilege": "read",
+          "risk": "low",
+          "confirmation": "none",
+          "key_fields": ["domain", "zone_id"],
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "zone_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "domain": { "type": "string", "pattern": "^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$" }
+            },
+            "required": ["zone_id", "domain"],
+            "additionalProperties": false
+          }
+        },
+        "onboard_email_sending_domain": {
+          "description": "Onboard Email Sending for the named domain. Adds five DNS records: on the host cf-bounce under the named domain, three MX records (route1.mx.cloudflare.net priority 99, route2.mx.cloudflare.net priority 5, route3.mx.cloudflare.net priority 100) and one SPF TXT (v=spf1 include:_spf.mx.cloudflare.net ~all). On the host cf-bounce._domainkey under the named domain, one TXT with Cloudflare’s generated DKIM public key. The domain’s existing MX, SPF, DKIM and DMARC records are not changed.",
+          "privilege": "write",
+          "risk": "high",
+          "confirmation": "always",
+          "key_fields": ["domain", "zone_id"],
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "zone_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "domain": { "type": "string", "pattern": "^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$" }
+            },
+            "required": ["zone_id", "domain"],
+            "additionalProperties": false
+          }
+        },
+        "remove_email_sending_domain": {
+          "description": "Remove the named domain from Email Sending. This deletes the five Email Sending DNS records: three MX and one SPF TXT on the host cf-bounce under the named domain, and one DKIM TXT on the host cf-bounce._domainkey under the named domain. Read the domain listing afterward to confirm absence.",
+          "privilege": "write",
+          "risk": "destructive",
+          "confirmation": "always",
+          "key_fields": ["domain", "zone_id"],
+          "execution": { "prefer": "proxy" },
+          "input": {
+            "type": "object",
+            "properties": {
+              "zone_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+              "domain": { "type": "string", "pattern": "^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$" }
+            },
+            "required": ["zone_id", "domain"],
+            "additionalProperties": false
+          }
+        },
         "list": {
           "description": "List every zone the connected token can see",
           "risk": "low",
@@ -642,7 +693,7 @@
           }
         },
         "deploy_worker_release": {
-          "description": "Deploy an admitted signed format-2 app release from the pinned base with a D1 binding, static assets and plain variables; migrations are verified but not applied. App and version are identifiers, never addresses. vars must be an object of strings of at most 512 Unicode characters, with names matching ^[A-Z][A-Z0-9_]{0,63}$ and no secret-name segment (SECRET, TOKEN, PASSWORD, PASSWD, KEY, CREDENTIAL, CREDENTIALS or AUTHORIZATION). Its keys must exactly match the verified manifest vars_required names, which cannot collide with resource bindings; this comparison precedes all content-file fetches and Cloudflare calls.",
+          "description": "Deploy one app from a signed Worker release admitted by release.json. See Wiser CRM release/FORMAT.md. App and version are identifiers. For format 3 use database_id for the selected app’s database and, for the CRM, give a distinct intake_database_id for its second binding. Use that same ID as database_id for intake. Both format 3 deploys need Account / D1 / Read to verify that the intake database records all signed intake migrations and none of the CRM’s. Supply peer_script_name to check the other Worker’s serving intake database. A first intake install may precede the CRM peer. Each version receiving traffic on the Worker being deployed must have a readable INTAKE_DB matching the requested ID. When there are no deployments, use the existing Worker’s settings bindings. A serving CRM version with its legacy DB and ASSETS bindings and no INTAKE_DB is eligible for the upgrade. Zero-traffic versions are skipped. The vars object supplies signed variable names and values, including the mail destination and sender for intake. The destination is also the send_email pin. Intake opens no assets session. This action does not run migrations.",
           "privilege": "write",
           "risk": "high",
           "confirmation": "always",
@@ -654,7 +705,7 @@
             "properties": {
               "vars": {
                 "type": "object",
-                "description": "Plain-text Worker variables: each name one the signed release declares in vars_required; a name with a SECRET, TOKEN, PASSWORD, PASSWD, KEY, CREDENTIAL, CREDENTIALS or AUTHORIZATION segment is refused by the action, since a secret is never a plain variable.",
+                "description": "Plain-text Worker variables: each name one the signed app declares; a name with a SECRET, TOKEN, PASSWORD, PASSWD, KEY, CREDENTIAL, CREDENTIALS or AUTHORIZATION segment is refused by the action, since a secret is never a plain variable.",
                 "propertyNames": {
                   "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
                 },
@@ -679,6 +730,16 @@
               "database_id": {
                 "type": "string",
                 "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "intake_database_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "description": "Required for a format 3 CRM deploy. If also supplied to intake, must equal its database_id."
+              },
+              "peer_script_name": {
+                "type": "string",
+                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$",
+                "description": "Required for format 3. Names the other Worker so the action can check the shared intake database before writing."
               }
             },
             "required": [
@@ -720,7 +781,7 @@
           }
         },
         "d1_migrate": {
-          "description": "Apply signed format-2 release migrations through D1 query, only after every migration size and SHA-256 is verified. Uses the manifest table and names in Wrangler lexical then stable numeric-prefix order. Recorded names are skipped; extra history is ignored and reported, unsafe non-filenames withheld by hash. Stops on success false with file and zero-based statement_index, a deliberate divergence from Wrangler. No SQL or provider diagnostic in answers. Each serialized query must fit 3 MiB. Stop app writes before migration; no cross-request rollback is promised.",
+          "description": "Apply the selected app’s signed release migrations to database_id through D1 query after release verification. See Wiser CRM release/FORMAT.md. Format 3 refuses a database that records any of the other app’s migrations or holds application tables without a recorded migration for the selected app. For an existing CRM database, workers.d1_adopt records a matching baseline only when the database has no history table. Begin with an empty intake database. Format 3 rereads history after creating the history table and checks again for the other app’s migrations. D1 provides no transaction across requests. Uses the selected migration table and filenames in Wrangler order. Recorded names are skipped; other extra history is ignored and reported, unsafe non-filenames withheld by hash. Stops on success false with file and zero-based statement_index, a deliberate divergence from Wrangler. No SQL or provider diagnostic in answers. Each serialized query must fit 3 MiB. Stop app writes before migration; no cross-request rollback is promised.",
           "privilege": "write",
           "risk": "high",
           "confirmation": "always",
@@ -757,7 +818,7 @@
           }
         },
         "d1_adopt": {
-          "description": "Adopt a complete release baseline without running it on the member database, after signed-manifest and migration-file verification. Requires 0001_baseline.sql first and default d1_migrations table, as adopt.mjs. Empty databases unchanged; existing history must be a nonempty lexical prefix and still pass baseline comparison. Columns, indexes and foreign keys must match; extra tables, columns and indexes allowed. Uses single SELECTs of sqlite_master and pragma table functions. Creates a wiser-adopt- random temporary D1 database only after reading its name absent; deletes and reads it absent on success, refusal and error. Unconfirmed cleanup is a failure naming the temporary database. No SQL in answers. Each serialized migration query must fit 3 MiB. Stop app writes before adoption.",
+          "description": "Adopt the selected CRM release baseline without running it on the member database, after release verification. See Wiser CRM release/FORMAT.md. Requires 0001_baseline.sql first and default d1_migrations table, as adopt.mjs. Empty databases unchanged; existing history must be a nonempty lexical prefix and still pass baseline comparison. Columns, indexes and foreign keys must match; extra tables, columns and indexes allowed. Uses single SELECTs of sqlite_master and pragma table functions. Creates a wiser-adopt- random temporary D1 database only after reading its name absent; deletes and reads it absent on success, refusal and error. Unconfirmed cleanup is a failure naming the temporary database. No SQL in answers. Each serialized migration query must fit 3 MiB. Stop app writes before adoption.",
           "privilege": "write",
           "risk": "high",
           "confirmation": "always",
@@ -794,7 +855,7 @@
           }
         },
         "set_vars": {
-          "description": "Set a non-empty subset of the signed release vars_required as plain-text variables on an existing Worker, without uploading code. Signature and exact format-2 shape are verified before any Cloudflare call. vars obeys the deploy name and 512 Unicode-character bounds; unlisted names are refused without echoing keys or values. Preserve every other binding by inheritance; refuse replacing a non-plain binding. Read back binding names and types, never values, and require every set key as plain_text. The answer contains keys_set and version_id only when a single version serves 100 percent of traffic after the update and it is not the version serving before it; otherwise report settings updated but unverified. Before PATCH, read the active deployment and complete version history; refuse unless a uniquely newest created_on version alone serves 100 percent, including after rollback or when newest timestamps tie. Cloudflare changes variables only on the newest deployed version; roll back to a recorded version or deploy a release instead. Failed PATCH adds integer-only provider_codes with no provider message. Record the read-only true update version_id as stopped N for failure recovery.",
+          "description": "Set a non-empty subset of the selected app’s signed plain-text variables on an existing Worker, without uploading code. Verify the release before any Cloudflare call. Changing the pinned mail destination requires a deploy. vars obeys the deploy name and 512 Unicode-character bounds; unlisted names are refused without echoing keys or values. Preserve every other binding by inheritance; refuse replacing a non-plain binding. Read back binding names and types, never values, and require every set key as plain_text. The answer contains keys_set and version_id only when a single version serves 100 percent of traffic after the update and it is not the version serving before it; otherwise report settings updated but unverified. Before PATCH, read the active deployment and complete version history; refuse unless a uniquely newest created_on version alone serves 100 percent, including after rollback or when newest timestamps tie. Cloudflare changes variables only on the newest deployed version; roll back to a recorded version or deploy a release instead. Failed PATCH adds integer-only provider_codes with no provider message. Record the read-only true update version_id as stopped N for failure recovery.",
           "privilege": "write",
           "risk": "high",
           "confirmation": "always",
@@ -822,13 +883,13 @@
               },
               "vars": {
                 "type": "object",
-                "description": "Plain-text Worker variables: each name one the signed release declares in vars_required; a name with a SECRET, TOKEN, PASSWORD, PASSWD, KEY, CREDENTIAL, CREDENTIALS or AUTHORIZATION segment is refused by the action, since a secret is never a plain variable.",
+                "description": "Plain-text Worker variables: each name one the signed app declares; a name with a SECRET, TOKEN, PASSWORD, PASSWD, KEY, CREDENTIAL, CREDENTIALS or AUTHORIZATION segment is refused by the action, since a secret is never a plain variable.",
                 "minProperties": 1,
                 "properties": {
                   "ACCESS_AUD": {
                     "type": "string",
                     "maxLength": 512,
-                    "description": "Optional Access audience tag, allowed only when the signed release lists ACCESS_AUD in vars_required. Other listed plain-text names may be set independently."
+                    "description": "Optional Access audience tag, allowed only when the signed app declares ACCESS_AUD. Other listed plain-text names may be set independently."
                   }
                 },
                 "propertyNames": {
