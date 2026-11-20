@@ -29,9 +29,13 @@ Quota is per Google Cloud project, not per channel: 10,000 units a day and a sep
 
 Only an already-existing custom config passes the opening check. The gateway's provider holds the grant; the connector sees no credential. Each module has a connection record, and an unbound module can adopt the toolkit's one ACTIVE account. Nothing is typed into the conversation. The member setup walkthrough is held for a later release; this section supplies no substitute for it.
 
+## Only on the local gateway
+
+This connector runs only on the local gateway. It signs in through your own Google app, which the Wiser endpoint does not hold, and its uploads read video, caption and image files from your computer, which the endpoint cannot reach.
+
 ## The route this connector does not use
 
-There is no hosted route in this release. Local-file credentials, Provides secrets and token unwrapping are not this connector's auth route. Use the local gateway with the existing custom config, or YouTube Studio in your own browser.
+Local-file credentials, Provides secrets and token unwrapping are not this connector's auth route. Use the local gateway with the existing custom config, or YouTube Studio in your own browser.
 
 ## Revoking
 

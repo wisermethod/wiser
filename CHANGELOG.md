@@ -4,6 +4,16 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.18.4, November 18, 2026
+
+- Set Up Wiser 0.4.5 gives a Claude Cowork project a description that also has every chat look for Wiser's skill before it agrees to an instruction about how to work with you, such as to stop asking before it does something, or remembers one. It is the block in the chat. The link to the setup page now says when your account gets Wiser's skills through the connector, so the page shows a description to paste, with a Copy button, where it showed three words to type. If you made your project earlier, paste the new description into its Edit details. (6f22b65d)
+- Asked to run one of Wiser's tools by name, a session with the plugin installed finds the plugin's folder from an installed skill before it searches your computer, and does not take another copy it finds on disk for the installed one. (6f22b65d)
+- Wiser counts as installed in an app only where that app lists Wiser's skills in the chat. Files left on disk by a plugin you switched off are not read as Wiser's skills or tools. (6f22b65d)
+
+## v2026.11.18.3, November 18, 2026
+
+- Seven connector guides (xAI, ElevenLabs, HeyGen, Cloudflare, Vercel, YouTube, Bouncer) now say in one section which actions run only on your own computer, and why. Connector Author 0.5.5 calls a connector finished only once it is proved on the Wiser endpoint or its guide says why it cannot run there. (c13a86d3, aed7cf02)
+
 ## v2026.11.18.2, November 18, 2026
 
 - Animated Explainer 0.5.0 makes a picture on a site respond to scroll, pointer or entering view, alone or after a load timeline, with a finished still wherever motion cannot run. Its handover records the input mapping, rendered positions and measured budgets. Marketing Page Design 0.5.2 and Component Design 0.2.8 send a picture's scroll or pointer motion there, and Creative Director 0.6.3 judges a response's timing by the settle time its brief states; page effects, form behaviour and canvas pictures stay outside the route. (ee11aa26, 9645d6a4, 1f976d99, e02d9d15)
