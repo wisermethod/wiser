@@ -8,7 +8,7 @@ version: 0.11.1
 
 # Cloudflare
 
-DNS on a named zone, every zone the token can see, the settings on a zone, the zone's configuration reads, D1 databases, Pages projects and custom-domain status, Web Analytics sites, redirect rules, Bulk Redirects, rulesets, and signed Worker releases with their static assets, plain variables, custom domains, free addresses, version history, D1 restore points and explicit-version rollback, plus Access applications, reusable policies and staff emails. Zone Publisher is the DNS consumer. Listing every domain is `cloudflare.zones.list`, not DNS.
+DNS on a named zone, every zone the token can see, the settings on a zone, the zone's configuration reads, D1 databases, Pages projects and custom-domain status, Web Analytics sites, redirect rules, Bulk Redirects, rulesets, and signed Worker releases with their static assets, plain variables, custom domains, free addresses, version history, D1 restore points and explicit-version rollback, Email Sending domains, plus Access applications, reusable policies and staff emails. Zone Publisher is the DNS consumer. Listing every domain is `cloudflare.zones.list`, not DNS.
 
 Not for arbitrary Worker code, Worker scheduled triggers, R2, KV, cache purging, or mail routing, and not for writes to Workers routes, certificates, Page Rules, or non-redirect phases. The SSL mode is one of the seven settings `zones.update_setting` changes.
 
@@ -52,6 +52,9 @@ cloudflare.zones.get_bot_management { zone_id }                               co
 cloudflare.zones.list_certificate_packs { zone_id }                           confirmation: none
 cloudflare.zones.list_workers_routes { zone_id }                              confirmation: none
 cloudflare.zones.list_access_apps { account_id, hostname? }                   confirmation: none
+cloudflare.zones.get_email_sending_domain { zone_id, domain }                 confirmation: none
+cloudflare.zones.onboard_email_sending_domain { zone_id, domain }             confirmation: always
+cloudflare.zones.remove_email_sending_domain { zone_id, domain }              confirmation: always
 
 cloudflare.access.create_app       { account_id, hostname, name, policy_ids }     confirmation: always
 cloudflare.access.create_policy    { account_id, name, decision, emails? , service_token_id? } confirmation: always
@@ -60,7 +63,7 @@ cloudflare.access.get_app          { account_id, app_id }                       
 
 cloudflare.workers.workers_subdomain { account_id }                            confirmation: none
 cloudflare.workers.get_worker      { account_id, script_name }                  confirmation: none
-cloudflare.workers.deploy_worker_release { account_id, script_name, app, version, database_id, vars } confirmation: always
+cloudflare.workers.deploy_worker_release { account_id, script_name, app, version, database_id, vars, intake_database_id?, peer_script_name? } confirmation: always
 cloudflare.workers.delete_worker   { account_id, script_name }                  confirmation: always
 cloudflare.workers.set_vars      { account_id, script_name, app, version, vars } confirmation: always
 cloudflare.workers.add_custom_domain { account_id, script_name, zone_id, hostname } confirmation: always
@@ -159,26 +162,32 @@ Reads need Account / Workers Scripts / Read; deploy and delete need Edit, the AP
 Workers Scripts Write permission. The connected token carries these permissions
 on the selected account, through toolkit `CLOUDFLARE_API_KEY`.
 
-`deploy_worker_release` admits only apps and Ed25519 public keys pinned in the
-connector's `release.json`, under a base whose host is in `workers.release_hosts`.
-No input is an address. It verifies the signature over the exact manifest bytes
-before checking format 2's exact field set and order, source commits and F1 limit,
-the three PASS checks, Worker module types, assets and migrations. Unknown fields,
-unsafe paths, a format other than 2 and `run_worker_first` other than true are
-refused. Each module's MIME type must match its emitted extension: `.js` and `.mjs`
-are ES modules, `.cjs` is JavaScript, `.wasm` is WebAssembly, `.txt` and `.html`
-are plain text, and `.bin` is octet-stream. The migration table is an SQL identifier;
-numbered SQL files are fetched, size-checked and SHA-256-checked with all other
-files. This deploy does not apply migrations or write their history.
+The format authority is Wiser CRM's [release/FORMAT.md](https://github.com/wisermethod/wiser-crm/blob/main/release/FORMAT.md),
+“Files and signature”, “Format 2” and “Format 3”. `deploy_worker_release` uses the
+connector's `release.json` and `workers.release_hosts` to select the pinned
+publisher and key. Supply an app and version, never a download address.
+Before a write, the gateway fetches the signed release by its pinned path and
+the action verifies the declared content. This deploy applies no migrations.
 
-`vars` is required, an object of strings of at most 512 Unicode characters each.
-Names match `^[A-Z][A-Z0-9_]{0,63}$`; names containing a segment `SECRET`, `TOKEN`,
-`PASSWORD`, `PASSWD`, `KEY`, `CREDENTIAL`, `CREDENTIALS` or `AUTHORIZATION` are refused.
-The object's own shape is checked before any release fetch. After signature and
-manifest shape verification its keys must exactly match `worker.vars_required`,
-with no missing or extra name, before any content file is fetched or any Cloudflare
-call runs. Required names must be distinct and cannot collide with the D1 or assets
-binding names. No action accepts a client secret or creates a service token.
+For a format 3 install, select `app: wiser-crm` or `app: wiser-crm-intake`.
+Give `database_id` for the app being deployed. For the CRM also give
+`intake_database_id`, using the same ID supplied to intake as `database_id`.
+Give `peer_script_name` on both calls so the action checks the other Worker's
+serving bindings before uploading. The CRM deploy requires a serving intake
+Worker. Intake can deploy before the CRM exists or while a legacy CRM serves
+with only its own, distinct D1 database. A split deployment or an unreadable or
+mismatched binding stops the write. The check reads current state and provides
+no lock against a concurrent deployment.
+
+Supply each app's install variables in `vars`. Intake takes the notice
+destination and sender in the manifest's named variables. A destination or
+sender omitted or left empty stops intake before any write. The destination
+also becomes the upload's pinned `send_email` address. Intake opens no asset
+upload session. Values are plain strings of at most 512 Unicode characters.
+Names match `^[A-Z][A-Z0-9_]{0,63}$` and cannot contain a segment
+`SECRET`, `TOKEN`, `PASSWORD`, `PASSWD`, `KEY`, `CREDENTIAL`,
+`CREDENTIALS` or `AUTHORIZATION`. See the format authority for each app's
+allowed names. No action accepts a client secret or creates a service token.
 Each variable is uploaded in `metadata.bindings` as `{ name, text, type: "plain_text" }`,
 the [PlainText binding in Cloudflare's script-upload reference](https://developers.cloudflare.com/api/resources/workers/subresources/scripts/methods/update/).
 A confirmation shows the values supplied by the call; deploy results and diagnostic
@@ -186,24 +195,23 @@ refusals carry neither variable binding values nor upload or completion tokens. 
 address is built from the caller's script name and the account's validated subdomain
 and is reported whenever the subdomain exists, including coincidental variable matches.
 
-The release allows 50 modules, 20,000 assets, 25 MiB per file and 64 MiB total,
-including migrations. Every file's size and SHA-256 and every request's size are
-checked before the first upload. Script and asset multipart bodies each fit 3 MiB
-after the proxy's base64 encoding; asset contents are base64 encoded inside multipart
-as well. Preflight reserves 16 KiB for the completion token before its value is known.
-The final report gives actual request bytes, module sizes, asset counts, fetched
-paths and vendor calls. Preflight refusals carry `stage: "before upload"`.
-The deployment binds the supplied D1 id and enables the Worker's workers.dev
-address. An account without a subdomain still deploys with a null URL and a reason.
-It never creates an account subdomain. Format 2 and the variables are verified by
-fake-provider tests and the local live run of 2026-10-26; their hosted behavior
-remains unverified.
+Script and asset multipart bodies each fit 3 MiB after the proxy's base64
+encoding. The action checks request sizes before upload and reserves 16 KiB for
+the completion token when the app has assets. The report gives actual request
+bytes, module sizes, asset counts when applicable, fetched paths and vendor
+calls. Format 3 also reports each D1 binding name and ID. Preflight refusals
+carry `stage: "before upload"`. Deployment enables the Worker's `workers.dev`
+address, reporting a null URL and a reason if the account has no subdomain.
+It never creates a subdomain. Both formats are tested with a fake provider.
+Format 3 can run locally and on the Wiser endpoint once it carries this connector.
+Live verification of format 3 is pending.
 
 `workers.set_vars` takes `account_id`, `script_name`, release `app` and `version`, and
-`vars`. It shares deploy's signature-first verification and exact format-2 shape
-check, fetching only the manifest and signature. Names must be a non-empty subset of that
-signed release's `vars_required`; callers cannot supply an allowlist. The deploy's
-non-secret uppercase-name rule and 512 Unicode-character value limit apply.
+`vars`. It shares deploy's release verification. Format 2 fetches only the
+manifest and signature. Names must be a non-empty subset of the selected app's
+signed declarations. Changing the pinned destination requires a redeploy so
+the binding and the variable change together. The deploy's non-secret
+uppercase-name rule and 512 Unicode-character value limit apply.
 Unlisted names are refused before any Cloudflare call; refusals echo neither
 variable names nor values. It reads the existing Worker's bindings, refuses a
 plain variable that would replace a resource or secret, then reads the active
@@ -283,6 +291,39 @@ and `list_versions`; the new newest-version refusal and PATCH code reporting are
 offline-tested. Custom-domain writes, `set_workers_dev`, and hosted settings
 behavior remain unverified.
 
+### Email Sending domains
+
+The `zones` module owns these actions because Cloudflare scopes Email Sending
+onboarding to a zone. Each takes `zone_id` and the sending `domain`. The token
+needs **Email Sending: Edit** for onboarding and removal. See `auth.md` for
+the read and token form steps.
+
+- `get_email_sending_domain` reads
+  `GET /zones/{zone_id}/email/sending/subdomains` and, when the name is present,
+  `GET /zones/{zone_id}/email/sending/subdomains/{id}/dns`. It returns
+  `onboarded`, `enabled` and `dns_records`. The DNS list may carry DMARC
+  guidance. Guidance does not establish what records are published.
+- `onboard_email_sending_domain` lists the zone's sending domains before
+  `POST /zones/{zone_id}/email/sending/subdomains` with the selected name.
+  An already enabled domain needs no POST. The confirmation shows the three
+  MX records and SPF TXT record on `cf-bounce.<domain>`, and the generated DKIM
+  TXT record on `cf-bounce._domainkey.<domain>`. The domain's existing MX, SPF,
+  DKIM and DMARC records are not changed.
+- `remove_email_sending_domain` resolves the domain's ID in that same list,
+  calls `DELETE /zones/{zone_id}/email/sending/subdomains/{id}`, and checks the
+  list again. Its confirmation names the five managed records it deletes.
+
+The proxy uses the Email Sending requests in Wrangler 4.165.0. Unexpected
+responses are refused. When a response following a write is unverified, read
+the domain before attempting the write again. Both writes require confirmation
+every time. These actions need no local files and run on the local gateway and
+on the Wiser endpoint once it carries this connector. Their connector paths are
+verified with a fake provider.
+
+A newly onboarded domain refused sends with `E_SENDER_DOMAIN_NOT_CONFIGURED`
+for about a minute in the 2026-11-20 Email Sending proof. The installing skill
+waits and retries on that code before treating the notice as working.
+
 ### Restore points and rollback
 
 `workers.d1_bookmark` takes `account_id` and `database_id`. It calls
@@ -346,31 +387,57 @@ rollback. The hosted run remains unverified.
 
 ### Upgrade and failure recovery sequence
 
-Run these actions in order and retain each result before the next write:
+Before the first format 3 install write, the installer checks both apps'
+required install variables against [release/FORMAT.md](https://github.com/wisermethod/wiser-crm/blob/main/release/FORMAT.md#format-3)
+and records the two Worker names and where each database ID will come from.
+Use one recorded intake ID for its migration and both deploys. Onboard the
+sending domain if needed, then start at step 4. A first install has no previous
+CRM version or restore point. If it stops, read the state of both Workers and
+databases before resuming the failed step. Preserve any submissions intake has
+already collected.
 
-1. `workers.get_worker`: record its non-null `version_id` for release N, before
-   **any** upgrade write, including `workers.set_vars`. Stop if it cannot name a
+On an upgrade, run these actions in order and retain each result before the
+next write:
+
+1. `workers.get_worker`: record the CRM's non-null `version_id` for release N,
+   before **any** upgrade write, including `workers.set_vars`. Record the
+   intake version too when present. Stop if an existing Worker cannot name a
    single version at 100 percent. `workers.list_versions` cannot supply this fact.
-2. Stop application writes. Wiser CRM releases carry `WISER_READ_ONLY` in
-   `vars_required`; the CRM refuses every write, including GET routes that write,
-   while its value is anything but empty or `false`. Use `workers.set_vars` on N
-   to set `WISER_READ_ONLY` to `true`, and record the answer's `version_id` as
-   **N's stopped version**, separately from step 1's original N id. Stop if the
-   update is unverified. Keep writes stopped through verification and failure recovery.
-3. `workers.d1_bookmark`: retain `bookmark`, `bookmark_time`, account and database
-   together, with the account's 7- or 30-day window.
-4. `workers.deploy_worker_release`: deploy release N+1. Keep the read-only
-   variable set in the new release as well. The deploy turns the Worker's
-   `workers.dev` address on, so call `workers.set_workers_dev` with `enabled: false`
-   and `previews_enabled: false` straight after it, as after a first install.
-5. `workers.d1_migrate`: apply N+1's verified release migrations.
-6. On failure, `workers.d1_restore` to step 3's pair and window, then
-   `workers.rollback` to step 2's recorded **N's stopped version**, irrespective
-   of the live deployment's versions. This restores N's code with writes still
-   stopped. Retain `previous_bookmark` for undo. Verify the restored data with
-   `pages.d1_query` against the pre-upgrade table set, counts and seeded values
-   (custom columns included), and verify the stopped version serving alone with
-   `get_worker`. A failed or unverified recovery stops the sequence for the operator.
+2. Stop CRM writes. Use `workers.set_vars` on N to set `WISER_READ_ONLY` to
+   `true`, and record the answer's `version_id` as **N's stopped version**,
+   separately from step 1's original N id. Stop if the update is unverified.
+   Keep CRM writes stopped through verification and failure recovery. Intake
+   can keep collecting submissions.
+3. `workers.d1_bookmark`: retain `bookmark`, `bookmark_time`, account and CRM
+   database together, with the account's 7- or 30-day window.
+4. `workers.deploy_worker_release`: deploy the CRM with read-only mode still
+   set during the upgrade. Immediately after the CRM deploy, call
+   `workers.set_workers_dev` with `enabled: false` and `previews_enabled: false`.
+   For format 3, prepare and deploy in this order:
+   1. Use `pages.d1_create_database` for any missing CRM or intake database.
+      Separate IDs keep the public Worker isolated from CRM data.
+   2. Use `workers.d1_migrate` for each app and its own database. Both schemas
+      need to be ready before either new Worker serves.
+   3. Deploy `wiser-crm-intake` with `workers.deploy_worker_release`, naming
+      the CRM script as `peer_script_name`. The public endpoint must be serving
+      before the CRM starts taking in submissions. When using a custom domain,
+      attach and verify it before turning off intake's free address.
+   4. Deploy `wiser-crm` with the recorded intake ID and the intake script as
+      `peer_script_name`. The deployment can then verify the shared binding.
+5. For format 2, apply the CRM migrations after deployment. Format 3 applied
+   them in step 4.
+6. On upgrade failure, `workers.d1_restore` the CRM database to step 3's pair
+   and window, then `workers.rollback` the CRM to step 2's recorded
+   **N's stopped version**, irrespective of the live deployment's versions.
+   This restores N's code with writes still stopped. Retain `previous_bookmark`
+   for undo. Verify restored data with `pages.d1_query` against the pre-upgrade
+   table set, counts and seeded values (custom columns included), and verify
+   the stopped version with `get_worker`. A failed or unverified recovery stops
+   the sequence for the operator. Keep intake's database and any submissions
+   collected during the upgrade. Read intake's serving version and verify
+   that it still accepts submissions. Keep the verified intake deployment
+   serving. If it fails, stop for a recovery decision using its recorded
+   version and preserved data.
 7. Resume writes only after the data and serving version are verified. On failure,
    `workers.rollback` to step 1's original N id, restoring its original writable
    variables, then verify that id serving alone with `workers.get_worker`.
@@ -386,8 +453,8 @@ self-hosted application and named reusable policies. A proxied DNS record for
 that hostname is required for Access to see its traffic. The application does
 not cover a Worker's other addresses, including its `workers.dev` address, which
 `workers.deploy_worker_release` turns on. After every deploy, a first install or an
-upgrade (step 4 above), the caller turns `workers.dev` off with `workers.set_workers_dev`
-using `enabled: false`; nothing here does it on its own.
+upgrade, the caller turns the CRM's `workers.dev` off with
+`workers.set_workers_dev` using `enabled: false` and `previews_enabled: false`.
 The CRM's own wrapper refuses any request without a valid Access token on
 every address. Creating this application alone does not close those other routes.
 Its three writes require confirmation every time.
@@ -513,10 +580,10 @@ This connector holds none. One token connected on any one module, with no label,
 | Module | Privilege | What it is for |
 |--------|-----------|----------------|
 | `dns` | write | Records in a named zone |
-| `zones` | write | Every zone the token can see, plus accounts, zone settings (seven of them can be changed), and reads of bot management, certificate packs, Workers routes and Access applications |
+| `zones` | write | Every zone the token can see, plus accounts, zone settings, Email Sending domains, and reads of bot management, certificate packs, Workers routes and Access applications |
 | `pages` | write | Pages projects, domains and custom-domain status, production deploys of a signed release payload, including its publisher-approved Pages Function when the payload carries one, production deploys with Pages Functions, plain static deploys, Web Analytics on a Pages project, and the D1 databases a Pages site uses: list, get, create, a read-only query, confirmed writes and migrations, binding, removal, and a confirmed validation retry |
 | `access` | write | One-host self-hosted applications with reusable policies, Allow staff email lists, Service Auth by existing token id, and application audience reads |
-| `workers` | write | Read deployed versions and binding names; deploy signed releases with D1, assets and plain variables; apply release migrations and adopt a baseline; take D1 bookmarks, restore and roll back to a recorded version; delete with a read-back |
+| `workers` | write | Read deployed versions and binding names; deploy signed releases with D1, optional assets and mail bindings, and plain variables; apply release migrations and adopt a baseline; take D1 bookmarks, restore and roll back to a recorded version; delete with a read-back |
 | `rulesets` | write | Rulesets, Page Rules, reads of every phase `get_phase_entrypoint` accepts, redirect writes on the two redirect phases, and Bulk Redirect lists |
 
 R2, KV, cache purging, and mail routing are later modules, never extra permissions on these six. Reads of Workers routes, certificate packs, Page Rules and non-redirect phases do not write them.
@@ -525,12 +592,14 @@ R2, KV, cache purging, and mail routing are later modules, never extra permissio
 
 `workers.d1_migrate` and `workers.d1_adopt` each take `account_id`, `database_id`,
 release `app` and `version`, and require confirmation every time. They share
-deploy's signature-first manifest verification, pinned host and exact format-2
-contract. Every `migrations.files` file is fetched by SHA-256 and checked for size,
-hash and UTF-8 before any Cloudflare call. The serialized query for each file,
-including its history INSERT, must fit 3 MiB. No local file path is accepted;
-these actions can run on the hosted endpoint when it carries this release.
-They do not call `pages.d1_apply_migration`.
+deploy's pinned publisher and release verification. `d1_migrate` applies the
+selected app's migration SQL to the supplied `database_id`. `d1_adopt` is for
+the existing CRM baseline. Each selected migration is checked as UTF-8 before
+any Cloudflare call. Each serialized query, including its history INSERT, must
+fit 3 MiB. On a first install create the database with `pages.d1_create_database`.
+These release actions take no local file path and run on the local gateway and
+on the Wiser endpoint once it carries this connector. The Pages action
+`d1_apply_migration` takes a local file and remains local-only.
 
 `d1_migrate` uses [Query D1 Database](https://developers.cloudflare.com/api/resources/d1/subresources/database/methods/query/)
 to create `migrations.table` with Wrangler 4.93.1's `id INTEGER PRIMARY KEY
@@ -594,6 +663,8 @@ reads and final history record consistent.
 | `access.create_app` | Protects one hostname at Cloudflare's edge with the named reusable policies; requires proxied DNS and does not cover other Worker addresses | Remove the application in Cloudflare; this module has no delete action |
 | `access.create_policy` | Creates a reusable Allow or Service Auth policy | Remove it in Cloudflare after checking its application links |
 | `access.set_staff` | Replaces the policy's email includes; affects every application using that policy | Call again with the inverse change, subject to the last-email rule |
+| `zones.onboard_email_sending_domain` | Enables Email Sending and adds its five managed DNS records | Remove the domain from Email Sending |
+| `zones.remove_email_sending_domain` | Removes Email Sending for the named domain and deletes its five managed DNS records | Onboard the domain again |
 | `workers.deploy_worker_release` | Replaces the deployed script, assets, bindings and plain variables | A previous version must be retained separately |
 | `workers.delete_worker` | Removes the Worker | No |
 | `workers.d1_restore` | Overwrites the database at the supplied bookmark; every later change is lost | Restore to the returned previous_bookmark within the account's window |
