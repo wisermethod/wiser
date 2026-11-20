@@ -63,6 +63,10 @@ test('Email Sending onboarding confirmation shows the five DNS records and exist
       return envelope([]);
     }
     assert.equal(req.endpoint, BASE);
+    if (n === 3) {
+      assert.equal(req.method, 'GET');
+      return envelope([subdomain]);
+    }
     assert.equal(req.method, 'POST');
     assert.deepEqual(req.body, { name: DOMAIN });
     return envelope(subdomain);
@@ -71,14 +75,15 @@ test('Email Sending onboarding confirmation shows the five DNS records and exist
   const stop = await env.gw.execute(request);
   assert.equal(stop.status, 'needs_confirmation', JSON.stringify(stop));
   const disclosure = JSON.stringify(stop);
-  for (const pattern of [/example\.com/, /cf-bounce\.<domain>/, /route1\.mx\.cloudflare\.net.*99/,
+  assert.equal(disclosure.includes('<domain>'), false);
+  for (const pattern of [/example\.com/, /host cf-bounce under the named domain/, /route1\.mx\.cloudflare\.net.*99/,
     /route2\.mx\.cloudflare\.net.*5/, /route3\.mx\.cloudflare\.net.*100/, /v=spf1 include:_spf\.mx\.cloudflare\.net ~all/,
-    /cf-bounce\._domainkey\.<domain>/, /existing MX, SPF, DKIM and DMARC records are not changed/]) assert.match(disclosure, pattern);
+    /host cf-bounce\._domainkey under the named domain/, /existing MX, SPF, DKIM and DMARC records are not changed/]) assert.match(disclosure, pattern);
   assert.deepEqual(env.calls, []);
   assert.deepEqual(await env.gw.execute({ ...request, confirm: true }),
     { success: true, domain: DOMAIN, onboarded: true, enabled: true });
   assert.equal((await env.gw.execute(request)).status, 'needs_confirmation');
-  assert.equal(env.calls.length, 2);
+  assert.deepEqual(env.calls.map(({ method }) => method), ['GET', 'POST', 'GET']);
 });
 
 test('Email Sending removal confirms deletion of five records and checks the domain is absent', async (t) => {
@@ -96,7 +101,8 @@ test('Email Sending removal confirms deletion of five records and checks the dom
   const request = env.request('remove_email_sending_domain');
   const stop = await env.gw.execute(request);
   assert.equal(stop.status, 'needs_confirmation', JSON.stringify(stop));
-  assert.match(JSON.stringify(stop), /deletes.*five.*records/);
+  for (const pattern of [/deletes the five Email Sending DNS records/, /three MX and one SPF TXT on the host cf-bounce under the named domain/,
+    /one DKIM TXT on the host cf-bounce\._domainkey under the named domain/, /example\.com/]) assert.match(JSON.stringify(stop), pattern);
   assert.deepEqual(env.calls, []);
   assert.deepEqual(await env.gw.execute({ ...request, confirm: true }),
     { success: true, domain: DOMAIN, removed: true, read_back: 'absent' });
@@ -156,4 +162,72 @@ test('Email Sending keeps numeric authentication codes and withholds the provide
   assert.equal(result.http_status, 401);
   assert.deepEqual(result.provider_codes, [10000]);
   assert.equal(JSON.stringify(result).includes('provider diagnostic'), false);
+});
+
+// Shapes read live on 2026-11-20: a listed row carries `tag`, `name` and a
+// boolean `enabled` among other fields, and no `result_info`. What a write
+// returns is not relied on; the listing read after it is.
+async function confirmed(env, name) {
+  const request = env.request(name);
+  assert.equal((await env.gw.execute(request)).status, 'needs_confirmation');
+  return env.gw.execute({ ...request, confirm: true });
+}
+
+for (const [label, created] of [['a body with no tag', { name: DOMAIN, enabled: true }], ['an empty body', null]]) {
+  test(`Email Sending onboarding is proved by the listing, not the POST reply: ${label}`, async (t) => {
+    const env = await setup(t, (req, n) => req.method === 'POST' ? envelope(created) : envelope(n === 1 ? [] : [subdomain]));
+    assert.deepEqual(await confirmed(env, 'onboard_email_sending_domain'),
+      { success: true, domain: DOMAIN, onboarded: true, enabled: true });
+    assert.deepEqual(env.calls.map(({ method }) => method), ['GET', 'POST', 'GET']);
+  });
+}
+
+test('Email Sending onboarding that the listing does not confirm is a vendor error', async (t) => {
+  const env = await setup(t, (req) => req.method === 'POST' ? envelope(subdomain) : envelope([]));
+  const answer = await confirmed(env, 'onboard_email_sending_domain');
+  assert.equal(answer.status, 'vendor_error', JSON.stringify(answer));
+  assert.equal(answer.reason, 'onboarding submitted; domain not confirmed enabled');
+});
+
+test('Email Sending onboarding enables a listed but disabled domain with the same POST', async (t) => {
+  const env = await setup(t, (req, n) => req.method === 'POST' ? envelope(subdomain)
+    : envelope([{ ...subdomain, enabled: n !== 1 }]));
+  assert.deepEqual(await confirmed(env, 'onboard_email_sending_domain'),
+    { success: true, domain: DOMAIN, onboarded: true, enabled: true });
+  assert.deepEqual(env.calls.map(({ method }) => method), ['GET', 'POST', 'GET']);
+  assert.deepEqual(env.calls[1].body, { name: DOMAIN });
+});
+
+test('Email Sending onboarding of an already enabled domain sends no POST', async (t) => {
+  const env = await setup(t, () => envelope([subdomain]));
+  assert.deepEqual(await confirmed(env, 'onboard_email_sending_domain'),
+    { success: true, domain: DOMAIN, onboarded: true, enabled: true });
+  assert.deepEqual(env.calls.map(({ method }) => method), ['GET']);
+});
+
+for (const [label, deleted] of [['the deleted object', { ...subdomain, enabled: false }], ['an empty object', {}], ['null', null]]) {
+  test(`Email Sending removal is proved by the listing, not the DELETE reply: ${label}`, async (t) => {
+    const env = await setup(t, (req, n) => req.method === 'DELETE' ? envelope(deleted) : envelope(n === 1 ? [subdomain] : []));
+    assert.deepEqual(await confirmed(env, 'remove_email_sending_domain'),
+      { success: true, domain: DOMAIN, removed: true, read_back: 'absent' });
+    assert.deepEqual(env.calls.map(({ method }) => method), ['GET', 'DELETE', 'GET']);
+  });
+}
+
+test('Email Sending removal that leaves the domain listed is a vendor error', async (t) => {
+  const env = await setup(t, (req) => req.method === 'DELETE' ? envelope(null) : envelope([subdomain]));
+  const answer = await confirmed(env, 'remove_email_sending_domain');
+  assert.equal(answer.status, 'vendor_error', JSON.stringify(answer));
+  assert.equal(answer.reason, 'removal submitted; domain still listed');
+});
+
+test('Email Sending reads the listing and DNS shapes Cloudflare returned live', async (t) => {
+  const live = { id: TAG, tag: TAG, name: DOMAIN, enabled: true, preview_enabled: true,
+    return_path_domain: 'cf-bounce.example.com', dkim_selector: 'cf-bounce', drop_suppressed_recipients: false,
+    created: '2026-11-20T10:54:28.240842Z', modified: '2026-11-20T10:54:28.240842Z' };
+  const env = await setup(t, (req) => envelope(req.endpoint === DNS ? records : [live]));
+  const answer = await env.read();
+  assert.equal(answer.success, true, JSON.stringify(answer));
+  assert.equal(answer.enabled, true);
+  assert.equal(answer.dns_records.length, 6);
 });

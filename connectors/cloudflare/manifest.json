@@ -176,7 +176,7 @@
           }
         },
         "onboard_email_sending_domain": {
-          "description": "Onboard Email Sending for the named domain. Adds five DNS records: on cf-bounce.<domain>, three MX records (route1.mx.cloudflare.net priority 99, route2.mx.cloudflare.net priority 5, route3.mx.cloudflare.net priority 100) and one SPF TXT (v=spf1 include:_spf.mx.cloudflare.net ~all). On cf-bounce._domainkey.<domain>, one TXT with Cloudflare’s generated DKIM public key. The domain’s existing MX, SPF, DKIM and DMARC records are not changed.",
+          "description": "Onboard Email Sending for the named domain. Adds five DNS records: on the host cf-bounce under the named domain, three MX records (route1.mx.cloudflare.net priority 99, route2.mx.cloudflare.net priority 5, route3.mx.cloudflare.net priority 100) and one SPF TXT (v=spf1 include:_spf.mx.cloudflare.net ~all). On the host cf-bounce._domainkey under the named domain, one TXT with Cloudflare’s generated DKIM public key. The domain’s existing MX, SPF, DKIM and DMARC records are not changed.",
           "privilege": "write",
           "risk": "high",
           "confirmation": "always",
@@ -193,7 +193,7 @@
           }
         },
         "remove_email_sending_domain": {
-          "description": "Remove the named domain from Email Sending. This deletes the five Email Sending DNS records: three MX and one SPF TXT on cf-bounce.<domain>, and one DKIM TXT on cf-bounce._domainkey.<domain>. Read the domain listing afterward to confirm absence.",
+          "description": "Remove the named domain from Email Sending. This deletes the five Email Sending DNS records: three MX and one SPF TXT on the host cf-bounce under the named domain, and one DKIM TXT on the host cf-bounce._domainkey under the named domain. Read the domain listing afterward to confirm absence.",
           "privilege": "write",
           "risk": "destructive",
           "confirmation": "always",
@@ -693,7 +693,7 @@
           }
         },
         "deploy_worker_release": {
-          "description": "Deploy one app from a signed Worker release admitted by release.json. See Wiser CRM release/FORMAT.md. App and version are identifiers. For format 3 use database_id for the selected app’s database and, for the CRM, give intake_database_id for its second binding. Use that same ID as database_id for intake. For format 3, supply peer_script_name to check the other Worker’s serving intake database. A first intake install may precede the CRM peer. The vars object supplies signed variable names and values, including the mail destination and sender for intake. The destination is also the send_email pin. Intake opens no assets session. This action does not run migrations.",
+          "description": "Deploy one app from a signed Worker release admitted by release.json. See Wiser CRM release/FORMAT.md. App and version are identifiers. For format 3 use database_id for the selected app’s database and, for the CRM, give a distinct intake_database_id for its second binding. Use that same ID as database_id for intake. Both deploys require the intake database to record all signed intake migrations and none of the CRM’s. Supply peer_script_name to check the other Worker’s serving intake database. A first intake install may precede the CRM peer. Redeploys must keep the serving Worker’s INTAKE_DB ID. The vars object supplies signed variable names and values, including the mail destination and sender for intake. The destination is also the send_email pin. Intake opens no assets session. This action does not run migrations.",
           "privilege": "write",
           "risk": "high",
           "confirmation": "always",
@@ -781,7 +781,7 @@
           }
         },
         "d1_migrate": {
-          "description": "Apply the selected app’s signed release migrations to database_id through D1 query after release verification. See Wiser CRM release/FORMAT.md. Uses the selected migration table and filenames in Wrangler order. Recorded names are skipped; extra history is ignored and reported, unsafe non-filenames withheld by hash. Stops on success false with file and zero-based statement_index, a deliberate divergence from Wrangler. No SQL or provider diagnostic in answers. Each serialized query must fit 3 MiB. Stop app writes before migration; no cross-request rollback is promised.",
+          "description": "Apply the selected app’s signed release migrations to database_id through D1 query after release verification. See Wiser CRM release/FORMAT.md. Format 3 reads history before writing and refuses any migration name belonging to the other app in the release. Uses the selected migration table and filenames in Wrangler order. Recorded names are skipped; other extra history is ignored and reported, unsafe non-filenames withheld by hash. Stops on success false with file and zero-based statement_index, a deliberate divergence from Wrangler. No SQL or provider diagnostic in answers. Each serialized query must fit 3 MiB. Stop app writes before migration; no cross-request rollback is promised.",
           "privilege": "write",
           "risk": "high",
           "confirmation": "always",

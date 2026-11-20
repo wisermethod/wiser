@@ -353,7 +353,7 @@ function bindings(value = []) {
   }
   return out;
 }
-async function getWorker(input, ctx, calls, verifyPeer = false) {
+async function getWorker(input, ctx, calls, verifyBindings = false) {
   const req = { endpoint: endpoint(input, '/deployments'), method: 'GET' };
   const reply = await call(ctx, req, calls);
   if (reply.error) return reply.error.http_status === 404 ? { exists: false } : reply.error;
@@ -374,8 +374,10 @@ async function getWorker(input, ctx, calls, verifyPeer = false) {
       || version.percentage < 0 || version.percentage > 100) return vendor(req);
     const versionReq = { endpoint: endpoint(input, `/versions/${version.version_id}`), method: 'GET' };
     const detail = await call(ctx, versionReq, calls);
-    if (detail.error) return detail.error.http_status === 404 && !verifyPeer ? { exists: false } : detail.error;
-    const names = bindings(detail.result?.resources?.bindings);
+    if (detail.error) return detail.error.http_status === 404 && !verifyBindings ? { exists: false } : detail.error;
+    const resources = detail.result?.resources?.bindings;
+    if (verifyBindings && !Array.isArray(resources)) return vendor(versionReq);
+    const names = bindings(resources);
     if (!names) return vendor(versionReq);
     versions.push({ version_id: version.version_id, percentage: version.percentage, bindings: names });
   }
@@ -518,13 +520,13 @@ async function rollback(input, ctx) {
 }
 
 // Neither an exception, a SQL diagnostic nor a returned row is an answer.
-async function d1Call(ctx, req) {
-  try { return await call(ctx, req); }
+async function d1Call(ctx, req, calls) {
+  try { return await call(ctx, req, calls); }
   catch { return { error: vendor(req) }; }
 }
-async function d1Query(input, ctx, sql, id = input.database_id) {
+async function d1Query(input, ctx, sql, id = input.database_id, calls) {
   const req = { endpoint: d1Path(input, id) + '/query', method: 'POST', body: { sql } };
-  const reply = await d1Call(ctx, req);
+  const reply = await d1Call(ctx, req, calls);
   if (reply.error) return reply;
   if (!Array.isArray(reply.result) || !reply.result.length) return { error: vendor(req) };
   const rows = reply.result.flat();
@@ -535,14 +537,46 @@ async function d1Query(input, ctx, sql, id = input.database_id) {
   }
   return { rows };
 }
-async function d1Select(input, ctx, sql, id = input.database_id) {
-  const reply = await d1Query(input, ctx, sql, id);
+async function d1Select(input, ctx, sql, id = input.database_id, calls) {
+  const reply = await d1Query(input, ctx, sql, id, calls);
   if (reply.error) return reply;
   if (reply.rows.length !== 1 || !Array.isArray(reply.rows[0].results)
     || !reply.rows[0].results.every(object)) {
     return { error: vendor({ endpoint: d1Path(input, id) + '/query', method: 'POST' }) };
   }
   return { rows: reply.rows[0].results };
+}
+
+async function readMigrationNames(input, ctx, table, id = input.database_id, calls) {
+  const history = await d1Select(input, ctx, `SELECT name FROM ${table} ORDER BY id`, id, calls);
+  if (history.error) return history;
+  if (history.rows.some(({ name }) => typeof name !== 'string')) {
+    return { error: vendor({ endpoint: d1Path(input, id) + '/query', method: 'POST' }) };
+  }
+  return { names: new Set(history.rows.map(({ name }) => name)) };
+}
+
+async function inspectMigrationHistory(input, ctx, table, id = input.database_id, calls) {
+  // A missing history table is empty. A failed query or a view of that name
+  // cannot prove absence. Match SQLite's case-insensitive identifier lookup.
+  const sql = `SELECT name, type FROM sqlite_master WHERE name = ${sqlString(table)} COLLATE NOCASE AND type IN ('table', 'view')`;
+  const found = await d1Select(input, ctx, sql, id, calls);
+  if (found.error) return found;
+  if (!found.rows.length) return { exists: false, names: new Set() };
+  const [row] = found.rows;
+  if (found.rows.length !== 1 || row.type !== 'table' || typeof row.name !== 'string'
+    || row.name.toLowerCase() !== table.toLowerCase()) {
+    return { error: vendor({ endpoint: d1Path(input, id) + '/query', method: 'POST' }) };
+  }
+  const history = await readMigrationNames(input, ctx, table, id, calls);
+  return { ...history, exists: true };
+}
+
+function foreignMigrationReason(manifest, app, names) {
+  const other = app === CRM ? INTAKE : CRM;
+  if (manifest.apps[other].migrations.files.some(({ name }) => names.has(name))) {
+    return `this database holds ${other === CRM ? "the CRM's" : "intake's"} migrations`;
+  }
 }
 
 async function loadMigrations(input, ctx, maxBytes) {
@@ -564,21 +598,29 @@ async function loadMigrations(input, ctx, maxBytes) {
     if (Buffer.byteLength(JSON.stringify({ sql })) > maxBytes) return { error: before('migration query exceeds proxy request limit') };
     files.push({ name: file.name, text, sql });
   }
-  return { table: selection.table, files: manifest.format === 2 ? migrationOrder(files) : files };
+  return { manifest, table: selection.table, files: manifest.format === 2 ? migrationOrder(files) : files };
 }
 
 async function migrate(input, ctx, maxBytes) {
   const loaded = await loadMigrations(input, ctx, maxBytes);
   if (loaded.error) return loaded.error;
-  const { table, files } = loaded;
+  const { manifest, table, files } = loaded;
   const applied = [], skipped = [], ignored = [];
   const report = { database_id: input.database_id, table, applied, skipped, ignored };
-  const created = await d1Query(input, ctx, historyDDL(table));
-  if (created.error) return { ...created.error, ...report };
-  const history = await d1Select(input, ctx, `SELECT name FROM ${table} ORDER BY id`);
+  let history;
+  if (manifest.format === 3) {
+    history = await inspectMigrationHistory(input, ctx, table);
+    if (history.error) return { ...history.error, ...report };
+    const reason = foreignMigrationReason(manifest, input.app, history.names);
+    if (reason) return { ...refused(reason), field: 'database_id', ...report };
+  }
+  if (!history?.exists) {
+    const created = await d1Query(input, ctx, historyDDL(table));
+    if (created.error) return { ...created.error, ...report };
+  }
+  history ??= await readMigrationNames(input, ctx, table);
   if (history.error) return { ...history.error, ...report };
-  if (history.rows.some((row) => typeof row.name !== 'string')) return { ...vendor({ endpoint: d1Path(input) + '/query', method: 'POST' }), ...report };
-  const names = new Set(history.rows.map(({ name }) => name));
+  const { names } = history;
   for (const name of names) {
     if (!files.some((file) => file.name === name)) {
       // History is member data: a non-filename cannot echo SQL or a diagnostic.
@@ -770,7 +812,7 @@ async function peerDatabase(input, ctx, loaded, intakeId) {
   const script = { account_id: input.account_id, script_name: input.peer_script_name };
   const current = await getWorker(script, ctx, loaded.calls, true);
   if (current.status) return current;
-  if (!current.exists && installingIntake) return;
+  if (!current.exists && installingIntake) return { peer: 'absent' };
   const unreadable = () => before('peer Worker has no single live deployment with readable database bindings', { field: 'peer_script_name' });
   if (!current.version_id) return unreadable();
   const entry = loaded.manifest.apps[peer];
@@ -783,10 +825,43 @@ async function peerDatabase(input, ctx, loaded, intakeId) {
     if (!primary?.database_id || duplicate || databases.length !== shared.length + 1) return unreadable();
     if (primary.database_id === intakeId) return before('the CRM and intake need distinct databases', { field: 'database_id' });
     // The legacy CRM may still be serving on the first upgrade to this pair.
-    if (!shared.length && current.bindings.some(({ name, type }) => name === entry.assets.binding && type === 'assets')) return;
+    if (!shared.length && current.bindings.some(({ name, type }) => name === entry.assets.binding && type === 'assets')) {
+      return { peer: 'format-2', peer_comparison: {
+        script_name: input.peer_script_name, database_id: primary.database_id, intake_database_id: intakeId,
+      } };
+    }
   } else if (databases.length !== 1) return unreadable();
   if (shared.length !== 1 || !shared[0].database_id) return unreadable();
   if (shared[0].database_id !== intakeId) return before('both Workers must use the same intake database', { field: 'intake_database_id' });
+  return { peer: 'agrees' };
+}
+
+async function checkIntakeDatabase(input, ctx, loaded, intakeId) {
+  const { manifest, entry, calls } = loaded;
+  const field = input.app === CRM ? 'intake_database_id' : 'database_id';
+  const { table, files } = manifest.apps[INTAKE].migrations;
+  const history = await inspectMigrationHistory(input, ctx, table, intakeId, calls);
+  if (history.error) return history.error;
+  const wrongApp = foreignMigrationReason(manifest, INTAKE, history.names);
+  if (wrongApp) return before(wrongApp, { field });
+  const missing = files.find(({ name }) => !history.names.has(name));
+  if (missing) return before(`this database is missing intake migration ${missing.name}; run the intake migrations before deploying`, { field });
+
+  const current = await getWorker(input, ctx, calls, true);
+  if (current.status) return current;
+  const name = entry.bindings.d1.find(({ database }) => database === 'intake').name;
+  const serving = current.versions ?? (current.version_id ? [{ percentage: 100, bindings: current.bindings }] : []);
+  for (const version of serving) {
+    if (version.percentage === 0) continue;
+    const shared = version.bindings.filter((binding) => binding.name === name);
+    if (!shared.length) continue;
+    if (shared.length !== 1 || !shared[0].database_id) {
+      return before(`the serving Worker has an unreadable ${name} binding`, { field: 'script_name' });
+    }
+    if (shared[0].database_id !== intakeId) {
+      return before(`the serving Worker's ${name} binding points to a different database; retry with its current database ID`, { field });
+    }
+  }
 }
 
 export function workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, redact }) {
@@ -995,8 +1070,11 @@ export function workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, red
         byHash.set(asset.hash, asset);
         assetManifest[asset.path] = { hash: asset.hash, size: asset.size };
       }
+      let peer;
       if (manifest.format === 3) {
-        const error = await peerDatabase(input, ctx, loaded, declared.intakeId);
+        peer = await peerDatabase(input, ctx, loaded, declared.intakeId);
+        if (peer.status) return { ...peer, fetched, calls };
+        const error = await checkIntakeDatabase(input, ctx, loaded, declared.intakeId);
         if (error) return { ...error, fetched, calls };
       }
       const tokens = [];
@@ -1059,7 +1137,7 @@ export function workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, red
           sha256: sha256(files.get(module.sha256)) })), request_bytes: bodyBytes(form) },
         assets: assetReport,
         database_binding: { name: declared.d1[0].name, database_id: input.database_id },
-        ...(manifest.format === 3 ? { database_bindings: declared.d1.map(({ name, database_id }) => ({ name, database_id })) } : {}),
+        ...(manifest.format === 3 ? { ...peer, database_bindings: declared.d1.map(({ name, database_id }) => ({ name, database_id })) } : {}),
         url: address.exists ? `https://${input.script_name}.${address.subdomain}.workers.dev/` : null,
         ...(!address.exists ? { reason: 'account has no workers.dev subdomain' } : {}), fetched, calls });
     },

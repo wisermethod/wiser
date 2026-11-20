@@ -10,6 +10,7 @@ const INTAKE = 'wiser-crm-intake';
 const ACCOUNT = '0123456789abcdef0123456789abcdef';
 const CRM_DB = '12345678-1234-1234-1234-123456789abc';
 const INTAKE_DB = 'abcdefab-1234-1234-1234-123456789abc';
+const OTHER_DB = 'bbbbbbbb-1234-1234-1234-123456789abc';
 const VERSION_ID = '11111111-1111-1111-1111-111111111111';
 const ROOT = `/accounts/${ACCOUNT}/workers`;
 const BASE = 'https://releases.example.com/';
@@ -81,6 +82,10 @@ async function setup(t, options = {}) {
   const apps = { [CRM]: trust, ...(options.unadmitted ? {} : { [INTAKE]: trust }), 'absent-app': trust };
   writeFileSync(join(dir, 'release.json'), JSON.stringify({ format: 1, base: BASE, apps }));
   const calls = [], fetches = [], deployed = new Map();
+  const migrationNames = (app) => release.apps?.[app]?.migrations.files.map(({ name }) => name) ?? [];
+  const history = new Map(Object.entries(options.history ?? {
+    [CRM_DB]: migrationNames(CRM), [INTAKE_DB]: migrationNames(INTAKE), [OTHER_DB]: migrationNames(INTAKE),
+  }));
   const env = await createTestGateway({ home, connectorDirs: [join(home, 'connectors')], fetchImpl: async (url) => {
     const path = url.slice(BASE.length);
     fetches.push(path);
@@ -99,7 +104,8 @@ async function setup(t, options = {}) {
     calls.push(req);
     if (req.endpoint.endsWith('/assets-upload-session')) return envelope({ jwt: 'fixture-completion', buckets: [] });
     if (req.endpoint === ROOT + '/subdomain') return envelope({ subdomain: 'member' });
-    if (req.endpoint.endsWith('/subdomain')) return envelope({ enabled: true, previews_enabled: false });
+    if (req.endpoint.endsWith('/subdomain')) return options.subdomainFailure ? { status: 500 }
+      : envelope({ enabled: true, previews_enabled: false });
     const script = req.endpoint.match(/\/scripts\/([^/]+)/)?.[1];
     if (req.method === 'PUT' && script) {
       deployed.set(script, JSON.parse(await metadata(req)).bindings);
@@ -113,7 +119,22 @@ async function setup(t, options = {}) {
       return options.peerDetail404 ? { status: 404 } : envelope({ resources: { bindings: deployed.get(script) } });
     }
     if (req.endpoint.endsWith('/query')) {
-      if (options.noStatementResults && req.body.sql.includes('INSERT INTO')) return envelope([[]]);
+      const database = req.endpoint.split('/').at(-2);
+      const { sql } = req.body;
+      const rows = (names) => envelope([{ success: true, results: names.map((name) => ({ name })) }]);
+      if (sql.includes('FROM sqlite_master')) {
+        const results = history.has(database) ? [{ name: 'd1_migrations', type: 'table' }] : [];
+        return envelope([{ success: true, results }]);
+      }
+      if (sql === 'SELECT name FROM d1_migrations ORDER BY id') {
+        return history.has(database) ? rows(history.get(database)) : { status: 400 };
+      }
+      if (sql.startsWith('CREATE TABLE IF NOT EXISTS') && !history.has(database)) history.set(database, []);
+      const recorded = /INSERT INTO d1_migrations \(name\)\s+values \('([^']+)'\)/.exec(sql);
+      if (recorded) {
+        if (options.noStatementResults) return envelope([[]]);
+        history.get(database).push(recorded[1]);
+      }
       return envelope([{ success: true, results: [] }]);
     }
     if (req.endpoint.endsWith('/d1/database') && req.method === 'POST') return envelope({ name: req.body.name, uuid: INTAKE_DB });
@@ -150,6 +171,7 @@ async function metadata(req) {
 async function installBoth(env) {
   const intake = await env.deploy();
   assert.equal(intake.app, INTAKE, JSON.stringify(intake));
+  assert.equal(intake.peer, 'absent');
   const put = env.calls.find(({ method }) => method === 'PUT');
   const worker = env.release.apps[INTAKE].worker;
   // Compare the exact metadata bytes, including the order of the S1 mail object.
@@ -164,6 +186,8 @@ async function installBoth(env) {
   assert.equal(env.fetches[0], `${CRM}/${env.release.version}/manifest.json`);
   const crm = await env.deploy(CRM);
   assert.equal(crm.app, CRM, JSON.stringify(crm));
+  assert.equal(crm.peer, 'agrees');
+  assert.equal(env.calls.some(({ endpoint }) => endpoint.endsWith(`/d1/database/${CRM_DB}/query`)), false);
   const crmPut = env.calls.filter(({ method }) => method === 'PUT').at(-1);
   const uploaded = JSON.parse(await metadata(crmPut));
   assert.deepEqual(uploaded.bindings, [
@@ -245,6 +269,8 @@ test('format 3 intake can deploy before an installed format 2 CRM is upgraded wh
   env.deployed.set(CRM, [{ name: 'DB', type: 'd1', database_id: CRM_DB }, { name: 'ASSETS', type: 'assets' }]);
   const result = await env.deploy();
   assert.equal(result.app, INTAKE, JSON.stringify(result));
+  assert.equal(result.peer, 'format-2');
+  assert.deepEqual(result.peer_comparison, { script_name: CRM, database_id: CRM_DB, intake_database_id: INTAKE_DB });
   assert.deepEqual(env.calls.slice(0, 2).map(({ method }) => method), ['GET', 'GET']);
 });
 
@@ -276,8 +302,84 @@ test('format 3 uploads supplied optional variables only and keeps the mail desti
   assert.equal(env.calls.length, count);
 });
 
+const writes = (calls) => calls.filter(({ method, endpoint, body }) => method !== 'GET'
+  && !(endpoint.endsWith('/query') && /^SELECT\b/.test(body?.sql)));
+const intakeBinding = (database_id) => ({ name: 'INTAKE_DB', type: 'd1', database_id });
+
+for (const [label, history, reason] of [
+  ['CRM baseline', ['0001_baseline.sql'], /holds the CRM's migrations/],
+  ['mixed histories', ['0001_intake.sql', '0001_baseline.sql'], /holds the CRM's migrations/],
+  ['empty history', [], /missing intake migration.*0001_intake\.sql/],
+  ['missing history table', undefined, /missing intake migration.*0001_intake\.sql/],
+]) {
+  for (const app of [INTAKE, CRM]) {
+    test(`format 3 ${app} deploy refuses ${label} on the intake database before any write`, async (t) => {
+      const env = await setup(t, { history: history ? { [INTAKE_DB]: history } : {} });
+      if (app === CRM) env.deployed.set(INTAKE, [intakeBinding(INTAKE_DB)]);
+      const result = await env.deploy(app);
+      assert.deepEqual(writes(env.calls), []);
+      assert.equal(result.status, 'invalid_arguments', JSON.stringify(result));
+      assert.equal(result.field, app === CRM ? 'intake_database_id' : 'database_id');
+      assert.match(result.reason, reason);
+    });
+  }
+}
+
+test('format 3 intake refuses a history missing a later signed intake migration', async (t) => {
+  const env = await setup(t, { history: { [INTAKE_DB]: ['0001_intake.sql'] }, change: (manifest) => {
+    const files = manifest.apps[INTAKE].migrations.files;
+    files.push({ ...files[0], name: '0002_next.sql' });
+  } });
+  const result = await env.deploy();
+  assert.deepEqual(writes(env.calls), []);
+  assert.match(result.reason, /missing intake migration.*0002_next\.sql/);
+});
+
+for (const [label, app, peerBindings] of [
+  ['intake with a missing CRM peer', INTAKE, null],
+  ['intake with a legacy CRM peer', INTAKE, [{ name: 'DB', type: 'd1', database_id: CRM_DB }, { name: 'ASSETS', type: 'assets' }]],
+  ['CRM with an agreeing intake peer', CRM, [intakeBinding(OTHER_DB)]],
+]) {
+  test(`format 3 refuses to move a serving ${label} to another intake database`, async (t) => {
+    const env = await setup(t);
+    env.deployed.set(app, [intakeBinding(INTAKE_DB)]);
+    if (peerBindings) env.deployed.set(app === CRM ? INTAKE : CRM, peerBindings);
+    const result = await env.deploy(app, app === CRM ? { intake_database_id: OTHER_DB } : { database_id: OTHER_DB });
+    assert.deepEqual(writes(env.calls), []);
+    assert.equal(result.status, 'invalid_arguments', JSON.stringify(result));
+    assert.match(result.reason, /serving.*INTAKE_DB.*different database/);
+  });
+}
+
+test('format 3 retry after the script upload and subdomain failure refuses a different intake database', async (t) => {
+  const env = await setup(t, { subdomainFailure: true });
+  const first = await env.deploy();
+  assert.equal(first.status, 'vendor_error', JSON.stringify(first));
+  assert.equal(first.http_status, 500);
+  assert.deepEqual(env.deployed.get(INTAKE)?.[0], intakeBinding(INTAKE_DB));
+  const count = env.calls.length;
+  const retry = await env.deploy(INTAKE, { database_id: OTHER_DB });
+  assert.deepEqual(writes(env.calls.slice(count)), []);
+  assert.equal(retry.status, 'invalid_arguments', JSON.stringify(retry));
+  assert.match(retry.reason, /serving.*INTAKE_DB.*different database/);
+  assert.deepEqual(env.deployed.get(INTAKE)?.[0], intakeBinding(INTAKE_DB));
+});
+
+for (const [app, database_id, reason] of [
+  [INTAKE, CRM_DB, /holds the CRM's migrations/],
+  [CRM, INTAKE_DB, /holds intake's migrations/],
+]) {
+  test(`format 3 ${app} migration refuses the other app's database before any write`, async (t) => {
+    const env = await setup(t);
+    const result = await env.write('workers.d1_migrate', { account_id: ACCOUNT, database_id, app, version: env.release.version });
+    assert.deepEqual(writes(env.calls), []);
+    assert.equal(result.status, 'invalid_arguments', JSON.stringify(result));
+    assert.match(result.reason, reason);
+  });
+}
+
 test('existing D1 create plus confirmed format 3 migrations use each selected app and database', async (t) => {
-  const env = await setup(t);
+  const env = await setup(t, { history: {} });
   await env.write('pages.d1_create_database', { account_id: ACCOUNT, name: 'demo-intake' });
   assert.deepEqual(env.calls[0].body, { name: 'demo-intake' });
   for (const [app, database_id, baseline, table] of [
@@ -288,6 +390,7 @@ test('existing D1 create plus confirmed format 3 migrations use each selected ap
     assert.deepEqual(result.applied, [baseline], JSON.stringify(result));
     const queries = env.calls.filter(({ endpoint }) => endpoint.endsWith(`/${database_id}/query`));
     assert.equal(queries.length, 3);
+    assert.match(queries[0].body.sql, /^SELECT.*FROM sqlite_master/);
     assert.match(queries[2].body.sql, new RegExp(`CREATE TABLE ${table} .*\\nINSERT INTO d1_migrations \\(name\\)\\nvalues \\('${baseline}'\\);`));
   }
 });
@@ -300,7 +403,7 @@ test('format 3 migration writes nothing when the other app bundle violates the s
 });
 
 test('format 3 migration receives no statement results and reports no applied migration', async (t) => {
-  const env = await setup(t, { noStatementResults: true });
+  const env = await setup(t, { history: {}, noStatementResults: true });
   const result = await env.write('workers.d1_migrate', { account_id: ACCOUNT, database_id: INTAKE_DB, app: INTAKE, version: env.release.version });
   assert.equal(result.status, 'vendor_error', JSON.stringify(result));
   assert.deepEqual(result.applied, []);

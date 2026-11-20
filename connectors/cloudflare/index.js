@@ -2545,13 +2545,15 @@ async function onboardEmailSendingDomain(input, ctx) {
   const { domain, match, error } = await findEmailSendingDomain(input, ctx);
   if (error) return error;
   if (match?.enabled) return { success: true, domain, onboarded: true, enabled: true };
-  if (match) return { status: 'invalid_arguments', field: 'domain', reason: 'domain already exists with Email Sending disabled' };
+  // A listed but disabled domain is enabled by the same POST, as Wrangler's
+  // enable does. The POST's own body is not trusted for the outcome: the
+  // listing read before the write is read again after it.
   const req = { endpoint: emailSendingPath(input), method: 'POST', body: { name: domain } };
   const reply = await emailSendingRequest(ctx, req);
   if (reply.error) return reply.error;
-  if (!emailSubdomain(reply.result) || reply.result.name.toLowerCase() !== domain || !reply.result.enabled) {
-    return { ...strictVendorError(req), reason: 'onboarding submitted; domain not confirmed enabled' };
-  }
+  const after = await findEmailSendingDomain(input, ctx);
+  if (after.error) return { ...after.error, reason: 'onboarding submitted; domain read-back failed' };
+  if (!after.match?.enabled) return { ...strictVendorError(req), reason: 'onboarding submitted; domain not confirmed enabled' };
   return { success: true, domain, onboarded: true, enabled: true };
 }
 
@@ -2562,10 +2564,12 @@ async function removeEmailSendingDomain(input, ctx) {
   const req = { endpoint: `${emailSendingPath(input)}/${match.tag}`, method: 'DELETE' };
   const reply = await emailSendingRequest(ctx, req);
   if (reply.error) return reply.error;
-  if (reply.result !== null) return { ...strictVendorError(req), reason: 'removal submitted; unexpected response' };
+  // The DELETE's body is not the proof: the listing is read again and the
+  // domain must be gone from it.
   const after = await findEmailSendingDomain(input, ctx);
   if (after.error) return { ...after.error, reason: 'removal submitted; domain read-back failed' };
-  return { success: !after.match, domain, removed: !after.match, read_back: after.match ? 'present' : 'absent' };
+  if (after.match) return { ...strictVendorError(req), reason: 'removal submitted; domain still listed' };
+  return { success: true, domain, removed: true, read_back: 'absent' };
 }
 
 async function accessTeam(input, ctx) {

@@ -179,6 +179,14 @@ with only its own, distinct D1 database. A split deployment or an unreadable or
 mismatched binding stops the write. The check reads current state and provides
 no lock against a concurrent deployment.
 
+Both deploys read the intake database's migration history before uploading.
+It must record every signed intake migration and none of the signed CRM
+migrations. The Workers token needs Account / D1 / Read for this check.
+The CRM's primary database ID must differ from its intake database ID.
+
+Retry a refused `INTAKE_DB` change with the serving Worker's current database ID.
+For an intentional move, migrate the data and cut over both Workers together separately.
+
 Supply each app's install variables in `vars`. Intake takes the notice
 destination and sender in the manifest's named variables. A destination or
 sender omitted or left empty stops intake before any write. The destination
@@ -199,8 +207,10 @@ Script and asset multipart bodies each fit 3 MiB after the proxy's base64
 encoding. The action checks request sizes before upload and reserves 16 KiB for
 the completion token when the app has assets. The report gives actual request
 bytes, module sizes, asset counts when applicable, fetched paths and vendor
-calls. Format 3 also reports each D1 binding name and ID. Preflight refusals
-carry `stage: "before upload"`. Deployment enables the Worker's `workers.dev`
+calls. Format 3 also reports each D1 binding name and ID and `peer` as `absent`,
+`format-2` or `agrees`. `format-2` includes `peer_comparison`, with the peer's
+script name and primary database ID and the proposed intake database ID.
+Preflight refusals carry `stage: "before upload"`. Deployment enables the Worker's `workers.dev`
 address, reporting a null URL and a reason if the account has no subdomain.
 It never creates a subdomain. Both formats are tested with a fake provider.
 Format 3 can run locally and on the Wiser endpoint once it carries this connector.
@@ -305,9 +315,11 @@ the read and token form steps.
   guidance. Guidance does not establish what records are published.
 - `onboard_email_sending_domain` lists the zone's sending domains before
   `POST /zones/{zone_id}/email/sending/subdomains` with the selected name.
-  An already enabled domain needs no POST. The confirmation shows the three
-  MX records and SPF TXT record on `cf-bounce.<domain>`, and the generated DKIM
-  TXT record on `cf-bounce._domainkey.<domain>`. The domain's existing MX, SPF,
+  An already enabled domain needs no POST; a listed but disabled one is enabled
+  by the same POST. Success is the listing, read again after the write, showing
+  the domain enabled. The confirmation shows the three
+  MX records and SPF TXT record on `cf-bounce` under the named domain, and the generated DKIM
+  TXT record on `cf-bounce._domainkey` under the named domain. The domain's existing MX, SPF,
   DKIM and DMARC records are not changed.
 - `remove_email_sending_domain` resolves the domain's ID in that same list,
   calls `DELETE /zones/{zone_id}/email/sending/subdomains/{id}`, and checks the
@@ -602,9 +614,13 @@ on the Wiser endpoint once it carries this connector. The Pages action
 `d1_apply_migration` takes a local file and remains local-only.
 
 `d1_migrate` uses [Query D1 Database](https://developers.cloudflare.com/api/resources/d1/subresources/database/methods/query/)
-to create `migrations.table` with Wrangler 4.93.1's `id INTEGER PRIMARY KEY
+to manage `migrations.table` with Wrangler 4.93.1's `id INTEGER PRIMARY KEY
 AUTOINCREMENT`, `name TEXT UNIQUE` and `applied_at TIMESTAMP DEFAULT
-CURRENT_TIMESTAMP NOT NULL`. It reads names ordered by id, sorts release names
+CURRENT_TIMESTAMP NOT NULL`. Format 3 reads history before any SQL write and
+refuses a database that records a migration belonging to the other app in the
+signed release. An absent table is empty and is created after the check. Format
+2 issues the idempotent table creation before reading history. The action reads
+names ordered by id, sorts release names
 lexically and then stably by their numeric prefix, skips recorded names, and
 sends each remaining file's text with the history INSERT appended in that same
 request. Names and table come from the verified manifest. Its `applied`, `skipped`
@@ -618,6 +634,8 @@ which continues after that result. The answer retains previously applied files;
 it never claims to roll back earlier statements or requests. The API reference
 says semicolon-separated statements execute as a batch but does not specify the
 effect of a later failed statement on earlier statements in that request.
+A reply with no statement results stops with `vendor_error`. A retry skips a
+file once its name appears in the database's history.
 Stop application writes and take a restore point before an upgrade. Concurrent
 migration calls are not serialized by this connector; the history table's unique
 name is no substitute for stopping concurrent upgrade runs.

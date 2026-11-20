@@ -199,6 +199,24 @@ test('d1_migrate: repeat skips every recorded migration', async (t) => {
   assert.deepEqual(answer.applied, []); assert.deepEqual(answer.skipped, ['0001_baseline.sql', '0002_next.sql']);
   assert.equal(env.writes.length, 1); noSql(answer);
 });
+test('format 2 d1_migrate: empty statement reply fails and retry skips the recorded file', async (t) => {
+  const env = await setup(t, { texts: { '0001_baseline.sql': SQL }, responder: (req, normal) => {
+    const response = normal();
+    return req.body?.sql?.includes('INSERT INTO') ? envelope([[]]) : response;
+  } });
+  const first = await env.execute('d1_migrate');
+  assert.equal(first.status, 'vendor_error');
+  assert.equal(first.file, '0001_baseline.sql');
+  assert.deepEqual(first.applied, []);
+  assert.deepEqual(env.history(), ['0001_baseline.sql']);
+  noSql(first);
+
+  const retry = await env.execute('d1_migrate');
+  assert.deepEqual(retry.applied, []);
+  assert.deepEqual(retry.skipped, ['0001_baseline.sql']);
+  assert.equal(env.writes.filter(({ body }) => body.sql.includes('INSERT INTO')).length, 1);
+  noSql(retry);
+});
 test('d1_migrate: success false stops with file and zero-based statement index', async (t) => {
   const env = await setup(t, { failMigration: 'SQL-BYTES-NEVER-IN-ANSWERS' });
   const answer = await env.execute('d1_migrate');
