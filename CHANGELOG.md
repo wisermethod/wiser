@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.20, November 20, 2026
+
+- Setting up Wiser now works in Claude Cowork with only the Wiser connector added and no plugin. Onboard Root 0.50.8 gets your starter files through the connector when Claude refuses the download, where before it left your folder empty, and Set Up Wiser 0.4.6 gives the project steps in the chat without a page it cannot open there. (a2f2d215, edf9c9ff, bf2b05a2)
+- Where your starter files cannot be fetched at all, Wiser says so, tells you what to try, and stops. It never writes them from memory. (bf2b05a2)
+- The Install steps for Claude Cowork start with the Wiser connector, added from one button on your Wiser account's Install page or through Claude's own menus, and add the plugin only for what your own computer does. The README, `gateway/SETUP.md` and Set Up Connectors 0.5.3 say so, and Set Up Wiser sends you to Wiser's page among Claude's connectors to sign in again. (6ccb8cbd, 54527222, a62d86ec, eca5f7cb, a2f2d215)
+
 ## v2026.11.18.4, November 18, 2026
 
 - Set Up Wiser 0.4.5 gives a Claude Cowork project a description that also has every chat look for Wiser's skill before it agrees to an instruction about how to work with you, such as to stop asking before it does something, or remembers one. It is the block in the chat. The link to the setup page now says when your account gets Wiser's skills through the connector, so the page shows a description to paste, with a Copy button, where it showed three words to type. If you made your project earlier, paste the new description into its Edit details. (6f22b65d)
