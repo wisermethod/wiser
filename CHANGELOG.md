@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.20, November 20, 2026
+
+- The Cloudflare connector installs Wiser CRM's lead intake beside the CRM from one signed release. `workers.deploy_worker_release` takes the app to install: the public intake Worker deploys with its own database and an email notice pinned to the address you give, and the CRM is bound to that same database. Before a migration or a deploy writes anything, the connector reads the database's own migration history and refuses one that belongs to the other app. Releases in the earlier format install as before. (8c92e048, ad7470bc, 654d7011, dda1b57e, fa77c062)
+- Three new Cloudflare actions read, turn on and remove Email Sending for a domain. Turning it on asks first and lists the five DNS records it adds; it changes none of the domain's existing mail records. The two that write need the Email Sending: Edit permission on your token, added on Cloudflare's token form. (8c92e048, ad7470bc)
+
 ## v2026.11.18.4, November 18, 2026
 
 - Set Up Wiser 0.4.5 gives a Claude Cowork project a description that also has every chat look for Wiser's skill before it agrees to an instruction about how to work with you, such as to stop asking before it does something, or remembers one. It is the block in the chat. The link to the setup page now says when your account gets Wiser's skills through the connector, so the page shows a description to paste, with a Copy button, where it showed three words to type. If you made your project earlier, paste the new description into its Edit details. (6f22b65d)
