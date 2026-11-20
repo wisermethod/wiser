@@ -435,10 +435,8 @@ next write:
    1. Use `pages.d1_create_database` for any missing CRM or intake database.
       Separate IDs keep the public Worker isolated from CRM data.
    2. Use `workers.d1_migrate` for each app and its own database. Both schemas
-      need to be ready before either new Worker serves. If the existing CRM
-      database has its schema and no history table, first record its baseline
-      with `workers.d1_adopt`. If the history table exists but is empty, repair
-      that history before adoption. Begin a new intake database empty.
+      need to be ready before either new Worker serves. For an existing CRM
+      schema, see [Release migrations and adoption](#release-migrations-and-adoption).
    3. Deploy `wiser-crm-intake` with `workers.deploy_worker_release`, naming
       the CRM script as `peer_script_name`. The public endpoint must be serving
       before the CRM starts taking in submissions. When using a custom domain,
@@ -627,14 +625,13 @@ to manage `migrations.table` with Wrangler 4.93.1's `id INTEGER PRIMARY KEY
 AUTOINCREMENT`, `name TEXT UNIQUE` and `applied_at TIMESTAMP DEFAULT
 CURRENT_TIMESTAMP NOT NULL`. Format 3 reads history before any SQL write and
 refuses a database that records a migration belonging to the other app in the
-signed release. With absent or empty migration history, any application table
-blocks initialization. The history table itself and SQLite and Cloudflare
-internal tables are excluded. Use `workers.d1_adopt` for an existing CRM
-baseline after any empty history table has been reconciled. Create a new
-intake database empty. Format 3 re-reads the names after creating the history table. A temporary
-entry claims an empty history for one app and blocks the other app while the
-first migration is pending. A successful run clears the entry. Retry an
-interrupted migration with the same app. Format 2 issues the idempotent table
+signed release. When history contains none of the selected app's migration
+filenames, an application table blocks migration. The history table itself
+and SQLite and Cloudflare internal tables are excluded from this check.
+For an existing CRM database, `workers.d1_adopt` records a matching baseline
+only when the database has no history table. An intake database must start
+empty. Format 3 re-reads the names after creating the history table and checks
+again for the other app's migrations. Format 2 issues the idempotent table
 creation before reading history. The action reads
 names ordered by id, sorts release names
 lexically and then stably by their numeric prefix, skips recorded names, and
@@ -652,10 +649,11 @@ says semicolon-separated statements execute as a batch but does not specify the
 effect of a later failed statement on earlier statements in that request.
 A reply with no statement results stops with `vendor_error`. A retry skips a
 file once its name appears in the database's history.
-Stop application writes and take a restore point before an upgrade. The empty
-history claim keeps different format 3 apps from initializing the same database
-through this action. D1 provides no transaction across requests. Keep migration
-runs for the same app and any external database writes separate.
+Stop application writes and take a restore point before an upgrade. D1 provides
+no transaction across requests, so keep migration runs and external database
+writes separate. If both apps migrate the same empty database at once, both
+apps' migration names may land and the intake deploy then refuses that database.
+Create a new empty intake database and migrate it again.
 
 `d1_adopt` reproduces `adopt.mjs` for `0001_baseline.sql` first and the default
 `d1_migrations` table; another table or missing baseline is refused. Its four

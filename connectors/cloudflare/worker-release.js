@@ -573,16 +573,11 @@ async function inspectMigrationHistory(input, ctx, table, id = input.database_id
   return { ...history, exists: true };
 }
 
-// A temporary bootstrap name outside the release's .sql filename space.
-const migrationClaim = (app) => `wiser-format-3:${app}`;
-
 function foreignMigrationReason(manifest, app, names) {
   const other = app === CRM ? INTAKE : CRM;
-  const label = other === CRM ? 'CRM' : 'intake';
   if (manifest.apps[other].migrations.files.some(({ name }) => names.has(name))) {
     return `this database holds ${other === CRM ? "the CRM's" : "intake's"} migrations`;
   }
-  if (names.has(migrationClaim(other))) return `this database has a pending ${label} migration`;
 }
 
 async function loadMigrations(input, ctx, maxBytes) {
@@ -619,16 +614,18 @@ async function migrate(input, ctx, maxBytes) {
   if (format3) {
     history = await inspectMigrationHistory(input, ctx, table);
     if (history.error) return { ...history.error, ...report };
-    if (!history.names.size) {
+    const reason = foreignMigrationReason(manifest, input.app, history.names);
+    if (reason) return refuseDatabase(reason);
+    if (!files.some(({ name }) => history.names.has(name))) {
       // GLOB treats the underscores in these prefixes literally.
       const sql = `SELECT name FROM sqlite_master WHERE type = 'table' AND name <> ${sqlString(table)} COLLATE NOCASE`
         + " AND LOWER(name) NOT GLOB 'sqlite_*' AND LOWER(name) NOT GLOB '_cf_*' LIMIT 1";
       const tables = await d1Select(input, ctx, sql);
       if (tables.error) return { ...tables.error, ...report };
       if (tables.rows.length) {
-        const recovery = history.exists ? "Repair the CRM's empty history before using workers.d1_adopt."
-          : 'Use workers.d1_adopt to record the CRM baseline first.';
-        return refuseDatabase(`this database has application tables and no migration history. ${recovery} An intake database must start empty.`);
+        return refuseDatabase('This database has application tables and no recorded migration for the selected app. '
+          + 'For an existing CRM database, workers.d1_adopt records a matching baseline only when the database has no history table. '
+          + 'An intake database must start empty.');
       }
     }
   }
@@ -637,30 +634,13 @@ async function migrate(input, ctx, maxBytes) {
     if (created.error) return { ...created.error, ...report };
     history = await readMigrationNames(input, ctx, table);
     if (history.error) return { ...history.error, ...report };
-  }
-  const claim = format3 ? migrationClaim(input.app) : undefined;
-  if (format3) {
-    // Reading after CREATE catches history already recorded by another call.
-    // A single conditional INSERT claims an empty history even if two apps
-    // read it empty. D1 has no transaction across requests. This cannot
-    // serialize same-app calls or protect against writers outside this path.
-    const claiming = !history.names.size;
-    if (claiming) {
-      const claimed = await d1Query(input, ctx,
-        `INSERT INTO ${table} (id, name) SELECT 0, ${sqlString(claim)} WHERE NOT EXISTS (SELECT 1 FROM ${table})`);
-      if (claimed.error) return { ...claimed.error, ...report };
-      history = await readMigrationNames(input, ctx, table);
-      if (history.error) return { ...history.error, ...report };
-    }
-    const reason = foreignMigrationReason(manifest, input.app, history.names);
-    if (reason) return refuseDatabase(reason);
-    if (claiming && !history.names.has(claim) && !files.some(({ name }) => history.names.has(name))) {
-      return refuseDatabase('could not read back the database migration claim; retry the migration');
+    if (format3) {
+      const reason = foreignMigrationReason(manifest, input.app, history.names);
+      if (reason) return refuseDatabase(reason);
     }
   }
   const { names } = history;
   for (const name of names) {
-    if (name === claim) continue;
     if (!files.some((file) => file.name === name)) {
       // History is member data: a non-filename cannot echo SQL or a diagnostic.
       ignored.push(/^[A-Za-z0-9_.-]{1,512}\.sql$/.test(name) ? name : { withheld: true, sha256: sha256(Buffer.from(name)) });
@@ -671,10 +651,6 @@ async function migrate(input, ctx, maxBytes) {
     const result = await d1Query(input, ctx, file.sql);
     if (result.error) return { ...result.error, ...report, file: file.name };
     applied.push(file.name);
-  }
-  if (names.has(claim)) {
-    const cleared = await d1Query(input, ctx, `DELETE FROM ${table} WHERE id = 0 AND name = ${sqlString(claim)}`);
-    if (cleared.error) return { ...cleared.error, ...report };
   }
   return report;
 }

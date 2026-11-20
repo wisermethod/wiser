@@ -164,16 +164,6 @@ async function setup(t, options = {}) {
         if (!history.has(database)) history.set(database, options.historyAtCreate?.[database] ?? []);
         return rows();
       }
-      const claim = /^INSERT INTO d1_migrations \(id, name\) SELECT 0, '([^']+)' WHERE NOT EXISTS \(SELECT 1 FROM d1_migrations\)$/.exec(sql);
-      if (claim) {
-        if (!history.get(database).length) history.get(database).push(claim[1]);
-        return rows();
-      }
-      const clear = /^DELETE FROM d1_migrations WHERE id = 0 AND name = '([^']+)'$/.exec(sql);
-      if (clear) {
-        history.set(database, history.get(database).filter((name) => name !== clear[1]));
-        return rows();
-      }
       const recorded = /INSERT INTO d1_migrations \(name\)\s+values \('([^']+)'\)/.exec(sql);
       assert.ok(recorded, 'unexpected D1 write');
       if (options.noStatementResults) return envelope([[]]);
@@ -509,6 +499,7 @@ test('format 3 first install creates both databases, migrates each and deploys i
     const ddl = queries.findIndex(({ body }) => body.sql.startsWith('CREATE TABLE IF NOT EXISTS d1_migrations('));
     assert.ok(ddl > 1 && queries[ddl - 1].body.sql.includes('FROM sqlite_master'));
     assert.equal(queries[ddl + 1].body.sql, 'SELECT name FROM d1_migrations ORDER BY id');
+    assert.equal(writes(queries).length, migrations.length + 1);
     const firstFile = queries.find(({ body }) => body.sql.endsWith(`values ('${baseline}');`));
     assert.ok(firstFile);
     if (!directory) assert.match(firstFile.body.sql, new RegExp(`CREATE TABLE ${table} `));
@@ -522,7 +513,7 @@ test('format 3 migrate refuses to initialize history on a legacy CRM database', 
   const env = await setup(t, { history: {}, schema: crmSchema });
   const result = await env.migrate(INTAKE, CRM_DB);
   assert.equal(result.status, 'invalid_arguments', JSON.stringify(result));
-  assert.match(result.reason, /application tables.*no migration history.*d1_adopt.*intake database.*empty/);
+  assert.match(result.reason, /application tables.*no recorded migration.*d1_adopt.*no history table.*intake database.*empty/i);
   assert.deepEqual(writes(env.calls), []);
 });
 
@@ -531,7 +522,7 @@ test('format 3 migrate refuses a legacy CRM schema with an existing empty histor
   env.deployed.set(CRM, legacyCrmBindings);
   const result = await env.migrate(INTAKE, CRM_DB);
   assert.equal(result.status, 'invalid_arguments', JSON.stringify(result));
-  assert.match(result.reason, /application tables.*no migration history/);
+  assert.match(result.reason, /application tables.*no recorded migration/i);
   const deploy = await env.deploy(INTAKE, { database_id: CRM_DB, peer_script_name: 'mistyped-crm' });
   assert.match(deploy.reason, /missing intake migration.*0001_intake\.sql/);
   assert.deepEqual(env.history.get(CRM_DB), []);
@@ -547,6 +538,66 @@ test('a history-less CRM database cannot be migrated and then deployed as intake
   assert.equal(migrated.status, 'invalid_arguments', JSON.stringify(migrated));
   assert.equal(env.history.has(CRM_DB), false);
   assert.deepEqual(writes(env.calls), []);
+});
+
+for (const [app, database_id, table, absentPeer, deployReason] of [
+  [INTAKE, CRM_DB, 'contacts', 'missing-crm', /missing intake migration.*0001_intake\.sql/],
+  [CRM, INTAKE_DB, 'submissions', 'missing-intake', /peer Worker has no single live deployment/],
+]) {
+  test(`format 3 ${app} cannot migrate the other app's tables with only custom history or deploy with a missing peer`, async (t) => {
+    const env = await setup(t, {
+      history: { [database_id]: ['0099_custom.sql'] },
+      schema: { [database_id]: [{ name: table, type: 'table' }] },
+    });
+    const migrated = await env.migrate(app, database_id);
+    const migrationWrites = writes(env.calls).length;
+    const deployed = await env.deploy(app, {
+      database_id, peer_script_name: absentPeer, ...(app === CRM ? { intake_database_id: OTHER_DB } : {}),
+    });
+    assert.deepEqual({
+      migrationStatus: migrated.status, migrationWrites,
+      uploaded: env.deployed.has(app), history: env.history.get(database_id),
+    }, {
+      migrationStatus: 'invalid_arguments', migrationWrites: 0, uploaded: false, history: ['0099_custom.sql'],
+    });
+    assert.equal(migrated.field, 'database_id');
+    assert.match(migrated.reason, /application tables.*no recorded migration/i);
+    assert.ok(env.calls.some(({ method, endpoint }) => method === 'GET' && endpoint === ROOT + `/scripts/${absentPeer}/deployments`));
+    assert.match(deployed.reason, deployReason);
+    assert.deepEqual(writes(env.calls), []);
+  });
+}
+
+test('format 3 CRM migration explains the adoption prerequisite when history exists but is empty', async (t) => {
+  const env = await setup(t, { history: { [CRM_DB]: [] }, schema: crmSchema });
+  const result = await env.migrate(CRM, CRM_DB);
+  assert.equal(result.status, 'invalid_arguments', JSON.stringify(result));
+  assert.doesNotMatch(result.reason, /\b(?:insert|repair|reconcile)\b/i);
+  assert.match(result.reason, /d1_adopt.*records.*baseline.*when.*has no history table/);
+  assert.deepEqual(writes(env.calls), []);
+});
+
+test('format 3 CRM migration continues from its recorded first file without probing application tables', async (t) => {
+  const next = '0002_add_email.sql';
+  const env = await setup(t, {
+    history: { [CRM_DB]: ['0001_baseline.sql', '0099_custom.sql'] },
+    schema: crmSchema,
+    change: (manifest, files) => {
+      const sql = Buffer.from('ALTER TABLE contacts ADD COLUMN email TEXT;');
+      const sha256 = sha(sql);
+      files.set(sha256, sql);
+      manifest.apps[CRM].migrations.files.push({ name: next, sha256, size: sql.length });
+    },
+  });
+  const result = await env.migrate(CRM, CRM_DB);
+  assert.deepEqual(result.applied, [next], JSON.stringify(result));
+  assert.deepEqual(result.skipped, ['0001_baseline.sql']);
+  assert.deepEqual(result.ignored, ['0099_custom.sql']);
+  assert.deepEqual(env.history.get(CRM_DB), ['0001_baseline.sql', '0099_custom.sql', next]);
+  assert.equal(env.calls.some(({ body }) => body?.sql.startsWith('SELECT name FROM sqlite_master')), false);
+  const [file, ...extra] = writes(env.calls);
+  assert.deepEqual(extra, []);
+  assert.match(file.body.sql, /^ALTER TABLE contacts ADD COLUMN email TEXT/);
 });
 
 test('format 3 migration ignores internal tables and unrelated views but catches literal prefix lookalikes', async (t) => {
@@ -572,7 +623,7 @@ test('format 3 migrate rechecks for foreign migration names immediately after cr
   assert.match(writes(env.calls)[0].body.sql, /^CREATE TABLE IF NOT EXISTS d1_migrations/);
 });
 
-test('overlapping format 3 migrations cannot both apply after reading the same empty history', { timeout: 5000 }, async (t) => {
+test('intake deploy refuses mixed history after overlapping format 3 migrations', { timeout: 5000 }, async (t) => {
   let releaseReads;
   const bothRead = new Promise((resolve) => { releaseReads = resolve; });
   let readers = 0;
@@ -580,15 +631,13 @@ test('overlapping format 3 migrations cannot both apply after reading the same e
     if (++readers === 2) releaseReads();
     await bothRead;
   } });
-  const results = await Promise.all([env.migrate(CRM, CRM_DB), env.migrate(INTAKE, CRM_DB)]);
-  const applied = results.flatMap((result) => result.applied);
-  assert.equal(applied.length, 1, JSON.stringify(results));
+  await Promise.all([env.migrate(CRM, CRM_DB), env.migrate(INTAKE, CRM_DB)]);
   assert.equal(readers, 2);
-  assert.deepEqual(env.history.get(CRM_DB), applied);
-  const refused = results.find((result) => !result.applied.length);
-  assert.equal(refused.status, 'invalid_arguments', JSON.stringify(refused));
-  assert.match(refused.reason, /holds|pending/);
-  assert.equal(writes(env.calls).filter(({ body }) => body.sql.includes('values (')).length, 1);
+  assert.deepEqual([...env.history.get(CRM_DB)].sort(), ['0001_baseline.sql', '0001_intake.sql']);
+  const beforeDeploy = env.calls.length;
+  const result = await env.deploy(INTAKE, { database_id: CRM_DB, peer_script_name: 'missing-crm' });
+  assert.match(result.reason, /holds the CRM's migrations/);
+  assert.deepEqual(writes(env.calls.slice(beforeDeploy)), []);
 });
 
 test('a case-insensitive view of the migration history name yields vendor_error before any write', async (t) => {
@@ -597,22 +646,6 @@ test('a case-insensitive view of the migration history name yields vendor_error 
   assert.equal(result.status, 'vendor_error', JSON.stringify(result));
   assert.equal(env.calls.length, 1);
   assert.deepEqual(writes(env.calls), []);
-});
-
-test('format 3 migration keeps an interrupted bootstrap for the same app to retry', async (t) => {
-  const options = { history: {}, noStatementResults: true };
-  const env = await setup(t, options);
-  const first = await env.migrate(INTAKE, INTAKE_DB);
-  assert.equal(first.status, 'vendor_error', JSON.stringify(first));
-  const count = env.calls.length;
-  const wrongApp = await env.migrate(CRM, INTAKE_DB);
-  assert.match(wrongApp.reason, /pending intake migration/);
-  assert.deepEqual(writes(env.calls.slice(count)), []);
-  options.noStatementResults = false;
-  const retry = await env.migrate(INTAKE, INTAKE_DB);
-  assert.deepEqual(retry.applied, ['0001_intake.sql'], JSON.stringify(retry));
-  assert.deepEqual(retry.ignored, []);
-  assert.deepEqual(env.history.get(INTAKE_DB), retry.applied);
 });
 
 test('format 3 migration writes nothing when the other app bundle violates the signed input graph', async (t) => {
