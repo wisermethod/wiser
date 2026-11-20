@@ -411,8 +411,12 @@ and records the two Worker names and where each database ID will come from.
 Use one recorded intake ID for its migration and both deploys. Onboard the
 sending domain if needed, then start at step 4. A first install has no previous
 CRM version or restore point. If it stops, read the state of both Workers and
-databases before resuming the failed step. Preserve any submissions intake has
-already collected.
+databases before resuming the failed step. One failure is not resumed: a first
+migration that created tables and did not record its filename. Neither
+`workers.d1_migrate` nor `workers.d1_adopt` continues on that database. On a
+first install, create a new empty database and migrate that; on an upgrade,
+restore the bookmark taken before it. Do not write a migration name into the
+history by hand. Preserve any submissions intake has already collected.
 
 On an upgrade, run these actions in order and retain each result before the
 next write:
@@ -648,12 +652,17 @@ it never claims to roll back earlier statements or requests. The API reference
 says semicolon-separated statements execute as a batch but does not specify the
 effect of a later failed statement on earlier statements in that request.
 A reply with no statement results stops with `vendor_error`. A retry skips a
-file once its name appears in the database's history.
+file once its name appears in the database's history. A first file that left
+tables behind without its name recorded is refused on retry, as the install
+order above says.
 Stop application writes and take a restore point before an upgrade. D1 provides
 no transaction across requests, so keep migration runs and external database
-writes separate. If both apps migrate the same empty database at once, both
-apps' migration names may land and the intake deploy then refuses that database.
-Create a new empty intake database and migrate it again.
+writes separate, and start no deploy until every migration has returned. If
+both apps migrate the same empty database at once, both apps' migration names
+may land. A deploy whose history read sees the other app's names refuses that
+database; a deploy started while the other migration is still running can read
+the history before those names land and publish onto it. Either way, create a
+new empty intake database, migrate it again and deploy to that.
 
 `d1_adopt` reproduces `adopt.mjs` for `0001_baseline.sql` first and the default
 `d1_migrations` table; another table or missing baseline is refused. Its four

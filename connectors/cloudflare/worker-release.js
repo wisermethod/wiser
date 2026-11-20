@@ -623,8 +623,9 @@ async function migrate(input, ctx, maxBytes) {
       const tables = await d1Select(input, ctx, sql);
       if (tables.error) return { ...tables.error, ...report };
       if (tables.rows.length) {
-        return refuseDatabase('This database has application tables and no recorded migration for the selected app. '
-          + 'For an existing CRM database, workers.d1_adopt records a matching baseline only when the database has no history table. '
+        return refuseDatabase('This database has application tables and no recorded migration for the selected app, so this action will not write to it. '
+          + 'workers.d1_adopt records a matching baseline for an existing CRM database when it has no history table. '
+          + 'Where a first migration stopped partway, use a new empty database on a first install or restore the bookmark taken before an upgrade. '
           + 'An intake database must start empty.');
       }
     }

@@ -574,6 +574,8 @@ test('format 3 CRM migration explains the adoption prerequisite when history exi
   assert.equal(result.status, 'invalid_arguments', JSON.stringify(result));
   assert.doesNotMatch(result.reason, /\b(?:insert|repair|reconcile)\b/i);
   assert.match(result.reason, /d1_adopt.*records.*baseline.*when.*has no history table/);
+  assert.match(result.reason, /first migration stopped partway.*new empty database.*restore the bookmark/);
+  assert.doesNotMatch(result.reason, /resume|retry|insert/i);
   assert.deepEqual(writes(env.calls), []);
 });
 
