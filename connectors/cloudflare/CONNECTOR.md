@@ -175,14 +175,20 @@ Give `database_id` for the app being deployed. For the CRM also give
 Give `peer_script_name` on both calls so the action checks the other Worker's
 serving bindings before uploading. The CRM deploy requires a serving intake
 Worker. Intake can deploy before the CRM exists or while a legacy CRM serves
-with only its own, distinct D1 database. A split deployment or an unreadable or
-mismatched binding stops the write. The check reads current state and provides
-no lock against a concurrent deployment.
+with only its own, distinct D1 database. A split peer deployment or an
+unreadable or mismatched peer binding stops the write.
 
 Both deploys read the intake database's migration history before uploading.
 It must record every signed intake migration and none of the signed CRM
 migrations. The Workers token needs Account / D1 / Read for this check.
 The CRM's primary database ID must differ from its intake database ID.
+
+For the Worker being deployed, each version receiving traffic must have a
+readable `INTAKE_DB` binding to the requested ID. When the deployment list
+is empty and the Worker exists, the check uses its settings bindings. A CRM
+upgrade may replace a serving version with its primary `DB` and `ASSETS`
+bindings and no `INTAKE_DB`. Versions at zero percent are skipped. These
+reads provide no lock against a concurrent deployment.
 
 Retry a refused `INTAKE_DB` change with the serving Worker's current database ID.
 For an intentional move, migrate the data and cut over both Workers together separately.
@@ -429,7 +435,10 @@ next write:
    1. Use `pages.d1_create_database` for any missing CRM or intake database.
       Separate IDs keep the public Worker isolated from CRM data.
    2. Use `workers.d1_migrate` for each app and its own database. Both schemas
-      need to be ready before either new Worker serves.
+      need to be ready before either new Worker serves. If the existing CRM
+      database has its schema and no history table, first record its baseline
+      with `workers.d1_adopt`. If the history table exists but is empty, repair
+      that history before adoption. Begin a new intake database empty.
    3. Deploy `wiser-crm-intake` with `workers.deploy_worker_release`, naming
       the CRM script as `peer_script_name`. The public endpoint must be serving
       before the CRM starts taking in submissions. When using a custom domain,
@@ -618,8 +627,15 @@ to manage `migrations.table` with Wrangler 4.93.1's `id INTEGER PRIMARY KEY
 AUTOINCREMENT`, `name TEXT UNIQUE` and `applied_at TIMESTAMP DEFAULT
 CURRENT_TIMESTAMP NOT NULL`. Format 3 reads history before any SQL write and
 refuses a database that records a migration belonging to the other app in the
-signed release. An absent table is empty and is created after the check. Format
-2 issues the idempotent table creation before reading history. The action reads
+signed release. With absent or empty migration history, any application table
+blocks initialization. The history table itself and SQLite and Cloudflare
+internal tables are excluded. Use `workers.d1_adopt` for an existing CRM
+baseline after any empty history table has been reconciled. Create a new
+intake database empty. Format 3 re-reads the names after creating the history table. A temporary
+entry claims an empty history for one app and blocks the other app while the
+first migration is pending. A successful run clears the entry. Retry an
+interrupted migration with the same app. Format 2 issues the idempotent table
+creation before reading history. The action reads
 names ordered by id, sorts release names
 lexically and then stably by their numeric prefix, skips recorded names, and
 sends each remaining file's text with the history INSERT appended in that same
@@ -636,9 +652,10 @@ says semicolon-separated statements execute as a batch but does not specify the
 effect of a later failed statement on earlier statements in that request.
 A reply with no statement results stops with `vendor_error`. A retry skips a
 file once its name appears in the database's history.
-Stop application writes and take a restore point before an upgrade. Concurrent
-migration calls are not serialized by this connector; the history table's unique
-name is no substitute for stopping concurrent upgrade runs.
+Stop application writes and take a restore point before an upgrade. The empty
+history claim keeps different format 3 apps from initializing the same database
+through this action. D1 provides no transaction across requests. Keep migration
+runs for the same app and any external database writes separate.
 
 `d1_adopt` reproduces `adopt.mjs` for `0001_baseline.sql` first and the default
 `d1_migrations` table; another table or missing baseline is refused. Its four

@@ -12,6 +12,7 @@ const CRM_DB = '12345678-1234-1234-1234-123456789abc';
 const INTAKE_DB = 'abcdefab-1234-1234-1234-123456789abc';
 const OTHER_DB = 'bbbbbbbb-1234-1234-1234-123456789abc';
 const VERSION_ID = '11111111-1111-1111-1111-111111111111';
+const RETIRED_VERSION = '22222222-2222-2222-2222-222222222222';
 const ROOT = `/accounts/${ACCOUNT}/workers`;
 const BASE = 'https://releases.example.com/';
 const CRM_VARS = { ACCESS_TEAM_DOMAIN: 'team.example.com', ACCESS_AUD: 'audience', AGENT_CLIENT_ID: 'client',
@@ -63,6 +64,20 @@ function syntheticRelease() {
   return { manifest, files };
 }
 
+function schemaRows(sql, schema) {
+  const named = /^SELECT name, type FROM sqlite_master WHERE name = '([^']+)' COLLATE NOCASE AND type IN \(([^)]+)\)$/.exec(sql);
+  if (named) {
+    const [, name, predicate] = named;
+    const types = [...predicate.matchAll(/'([^']+)'/g)].map(([, type]) => type);
+    return schema.filter((row) => row.name.toLowerCase() === name.toLowerCase() && types.includes(row.type));
+  }
+  const tables = /^SELECT name FROM sqlite_master WHERE type = '([^']+)' AND name <> '([^']+)' COLLATE NOCASE AND LOWER\(name\) NOT GLOB '([^']+)\*' AND LOWER\(name\) NOT GLOB '([^']+)\*' LIMIT 1$/.exec(sql);
+  assert.ok(tables, 'unexpected SQLite schema query');
+  const [, type, excluded, ...prefixes] = tables;
+  return schema.filter((row) => row.type === type && row.name.toLowerCase() !== excluded.toLowerCase()
+    && prefixes.every((prefix) => !row.name.toLowerCase().startsWith(prefix))).slice(0, 1).map(({ name }) => ({ name }));
+}
+
 async function setup(t, options = {}) {
   const { manifest, files } = syntheticRelease();
   options.change?.(manifest, files);
@@ -86,6 +101,7 @@ async function setup(t, options = {}) {
   const history = new Map(Object.entries(options.history ?? {
     [CRM_DB]: migrationNames(CRM), [INTAKE_DB]: migrationNames(INTAKE), [OTHER_DB]: migrationNames(INTAKE),
   }));
+  const databases = new Map(Object.entries(options.databases ?? {}));
   const env = await createTestGateway({ home, connectorDirs: [join(home, 'connectors')], fetchImpl: async (url) => {
     const path = url.slice(BASE.length);
     fetches.push(path);
@@ -112,8 +128,19 @@ async function setup(t, options = {}) {
       return envelope({ id: script });
     }
     if (req.endpoint.endsWith('/deployments')) {
+      if (options.serving?.script === script && !deployed.has(script)) {
+        const versions = options.serving.versions?.map(({ version_id, percentage }) => ({ version_id, percentage }));
+        return envelope({ deployments: versions ? [{ versions }] : [] });
+      }
       return deployed.has(script) ? envelope({ deployments: [{ versions: [{ version_id: VERSION_ID, percentage: 100 }] }] })
         : { status: 404 };
+    }
+    if (req.endpoint.endsWith('/settings') && options.serving?.script === script) {
+      return envelope({ bindings: options.serving.bindings });
+    }
+    if (req.endpoint.includes('/versions/') && options.serving?.script === script && !deployed.has(script)) {
+      const version = options.serving.versions?.find(({ version_id }) => req.endpoint.endsWith('/' + version_id));
+      if (version) return version.missing ? { status: 404 } : envelope({ resources: { bindings: version.bindings } });
     }
     if (req.endpoint.endsWith('/versions/' + VERSION_ID)) {
       return options.peerDetail404 ? { status: 404 } : envelope({ resources: { bindings: deployed.get(script) } });
@@ -121,23 +148,42 @@ async function setup(t, options = {}) {
     if (req.endpoint.endsWith('/query')) {
       const database = req.endpoint.split('/').at(-2);
       const { sql } = req.body;
-      const rows = (names) => envelope([{ success: true, results: names.map((name) => ({ name })) }]);
+      const rows = (results = []) => envelope([{ success: true, results }]);
       if (sql.includes('FROM sqlite_master')) {
-        const results = history.has(database) ? [{ name: 'd1_migrations', type: 'table' }] : [];
-        return envelope([{ success: true, results }]);
+        const schema = [...(options.schema?.[database] ?? [])];
+        if (history.has(database)) schema.push({ name: 'd1_migrations', type: 'table' });
+        return rows(schemaRows(sql, schema));
       }
       if (sql === 'SELECT name FROM d1_migrations ORDER BY id') {
-        return history.has(database) ? rows(history.get(database)) : { status: 400 };
+        if (!history.has(database)) return { status: 400 };
+        const names = history.get(database).map((name) => ({ name }));
+        if (!names.length) await options.beforeEmptyHistoryReturns?.();
+        return rows(names);
       }
-      if (sql.startsWith('CREATE TABLE IF NOT EXISTS') && !history.has(database)) history.set(database, []);
+      if (sql.startsWith('CREATE TABLE IF NOT EXISTS d1_migrations(')) {
+        if (!history.has(database)) history.set(database, options.historyAtCreate?.[database] ?? []);
+        return rows();
+      }
+      const claim = /^INSERT INTO d1_migrations \(id, name\) SELECT 0, '([^']+)' WHERE NOT EXISTS \(SELECT 1 FROM d1_migrations\)$/.exec(sql);
+      if (claim) {
+        if (!history.get(database).length) history.get(database).push(claim[1]);
+        return rows();
+      }
+      const clear = /^DELETE FROM d1_migrations WHERE id = 0 AND name = '([^']+)'$/.exec(sql);
+      if (clear) {
+        history.set(database, history.get(database).filter((name) => name !== clear[1]));
+        return rows();
+      }
       const recorded = /INSERT INTO d1_migrations \(name\)\s+values \('([^']+)'\)/.exec(sql);
-      if (recorded) {
-        if (options.noStatementResults) return envelope([[]]);
-        history.get(database).push(recorded[1]);
-      }
-      return envelope([{ success: true, results: [] }]);
+      assert.ok(recorded, 'unexpected D1 write');
+      if (options.noStatementResults) return envelope([[]]);
+      history.get(database).push(recorded[1]);
+      return rows();
     }
-    if (req.endpoint.endsWith('/d1/database') && req.method === 'POST') return envelope({ name: req.body.name, uuid: INTAKE_DB });
+    if (req.endpoint.endsWith('/d1/database') && req.method === 'POST') {
+      const { name } = req.body;
+      return envelope({ name, uuid: databases.get(name) ?? INTAKE_DB });
+    }
     assert.fail(`unexpected request: ${req.method} ${req.endpoint}`);
   };
   const input = (app, overrides = {}) => ({
@@ -156,7 +202,8 @@ async function setup(t, options = {}) {
     assert.deepEqual([calls.length, fetches.length], count);
     return env.gw.execute({ ...request, confirm: true });
   }
-  return { ...env, release, input, calls, fetches, deployed, write,
+  return { ...env, release, input, calls, fetches, deployed, history, write,
+    migrate: (app, database_id) => write('workers.d1_migrate', { account_id: ACCOUNT, database_id, app, version: release.version }),
     deploy: (app = INTAKE, overrides) => write('workers.deploy_worker_release', input(app, overrides)) };
 }
 
@@ -169,6 +216,7 @@ async function metadata(req) {
 }
 
 async function installBoth(env) {
+  const firstDeployCall = env.calls.length;
   const intake = await env.deploy();
   assert.equal(intake.app, INTAKE, JSON.stringify(intake));
   assert.equal(intake.peer, 'absent');
@@ -187,7 +235,7 @@ async function installBoth(env) {
   const crm = await env.deploy(CRM);
   assert.equal(crm.app, CRM, JSON.stringify(crm));
   assert.equal(crm.peer, 'agrees');
-  assert.equal(env.calls.some(({ endpoint }) => endpoint.endsWith(`/d1/database/${CRM_DB}/query`)), false);
+  assert.equal(env.calls.slice(firstDeployCall).some(({ endpoint }) => endpoint.endsWith(`/d1/database/${CRM_DB}/query`)), false);
   const crmPut = env.calls.filter(({ method }) => method === 'PUT').at(-1);
   const uploaded = JSON.parse(await metadata(crmPut));
   assert.deepEqual(uploaded.bindings, [
@@ -305,6 +353,10 @@ test('format 3 uploads supplied optional variables only and keeps the mail desti
 const writes = (calls) => calls.filter(({ method, endpoint, body }) => method !== 'GET'
   && !(endpoint.endsWith('/query') && /^SELECT\b/.test(body?.sql)));
 const intakeBinding = (database_id) => ({ name: 'INTAKE_DB', type: 'd1', database_id });
+const legacyCrmBindings = [
+  { name: 'DB', type: 'd1', database_id: CRM_DB },
+  { name: 'ASSETS', type: 'assets' },
+];
 
 for (const [label, history, reason] of [
   ['CRM baseline', ['0001_baseline.sql'], /holds the CRM's migrations/],
@@ -365,6 +417,66 @@ test('format 3 retry after the script upload and subdomain failure refuses a dif
   assert.deepEqual(env.deployed.get(INTAKE)?.[0], intakeBinding(INTAKE_DB));
 });
 
+for (const [label, serving, reason] of [
+  ['settings bindings without a deployment ID', { bindings: [intakeBinding(INTAKE_DB)] }, /different database/],
+  ['only a zero-traffic version has an intake binding', { versions: [
+    { version_id: VERSION_ID, percentage: 100, bindings: [] },
+    { version_id: RETIRED_VERSION, percentage: 0, bindings: [intakeBinding(INTAKE_DB)] },
+  ] }, /unreadable INTAKE_DB/],
+  ['a sole serving intake version has no intake binding', { versions: [
+    { version_id: VERSION_ID, percentage: 100, bindings: [] },
+  ] }, /unreadable INTAKE_DB/],
+]) {
+  test('format 3 deploy refuses when ' + label, async (t) => {
+    const env = await setup(t, { serving: { script: INTAKE, ...serving } });
+    const result = await env.deploy(INTAKE, { database_id: OTHER_DB, peer_script_name: 'missing-crm' });
+    assert.equal(result.status, 'invalid_arguments', JSON.stringify(result));
+    assert.match(result.reason, reason);
+    assert.deepEqual(writes(env.calls), []);
+  });
+}
+
+test('format 3 deploy skips a different intake binding on a zero-traffic version', async (t) => {
+  const env = await setup(t, { serving: { script: INTAKE, versions: [
+    { version_id: VERSION_ID, percentage: 100, bindings: [intakeBinding(INTAKE_DB)] },
+    { version_id: RETIRED_VERSION, percentage: 0, bindings: [intakeBinding(OTHER_DB)] },
+  ] } });
+  const result = await env.deploy();
+  assert.equal(result.app, INTAKE, JSON.stringify(result));
+});
+
+test('format 3 deploy can proceed when details of the zero-traffic version are gone', async (t) => {
+  const env = await setup(t, { serving: { script: INTAKE, versions: [
+    { version_id: VERSION_ID, percentage: 100, bindings: [intakeBinding(INTAKE_DB)] },
+    { version_id: RETIRED_VERSION, percentage: 0, missing: true },
+  ] } });
+  const result = await env.deploy();
+  assert.equal(result.app, INTAKE, JSON.stringify(result));
+  assert.ok(env.calls.every(({ endpoint }) => !endpoint.endsWith(RETIRED_VERSION)));
+});
+
+test('format 2 CRM upgrades to format 3 after deploying intake against a distinct database', async (t) => {
+  const env = await setup(t, { history: { [CRM_DB]: ['0001_baseline.sql'] } });
+  env.deployed.set(CRM, legacyCrmBindings);
+  assert.deepEqual((await env.migrate(INTAKE, INTAKE_DB)).applied, ['0001_intake.sql']);
+  const intake = await env.deploy();
+  assert.equal(intake.peer, 'format-2', JSON.stringify(intake));
+  const crm = await env.deploy(CRM);
+  assert.equal(crm.peer, 'agrees', JSON.stringify(crm));
+  assert.deepEqual(env.deployed.get(CRM)?.slice(0, 3), [
+    legacyCrmBindings[0], { type: 'd1', name: 'INTAKE_DB', database_id: INTAKE_DB }, legacyCrmBindings[1],
+  ]);
+});
+
+test('format 3 CRM refuses a serving version missing both intake and the legacy assets binding', async (t) => {
+  const env = await setup(t);
+  env.deployed.set(INTAKE, [intakeBinding(INTAKE_DB)]);
+  env.deployed.set(CRM, [legacyCrmBindings[0]]);
+  const result = await env.deploy(CRM);
+  assert.match(result.reason, /unreadable INTAKE_DB/);
+  assert.deepEqual(writes(env.calls), []);
+});
+
 for (const [app, database_id, reason] of [
   [INTAKE, CRM_DB, /holds the CRM's migrations/],
   [CRM, INTAKE_DB, /holds intake's migrations/],
@@ -378,21 +490,129 @@ for (const [app, database_id, reason] of [
   });
 }
 
-test('existing D1 create plus confirmed format 3 migrations use each selected app and database', async (t) => {
-  const env = await setup(t, { history: {} });
-  await env.write('pages.d1_create_database', { account_id: ACCOUNT, name: 'demo-intake' });
-  assert.deepEqual(env.calls[0].body, { name: 'demo-intake' });
+test('format 3 first install creates both databases, migrates each and deploys intake before CRM', async (t) => {
+  const directory = process.env.CRM_UNSIGNED_RELEASE_DIR;
+  const fixture = directory ? { directory, raw: readFileSync(join(directory, 'manifest.json')) } : {};
+  const env = await setup(t, { ...fixture, history: {}, databases: { 'demo-crm': CRM_DB, 'demo-intake': INTAKE_DB } });
+  for (const [name, databaseId] of [['demo-crm', CRM_DB], ['demo-intake', INTAKE_DB]]) {
+    const created = await env.write('pages.d1_create_database', { account_id: ACCOUNT, name });
+    assert.equal(created.result?.uuid, databaseId, JSON.stringify(created));
+  }
   for (const [app, database_id, baseline, table] of [
     [INTAKE, INTAKE_DB, '0001_intake.sql', 'submissions'], [CRM, CRM_DB, '0001_baseline.sql', 'contacts'],
   ]) {
-    const { account_id, version } = env.input(app);
-    const result = await env.write('workers.d1_migrate', { account_id, version, app, database_id });
-    assert.deepEqual(result.applied, [baseline], JSON.stringify(result));
+    const result = await env.migrate(app, database_id);
+    const migrations = env.release.apps[app].migrations.files.map(({ name }) => name);
+    assert.deepEqual(result.applied, migrations, JSON.stringify(result));
+    assert.deepEqual(env.history.get(database_id), migrations);
     const queries = env.calls.filter(({ endpoint }) => endpoint.endsWith(`/${database_id}/query`));
-    assert.equal(queries.length, 3);
-    assert.match(queries[0].body.sql, /^SELECT.*FROM sqlite_master/);
-    assert.match(queries[2].body.sql, new RegExp(`CREATE TABLE ${table} .*\\nINSERT INTO d1_migrations \\(name\\)\\nvalues \\('${baseline}'\\);`));
+    const ddl = queries.findIndex(({ body }) => body.sql.startsWith('CREATE TABLE IF NOT EXISTS d1_migrations('));
+    assert.ok(ddl > 1 && queries[ddl - 1].body.sql.includes('FROM sqlite_master'));
+    assert.equal(queries[ddl + 1].body.sql, 'SELECT name FROM d1_migrations ORDER BY id');
+    const firstFile = queries.find(({ body }) => body.sql.endsWith(`values ('${baseline}');`));
+    assert.ok(firstFile);
+    if (!directory) assert.match(firstFile.body.sql, new RegExp(`CREATE TABLE ${table} `));
   }
+  await installBoth(env);
+});
+
+const crmSchema = { [CRM_DB]: [{ name: 'contacts', type: 'table' }] };
+
+test('format 3 migrate refuses to initialize history on a legacy CRM database', async (t) => {
+  const env = await setup(t, { history: {}, schema: crmSchema });
+  const result = await env.migrate(INTAKE, CRM_DB);
+  assert.equal(result.status, 'invalid_arguments', JSON.stringify(result));
+  assert.match(result.reason, /application tables.*no migration history.*d1_adopt.*intake database.*empty/);
+  assert.deepEqual(writes(env.calls), []);
+});
+
+test('format 3 migrate refuses a legacy CRM schema with an existing empty history table', async (t) => {
+  const env = await setup(t, { history: { [CRM_DB]: [] }, schema: crmSchema });
+  env.deployed.set(CRM, legacyCrmBindings);
+  const result = await env.migrate(INTAKE, CRM_DB);
+  assert.equal(result.status, 'invalid_arguments', JSON.stringify(result));
+  assert.match(result.reason, /application tables.*no migration history/);
+  const deploy = await env.deploy(INTAKE, { database_id: CRM_DB, peer_script_name: 'mistyped-crm' });
+  assert.match(deploy.reason, /missing intake migration.*0001_intake\.sql/);
+  assert.deepEqual(env.history.get(CRM_DB), []);
+  assert.deepEqual(writes(env.calls), []);
+});
+
+test('a history-less CRM database cannot be migrated and then deployed as intake with a missing peer', async (t) => {
+  const env = await setup(t, { history: {}, schema: crmSchema });
+  env.deployed.set(CRM, legacyCrmBindings);
+  const migrated = await env.migrate(INTAKE, CRM_DB);
+  const deployed = await env.deploy(INTAKE, { database_id: CRM_DB, peer_script_name: 'mistyped-crm' });
+  assert.match(deployed.reason, /missing intake migration.*0001_intake\.sql/);
+  assert.equal(migrated.status, 'invalid_arguments', JSON.stringify(migrated));
+  assert.equal(env.history.has(CRM_DB), false);
+  assert.deepEqual(writes(env.calls), []);
+});
+
+test('format 3 migration ignores internal tables and unrelated views but catches literal prefix lookalikes', async (t) => {
+  const internal = [
+    { name: 'sqlite_sequence', type: 'table' },
+    { name: '_cf_KV', type: 'table' },
+    { name: 'contacts', type: 'view' },
+  ];
+  const empty = await setup(t, { history: {}, schema: { [INTAKE_DB]: internal } });
+  assert.deepEqual((await empty.migrate(INTAKE, INTAKE_DB)).applied, ['0001_intake.sql']);
+  for (const name of ['sqliteXapp', '_cfXapp', 'xcf_app']) {
+    const env = await setup(t, { history: {}, schema: { [INTAKE_DB]: [...internal, { name, type: 'table' }] } });
+    assert.equal((await env.migrate(INTAKE, INTAKE_DB)).status, 'invalid_arguments', name);
+    assert.deepEqual(writes(env.calls), []);
+  }
+});
+
+test('format 3 migrate rechecks for foreign migration names immediately after creating history', async (t) => {
+  const env = await setup(t, { history: {}, historyAtCreate: { [INTAKE_DB]: ['0001_baseline.sql'] } });
+  const result = await env.migrate(INTAKE, INTAKE_DB);
+  assert.match(result.reason, /holds the CRM's migrations/);
+  assert.equal(writes(env.calls).length, 1);
+  assert.match(writes(env.calls)[0].body.sql, /^CREATE TABLE IF NOT EXISTS d1_migrations/);
+});
+
+test('overlapping format 3 migrations cannot both apply after reading the same empty history', { timeout: 5000 }, async (t) => {
+  let releaseReads;
+  const bothRead = new Promise((resolve) => { releaseReads = resolve; });
+  let readers = 0;
+  const env = await setup(t, { history: {}, beforeEmptyHistoryReturns: async () => {
+    if (++readers === 2) releaseReads();
+    await bothRead;
+  } });
+  const results = await Promise.all([env.migrate(CRM, CRM_DB), env.migrate(INTAKE, CRM_DB)]);
+  const applied = results.flatMap((result) => result.applied);
+  assert.equal(applied.length, 1, JSON.stringify(results));
+  assert.equal(readers, 2);
+  assert.deepEqual(env.history.get(CRM_DB), applied);
+  const refused = results.find((result) => !result.applied.length);
+  assert.equal(refused.status, 'invalid_arguments', JSON.stringify(refused));
+  assert.match(refused.reason, /holds|pending/);
+  assert.equal(writes(env.calls).filter(({ body }) => body.sql.includes('values (')).length, 1);
+});
+
+test('a case-insensitive view of the migration history name yields vendor_error before any write', async (t) => {
+  const env = await setup(t, { history: {}, schema: { [INTAKE_DB]: [{ name: 'D1_MIGRATIONS', type: 'view' }] } });
+  const result = await env.migrate(INTAKE, INTAKE_DB);
+  assert.equal(result.status, 'vendor_error', JSON.stringify(result));
+  assert.equal(env.calls.length, 1);
+  assert.deepEqual(writes(env.calls), []);
+});
+
+test('format 3 migration keeps an interrupted bootstrap for the same app to retry', async (t) => {
+  const options = { history: {}, noStatementResults: true };
+  const env = await setup(t, options);
+  const first = await env.migrate(INTAKE, INTAKE_DB);
+  assert.equal(first.status, 'vendor_error', JSON.stringify(first));
+  const count = env.calls.length;
+  const wrongApp = await env.migrate(CRM, INTAKE_DB);
+  assert.match(wrongApp.reason, /pending intake migration/);
+  assert.deepEqual(writes(env.calls.slice(count)), []);
+  options.noStatementResults = false;
+  const retry = await env.migrate(INTAKE, INTAKE_DB);
+  assert.deepEqual(retry.applied, ['0001_intake.sql'], JSON.stringify(retry));
+  assert.deepEqual(retry.ignored, []);
+  assert.deepEqual(env.history.get(INTAKE_DB), retry.applied);
 });
 
 test('format 3 migration writes nothing when the other app bundle violates the signed input graph', async (t) => {

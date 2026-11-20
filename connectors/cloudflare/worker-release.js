@@ -353,7 +353,7 @@ function bindings(value = []) {
   }
   return out;
 }
-async function getWorker(input, ctx, calls, verifyBindings = false) {
+async function getWorker(input, ctx, calls, { verifyBindings = false, servingOnly = false } = {}) {
   const req = { endpoint: endpoint(input, '/deployments'), method: 'GET' };
   const reply = await call(ctx, req, calls);
   if (reply.error) return reply.error.http_status === 404 ? { exists: false } : reply.error;
@@ -370,6 +370,7 @@ async function getWorker(input, ctx, calls, verifyBindings = false) {
   if (!Array.isArray(active) || !active.length || active.length > 100) return vendor(req);
   const versions = [];
   for (const version of active) {
+    if (servingOnly && version?.percentage === 0) continue;
     if (!string(version.version_id, UUID) || !Number.isFinite(version.percentage)
       || version.percentage < 0 || version.percentage > 100) return vendor(req);
     const versionReq = { endpoint: endpoint(input, `/versions/${version.version_id}`), method: 'GET' };
@@ -557,8 +558,8 @@ async function readMigrationNames(input, ctx, table, id = input.database_id, cal
 }
 
 async function inspectMigrationHistory(input, ctx, table, id = input.database_id, calls) {
-  // A missing history table is empty. A failed query or a view of that name
-  // cannot prove absence. Match SQLite's case-insensitive identifier lookup.
+  // A failed query or a view of that name cannot prove the table is absent.
+  // Match SQLite's case-insensitive identifier lookup.
   const sql = `SELECT name, type FROM sqlite_master WHERE name = ${sqlString(table)} COLLATE NOCASE AND type IN ('table', 'view')`;
   const found = await d1Select(input, ctx, sql, id, calls);
   if (found.error) return found;
@@ -572,11 +573,16 @@ async function inspectMigrationHistory(input, ctx, table, id = input.database_id
   return { ...history, exists: true };
 }
 
+// A temporary bootstrap name outside the release's .sql filename space.
+const migrationClaim = (app) => `wiser-format-3:${app}`;
+
 function foreignMigrationReason(manifest, app, names) {
   const other = app === CRM ? INTAKE : CRM;
+  const label = other === CRM ? 'CRM' : 'intake';
   if (manifest.apps[other].migrations.files.some(({ name }) => names.has(name))) {
     return `this database holds ${other === CRM ? "the CRM's" : "intake's"} migrations`;
   }
+  if (names.has(migrationClaim(other))) return `this database has a pending ${label} migration`;
 }
 
 async function loadMigrations(input, ctx, maxBytes) {
@@ -607,21 +613,54 @@ async function migrate(input, ctx, maxBytes) {
   const { manifest, table, files } = loaded;
   const applied = [], skipped = [], ignored = [];
   const report = { database_id: input.database_id, table, applied, skipped, ignored };
+  const refuseDatabase = (reason) => ({ ...refused(reason), field: 'database_id', ...report });
+  const format3 = manifest.format === 3;
   let history;
-  if (manifest.format === 3) {
+  if (format3) {
     history = await inspectMigrationHistory(input, ctx, table);
     if (history.error) return { ...history.error, ...report };
-    const reason = foreignMigrationReason(manifest, input.app, history.names);
-    if (reason) return { ...refused(reason), field: 'database_id', ...report };
+    if (!history.names.size) {
+      // GLOB treats the underscores in these prefixes literally.
+      const sql = `SELECT name FROM sqlite_master WHERE type = 'table' AND name <> ${sqlString(table)} COLLATE NOCASE`
+        + " AND LOWER(name) NOT GLOB 'sqlite_*' AND LOWER(name) NOT GLOB '_cf_*' LIMIT 1";
+      const tables = await d1Select(input, ctx, sql);
+      if (tables.error) return { ...tables.error, ...report };
+      if (tables.rows.length) {
+        const recovery = history.exists ? "Repair the CRM's empty history before using workers.d1_adopt."
+          : 'Use workers.d1_adopt to record the CRM baseline first.';
+        return refuseDatabase(`this database has application tables and no migration history. ${recovery} An intake database must start empty.`);
+      }
+    }
   }
   if (!history?.exists) {
     const created = await d1Query(input, ctx, historyDDL(table));
     if (created.error) return { ...created.error, ...report };
+    history = await readMigrationNames(input, ctx, table);
+    if (history.error) return { ...history.error, ...report };
   }
-  history ??= await readMigrationNames(input, ctx, table);
-  if (history.error) return { ...history.error, ...report };
+  const claim = format3 ? migrationClaim(input.app) : undefined;
+  if (format3) {
+    // Reading after CREATE catches history already recorded by another call.
+    // A single conditional INSERT claims an empty history even if two apps
+    // read it empty. D1 has no transaction across requests. This cannot
+    // serialize same-app calls or protect against writers outside this path.
+    const claiming = !history.names.size;
+    if (claiming) {
+      const claimed = await d1Query(input, ctx,
+        `INSERT INTO ${table} (id, name) SELECT 0, ${sqlString(claim)} WHERE NOT EXISTS (SELECT 1 FROM ${table})`);
+      if (claimed.error) return { ...claimed.error, ...report };
+      history = await readMigrationNames(input, ctx, table);
+      if (history.error) return { ...history.error, ...report };
+    }
+    const reason = foreignMigrationReason(manifest, input.app, history.names);
+    if (reason) return refuseDatabase(reason);
+    if (claiming && !history.names.has(claim) && !files.some(({ name }) => history.names.has(name))) {
+      return refuseDatabase('could not read back the database migration claim; retry the migration');
+    }
+  }
   const { names } = history;
   for (const name of names) {
+    if (name === claim) continue;
     if (!files.some((file) => file.name === name)) {
       // History is member data: a non-filename cannot echo SQL or a diagnostic.
       ignored.push(/^[A-Za-z0-9_.-]{1,512}\.sql$/.test(name) ? name : { withheld: true, sha256: sha256(Buffer.from(name)) });
@@ -632,6 +671,10 @@ async function migrate(input, ctx, maxBytes) {
     const result = await d1Query(input, ctx, file.sql);
     if (result.error) return { ...result.error, ...report, file: file.name };
     applied.push(file.name);
+  }
+  if (names.has(claim)) {
+    const cleared = await d1Query(input, ctx, `DELETE FROM ${table} WHERE id = 0 AND name = ${sqlString(claim)}`);
+    if (cleared.error) return { ...cleared.error, ...report };
   }
   return report;
 }
@@ -810,7 +853,7 @@ async function peerDatabase(input, ctx, loaded, intakeId) {
   const installingIntake = input.app === INTAKE;
   const peer = installingIntake ? CRM : INTAKE;
   const script = { account_id: input.account_id, script_name: input.peer_script_name };
-  const current = await getWorker(script, ctx, loaded.calls, true);
+  const current = await getWorker(script, ctx, loaded.calls, { verifyBindings: true });
   if (current.status) return current;
   if (!current.exists && installingIntake) return { peer: 'absent' };
   const unreadable = () => before('peer Worker has no single live deployment with readable database bindings', { field: 'peer_script_name' });
@@ -836,6 +879,13 @@ async function peerDatabase(input, ctx, loaded, intakeId) {
   return { peer: 'agrees' };
 }
 
+function hasLegacyCrmBindings(entry, bindings) {
+  const primaryName = entry.bindings.d1.find(({ database }) => database === 'crm').name;
+  const databases = bindings.filter(({ type }) => type === 'd1');
+  return databases.length === 1 && databases[0].name === primaryName && databases[0].database_id
+    && bindings.some(({ name, type }) => name === entry.assets.binding && type === 'assets');
+}
+
 async function checkIntakeDatabase(input, ctx, loaded, intakeId) {
   const { manifest, entry, calls } = loaded;
   const field = input.app === CRM ? 'intake_database_id' : 'database_id';
@@ -847,14 +897,14 @@ async function checkIntakeDatabase(input, ctx, loaded, intakeId) {
   const missing = files.find(({ name }) => !history.names.has(name));
   if (missing) return before(`this database is missing intake migration ${missing.name}; run the intake migrations before deploying`, { field });
 
-  const current = await getWorker(input, ctx, calls, true);
+  const current = await getWorker(input, ctx, calls, { verifyBindings: true, servingOnly: true });
   if (current.status) return current;
+  if (!current.exists) return;
   const name = entry.bindings.d1.find(({ database }) => database === 'intake').name;
-  const serving = current.versions ?? (current.version_id ? [{ percentage: 100, bindings: current.bindings }] : []);
+  const serving = current.versions ?? [{ percentage: 100, bindings: current.bindings }];
   for (const version of serving) {
-    if (version.percentage === 0) continue;
     const shared = version.bindings.filter((binding) => binding.name === name);
-    if (!shared.length) continue;
+    if (!shared.length && input.app === CRM && hasLegacyCrmBindings(entry, version.bindings)) continue;
     if (shared.length !== 1 || !shared[0].database_id) {
       return before(`the serving Worker has an unreadable ${name} binding`, { field: 'script_name' });
     }
