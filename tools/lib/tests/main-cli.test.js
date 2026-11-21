@@ -30,7 +30,8 @@ test('relocated helper uses WISER_TEST_SOURCE_ROOT and stays pinned when that re
   const repository = join(scratch, 'repository');
   // Local objects only: no network, new commits, staging, or shared ref changes.
   execFileSync('git', ['clone', '--shared', '--no-checkout', '--quiet', root, repository], { env: offlineEnv() });
-  execFileSync('git', ['branch', '--force', 'main', 'b11bd900'], { cwd: repository });
+  // update-ref, not branch --force: a clone of a commit that is also main's tip checks main out, and git refuses to force a checked-out branch.
+  execFileSync('git', ['update-ref', 'refs/heads/main', 'b11bd900'], { cwd: repository });
   const helper = join(scratch, 'main-cli.mjs');
   copyFileSync(new URL('./main-cli.js', import.meta.url), helper);
   const run = spawnSync(process.execPath, ['--input-type=module', '-e', `
