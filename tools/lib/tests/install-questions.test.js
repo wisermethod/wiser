@@ -12,7 +12,7 @@ const once = "You'll only be asked once: your yes also covers anything else Wise
 const source = fileURLToPath(new URL('../../../',import.meta.url));
 const rows = [
   ['Browser Control','browser.js','open web pages in a window of its own, without touching your own browser'],
-  ['render','render.js','turn web pages, drawings and diagrams into image files'],
+  ['render','render.js','render web pages, drawings and diagrams as images or PDFs'],
   ['deck-export','deck.js','build slide decks and save them as PDFs or slide images'],
   ['tag-audit','tag-audit.js','check which analytics and tracking tags a web page uses'],
   ['icon-set','icon-set.js','draw icons into your pictures'],
@@ -147,7 +147,7 @@ print(json.dumps({n.targets[0].id:ast.literal_eval(n.value) for n in body if isi
 });
 
 for (const [tool,script,args,purpose] of [
-  ['render','render.js',['html'],'turn web pages, drawings and diagrams into image files'],
+  ['render','render.js',['html'],'render web pages, drawings and diagrams as images or PDFs'],
   ['deck-export','deck.js',['pdf'],'build slide decks and save them as PDFs or slide images'],
 ]) test(`${tool} browser-only refusal keeps the measured browser size`, t => {
   const f=fixture(t);
@@ -184,7 +184,7 @@ for (const present of [false, true]) test(`render mermaid with Playwright presen
     assert.equal(readFileSync(join(f.root,'output.png')).subarray(0,8).toString('hex'),'89504e470d0a1a0a');
   } else {
     assert.equal(result.status,1,result.stderr);assert.equal(result.stdout,'');
-    assert.equal(result.stderr.split('\n')[0],`This Wiser skill needs to download and install a private copy of the Chromium browser on your machine in order to turn web pages, drawings and diagrams into image files. It's about 580 MB. ${once}`);
+    assert.equal(result.stderr.split('\n')[0],`This Wiser skill needs to download and install a private copy of the Chromium browser on your machine in order to render web pages, drawings and diagrams as images or PDFs. It's about 580 MB. ${once}`);
     assert.ok(result.stderr.includes('cdn.playwright.dev'), result.stderr);
   }
   assert.ok(!result.stderr.includes('fetches playwright'), result.stderr);
