@@ -2,11 +2,12 @@
 name: render
 type: tool
 category: media
-description: Renders a local HTML file to a PNG or JPEG, an SVG or a Mermaid diagram to a PNG, and captures a PNG of a live web page
-version: 0.2.8
+description: Renders local HTML to a PDF with CSS page geometry or to a PNG or JPEG, renders an SVG or Mermaid diagram to a PNG, and captures a PNG of a public web page after screening its address
+version: 0.3.0
 runs: both
 hosted:
   - html 8MiB 60s
+  - pdf 8MiB 60s
   - svg 8MiB 60s
   - mermaid 8MiB 60s
   - url 8MiB 60s
@@ -14,31 +15,33 @@ hosted:
 
 # render
 
-One tool for turning markup, a diagram, or a live page into an image file: a local HTML file to PNG or JPEG, an SVG to PNG, a Mermaid diagram to PNG, or a PNG of a live web page.
+Turn local HTML into a paginated PDF or a PNG or JPEG image. Render SVG and Mermaid to PNG, or capture a PNG of a live web page.
 
 ## Context
 
-Use it whenever the answer has to be pixels rather than the source that produced them: a social card or certificate laid out in HTML, a logo or diagram that exists as SVG, a flowchart written as Mermaid, a live page a reviewer cannot open themselves. Reach for the matching subcommand instead of wrapping one input as another, which is where sizing and what the file can reach go wrong.
+Use `pdf` for a document with print styles and page geometry, and `html` for a social card or certificate laid out as an image. Use `svg` for an SVG logo, `mermaid` for a flowchart written as Mermaid, and `url` for a live page a reviewer cannot open themselves.
 
 Do not use it to change an image that already exists, which is `image` `edit` and `image` `compose`, and do not reach for it to produce imagery from a description, which is generation, not rendering. A spreadsheet, a PDF, and a raster that is already an image are not among the inputs it reads.
 
-`html`, `svg`, and `mermaid` authenticate to nothing, hold no credential, and after the packages described in `tools/AGENTS.md` are installed make no network request of their own; uploaded assets are served from bytes and external references are refused. `url` reaches the one address `--url` names, logged out and unauthenticated, and the host fetches every page request through the same destination screens and byte budget. `check` surveys whether the Chromium build is present and, without `--install`, fetches nothing.
+`html`, `pdf`, `svg`, and `mermaid` run offline once the browser is installed. The browser serves uploaded assets from bytes and refuses external references. `url` opens the address `--url` names without credentials. The host fetches every page request through the same destination screens and byte budget. `check` surveys whether the Chromium build is present and fetches nothing without `--install`.
+
+Classifier seam: none.
 
 ## Hosted mode
 
-`html`, `svg`, `mermaid`, and `url` run on either host through `scripts/render-core.js`. `check` stays local because it surveys and installs this machine's browser. The host owns the browser and passes it as the third argument; each job creates and closes its own context without closing that browser. No core imports Node or a browser package.
+`html`, `pdf`, `svg`, `mermaid`, and `url` run on either host through `scripts/render-core.js`. `pdf` uses one browser job per call and keeps upload and output bytes in memory. The host owns the browser and passes it as the third argument. Each job creates and closes its own context. `check` stays local because it surveys and installs this machine's browser. No core imports Node or a browser package.
 
-Call `renderHtml`, `renderSvg`, `renderMermaid`, or `captureUrl` with JSON options and at most one `{ name, mediaType, bytes: Uint8Array }` upload. The CLI also takes `--entry <name>` for an HTML path inside a ZIP. JSON option names are the CLI flags without `--`, with `fullPage` for `--full-page`; omit disk paths. `output` is an optional simple filename. HTML accepts one file or one ZIP; choose its HTML with `entry` when ambiguous (otherwise root `index.html`, or the only HTML file). SVG and Mermaid take one source file. Address capture takes no file. The return is `{ answer, files }`, each file carrying its name, media type and bytes.
+Call `renderHtml`, `renderPdf`, `renderSvg`, `renderMermaid`, or `captureUrl` with JSON options and at most one `{ name, mediaType, bytes: Uint8Array }` upload. JSON option names are the CLI flags without `--`, converted to camelCase. Omit disk paths and CLI-only `install` and `overwrite`. `output` is an optional simple filename. HTML and PDF each accept one HTML file or one ZIP. Select the HTML inside a ZIP with `entry`, which defaults to root `index.html` or the only HTML file. SVG and Mermaid take one source file. Address capture takes no file. The return is `{ answer, files }`, each file carrying its name, media type and bytes. PDF defaults to `render.pdf` and returns `application/pdf`. Pass booleans for `printBackground` and `footerSkipFirst`, and a number for `footerFontSize`.
 
 The third argument supplies `{ browser, fetch, lookup, responseBody, mermaidScript }`. Only address capture uses `fetch` and all-address `lookup`. `responseBody(bytes)` adapts binary bytes to Playwright's response-body type; Node and a Worker with Node compatibility can supply `bytes => Buffer.from(bytes)` outside the portable core. Text assets work without that adapter; binary assets refuse if it is absent. Mermaid receives the bytes of this tool's pinned `mermaid` 10.9.6 `dist/mermaid.min.js` from the host, never a CDN. The CLI reads those bytes from `vendor/mermaid/mermaid.min.js`, shipped with the tool. Fonts and other page assets travel in the ZIP or as embedded data rather than paths on the host's disk.
 
-Each command refuses an uploaded file or JSON input over 8 MiB. ZIPs use `tools/lib/archive-core.js`: at most 1,000 entries and 32 MiB expanded, with traversal, links, encrypted or unsupported archives refused. A job has a 60-second wall budget; `timeout` is at most 45,000 ms. Scale is at most 4; images have at most 8,192 pixels per side and 16,777,216 pixels in total, including fitted and full-page captures. A serialized answer reaching 48,000 characters, or output files reaching 4 MiB in total, is refused whole. Nothing is truncated and the CLI writes no image on these refusals.
+Each command refuses an uploaded file or JSON input over 8 MiB. The PDF upload and its JSON options together must fit within 8 MiB. ZIPs use `tools/lib/archive-core.js` and allow at most 1,000 entries and 32 MiB expanded. They refuse traversal, links, encryption, and unsupported formats. A browser job has a 60-second wall budget, with `timeout` at most 45,000 ms. Scale is at most 4. Images have at most 8,192 pixels per side and 16,777,216 pixels in total, including fitted and full-page captures. PDFs have at most 200 pages. An answer reaching 48,000 characters or output files reaching 4 MiB in total is refused before any output is published.
 
 Address capture accepts a public HTTP(S) URL of at most 4,096 characters without embedded credentials. Every initial address, redirect hop, frame, script, font and image passes `tools/lib/destination-core.js` with the host's DNS lookup. Every request is fetched by the host with manual redirects and fulfilled through interception; no browser request is continued directly. Refused or unresolved destinations, a host fetch that follows redirects automatically, more than five redirect hops, 200 requests, 8 MiB of received bodies, or methods beyond GET and HEAD refuse the whole job. Browser contexts are offline before navigation. The HTTP route is the allowlist; service workers are blocked and an init script in every frame removes WebRTC and WebSocket constructors, including when WebSocket routing is unavailable. Redirected document bases are set to the final screened address; redirected scripts and stylesheets refuse the whole job because fulfillment cannot preserve their final resource URL and relative imports. Fetches use a pool of at most four, with one shared abort signal; the first refusal cancels all in-flight and queued work. Declared body lengths are checked before reading, and chunks count against the shared byte budget before being retained. Ports are restricted to 80 and 443; a nonstandard port is allowed only on the exact origin explicitly named by the member. The CLI applies these same screens and caps.
 
 DNS screening does not pin the eventual connection. On the Wiser service, the transport the host supplies refuses Wiser domains and fetches only public addresses, including at connection time. The CLI supplies the machine's ordinary fetch and has no connection-time rebinding protection; its preflight DNS screen alone cannot guarantee that boundary.
 
-Compatibility refusals: a local HTML file no longer reads neighboring files through `file://`; ZIP its assets. Missing ZIP assets and external references in uploaded HTML, SVG or Mermaid now refuse the whole render. Existing self-contained inputs retain their picture and JSON bytes. The local browser measured one 8 MiB HTML job and all shared cases within the declared budget; timings are in the build report. Browser Rendering remains for the service to verify.
+A local HTML file must be self-contained. To use neighboring files, supply them in a ZIP with the HTML. Missing ZIP assets and external references in uploaded HTML, SVG or Mermaid refuse the whole render.
 
 A deadline or failed context close raises an error with `code: "browser_abandoned"` and `cleanup: Promise<{ closed: boolean }>`; cleanup also waits for context creation that completes after the deadline. The host must retain that promise with `waitUntil(error.cleanup)` (or await it outside a request lifetime). If it hangs or resolves with `closed: false`, discard the host browser. A pending close is never reported as completed.
 
@@ -50,7 +53,7 @@ The installed root, and which shell can see it, is `tools/AGENTS.md`, Finding an
 node scripts/render.js help
 ```
 
-Usage text listing the five subcommands, with nothing installed. `node scripts/render.js html help` (or `--help`) prints that subcommand's usage; the same form works for `svg`, `mermaid`, `url`, and `check`.
+Usage text lists the six subcommands with nothing installed. Use `node scripts/render.js <command> help` or `node scripts/render.js <command> --help` for a command's options.
 
 ```bash
 node scripts/render.js html --input /path/to/a/work/directory/card.html --output /path/to/a/work/directory/card.png --width 1200 --height 630
@@ -62,11 +65,11 @@ If this person has not yet authorized a Wiser install, the run reports that it w
 {"output":"/path/to/a/work/directory/card.png","format":"png","width":1200,"height":630,"scale":1}
 ```
 
-`svg` and `mermaid` stop the same way for Playwright; `mermaid` uses its carried browser file and asks for no diagram package. `url` stops the same way for Playwright. `check` without `--install` surveys and prints JSON with exit 0 either way. Anything else, see Troubleshooting.
+`pdf`, `svg`, `mermaid`, and `url` use the same Playwright install path. `mermaid` uses its carried browser file. `check` without `--install` surveys and prints JSON with exit 0 either way. Anything else, see Troubleshooting.
 
 ## Script Contract
 
-Every script in this tool follows `system/templates/Script Contract.md`; what a user meets when running it is `tools/RUNNING.md`. `html`, `svg`, `mermaid`, and `url` write one caller-named image outside this tool directory. `check` writes nothing without `--install`; with it, the install's own writes and no more. Every other write a run makes is a package install, and `tools/AGENTS.md` is the only place this repository lists those. No command installs `mermaid`; its pinned browser file is carried in this tool. The contract's `--env` clause has nothing to bind here.
+Every script follows `standards/script-contract.md`. See `tools/RUNNING.md` for exit codes and install consent. Rendering writes one caller-named file outside this tool. `pdf` stages its file beside the destination and then publishes it in one operation. With no `--overwrite`, publication needs a filesystem that supports hard links. `check` writes only during an authorized install. `tools/AGENTS.md` lists these writes and the install locations. This tool carries its pinned Mermaid browser file.
 
 No command takes `--env`.
 
@@ -74,10 +77,10 @@ No command takes `--env`.
 
 | Dependency | Needed for | Present when |
 |------------|------------|--------------|
-| The Chromium build Playwright drives | `html`, `svg`, `mermaid`, `url` | `node scripts/render.js check` exits 0 with `"chromiumLaunch":true` |
+| The Chromium build Playwright drives | `html`, `pdf`, `svg`, `mermaid`, `url` | `node scripts/render.js check` exits 0 with `"chromiumLaunch":true` |
 | Carried Mermaid 10.9.6 browser file | `mermaid` | `vendor/mermaid/mermaid.min.js`; SHA-256 and bytes in `vendor/manifest.json` |
 
-Playwright uses the active browser runtime; its Chromium build uses Playwright's cache (`tools/AGENTS.md`). If its own build is absent, the runtime first tries the newest complete build of the same artifact already in that browsers directory. Only if that trial cannot succeed does the authorised download run. Presence is a **trial launch** through the active browser runtime, not a path on disk. A missing OS library is shimmed where a compiler is present, or named with one next step (`tools/AGENTS.md`). No command installs tool-local packages. `html`, `svg`, `mermaid`, and `url` still need Playwright and a usable Chromium build; absent, their existing consent and `--install` path prepares the shared browser runtime. `check` without `--install` only surveys it; `check --install` repairs it. Install steps are never written here. `tools/AGENTS.md` lists every write.
+Playwright uses the active browser runtime; its Chromium build uses Playwright's cache (`tools/AGENTS.md`). If its own build is absent, the runtime first tries the newest complete build of the same artifact already in that browsers directory. Only if that trial cannot succeed does the authorised download run. Presence is a **trial launch** through the active browser runtime, not a path on disk. A missing OS library is shimmed where a compiler is present, or named with one next step (`tools/AGENTS.md`). Rendering needs Playwright and a usable Chromium build. The consent and `--install` path prepares the shared runtime when absent. `check` surveys it and `check --install` repairs it. `tools/AGENTS.md` lists every write.
 
 Developer refresh: run `npm ci` in this tool, then from the plugin root run `node tools/lib/build/copy-assets.mjs render`; `--check` recreates and compares every carried byte, SHA-256 and file name. Member commands never run this script. The package declares MIT; the npm archive omits its standalone licence, and the pinned upstream MIT text is carried beside the copy, with its source and SHA-256 recorded in the manifest, along with available third-party notices. See `NOTICE.md` before distribution.
 
@@ -122,6 +125,40 @@ One JSON object on stdout, exit 0, once the image is written.
 | `width` | The image's width in pixels, read from the file header |
 | `height` | The image's height in pixels, read from the file header |
 | `scale` | The device scale factor the image was drawn at |
+
+## pdf
+
+Print one HTML document in Chromium. HTML that encodes its text as UTF-8 can omit its charset declaration. The document's CSS controls page size, orientation, margins and page breaks. Chromium uses `preferCSSPageSize: true` and applies the caller's paper and margin options where CSS leaves them unset. The browser loads in print media and waits for fonts before printing. Embed assets or include them in the ZIP, including assets used only in print.
+
+An optional footer replaces `{page}` with the current page and `{pages}` with the total. Page numbers are one-based. The all-page footer uses Chromium's native print template with a blank header and aligns to the sheet. First-page suppression uses a CSS bottom margin box aligned to the page margins. It uses its own page counter and counts page one. Reserve that margin box for the generated footer. Keep enough room in the bottom margin for the text and font size. Chromium may clip or omit the footer if the available margin is too small.
+
+```bash
+node scripts/render.js pdf --input /path/to/document.html --output /path/to/document.pdf \
+  --footer-format 'Page {page} of {pages}'
+```
+
+| Option | Effect | Default |
+|--------|--------|---------|
+| `--input <path>` | Absolute path to HTML or ZIP with HTML and assets. Required | None |
+| `--entry <name>` | HTML path inside a ZIP | Root `index.html` or the only HTML file |
+| `--output <path>` | Absolute `.pdf` path outside the tool. Required | None |
+| `--paper-size <name>` | Fallback paper size. Letter, Legal, Tabloid, Ledger, or A0 to A6, case insensitive | Letter |
+| `--margin <lengths>` | Fallback margins. Quote one to four nonnegative lengths in CSS shorthand order, using in, cm, mm, px, or bare 0 | 1in all sides |
+| `--print-background <true\|false>` | Chromium's background printing setting. The document's `print-color-adjust: exact` can preserve its backgrounds | true |
+| `--footer-format <text>` | Enable a footer. Plain text up to 160 characters with `{page}` and optional `{pages}` | Off |
+| `--footer-position <name>` | left, center, or right. Requires a footer format | center |
+| `--footer-font-size <pt>` | 1 to 72 points, in Times New Roman or the browser's serif fallback. Requires a footer format | 10 |
+| `--footer-skip-first` | Omit the generated footer on page one. Requires a footer format and a Chromium build with CSS page margin boxes | Off |
+| `--timeout <ms>` | Page-load budget in whole milliseconds, from 1 to 45000 | 30000 |
+| `--overwrite` | Replace an existing output | Off |
+| `--install` | Allow the shared Playwright runtime or Chromium to install if missing | Off |
+| `--help`, `-h` | Print usage and exit | Off |
+
+Success returns `output` (the absolute path on the CLI), `format: "pdf"`, and `pages` from the PDF's page tree. A missing asset, unreadable PDF, or exceeded limit refuses the whole document. Split a document with over 200 pages or reduce one whose PDF reaches 4 MiB.
+
+### Byte stability
+
+For static HTML and assets, identical inputs and options produce identical bytes on the same Chromium build with the same platform and fonts, subject to Chromium's own PDF output. The PDF uses an isolated context with locale `en-US` and timezone UTC. The tool sets the Skia PDF's creation and modification dates to 2000-01-01 00:00 UTC and preserves the length of those fields, leaving the print streams and byte offsets intact. It refuses unfamiliar PDF structure or timestamp fields. Browser builds, platform font selection, Chromium's font subsetting or PDF serialization, and page code that uses clocks, random values or asynchronous state can change bytes. The footer and layout are rendered by Chromium.
 
 ## svg
 
@@ -274,7 +311,8 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 | Message | Cause | Fix |
 |---------|-------|-----|
 | `Chromium cannot launch` / `chromiumLaunch:false` | Binary missing, launch blocked, or OS library gap | Read `remediation` on the `check` JSON; follow that single step. Never a root-only install-deps recipe |
-| `Error: --input is required` | `html` ran with nothing to render | Pass `--input <path>` |
+| `Error: --input is required` or `--input must name an absolute HTML or ZIP path` | `html` or `pdf` ran without a usable input path | Pass `--input <absolute path>` |
+| `Chromium lacks CSS page margin boxes` | The available browser cannot suppress the generated first-page footer | Use the current shared browser build or omit `--footer-skip-first` |
 | `Error: --file is required` | `svg` or `mermaid` ran with no source file | Pass `--file <path>` |
 | `Error: --url is required` | `url` ran with no address | Pass `--url` with the full address, scheme included |
 | `Error: --output is required` | No destination was named | Name the absolute path; this tool picks no location |
@@ -293,8 +331,9 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 
 ## Success
 
-- `help` prints usage listing the five subcommands to stdout and exits 0 on a copy with no `node_modules/`. `html help` and `html --help` print that subcommand's usage; the same form works for every subcommand.
+- `help` lists the six subcommands on stdout and exits 0 on a copy with no `node_modules/`. Each subcommand has its own help.
 - `html` against an HTML file exits 0 with one parseable JSON object on stdout carrying `output`, `format`, `width`, `height`, and `scale`, and an image exists at the path in `output`.
+- `pdf` prints one PDF with the document's page geometry and requested footer, with `output`, `format`, and `pages` on stdout.
 - `svg` against a well-formed SVG exits 0 with one parseable JSON object on stdout carrying `output`, `width`, `height`, `scale`, and `sizedFrom`, and a PNG at `--output`.
 - `mermaid` against a well-formed diagram exits 0 with one parseable JSON object on stdout carrying `path`, `width`, `height`, `scale`, `maxWidth`, `theme`, and `background`, and a PNG at `--output`.
 - `url` against a reachable page exits 0 with one parseable JSON object on stdout carrying `output`, `finalUrl`, `status`, `scale`, and the PNG's real dimensions.
@@ -303,4 +342,4 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 - An unknown option is refused by name before any install, read, or write.
 - A `--url` that points at a loopback, private-range, link-local, or cloud-metadata address is refused by name before any install and before a browser is launched.
 - No command installs `mermaid`; its pinned browser file is carried in this tool. All rendering commands still require the shared browser runtime when absent.
-- No run reads a credential. The writes are what `tools/AGENTS.md` lists an install writing, and the image at the caller-named `--output`.
+- Rendering requires no credentials. The writes are listed in `tools/AGENTS.md`.

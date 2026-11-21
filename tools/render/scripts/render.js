@@ -1,28 +1,31 @@
 #!/usr/bin/env node
 /**
- * render - render HTML, SVG, or Mermaid to a PNG, or capture a live page
+ * render - render markup to images, print HTML to PDF, or capture a live page
  *
  * Usage:
  *   node scripts/render.js help
  *   node scripts/render.js html --input <path> --output <path>
+ *   node scripts/render.js pdf --input <path> --output <path>.pdf
  *   node scripts/render.js svg --file <path> --output <path>
  *   node scripts/render.js mermaid --file <path> --output <path>
  *   node scripts/render.js url --url <address> --output <path>.png
  *   node scripts/render.js check
  *
  * Node built-ins, this tool's own files, and tools/lib/. The rules every
- * shipped script follows are stated once, in system/templates/Script Contract.md.
+ * shipped script follows are stated once, in standards/script-contract.md.
  */
 
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { accessSync, constants, existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
+import { accessSync, constants, existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dns from 'node:dns';
 
 import { INSTALL_HELP, installQuestion, formatInstallSize, INSTALL_BYTES, flagAuthorised, installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
 import { runtimeDir, activeRuntimeDir, personRuntimeDir, installBrowserRuntime } from '../../lib/browser-runtime/browser-runtime.js';
+import { INPUT_LIMIT } from './browser-core.js';
+import { pdfOptions } from './pdf-core.js';
 
 let install = false;
 
@@ -68,14 +71,13 @@ const MERMAID_SCRIPT = join(TOOL_DIR, 'vendor', 'mermaid', 'mermaid.min.js');
 const BROWSER_CHECK = 'npm run check:chromium';
 const LAUNCH_OPTIONS = { headless: true };
 
-const SUBCOMMANDS = new Set(['html', 'svg', 'mermaid', 'url', 'check']);
-
-const USAGE = `render - render HTML, SVG, or Mermaid to a PNG, or capture a live page
+const USAGE = `render - render markup to images, print HTML to PDF, or capture a live page
 
 Usage:
   node scripts/render.js help
   node scripts/render.js html --input <path> --output <path> [--width N] [--height N]
     [--scale N] [--quality N] [--timeout MS] [--overwrite]
+  node scripts/render.js pdf --input <path> --output <path>.pdf [options]
   node scripts/render.js svg --file <path> --output <path> [--scale N]
     [--width N] [--timeout N] [--overwrite]
   node scripts/render.js mermaid --file <absolute path> --output <absolute path> [options]
@@ -85,6 +87,7 @@ Usage:
 
 Commands:
   html             Render one local HTML file to a PNG or JPEG image
+  pdf              Print one local HTML file to PDF with its CSS page geometry
   svg              Render an SVG file to a PNG
   mermaid          Render a Mermaid diagram file to a PNG
   url              Load the page and write a PNG of it
@@ -137,6 +140,35 @@ no credentials and no configuration file, so no command takes --env. The page is
 loaded from upload bytes; include every referenced asset in the ZIP. Success
 prints one JSON object to stdout; a usage mistake or a page that will not render
 goes to stderr with exit 1.`;
+
+const PDF_USAGE = `render pdf - print one local HTML file or ZIP to PDF
+
+Usage:
+  node scripts/render.js pdf --input <path> --output <path>.pdf [options]
+  node scripts/render.js pdf help
+
+Options:
+  --input <path>            Absolute path to an HTML file or ZIP. Required.
+  --entry <name>            HTML path inside the ZIP. Defaults to index.html
+                            at the ZIP root, or the only HTML file.
+  --output <path>           Absolute .pdf path outside this tool. Required.
+  --paper-size <name>        Fallback when CSS sets no page size. Default Letter.
+                            Also accepts Legal, Tabloid, Ledger, and A0 to A6.
+  --margin <lengths>        Fallback where CSS sets no page margin. Default 1in.
+                            Quote one to four lengths in CSS shorthand order.
+                            Units are in, cm, mm, px, or bare 0.
+  --print-background <bool> Print backgrounds. Use true (default) or false.
+  --footer-format <text>    Enable a plain-text footer, e.g. "Page {page} of {pages}".
+  --footer-position <name>  left, center (default), or right.
+  --footer-font-size <pt>   1 to 72 points. Default 10.
+  --footer-skip-first       Omit the footer on page one, keeping its page number.
+  --timeout <ms>            Milliseconds to load the page, up to 45000. Default 30000.
+  --overwrite               Replace an existing output file.
+  --install                 ${INSTALL_HELP}
+  --help                    Print this message.
+
+Include relative assets in the ZIP. The browser prints offline. A success
+prints one JSON object. A failure prints to stderr and exits 1.`;
 
 const SVG_USAGE = `render svg - render an SVG file to a PNG file
 
@@ -254,6 +286,7 @@ code is 0 either way.`;
 
 const SUB_USAGE = {
   html: HTML_USAGE,
+  pdf: PDF_USAGE,
   svg: SVG_USAGE,
   mermaid: MERMAID_USAGE,
   url: URL_USAGE,
@@ -262,6 +295,11 @@ const SUB_USAGE = {
 
 const URL_VALUE_FLAGS = new Set(['--url', '--output', '--width', '--height', '--scale', '--timeout']);
 const URL_BARE_FLAGS = new Set(['--install', '--full-page', '--overwrite', '--help', '-h']);
+const PDF_FLAGS = new Set([
+  '--input', '--output', '--entry', '--paper-size', '--margin', '--print-background',
+  '--footer-format', '--footer-position', '--footer-font-size', '--timeout'
+]);
+const PDF_SWITCHES = new Set(['--footer-skip-first', '--overwrite', '--install']);
 
 function fail(message) {
   process.stderr.write(`${message}\n`);
@@ -370,7 +408,7 @@ async function requireInstallConsent(what) {
   if (missingBrowser) { parts.push('a private copy of the Chromium browser'); bytes += INSTALL_BYTES.chromium; }
   const named = parts.length < 3 ? parts.join(' and ') : `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`;
   const question = installQuestion(named + (maybeBrowser ? " (and a private copy of the Chromium browser, if you don't have it yet)" : ''),
-    'turn web pages, drawings and diagrams into image files', maybeBrowser
+    'render web pages, drawings and diagrams as images or PDFs', maybeBrowser
       ? `${formatInstallSize(bytes)}, or about ${formatInstallSize(bytes + INSTALL_BYTES.chromium)} with the browser`
       : formatInstallSize(bytes));
   const details = installPlan({ missingRuntime, missingBrowser: missingBrowser || maybeBrowser });
@@ -586,6 +624,89 @@ async function runHtml(argv) {
   await coreRun('renderHtml', { width, height, scale, quality, timeout, entry: flag('--entry') }, inputPath, outputPath);
 }
 
+async function runPdf(argv) {
+  const usage = 'Run "node scripts/render.js pdf help" for usage.';
+  const flags = new Map();
+  for (let index = 1; index < argv.length; index++) {
+    const key = argv[index];
+    if (!PDF_FLAGS.has(key) && !PDF_SWITCHES.has(key)) fail(`Error: unknown PDF option "${key}". ${usage}`);
+    if (flags.has(key)) fail(`Error: ${key} was given more than once. ${usage}`);
+    if (PDF_SWITCHES.has(key)) {
+      flags.set(key, true);
+      continue;
+    }
+    const value = argv[++index];
+    if (value === undefined || value.startsWith('--')) fail(`Error: ${key} needs a value. ${usage}`);
+    flags.set(key, value);
+  }
+  install = flags.has('--install');
+
+  const source = flags.get('--input');
+  const destination = flags.get('--output');
+  if (!source || !isAbsolute(source)) fail(`Error: --input must name an absolute HTML or ZIP path. ${usage}`);
+  if (!destination || !isAbsolute(destination)) fail(`Error: --output must name an absolute .pdf path. ${usage}`);
+  const inputPath = canonical('--input', source);
+  const outputPath = canonical('--output', destination);
+  if (!/\.(?:html?|zip)$/i.test(inputPath)) fail('Error: --input must resolve to an .html, .htm, or .zip file.');
+  const toolReal = canonical('this tool directory', TOOL_DIR);
+  if (outputPath === toolReal || isInsideDirectory(outputPath, toolReal) || descendsFrom(outputPath, toolReal)) {
+    fail(`Error: --output resolves inside this tool directory (${toolReal}). Pass a work directory in the owning root instead.`);
+  }
+  if (extname(outputPath).toLowerCase() !== '.pdf') fail('Error: --output must resolve to a .pdf file.');
+  let status;
+  try { status = statSync(inputPath, { throwIfNoEntry: false }); }
+  catch { fail(`Error: could not read ${inputPath}. Confirm this account can read the HTML or ZIP file.`); }
+  if (!status?.isFile()) fail(`Error: no readable HTML or ZIP file at ${inputPath}. Check --input.`);
+  if (status.size > INPUT_LIMIT) fail('Error: input file exceeds 8 MiB; reduce the HTML or ZIP and retry.');
+  const overwrite = flags.has('--overwrite');
+  if (existsSync(outputPath)) {
+    if (!statSync(outputPath).isFile()) fail('Error: --output is not a regular file. Name a .pdf file to write.');
+    if (!overwrite) fail(`Error: a file already exists at ${outputPath}. Pass --overwrite to replace it, or name a path that is free.`);
+  }
+  const background = flags.get('--print-background');
+  if (background !== undefined && !['true', 'false'].includes(background)) {
+    fail(`Error: --print-background must be true or false. ${usage}`);
+  }
+  const font = flags.get('--footer-font-size');
+  if (font !== undefined && !/^(?:\d+(?:\.\d+)?|\.\d+)$/.test(font)) {
+    fail(`Error: --footer-font-size must be a number from 1 to 72 points. ${usage}`);
+  }
+  const loadTimeout = flags.get('--timeout');
+  const input = {
+    entry: flags.get('--entry'),
+    paperSize: flags.get('--paper-size'),
+    margin: flags.get('--margin'),
+    printBackground: background === undefined ? undefined : background === 'true',
+    footerFormat: flags.get('--footer-format'),
+    footerPosition: flags.get('--footer-position'),
+    footerFontSize: font === undefined ? undefined : Number(font),
+    footerSkipFirst: flags.get('--footer-skip-first'),
+    timeout: loadTimeout === undefined ? undefined : positiveInteger('--timeout', loadTimeout, 45000)
+  };
+  try { pdfOptions(input); } catch (error) { fail(`${error.message} ${usage}`); }
+  await ensurePlaywright();
+  await ensureChromium();
+  await coreRun('renderPdf', input, inputPath, outputPath, {}, bytes => publishPdf(outputPath, bytes, overwrite));
+}
+
+function publishPdf(outputPath, bytes, overwrite) {
+  const parent = dirname(outputPath);
+  let scratch;
+  try {
+    mkdirSync(parent, { recursive: true });
+    scratch = mkdtempSync(join(parent, '.wiser-render-pdf-'));
+    const staged = join(scratch, 'render.pdf');
+    writeFileSync(staged, bytes);
+    if (overwrite) renameSync(staged, outputPath);
+    else linkSync(staged, outputPath);
+  } catch (error) {
+    if (error.code === 'EEXIST') throw new Error(`Error: a file already exists at ${outputPath}. Pass --overwrite to replace it, or name a path that is free.`);
+    throw new Error(`Error: could not publish the PDF at ${outputPath}. Check that its parent is writable and supports regular files and hard links, or choose a different --output.`);
+  } finally {
+    if (scratch) rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
 async function runSvg(argv) {
   const usageCmd = 'node scripts/render.js help';
   const VALUE_FLAGS = new Set(['--file', '--output', '--scale', '--width', '--timeout']);
@@ -780,7 +901,7 @@ async function runUrl(argv) {
   await coreRun('captureUrl', { url, width, height, scale, timeout: timeoutMs, fullPage }, null, outputPath);
 }
 
-async function coreRun(core, input, inputPath, outputPath, assets = {}) {
+async function coreRun(core, input, inputPath, outputPath, assets = {}, publish) {
   let browser;
   let failure;
   try {
@@ -792,8 +913,11 @@ async function coreRun(core, input, inputPath, outputPath, assets = {}) {
       browser, fetch: globalThis.fetch, responseBody: bytes => Buffer.from(bytes),
       lookup: host => dns.promises.lookup(host, { all: true, verbatim: true }), ...assets
     });
-    mkdirSync(dirname(outputPath), { recursive: true });
-    writeFileSync(outputPath, output.files[0].bytes);
+    if (publish) publish(output.files[0].bytes);
+    else {
+      mkdirSync(dirname(outputPath), { recursive: true });
+      writeFileSync(outputPath, output.files[0].bytes);
+    }
     const answer = { ...output.answer };
     answer[core === 'renderMermaid' ? 'path' : 'output'] = outputPath;
     process.stdout.write(`${JSON.stringify(answer)}\n`);
@@ -829,31 +953,26 @@ async function runCheck(argv) {
   process.exit(0);
 }
 
-const argv = process.argv.slice(2);
-const command = argv[0] ?? 'help';
+let RUNTIME_DIR, PLAYWRIGHT_CLI;
+const COMMANDS = new Map([
+  ['html', runHtml], ['pdf', runPdf], ['svg', runSvg], ['mermaid', runMermaid],
+  ['url', runUrl], ['check', runCheck]
+]);
 
-if (command === 'help' || command === '--help' || command === '-h') {
-  process.stdout.write(`${USAGE}\n`);
-  process.exit(0);
+async function main(argv) {
+  const command = argv[0] ?? 'help';
+  if (['help', '--help', '-h'].includes(command)) {
+    process.stdout.write(`${USAGE}\n`);
+    return;
+  }
+  if (!COMMANDS.has(command)) fail(`Error: unknown command "${command}". Run "node scripts/render.js help" for usage.`);
+  if (argv[1] === 'help' || argv.includes('--help') || argv.includes('-h')) {
+    process.stdout.write(`${SUB_USAGE[command]}\n`);
+    return;
+  }
+  try { RUNTIME_DIR = runtimeDir(); } catch (error) { fail(`Error: ${String(error.message).split('\n')[0]}`); }
+  PLAYWRIGHT_CLI = join(RUNTIME_DIR, 'node_modules', 'playwright', 'cli.js');
+  await COMMANDS.get(command)(argv);
 }
 
-if (!SUBCOMMANDS.has(command)) {
-  fail(`Error: unknown command "${command}". Run "node scripts/render.js help" for usage.`);
-}
-
-if (argv[1] === 'help' || argv.includes('--help') || argv.includes('-h')) {
-  process.stdout.write(`${SUB_USAGE[command]}\n`);
-  process.exit(0);
-}
-
-let RUNTIME_DIR;
-try { RUNTIME_DIR = runtimeDir(); } catch (error) { fail(`Error: ${String(error.message).split('\n')[0]}`); }
-const PLAYWRIGHT_MARKER = join(RUNTIME_DIR, 'node_modules', 'playwright', 'package.json');
-const PLAYWRIGHT_CLI = join(RUNTIME_DIR, 'node_modules', 'playwright', 'cli.js');
-
-
-if (command === 'html') await runHtml(argv);
-else if (command === 'svg') await runSvg(argv);
-else if (command === 'mermaid') await runMermaid(argv);
-else if (command === 'url') await runUrl(argv);
-else if (command === 'check') await runCheck(argv);
+if (process.argv[1] && realpathSync(process.argv[1]) === HERE) await main(process.argv.slice(2));

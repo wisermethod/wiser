@@ -28,17 +28,19 @@ export function result(answer, files) {
   if (files.reduce((n, file) => n + file.bytes.byteLength, 0) >= OUTPUT_LIMIT) refuse('output files reach the 4 MiB limit; nothing was returned.');
   return { answer, files };
 }
-export function fileInput(input, files) {
-  if (textBytes(JSON.stringify(input)).length > INPUT_LIMIT) refuse('JSON input exceeds 8 MiB.');
+export function fileInput(input, files, { combined = false } = {}) {
+  const optionBytes = textBytes(JSON.stringify(input)).length;
+  if (optionBytes > INPUT_LIMIT) refuse('JSON input exceeds 8 MiB.');
   if (!Array.isArray(files) || files.length !== 1 || !(files[0].bytes instanceof Uint8Array)) refuse('supply exactly one file as bytes.');
   if (files[0].bytes.length > INPUT_LIMIT) refuse('input file exceeds 8 MiB.');
+  if (combined && optionBytes + files[0].bytes.length > INPUT_LIMIT) refuse('upload and options together exceed 8 MiB; reduce the HTML or ZIP.');
   return files[0];
 }
 export function mediaType(name) {
   return ({ html: 'text/html', htm: 'text/html', css: 'text/css', js: 'text/javascript', mjs: 'text/javascript', svg: 'image/svg+xml', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', woff: 'font/woff', woff2: 'font/woff2', ttf: 'font/ttf', otf: 'font/otf', json: 'application/json' })[name.split('.').pop().toLowerCase()] || 'application/octet-stream';
 }
-export async function upload(input, files, extension = /\.html?$/i) {
-  const file = fileInput(input, files);
+export async function upload(input, files, { combined = false, extension = /\.html?$/i } = {}) {
+  const file = fileInput(input, files, { combined });
   const entries = /\.zip$/i.test(file.name) ? await readZip(file.bytes, { maxBytes: INPUT_LIMIT }) : [file];
   const names = entries.filter(entry => extension.test(entry.name)).map(entry => entry.name);
   const entry = input.entry == null ? (names.includes('index.html') ? 'index.html' : names.length === 1 ? names[0] : null) : archiveName(input.entry);
@@ -123,7 +125,7 @@ export async function withPage(browser, options, work) {
 }
 
 /** No file:// access. Every relative asset is a member-supplied ZIP entry. */
-export async function uploadRoutes(context, entries, overrides = {}, responseBody) {
+export async function uploadRoutes(context, entries, overrides = {}, responseBody, { htmlCharset } = {}) {
   let problem;
   await context.route('**/*', async route => {
     try {
@@ -133,7 +135,10 @@ export async function uploadRoutes(context, entries, overrides = {}, responseBod
       const file = pinned || (url.origin === ORIGIN ? entries.get(name) : null);
       if (!file) refuse('an asset is missing from the upload or uses an external address; include every asset in the ZIP.');
       if (route.request().method() !== 'GET') refuse('uploaded pages may request assets with GET only.');
-      await route.fulfill({ status: 200, contentType: mediaType(name), body: bodyOf(file.bytes, mediaType(name), responseBody) });
+      const type = mediaType(name);
+      const charset = type === 'text/html' && htmlCharset?.(file.bytes);
+      const contentType = charset ? `${type}; charset=${charset}` : type;
+      await route.fulfill({ status: 200, contentType, body: bodyOf(file.bytes, type, responseBody) });
     } catch (error) { problem ||= error instanceof RenderError ? error : new RenderError('Error: could not read an uploaded asset.'); await route.abort().catch(() => {}); }
   });
   return () => { if (problem) throw problem; };
