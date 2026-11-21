@@ -3,7 +3,7 @@ name: render
 type: tool
 category: media
 description: Renders local HTML to a PDF with CSS page geometry or to a PNG or JPEG, renders an SVG or Mermaid diagram to a PNG, and captures a PNG of a public web page after screening its address
-version: 0.3.1
+version: 0.3.2
 runs: both
 hosted:
   - html 8MiB 60s
@@ -132,7 +132,9 @@ One JSON object on stdout, exit 0, once the image is written.
 
 Print one HTML document in Chromium. HTML that encodes its text as UTF-8 can omit its charset declaration. The document's CSS controls page size, orientation, margins and page breaks. Chromium uses `preferCSSPageSize: true` and applies the caller's paper and margin options where CSS leaves them unset. The browser loads in print media and waits for fonts before printing. Embed assets or include them in the ZIP, including assets used only in print.
 
-An optional footer replaces `{page}` with the current page and `{pages}` with the total. Page numbers are one-based. The all-page footer uses Chromium's native print template with a blank header and aligns to the sheet. First-page suppression uses a CSS bottom margin box aligned to the page margins. It uses its own page counter and counts page one. Reserve that margin box for the generated footer. Footer width, including native template padding where applicable, must fit between the resolved left and right margins on each page that gets a footer. Chromium must support CSS page margin boxes to verify this width. For a PDF with a footer, the tool dispatches a synthetic `beforeprint` event in the main document after loading, then pauses page scripts while checking geometry and printing. Keep enough room in the bottom margin for the text and font size. Chromium may clip or omit the footer if the available margin is too small.
+An optional footer replaces `{page}` with the current page and `{pages}` with the total. Page numbers are one-based. The all-page footer uses Chromium's native print template with a blank header and aligns to the sheet. First-page suppression uses a CSS bottom margin box aligned to the page margins. It uses its own page counter and counts page one. The generated styles take precedence over author declarations in that margin box. Footer width, including native template padding where applicable, must fit between the resolved left and right margins on each page that gets a footer. Chromium must support CSS page margin boxes to verify this width. Keep enough room in the bottom margin for the text and font size. Chromium may clip or omit the footer if the available margin is too small.
+
+For a PDF with a footer, the tool dispatches a synthetic `beforeprint` event in the main frame and pauses page scripts for the geometry probe and final print. The receipt includes `printLifecycle` with `beforeprint: "synthetic-main-frame"` and `afterprint: "skipped"`. This records that Chromium's trusted print handlers were skipped in all frames. Without a footer, Chromium runs its native print lifecycle.
 
 ```bash
 node scripts/render.js pdf --input /path/to/document.html --output /path/to/document.pdf \
@@ -335,7 +337,7 @@ The stops every tool shares, an unknown flag, the install consent, an install th
 
 - `help` lists the six subcommands on stdout and exits 0 on a copy with no `node_modules/`. Each subcommand has its own help.
 - `html` against an HTML file exits 0 with one parseable JSON object on stdout carrying `output`, `format`, `width`, `height`, and `scale`, and an image exists at the path in `output`.
-- `pdf` prints one PDF with the document's page geometry and requested footer, with `output`, `format`, and `pages` on stdout.
+- `pdf` prints one PDF with the document's page geometry and requested footer, with `output`, `format`, and `pages` on stdout. A footer PDF also reports `printLifecycle`.
 - `svg` against a well-formed SVG exits 0 with one parseable JSON object on stdout carrying `output`, `width`, `height`, `scale`, and `sizedFrom`, and a PNG at `--output`.
 - `mermaid` against a well-formed diagram exits 0 with one parseable JSON object on stdout carrying `path`, `width`, `height`, `scale`, `maxWidth`, `theme`, and `background`, and a PNG at `--output`.
 - `url` against a reachable page exits 0 with one parseable JSON object on stdout carrying `output`, `finalUrl`, `status`, `scale`, and the PNG's real dimensions.

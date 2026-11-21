@@ -613,7 +613,7 @@ test('previews and refuses revisions with omitted notes, objects, fields, symbol
   const hidden = ['footnoteReference', 'endnoteReference', 'drawing', 'pict', 'object', 'fldChar', 'sym']
     .map((name) => [name, `<q:${name}/>`]).concat([
       ['oMath', '<m:oMath xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"><m:r><m:t>42</m:t></m:r></m:oMath>'],
-      ['page break', '<q:br q:type="page"/>'], ['column break', '<q:br q:type="column"/>'],
+      ['page break', '<q:br q:type="page"/>'], ['column break', '<q:br q:type="column"/>'], ['softHyphen', '<q:softHyphen/>'],
     ]);
   nativeFixture(input, '<q:p>' + hidden.flatMap(([, markup], index) => ['ins', 'del'].map((tag, side) =>
     `<q:${tag} q:id="${index * 2 + side}"><q:r>${markup}</q:r></q:${tag}>`)).join('') + '</q:p>');
@@ -629,6 +629,63 @@ test('previews and refuses revisions with omitted notes, objects, fields, symbol
     assert.equal(existsSync(output), false);
   }
   assert.deepEqual(readFileSync(input), starting);
+});
+
+test('pagination and proofing markers do not block acceptance of visible insertion text', (t) => {
+  const path = temp(t);
+  for (const [name, content] of [
+    ['pagination', '<q:r><q:lastRenderedPageBreak/><q:t>continued clause</q:t></q:r>'],
+    ['proofing', '<q:proofErr q:type="spellStart"/><q:r><q:t>continued clause</q:t></q:r><q:proofErr q:type="spellEnd"/>'],
+  ]) {
+    const input = path(`${name}.docx`);
+    const output = path(`${name}-accepted.docx`);
+    nativeFixture(input, `<q:p><q:ins q:id="1">${content}</q:ins></q:p>`);
+    const { changes: [change] } = ok('list-changes', '--input', input);
+    assert.equal(change.supported, true, name);
+    assert.equal(change.text, 'continued clause');
+    review('apply-change', input, output, '--change-id', String(change.id));
+    assert.equal(visible(output), 'continued clause');
+    assert.equal(nodes(part(output), 'ins').length, 0);
+  }
+});
+
+test('run properties in text revisions allow formatting and refuse text hidden from the preview', (t) => {
+  const path = temp(t);
+  const input = path('run-properties.docx');
+  const output = path('decided.docx');
+  nativeFixture(input, `<q:p>
+    <q:del q:id="1"><q:r><q:rPr><q:b/><q:t>hidden clause</q:t></q:rPr><q:delText>the</q:delText></q:r></q:del>
+    <q:ins q:id="2"><q:r><q:rPr><q:b/><q:rPrChange q:id="3"><q:rPr><q:i/></q:rPr></q:rPrChange></q:rPr><q:t>formatted</q:t></q:r></q:ins>
+    </q:p>`);
+  const { changes } = ok('list-changes', '--input', input);
+  const valid = changes.find(change => change.wordId === '2');
+  const invalid = changes.find(change => change.wordId === '1');
+  assert.equal(valid.supported, true);
+  assert.equal(invalid.text, 'the');
+  assert.equal(invalid.supported, false);
+  assert.match(invalid.unsupportedReason, /q:t/);
+  const args = ['apply-change', '--input', input, '--change-id', String(invalid.id)];
+  const preview = ok(...args);
+  refused(/q:t.*Resolve it in Word/, ...args, '--confirm', preview.confirmationToken, '--output', output);
+  assert.equal(existsSync(output), false);
+  review('apply-change', input, output, '--change-id', String(valid.id));
+  assert.equal(nodes(part(output), 'b').length, 2);
+});
+
+test('ID allocation refuses missing Word IDs with a document repair message', (t) => {
+  const path = temp(t);
+  const input = path('missing-id.docx');
+  const output = path('refused.docx');
+  for (const [command, markup] of [
+    [['add-change', '--type', 'insertion'], '<q:ins><q:r><q:t>Existing edit</q:t></q:r></q:ins>'],
+    [['add-change', '--type', 'insertion'], '<q:moveToRangeStart/>'],
+    [['add-comment'], '<q:commentRangeStart/>'],
+  ]) {
+    nativeFixture(input, `<q:p>${markup}</q:p><q:p><q:r><q:t>Normal paragraph</q:t></q:r></q:p>`);
+    refused(/missing w:id.*repair the document in Word/i, ...command, '--input', input, '--output', output,
+      '--text', 'New edit', '--author', AUTHOR);
+    assert.equal(existsSync(output), false);
+  }
 });
 
 test('allocates revision IDs above revisions and move markers in separate package stories', (t) => {

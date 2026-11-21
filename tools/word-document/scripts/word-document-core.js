@@ -320,12 +320,20 @@ function hasAlternateContent(node) {
 
 const TEXT_REVISION_CONTENT = new Set([
   'r', 'rPr', 't', 'delText', 'tab', 'ptab', 'br', 'cr', 'noBreakHyphen',
-  'ins', 'del', 'rPrChange', 'commentRangeStart', 'commentRangeEnd', 'commentReference',
+  'ins', 'del', 'commentRangeStart', 'commentRangeEnd', 'commentReference',
+  'lastRenderedPageBreak', 'proofErr',
 ]);
-const HIDDEN_REVISION_CONTENT = new Set([
-  'footnoteReference', 'endnoteReference', 'footnoteRef', 'endnoteRef', 'drawing', 'pict', 'object',
-  'fldSimple', 'fldChar', 'instrText', 'delInstrText', 'sym',
+// WordprocessingML run properties are leaves. A tracked format change may
+// contain a snapshot of the previous run properties.
+const RUN_PROPERTIES = new Set([
+  'rStyle', 'rFonts', 'b', 'bCs', 'i', 'iCs', 'caps', 'smallCaps', 'strike', 'dstrike',
+  'outline', 'shadow', 'emboss', 'imprint', 'noProof', 'snapToGrid', 'vanish', 'webHidden',
+  'color', 'spacing', 'w', 'kern', 'position', 'sz', 'szCs', 'highlight', 'u', 'effect',
+  'bdr', 'shd', 'fitText', 'vertAlign', 'rtl', 'cs', 'em', 'lang', 'eastAsianLayout', 'specVanish', 'oMath',
 ]);
+const TRACKED_RUN_PROPERTIES = new Set([...RUN_PROPERTIES, 'rPrChange']);
+const RUN_PROPERTY_SNAPSHOT = new Set(['rPr']);
+const NO_ELEMENTS = new Set();
 
 function revisionScopeIssue(node) {
   const name = node.localName;
@@ -342,18 +350,26 @@ function revisionScopeIssue(node) {
   if ((name !== 'ins' && name !== 'del') || !paragraph || parent.namespaceURI !== W ||
       !RUN_CONTAINERS.has(parent.localName)) return 'unsupported revision structure';
   const omitted = new Set();
-  function inspect(container, inRunProperties = false) {
+  function inspect(container, allowed = TEXT_REVISION_CONTENT) {
+    if (allowed !== TEXT_REVISION_CONTENT && children(container).some((child) =>
+      (child.nodeType === 3 || child.nodeType === 4) && child.data.trim())) omitted.add(container.nodeName);
     for (const child of elements(container)) {
       const kind = child.localName;
       const breakType = word(child, 'br') && attr(child, 'type');
       if (breakType && breakType !== 'textWrapping') {
         omitted.add(`${child.nodeName} (${breakType} break)`);
-      } else if (child.namespaceURI !== W || HIDDEN_REVISION_CONTENT.has(kind) ||
-          (!inRunProperties && !TEXT_REVISION_CONTENT.has(kind)) ||
+      } else if (child.namespaceURI !== W || !allowed.has(kind) ||
           Array.from(child.attributes).some((item) => item.namespaceURI === MC)) {
         omitted.add(child.nodeName);
+      } else if (kind === 'rPr') {
+        inspect(child, allowed === RUN_PROPERTY_SNAPSHOT ? RUN_PROPERTIES : TRACKED_RUN_PROPERTIES);
+      } else if (kind === 'rPrChange') {
+        inspect(child, RUN_PROPERTY_SNAPSHOT);
+      } else if (allowed !== TEXT_REVISION_CONTENT || kind === 'lastRenderedPageBreak' || kind === 'proofErr') {
+        inspect(child, NO_ELEMENTS);
+      } else {
+        inspect(child);
       }
-      inspect(child, inRunProperties || word(child, 'rPr'));
     }
   }
   inspect(node);
@@ -750,7 +766,8 @@ function selectRuns(paragraph, start, length) {
 function nextId(nodes) {
   let max = -1n;
   for (const node of nodes) {
-    const id = attr(node, 'id').trim();
+    const id = attr(node, 'id')?.trim();
+    if (!id) throw new Error(`Missing w:id on ${node.nodeName}. Repair the document in Word and save a fresh .docx.`);
     if (/^[+-]?[0-9]+$/.test(id)) {
       const value = BigInt(id);
       if (value > max) max = value;

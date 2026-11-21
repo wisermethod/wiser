@@ -3,7 +3,7 @@ name: word-document
 type: tool
 category: documents
 description: Create Word documents and write fresh copies with tracked edits, revision decisions, or comments
-version: 0.2.0
+version: 0.2.1
 runs: local
 ---
 
@@ -59,7 +59,7 @@ An insertion or comment with no offset uses the addressable end when excluded lo
 
 A positive comment length selects within one paragraph. New ranges can span adjacent plain text runs. Positions inside an existing revision, hyperlink, simple field or other complex inline element, and ranges crossing them, require a different selection or an edit in Word. A complex field can store its cached result as ordinary runs. Those runs count like other text, and a range crossing the field markers is refused.
 
-`list-changes` gives each change a numeric selection ID, optional native Word ID, type, author, date, affected text, and pending status. Supported formatting entries give previous and current properties. A paragraph formatting entry names any current paragraph-mark or section properties preserved by rejection in `formatting.preserved`. Selection IDs can change after any edit. The tool applies and rejects run-content insertions and deletions, and run and paragraph formatting. Revisions outside the editable scope carry `supported: false` and `unsupportedReason`. This includes structural changes, moves, alternate content, and text revisions containing markup the plain-text preview cannot represent, such as note references, drawings, fields, symbols, equations and explicit page or column breaks. Review those in Word. `apply-all` matches the author exactly and matches types case-insensitively. Use a type returned by `list-changes` or `formatting` for all formatting types. Unsupported changes in a batch prevent it from writing.
+`list-changes` gives each change a numeric selection ID, optional native Word ID, type, author, date, affected text, and pending status. Supported formatting entries give previous and current properties. A paragraph formatting entry names any current paragraph-mark or section properties preserved by rejection in `formatting.preserved`. Selection IDs can change after any edit. The tool applies and rejects run-content insertions and deletions, and run and paragraph formatting. Rendered page-break markers and proofing markers carry no text and are allowed in text revisions. Revisions outside the editable scope carry `supported: false` and `unsupportedReason`. This includes structural changes, moves, alternate content, and text revisions containing markup the plain-text preview cannot represent, such as note references, drawings, fields, symbols, equations and explicit page or column breaks. A text revision with unexpected markup inside run properties is also outside scope. Review those in Word. `apply-all` matches the author exactly and matches types case-insensitively. Use a type returned by `list-changes` or `formatting` for all formatting types. Unsupported changes in a batch prevent it from writing.
 
 `list-comments` returns the selection number, Word comment ID, author, initials, date, comment text, exact anchored text where available, and the anchor state. The states are `point`, `range`, `incomplete-range`, and `missing`. Comment creation adds the comment part, its package relationship and its content type when needed. A revision decision that drops marked text preserves its comment markers and reference at the resulting position.
 
@@ -76,6 +76,7 @@ A positive comment length selects within one paragraph. New ranges can span adja
 |---|---|
 | Ambiguous action, document, destination, or revision | Ask the person to name it before writing. |
 | Change ID missing or token stale | List and preview the current input again and get approval for the current selection. |
+| `Missing w:id` while adding a change or comment | Repair the document in Word and save a fresh `.docx`. |
 | Selecting a revision would also remove an unselected nested revision | Resolve the nested revision first with its own approval, then preview the remaining one on the new copy. |
 | Invalid ZIP, invalid XML, or missing part | Check the input path and permissions. Open or repair the document in Word and save a fresh `.docx`. The tool checks ZIP member sizes and checksums and the main Word package relationship and content type. Packages over 256 MiB packed or unpacked are refused. |
 | A reader cannot see expected revisions | Verify the marked text in Word's review view. Comments and tracked revisions are listed separately. The tool reads the main document body. |

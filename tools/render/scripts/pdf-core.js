@@ -60,9 +60,22 @@ export function pdfOptions(input) {
     const content = parts.map(part => part === '{page}' ? `counter(${PAGE_COUNTER})` :
       part === '{pages}' ? 'counter(pages)' : JSON.stringify(part)).join(' ');
     const box = `@bottom-${footerPosition}`;
-    const footerCss = `@layer wiser-render-footer { @page { counter-increment: ${PAGE_COUNTER} 1; } }
-@page { ${box} { all: initial; content: ${content}; font: ${font}; color: black; direction: ltr; vertical-align: bottom; padding-bottom: 0.2in; white-space: pre; } }
-@page :first { ${box} { content: none !important; } }`;
+    const footerCss = `@layer wiser-render-footer {
+@page { counter-increment: ${PAGE_COUNTER} 1; }
+@page { ${box} {
+  all: initial !important;
+  content: ${content} !important;
+  font: ${font} !important;
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
+  color: black !important;
+  direction: ltr !important;
+  vertical-align: bottom !important;
+  padding-bottom: 0.2in !important;
+  white-space: pre !important;
+} }
+@page :first { ${box} { content: none !important; } }
+}`;
     return { options, footer: { parts, font, padding: 0, skipFirst: true, css: footerCss, counter: PAGE_COUNTER } };
   }
   const escapeHtml = text => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -87,7 +100,9 @@ export function defaultPdfCharset(bytes) {
 export function addFooterCss({ css, counter }) {
   const sheet = new CSSStyleSheet();
   sheet.replaceSync(css);
-  if (sheet.cssRules.length !== 3 || !Array.from(sheet.cssRules).every(rule => rule.cssRules?.length === 1)) return false;
+  const layer = sheet.cssRules[0];
+  if (sheet.cssRules.length !== 1 || layer.cssRules?.length !== 3 ||
+      !Array.from(layer.cssRules).slice(1).every(rule => rule.cssRules?.length === 1)) return false;
   // Each page rule takes one counter-increment declaration. Chromium honors
   // the authored page increment when that counter follows our own in the list.
   const visited = new Set();
@@ -112,19 +127,18 @@ export function addFooterCss({ css, counter }) {
   for (const author of [...document.styleSheets, ...document.adoptedStyleSheets]) {
     amend(author);
     if (!layerReserved && !author.disabled && matchMedia(author.media.mediaText || 'all').matches) {
-      // Keep the fallback with the author styles to preserve Chromium's page
-      // counter cascade. Reserve its layer before the author's own layers.
+      // Reserve the layer before the author's own layers so its important
+      // styles win. Keep the counter fallback here for the page cascade.
       try {
-        author.insertRule(`@layer ${sheet.cssRules[0].name};`, 0);
-        author.insertRule(sheet.cssRules[0].cssText, author.cssRules.length);
+        author.insertRule(`@layer ${layer.name};`, 0);
+        author.insertRule(layer.cssText, author.cssRules.length);
         layerReserved = true;
       } catch (error) {
         if (!['SecurityError', 'HierarchyRequestError'].includes(error.name)) throw error;
       }
     }
   }
-  if (layerReserved) sheet.deleteRule(0);
-  document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+  if (!layerReserved) document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
   return true;
 }
 
@@ -195,9 +209,6 @@ export async function printPdf(page, context, options, footer) {
     await document.fonts.ready;
   });
   await session.send('Emulation.setScriptExecutionDisabled', { value: true });
-  if (footer.css && !await evaluate(addFooterCss, footer)) {
-    refuse('Chromium lacks CSS page margin boxes; use a current shared browser build.');
-  }
   const zoom = await evaluate(() => document.documentElement.currentCSSZoom);
   const channel = () => 1 + Math.floor(Math.random() * 254);
   const colors = [[channel(), channel(), channel()], [channel(), channel(), channel()]];
@@ -219,9 +230,12 @@ export async function printPdf(page, context, options, footer) {
     }
   }
   await evaluate(() => globalThis.wiserGeometry.deleteRule(0));
+  if (footer.css && !await evaluate(addFooterCss, footer)) {
+    refuse('Chromium lacks CSS page margin boxes; use a current shared browser build.');
+  }
   const printed = checkedPdf(await page.pdf(options));
   if (printed.pages !== pages) refuse('PDF pagination changed during footer verification; retry with static print styles.');
-  return printed;
+  return { ...printed, printLifecycle: { beforeprint: 'synthetic-main-frame', afterprint: 'skipped' } };
 }
 
 async function pageGeometry({ stream, compressed, width }, colors) {

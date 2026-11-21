@@ -5,6 +5,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync,
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { inflateSync } from 'node:zlib';
 import { launch } from '../../lib/browser-runtime/browser-runtime.js';
 import { writeZip } from '../../lib/archive-core.js';
 import { portable } from './portable-loader.js';
@@ -16,6 +17,7 @@ const pages = '<section>First page</section><section>Second page</section>';
 const breaks = 'body{margin:0} section+section{break-before:page}';
 const document = (style, body = pages) => `<!doctype html><title>Print sample</title><style>${style}</style>${body}`;
 const footer = { footerFormat: 'Page {page} of {pages}' };
+const pausedPrint = { beforeprint: 'synthetic-main-frame', afterprint: 'skipped' };
 let browser, engine, pdfCore;
 
 before(async () => {
@@ -40,7 +42,8 @@ function invoke(...args) {
 test('PDF prints CSS geometry over fallbacks and normalizes Info dates across a clock tick', async t => {
   const html = file('sample.html', document(`@page {size:letter; margin:1in} ${breaks}`));
   const rendered = await engine.renderPdf({ ...footer, paperSize: 'A4', margin: '2in', output: 'sample.pdf' }, [html], { browser });
-  assert.deepEqual({ ...rendered.answer }, { output: 'sample.pdf', format: 'pdf', pages: 2 });
+  assert.deepEqual({ ...rendered.answer, printLifecycle: { ...rendered.answer.printLifecycle } },
+    { output: 'sample.pdf', format: 'pdf', pages: 2, printLifecycle: pausedPrint });
   assert.equal(rendered.files[0].mediaType, 'application/pdf');
   const pdf = Buffer.from(rendered.files[0].bytes);
   assert.equal([...pdf.toString('latin1').matchAll(/\/MediaBox \[0 0 612 792\]/g)].length, 2);
@@ -55,7 +58,7 @@ test('PDF prints CSS geometry over fallbacks and normalizes Info dates across a 
     '--margin', '2in', '--footer-format', footer.footerFormat);
   assert.equal(run.status, 0, run.stderr);
   assert.equal(run.stderr, '');
-  assert.deepEqual(JSON.parse(run.stdout), { output: realpathSync(output), format: 'pdf', pages: 2 });
+  assert.deepEqual(JSON.parse(run.stdout), { output: realpathSync(output), format: 'pdf', pages: 2, printLifecycle: pausedPrint });
   const printed = readFileSync(output, 'latin1');
   assert.match(printed, /\/CreationDate \(D:20000101000000\+00'00'\)/);
   assert.match(printed, /\/ModDate \(D:20000101000000\+00'00'\)/);
@@ -78,7 +81,7 @@ test('PDF accepts ZIP entry and print-only assets, uses fallback size, and omits
   assert.equal(options.printBackground, false);
   assert.equal(options.displayHeaderFooter, undefined);
   assert.match(footerCss, /counter-increment: wiser-render-page 1;/);
-  assert.match(footerCss, /@bottom-right \{ all: initial; content: "Page " counter\(wiser-render-page\) " of " counter\(pages\); font: 12pt serif/);
+  assert.match(footerCss, /@bottom-right \{\s+all: initial !important;\s+content: "Page " counter\(wiser-render-page\) " of " counter\(pages\) !important;\s+font: 12pt serif !important;/);
   assert.match(footerCss, /@page :first \{ @bottom-right \{ content: none/);
 });
 
@@ -172,6 +175,24 @@ test('footer validation uses each printed page and skips the first only when req
   await assert.rejects(engine.renderPdf(input, [blank], { browser }), /footer is too wide/);
 });
 
+test('skip-first footers retain their printed font and spacing over important author styles', async () => {
+  const style = `@page {size:letter; margin:1in} section+section{page:second} ${breaks}`;
+  const authored = 'font-size:48pt !important; letter-spacing:0.2in !important; word-spacing:0.2in !important;';
+  const options = { ...footer, footerSkipFirst: true };
+  const print = async css => {
+    const { files } = await engine.renderPdf(options, [file('sample.html', document(css))], { browser });
+    return pdfCore.checkedPdf(files[0].bytes, true).geometry.map(({ stream, compressed }) =>
+      compressed ? inflateSync(stream).toString('latin1') : Buffer.from(stream).toString('latin1'));
+  };
+  const expected = await print(style);
+  assert.equal([...expected[0].matchAll(/\bTf\b/g)].length, 1);
+  assert.ok([...expected[1].matchAll(/\bTf\b/g)].length > 1);
+  for (const overridden of [`@page {@bottom-center {${authored}}}`,
+    `@layer author {@page second {@bottom-center {${authored} content: "Wrong" !important;}}}`]) {
+    assert.deepEqual(await print(style + overridden), expected);
+  }
+});
+
 test('author paint and root zoom cannot replace the width of the printed margin box', async () => {
   const style = `@page {size:letter; margin:1in} html{zoom:2}
     hr{zoom:.5;width:790px;height:1px;background:rgb(8 17 49);border:0;margin:0} ${breaks}`;
@@ -191,6 +212,25 @@ test('PDF prepares the document before sizing the footer and keeps the prepared 
     '<script>addEventListener("beforeprint", () => {document.title = "Prepared contents";});</script>'));
   const result = await engine.renderPdf(footer, [source], { browser });
   assert.match(Buffer.from(result.files[0].bytes).toString('latin1'), /\/Title \(Prepared contents\)/);
+});
+
+test('footer PDF reports that Chromium print events were skipped', async () => {
+  const source = file('trusted.html', document(breaks, pages +
+    '<p hidden style="font-family:monospace">Terms revealed for printing</p>' +
+    '<script>addEventListener("beforeprint", event => {if (event.isTrusted) document.querySelector("p").hidden = false;});</script>'));
+  const body = result => Buffer.from(result.files[0].bytes).toString('latin1');
+  const normal = await engine.renderPdf({}, [source], { browser });
+  const hidden = await engine.renderPdf({}, [file('hidden.html', document(breaks, pages +
+    '<p hidden style="font-family:monospace">Terms revealed for printing</p>'))], { browser });
+  const fonts = result => new Set([...body(result).matchAll(/\/BaseFont \/\w+\+([^\s/]+)/g)].map(match => match[1]));
+  const revealedFonts = [...fonts(normal)].filter(font => !fonts(hidden).has(font));
+  assert.equal(revealedFonts.length, 1, 'the trusted handler revealed the only text using its font');
+  assert.equal(normal.answer.printLifecycle, undefined);
+  for (const footerSkipFirst of [false, true]) {
+    const result = await engine.renderPdf({ ...footer, footerSkipFirst }, [source], { browser });
+    assert.equal(fonts(result).has(revealedFonts[0]), false);
+    assert.deepEqual({ ...result.answer.printLifecycle }, pausedPrint);
+  }
 });
 
 test('footer geometry preserves the requested background policy', async () => {

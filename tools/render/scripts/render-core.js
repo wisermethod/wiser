@@ -76,8 +76,10 @@ export async function renderPdf(input = {}, files = [], { browser, responseBody 
     let printed;
     try { printed = await printPdf(page, context, options, footer); }
     finally { check(); }
-    const { bytes, pages } = printed;
-    return result({ output, format: 'pdf', pages }, [{ name: output, mediaType: 'application/pdf', bytes }]);
+    const { bytes, pages, printLifecycle } = printed;
+    const answer = { output, format: 'pdf', pages };
+    if (printLifecycle) answer.printLifecycle = printLifecycle;
+    return result(answer, [{ name: output, mediaType: 'application/pdf', bytes }]);
   }), ms);
 }
 export async function renderSvg(input = {}, files = [], { browser, responseBody } = {}) {
