@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.21, November 21, 2026
+
+- The render tool 0.3.2 has a new `pdf` command. It turns a finished HTML page into a PDF at the page size and margins the page's own print styles set, and can add a page-number footer. It runs on your own computer; the Wiser endpoint does not serve it yet. (e639a6ca, 404c6613, 746dfafc)
+- A new tool, word-document 0.2.1, creates a Word document and writes a fresh copy of one with tracked edits added, accepted or rejected, or with comments added, and lists the tracked edits and comments a document holds. Each edit or comment it adds names its author. It runs on your own computer. (e639a6ca, 404c6613, 746dfafc)
+
 ## v2026.11.20.2, November 20, 2026
 
 - Setting up Wiser now works in Claude Cowork with only the Wiser connector added and no plugin. Onboard Root 0.50.8 gets your starter files through the connector when Claude refuses the download, where before it left your folder empty, and Set Up Wiser 0.4.6 gives the project steps in the chat without a page it cannot open there. (a2f2d215, edf9c9ff, bf2b05a2)
