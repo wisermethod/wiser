@@ -27,7 +27,7 @@ const COMMANDS = {
     flags: ['input'],
   },
   'add-change': {
-    syntax: 'add-change --input <docx> --output <docx> --type <type> --text <text> [--author <name>] [--position <offset>] [--format <style>]',
+    syntax: 'add-change --input <docx> --output <docx> --type <type> --text <text> --author <name> [--position <offset>] [--format <style>]',
     description: 'Add a tracked insertion, deletion, or run formatting change.',
     flags: ['input', 'output', 'type', 'text', 'author', 'position', 'format'],
   },
@@ -52,7 +52,7 @@ const COMMANDS = {
     flags: ['input'],
   },
   'add-comment': {
-    syntax: 'add-comment --input <docx> --output <docx> --text <comment> [--author <name>] [--initials <letters>] [--position <offset>] [--length <count>]',
+    syntax: 'add-comment --input <docx> --output <docx> --text <comment> --author <name> [--initials <letters>] [--position <offset>] [--length <count>]',
     description: 'Add a comment at a point or around a text range.',
     flags: ['input', 'output', 'text', 'author', 'initials', 'position', 'length'],
   },
@@ -72,7 +72,7 @@ function help(command) {
     '',
     '--input and --output take absolute paths. Every output is a fresh .docx.',
     '--position and --length count Unicode code points. Paragraphs are separated by one line break.',
-    '--author defaults to AIM. --initials defaults to the first letters of up to three author words.',
+    '--author is required for new revisions and comments. --initials defaults to the first letters of up to three author words.',
     '--type accepts insertion, deletion or formatting. Formatting requires --format bold, italic or underline.',
     '--filter-type accepts ' + FILTER_TYPES.join(', ') + '.',
     'For apply or reject, run without --confirm and --output, show every returned change to the person,',
@@ -136,7 +136,10 @@ function parse(argv) {
       (!args.input || args.title !== undefined || args.text !== undefined)) {
     usage('Use --input with a JSON path, or use --title and --text.');
   }
-  if (['add-change', 'add-comment'].includes(command) && !args.text) usage('--text is required.');
+  if (['add-change', 'add-comment'].includes(command)) {
+    if (!args.text) usage('--text is required.');
+    if (!args.author?.trim()) usage('--author is required. Supply a nonblank author name.');
+  }
   if (command === 'add-change') {
     if (!['insertion', 'deletion', 'formatting'].includes(args.type)) {
       usage('--type must be insertion, deletion or formatting.');

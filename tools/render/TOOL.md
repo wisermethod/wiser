@@ -3,7 +3,7 @@ name: render
 type: tool
 category: media
 description: Renders local HTML to a PDF with CSS page geometry or to a PNG or JPEG, renders an SVG or Mermaid diagram to a PNG, and captures a PNG of a public web page after screening its address
-version: 0.3.0
+version: 0.3.1
 runs: both
 hosted:
   - html 8MiB 60s
@@ -32,6 +32,8 @@ Classifier seam: none.
 `html`, `pdf`, `svg`, `mermaid`, and `url` run on either host through `scripts/render-core.js`. `pdf` uses one browser job per call and keeps upload and output bytes in memory. The host owns the browser and passes it as the third argument. Each job creates and closes its own context. `check` stays local because it surveys and installs this machine's browser. No core imports Node or a browser package.
 
 Call `renderHtml`, `renderPdf`, `renderSvg`, `renderMermaid`, or `captureUrl` with JSON options and at most one `{ name, mediaType, bytes: Uint8Array }` upload. JSON option names are the CLI flags without `--`, converted to camelCase. Omit disk paths and CLI-only `install` and `overwrite`. `output` is an optional simple filename. HTML and PDF each accept one HTML file or one ZIP. Select the HTML inside a ZIP with `entry`, which defaults to root `index.html` or the only HTML file. SVG and Mermaid take one source file. Address capture takes no file. The return is `{ answer, files }`, each file carrying its name, media type and bytes. PDF defaults to `render.pdf` and returns `application/pdf`. Pass booleans for `printBackground` and `footerSkipFirst`, and a number for `footerFontSize`.
+
+Before the service serves `pdf`, add `tools/render/scripts/pdf-core.js` to `PATHS` in its `scripts/extract-wiser.sh` and regenerate the vendored files for the intended pin. Add the PDF action to its render adapter and registry with the PDF option schema, HTML or ZIP upload, and PDF output. Verify that the hosted Chromium supports CSS page margin boxes and Playwright's Chromium CDP session for footer checks. The existing four actions load without the PDF core.
 
 The third argument supplies `{ browser, fetch, lookup, responseBody, mermaidScript }`. Only address capture uses `fetch` and all-address `lookup`. `responseBody(bytes)` adapts binary bytes to Playwright's response-body type; Node and a Worker with Node compatibility can supply `bytes => Buffer.from(bytes)` outside the portable core. Text assets work without that adapter; binary assets refuse if it is absent. Mermaid receives the bytes of this tool's pinned `mermaid` 10.9.6 `dist/mermaid.min.js` from the host, never a CDN. The CLI reads those bytes from `vendor/mermaid/mermaid.min.js`, shipped with the tool. Fonts and other page assets travel in the ZIP or as embedded data rather than paths on the host's disk.
 
@@ -130,7 +132,7 @@ One JSON object on stdout, exit 0, once the image is written.
 
 Print one HTML document in Chromium. HTML that encodes its text as UTF-8 can omit its charset declaration. The document's CSS controls page size, orientation, margins and page breaks. Chromium uses `preferCSSPageSize: true` and applies the caller's paper and margin options where CSS leaves them unset. The browser loads in print media and waits for fonts before printing. Embed assets or include them in the ZIP, including assets used only in print.
 
-An optional footer replaces `{page}` with the current page and `{pages}` with the total. Page numbers are one-based. The all-page footer uses Chromium's native print template with a blank header and aligns to the sheet. First-page suppression uses a CSS bottom margin box aligned to the page margins. It uses its own page counter and counts page one. Reserve that margin box for the generated footer. Keep enough room in the bottom margin for the text and font size. Chromium may clip or omit the footer if the available margin is too small.
+An optional footer replaces `{page}` with the current page and `{pages}` with the total. Page numbers are one-based. The all-page footer uses Chromium's native print template with a blank header and aligns to the sheet. First-page suppression uses a CSS bottom margin box aligned to the page margins. It uses its own page counter and counts page one. Reserve that margin box for the generated footer. Footer width, including native template padding where applicable, must fit between the resolved left and right margins on each page that gets a footer. Chromium must support CSS page margin boxes to verify this width. For a PDF with a footer, the tool dispatches a synthetic `beforeprint` event in the main document after loading, then pauses page scripts while checking geometry and printing. Keep enough room in the bottom margin for the text and font size. Chromium may clip or omit the footer if the available margin is too small.
 
 ```bash
 node scripts/render.js pdf --input /path/to/document.html --output /path/to/document.pdf \
@@ -147,7 +149,7 @@ node scripts/render.js pdf --input /path/to/document.html --output /path/to/docu
 | `--print-background <true\|false>` | Chromium's background printing setting. The document's `print-color-adjust: exact` can preserve its backgrounds | true |
 | `--footer-format <text>` | Enable a footer. Plain text up to 160 characters with `{page}` and optional `{pages}` | Off |
 | `--footer-position <name>` | left, center, or right. Requires a footer format | center |
-| `--footer-font-size <pt>` | 1 to 72 points, in Times New Roman or the browser's serif fallback. Requires a footer format | 10 |
+| `--footer-font-size <pt>` | 1 to 72 points. The native footer uses Times New Roman with a serif fallback. First-page suppression uses the browser’s default serif font. Requires a footer format | 10 |
 | `--footer-skip-first` | Omit the generated footer on page one. Requires a footer format and a Chromium build with CSS page margin boxes | Off |
 | `--timeout <ms>` | Page-load budget in whole milliseconds, from 1 to 45000 | 30000 |
 | `--overwrite` | Replace an existing output | Off |
@@ -156,9 +158,9 @@ node scripts/render.js pdf --input /path/to/document.html --output /path/to/docu
 
 Success returns `output` (the absolute path on the CLI), `format: "pdf"`, and `pages` from the PDF's page tree. A missing asset, unreadable PDF, or exceeded limit refuses the whole document. Split a document with over 200 pages or reduce one whose PDF reaches 4 MiB.
 
-### Byte stability
+### PDF metadata
 
-For static HTML and assets, identical inputs and options produce identical bytes on the same Chromium build with the same platform and fonts, subject to Chromium's own PDF output. The PDF uses an isolated context with locale `en-US` and timezone UTC. The tool sets the Skia PDF's creation and modification dates to 2000-01-01 00:00 UTC and preserves the length of those fields, leaving the print streams and byte offsets intact. It refuses unfamiliar PDF structure or timestamp fields. Browser builds, platform font selection, Chromium's font subsetting or PDF serialization, and page code that uses clocks, random values or asynchronous state can change bytes. The footer and layout are rendered by Chromium.
+The PDF uses an isolated context with locale `en-US` and timezone UTC. The tool normalizes the Skia Info dictionary's `CreationDate` and `ModDate` to 2000-01-01 00:00 UTC. These same-length replacements preserve the print streams and byte offsets. It refuses unfamiliar cross-reference or timestamp fields. Other PDF bytes, including trailer IDs, XMP metadata and font data, follow Chromium's output and can vary from run to run.
 
 ## svg
 

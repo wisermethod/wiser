@@ -24,8 +24,8 @@ import dns from 'node:dns';
 
 import { INSTALL_HELP, installQuestion, formatInstallSize, INSTALL_BYTES, flagAuthorised, installAuthorised, parsedInstallFlag, writeConsent } from '../../lib/consent.js';
 import { runtimeDir, activeRuntimeDir, personRuntimeDir, installBrowserRuntime } from '../../lib/browser-runtime/browser-runtime.js';
+import { isMain } from '../../lib/one-file.js';
 import { INPUT_LIMIT } from './browser-core.js';
-import { pdfOptions } from './pdf-core.js';
 
 let install = false;
 
@@ -683,7 +683,10 @@ async function runPdf(argv) {
     footerSkipFirst: flags.get('--footer-skip-first'),
     timeout: loadTimeout === undefined ? undefined : positiveInteger('--timeout', loadTimeout, 45000)
   };
-  try { pdfOptions(input); } catch (error) { fail(`${error.message} ${usage}`); }
+  try {
+    const { pdfOptions } = await import('./pdf-core.js');
+    pdfOptions(input);
+  } catch (error) { fail(`${error.message} ${usage}`); }
   await ensurePlaywright();
   await ensureChromium();
   await coreRun('renderPdf', input, inputPath, outputPath, {}, bytes => publishPdf(outputPath, bytes, overwrite));
@@ -975,4 +978,4 @@ async function main(argv) {
   await COMMANDS.get(command)(argv);
 }
 
-if (process.argv[1] && realpathSync(process.argv[1]) === HERE) await main(process.argv.slice(2));
+if (process.argv[1] && isMain(import.meta.url)) await main(process.argv.slice(2));

@@ -3,7 +3,7 @@ name: word-document
 type: tool
 category: documents
 description: Create Word documents and write fresh copies with tracked edits, revision decisions, or comments
-version: 0.1.0
+version: 0.2.0
 runs: local
 ---
 
@@ -42,20 +42,24 @@ Prefix each row with `node scripts/word-document.js`. Each command takes `--help
 |---------|-----------|
 | `create` | `--output <docx>` and optionally either `--input <json>` or `--title <title>` and `--text <body>` |
 | `list-changes` | `--input <docx>` |
-| `add-change` | `--input <docx> --output <docx> --type <type> --text <text>`. Optional `--author <name>` and `--position <offset>`. For formatting, also pass `--format <style>`. |
+| `add-change` | `--input <docx> --output <docx> --type <type> --text <text> --author <name>`. Optional `--position <offset>`. For formatting, also pass `--format <style>`. |
 | `apply-change` | `--input <docx> --change-id <id>`. With approval, add `--confirm <token> --output <docx>`. |
 | `reject-change` | `--input <docx> --change-id <id>`. With approval, add `--confirm <token> --output <docx>`. |
 | `apply-all` | `--input <docx>`. Optional `--filter-author <name>` and `--filter-type <type>`. With approval, add `--confirm <token> --output <docx>`. |
 | `list-comments` | `--input <docx>` |
-| `add-comment` | `--input <docx> --output <docx> --text <comment>`. Optional `--author <name>`, `--initials <letters>`, `--position <offset>` and `--length <count>`. |
+| `add-comment` | `--input <docx> --output <docx> --text <comment> --author <name>`. Optional `--initials <letters>`, `--position <offset>` and `--length <count>`. |
 
-`create` accepts a UTF-8 JSON object with optional `title` (a string) and `paragraphs` (an array of strings). The title goes in the document's Title style and metadata. Each array entry becomes one paragraph. In a string, tabs and line breaks become Word tabs and line breaks. Omitting all content creates an empty paragraph.
+`create` accepts a UTF-8 JSON object with optional `title` (a string) and `paragraphs` (an array of strings). The title goes in the document's Title style and metadata. Each array entry becomes one paragraph. In a string, tabs and line breaks become Word tabs and line breaks. Omitting all content creates an empty paragraph. New documents use US Letter with one-inch margins and half-inch header and footer distances.
 
-`add-change` accepts `insertion`, `deletion`, or `formatting` as `--type`. Formatting requires `bold`, `italic`, or `underline` as `--format`. Insertion uses `--text` as the new content and defaults to the end. Deletion and formatting select exact existing `--text` in one paragraph. A unique match needs no offset. A repeated match requires an exact offset. Adding revisions or comments defaults to author `AIM`. Comment initials default to the first letters of up to three author words. A comment with no range length is a point at the supplied offset or at the end.
+`add-change` accepts `insertion`, `deletion`, or `formatting` as `--type`. Formatting requires `bold`, `italic`, or `underline` as `--format`. Insertion uses `--text` as the new content. Deletion and formatting select exact existing `--text` in one paragraph. A unique match needs no offset. A repeated match requires an exact offset. New revisions and comments require a nonblank `--author` so the caller supplies the attribution stored in Word. Comment initials default to the first letters of up to three author words. A comment with no range length is a point.
 
-Offsets are zero-based Unicode code point counts in the tool's text reading. That reading includes main-body paragraphs, one line break between paragraphs, and pending insertions. It skips pending deletions, nested text-box paragraphs, and Word's alternate-content branches. A tab or line break within a run counts as one code point. A positive comment length selects from that offset within one paragraph. New ranges can span adjacent plain text runs. When a range crosses an existing revision or complex inline content such as a field or hyperlink, choose a smaller range or make that edit in Word.
+Offsets are zero-based Unicode code point counts in current main-body paragraphs in XML order, including paragraphs in body table cells and nested body table cells. One code point separates successive paragraphs, including empty ones. The map includes Word text runs, including text in pending insertions, hyperlinks and content controls. A Word tab, positioned tab, line break, carriage return or nonbreaking hyphen counts as one. The map excludes pending deletion and move-from text, field instructions, text boxes and other nested paragraphs, both branches of alternate content, embedded drawing, WordArt, equation and symbol text, and linked stories. Headers, footers, footnotes, endnotes, comment bodies, glossary entries, and other separate Word document parts have no offsets in the main body.
 
-`list-changes` gives each change a numeric selection ID, optional native Word ID, type, author, date, affected text, and pending status. Supported formatting entries give previous and current properties. Selection IDs can change after any edit. The tool applies and rejects run-content insertions and deletions, and run and paragraph formatting. Revisions with structural changes, moves, alternate content, or embedded bookmark or permission range markers are reported with `supported: false`. Review those in Word. `apply-all` matches the author exactly and matches types case-insensitively. Use a type returned by `list-changes` or `formatting` for all formatting types. Unsupported changes in a batch prevent it from writing.
+An insertion or comment with no offset uses the addressable end when excluded locations contain no text. If an excluded location holds text, pass an explicit offset in an existing main-body paragraph or edit that location in Word. An unresolved linked story also requires explicit placement. A failed text or offset lookup reports the main-body length and any excluded locations.
+
+A positive comment length selects within one paragraph. New ranges can span adjacent plain text runs. Positions inside an existing revision, hyperlink, simple field or other complex inline element, and ranges crossing them, require a different selection or an edit in Word. A complex field can store its cached result as ordinary runs. Those runs count like other text, and a range crossing the field markers is refused.
+
+`list-changes` gives each change a numeric selection ID, optional native Word ID, type, author, date, affected text, and pending status. Supported formatting entries give previous and current properties. A paragraph formatting entry names any current paragraph-mark or section properties preserved by rejection in `formatting.preserved`. Selection IDs can change after any edit. The tool applies and rejects run-content insertions and deletions, and run and paragraph formatting. Revisions outside the editable scope carry `supported: false` and `unsupportedReason`. This includes structural changes, moves, alternate content, and text revisions containing markup the plain-text preview cannot represent, such as note references, drawings, fields, symbols, equations and explicit page or column breaks. Review those in Word. `apply-all` matches the author exactly and matches types case-insensitively. Use a type returned by `list-changes` or `formatting` for all formatting types. Unsupported changes in a batch prevent it from writing.
 
 `list-comments` returns the selection number, Word comment ID, author, initials, date, comment text, exact anchored text where available, and the anchor state. The states are `point`, `range`, `incomplete-range`, and `missing`. Comment creation adds the comment part, its package relationship and its content type when needed. A revision decision that drops marked text preserves its comment markers and reference at the resulting position.
 

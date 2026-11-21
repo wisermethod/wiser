@@ -4,7 +4,7 @@
   "license": "MIT",
   "resolved": "https://registry.npmjs.org/mermaid/-/mermaid-10.9.6.tgz",
   "integrity": "sha512-XRjjRaI4aPCAMpVaOhxIwLYdx3U4Cb6mN0M268ggFAfFRqsvyFW8zxWbEZazN/mPkqsVWThb0oa1UawWK+XMNg==",
-  "sourceLockSha256": "5530c8a384477b23365e1040e202928f5095100c1dc8624c2329eeac80029bb8",
+  "sourceLockSha256": "cfa5d4ecbf4d67ec01d288fbccb2c574aa9fe11fa1557f0de1b628c47dd12c13",
   "builderSha256": "db3efe3e2d97084cf7b6d2965af71d2c33f01309f0a5f1f9c55b1b9677f6632a",
   "bytes": 3477116,
   "files": [

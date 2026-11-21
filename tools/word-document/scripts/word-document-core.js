@@ -1,4 +1,5 @@
 const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+const VML = 'urn:schemas-microsoft-com:vml';
 const XML = 'http://www.w3.org/XML/1998/namespace';
 const XMLNS = 'http://www.w3.org/2000/xmlns/';
 const MC = 'http://schemas.openxmlformats.org/markup-compatibility/2006';
@@ -12,6 +13,18 @@ const CONTENT_TYPES = '[Content_Types].xml';
 const MAIN_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml';
 const COMMENTS = 'word/comments.xml';
 const COMMENTS_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml';
+const STORY_NAMES = new Map([
+  ['document', 'secondary document'], ['hdr', 'header'], ['ftr', 'footer'],
+  ['footnotes', 'footnotes'], ['endnotes', 'endnotes'], ['comments', 'comments'], ['glossaryDocument', 'glossary'],
+]);
+const STORY_TYPES = /wordprocessingml\.(?:header|footer|footnotes|endnotes|comments|document\.glossary)\+xml$/i;
+const STORY_RELATIONSHIPS = new Map([
+  ['header', 'hdr'], ['footer', 'ftr'], ['footnotes', 'footnotes'], ['endnotes', 'endnotes'],
+  ['comments', 'comments'], ['glossaryDocument', 'glossaryDocument'],
+]);
+const TRACKED_RANGE = /^(?:(?:moveFrom|moveTo)Range|customXml(?:Ins|Del|MoveFrom|MoveTo)Range)(?:Start|End)$/;
+const COMMENT_ANCHORS = new Set(['comment', 'commentRangeStart', 'commentRangeEnd', 'commentReference']);
+const INLINE_WHITESPACE = new Set(['tab', 'ptab', 'br', 'cr', 'noBreakHyphen']);
 const DECLARATION = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
 export const MAX_PACKAGE_BYTES = 256 * 1024 * 1024;
 
@@ -54,6 +67,11 @@ function requireText(value, label) {
   return value;
 }
 
+function requireAuthor(value) {
+  if (typeof value !== 'string' || !value.trim()) throw new Error('--author is required. Supply a nonblank author name.');
+  return requireText(value, '--author');
+}
+
 function validXml(SaxesParser, text, name) {
   const invalid = () => {
     throw new Error(`Invalid XML in ${name}. Open or repair the document in Word and save a fresh .docx.`);
@@ -71,7 +89,7 @@ function parseXml(codec, text, name, namespace, rootName) {
   const parser = new DOMParser({ errorHandler: { warning: invalid, error: invalid, fatalError: invalid } });
   const document = parser.parseFromString(text, 'application/xml');
   const root = document.documentElement;
-  if (!root || root.namespaceURI !== namespace || root.localName !== rootName ||
+  if (!root || (namespace && root.namespaceURI !== namespace) || (rootName && root.localName !== rootName) ||
       elements(document).length !== 1 ||
       children(document).some((node) => node.nodeType === 3 && node.data.trim())) invalid();
   return root;
@@ -202,6 +220,14 @@ function createPackage(codec, spec, date) {
   }
   for (const text of paragraphs) writeText(add(add(body, 'p'), 'r'), text);
   if (!title && !paragraphs.length) add(body, 'p');
+  const section = add(body, 'sectPr');
+  const size = add(section, 'pgSz');
+  set(size, 'w', '12240');
+  set(size, 'h', '15840');
+  const margin = add(section, 'pgMar');
+  for (const side of ['top', 'right', 'bottom', 'left']) set(margin, side, '1440');
+  for (const edge of ['header', 'footer']) set(margin, edge, '720');
+  set(margin, 'gutter', '0');
   const types = parseXml(codec, `<Types xmlns="${TYPES}">
     <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
     <Default Extension="xml" ContentType="application/xml"/>
@@ -292,22 +318,46 @@ function hasAlternateContent(node) {
   return withinAlternateContent(node) || node.getElementsByTagNameNS(MC, 'AlternateContent').length > 0;
 }
 
-function supportedRevision(node) {
+const TEXT_REVISION_CONTENT = new Set([
+  'r', 'rPr', 't', 'delText', 'tab', 'ptab', 'br', 'cr', 'noBreakHyphen',
+  'ins', 'del', 'rPrChange', 'commentRangeStart', 'commentRangeEnd', 'commentReference',
+]);
+const HIDDEN_REVISION_CONTENT = new Set([
+  'footnoteReference', 'endnoteReference', 'footnoteRef', 'endnoteRef', 'drawing', 'pict', 'object',
+  'fldSimple', 'fldChar', 'instrText', 'delInstrText', 'sym',
+]);
+
+function revisionScopeIssue(node) {
   const name = node.localName;
   const parent = node.parentNode;
-  if (hasAlternateContent(node) || Array.from(node.attributes).some((item) => item.namespaceURI === MC)) return false;
+  if (hasAlternateContent(node) || Array.from(node.attributes).some((item) => item.namespaceURI === MC)) return 'alternate content';
+  const paragraph = nearestParagraph(node);
   if (name === 'rPrChange' || name === 'pPrChange') {
     const property = name.slice(0, -6);
     const old = direct(node, property);
-    return word(parent, property) && elements(node).length === 1 && Boolean(old) &&
-      (name !== 'pPrChange' || !elements(old).some(paragraphSpecial));
+    if (!word(parent, property) || elements(node).length !== 1 || !old ||
+        (name === 'pPrChange' && elements(old).some(paragraphSpecial))) return 'unsupported formatting snapshot';
+    return null;
   }
-  if (name !== 'ins' && name !== 'del') return false;
-  const paragraph = nearestParagraph(node);
-  if (!paragraph || parent.namespaceURI !== W || !RUN_CONTAINERS.has(parent.localName)) return false;
-  return !descendants(node, '*').some((child) =>
-    ['p', 'tr', 'tc'].includes(child.localName) ||
-    /^(bookmark|perm|(?:moveFrom|moveTo|customXml\w+)Range)(Start|End)$/.test(child.localName));
+  if ((name !== 'ins' && name !== 'del') || !paragraph || parent.namespaceURI !== W ||
+      !RUN_CONTAINERS.has(parent.localName)) return 'unsupported revision structure';
+  const omitted = new Set();
+  function inspect(container, inRunProperties = false) {
+    for (const child of elements(container)) {
+      const kind = child.localName;
+      const breakType = word(child, 'br') && attr(child, 'type');
+      if (breakType && breakType !== 'textWrapping') {
+        omitted.add(`${child.nodeName} (${breakType} break)`);
+      } else if (child.namespaceURI !== W || HIDDEN_REVISION_CONTENT.has(kind) ||
+          (!inRunProperties && !TEXT_REVISION_CONTENT.has(kind)) ||
+          Array.from(child.attributes).some((item) => item.namespaceURI === MC)) {
+        omitted.add(child.nodeName);
+      }
+      inspect(child, inRunProperties || word(child, 'rPr'));
+    }
+  }
+  inspect(node);
+  return omitted.size ? `markup outside the text preview: ${[...omitted].join(', ')}` : null;
 }
 
 function revisions(body, XMLSerializer) {
@@ -316,14 +366,16 @@ function revisions(body, XMLSerializer) {
   const byType = new Map([...REVISION_TYPES.keys()].map((name) => [name, []]));
   for (const node of all) byType.get(node.localName)?.push(node);
   return [...byType.values()].flat().map((node, index) => {
+    const issue = revisionScopeIssue(node);
     const info = {
       id: index + 1, wordId: attr(node, 'id') || null,
       type: REVISION_TYPES.get(node.localName), author: authorOf(node),
       date: attr(node, 'date') || null, status: 'pending',
       text: hasAlternateContent(node) ? '[Alternate content]' :
         node.localName.endsWith('Change') ? '[Formatting change]' : inlineText(node, { deleted: true }),
-      supported: supportedRevision(node),
+      supported: issue === null,
     };
+    if (issue) info.unsupportedReason = issue;
     if (info.supported && node.localName.endsWith('PrChange')) {
       const serializer = new XMLSerializer();
       const properties = node.parentNode;
@@ -338,6 +390,8 @@ function revisions(body, XMLSerializer) {
         before: serializer.serializeToString(direct(node, properties.localName)),
         after: serializer.serializeToString(current),
       };
+      const preserved = word(properties, 'pPr') ? elements(properties).filter(paragraphSpecial) : [];
+      if (preserved.length) info.formatting.preserved = preserved.map((child) => `w:${child.localName}`);
     }
     return { node, info };
   });
@@ -413,7 +467,7 @@ function resolveChanges(changes, selected, command) {
   const removesContent = (node) => accepting ? word(node, 'del') : word(node, 'ins');
 
   for (const { node, info } of selected) {
-    if (!info.supported) throw new Error(`Change ${info.id} uses ${info.type} outside this tool's edit scope. Resolve it in Word.`);
+    if (!info.supported) throw new Error(`Change ${info.id} uses ${info.type} outside this tool's edit scope (${info.unsupportedReason}). Resolve it in Word.`);
     if (removesContent(node) || (!accepting && node.localName.endsWith('PrChange'))) {
       const discarded = removesContent(node) ? [node] : elements(node.parentNode).filter((child) =>
         !word(node.parentNode, 'pPr') || !paragraphSpecial(child));
@@ -477,21 +531,130 @@ function replaceTextNode(old, name) {
   old.parentNode.replaceChild(replacement, old);
 }
 
-function editParagraphs(body) {
+function storyParts(codec, parts, types) {
+  const names = new Set();
+  const extensions = new Set();
+  for (const entry of elements(types)) {
+    if (entry.namespaceURI !== TYPES || !STORY_TYPES.test(entry.getAttribute('ContentType'))) continue;
+    if (entry.localName === 'Override') names.add(entry.getAttribute('PartName').slice(1));
+    if (entry.localName === 'Default') extensions.add(entry.getAttribute('Extension').toLowerCase());
+  }
+  for (const name of Object.keys(parts)) {
+    const extension = /\.([^.\/]+)$/.exec(name)?.[1]?.toLowerCase();
+    if (/^word\/.+\.xml$/i.test(name) || extensions.has(extension)) names.add(name);
+  }
+  names.delete(MAIN);
+
+  const roots = new Map();
+  const related = [MAIN];
+  for (const name of related) {
+    const base = name.split('/');
+    const file = base.pop();
+    const rels = [...base, '_rels', `${file}.rels`].join('/');
+    if (!Object.hasOwn(parts, rels)) continue;
+    const relationships = readXml(codec, parts, rels, REL, 'Relationships');
+    for (const link of elements(relationships)) {
+      const type = link.getAttribute('Type');
+      if (link.namespaceURI !== REL || link.localName !== 'Relationship' || !type.startsWith(OFFICE_REL)) continue;
+      const rootName = STORY_RELATIONSHIPS.get(type.slice(OFFICE_REL.length));
+      if (!rootName) continue;
+      const label = STORY_NAMES.get(rootName);
+      if (link.getAttribute('TargetMode') === 'External') {
+        throw new Error(`The ${label} relationship names an external story. Save a fresh local copy in Word.`);
+      }
+      const target = packageTarget(base, link.getAttribute('Target'), label);
+      if (!roots.has(target)) {
+        roots.set(target, readXml(codec, parts, target, W, rootName));
+        related.push(target);
+      } else if (roots.get(target).localName !== rootName) {
+        throw new Error(`Conflicting story relationships for ${target}. Repair the document in Word.`);
+      }
+      names.add(target);
+    }
+  }
+  const stories = [];
+  for (const name of names) {
+    const root = roots.get(name) ?? readXml(codec, parts, name);
+    const story = root.namespaceURI === W && STORY_NAMES.get(root.localName);
+    if (story) stories.push({ root, label: `${story} (${name})` });
+  }
+  return stories;
+}
+
+function excludedParagraph(paragraph) {
+  if (withinAlternateContent(paragraph)) return 'alternate content';
+  for (let parent = paragraph.parentNode; parent; parent = parent.parentNode) {
+    if (word(parent, 'del') || word(parent, 'moveFrom')) return 'pending deletion or move';
+    if (word(parent, 'txbxContent')) return 'text box';
+    if (word(parent, 'p')) return 'nested paragraph';
+  }
+  return null;
+}
+
+function omittedText(node) {
+  if (word(node, 'del') || word(node, 'moveFrom') || word(node, 'pPr') || word(node, 'rPr')) return false;
+  if (word(node, 'altChunk') || word(node, 'subDoc')) return true;
+  if (node.namespaceURI === W && INLINE_WHITESPACE.has(node.localName)) return true;
+  return (word(node, 't') && node.textContent.length > 0) || embeddedText(node) || elements(node).some(omittedText);
+}
+
+function embeddedText(node) {
+  return word(node, 'sym') || (node.namespaceURI !== W && node.localName === 't' && node.textContent.length > 0) ||
+    (node.namespaceURI === VML && node.localName === 'textpath' && Boolean(node.getAttribute('string')));
+}
+
+function editParagraphs(body, stories) {
   const items = [];
+  const excluded = new Map();
+  function record(label, hasText, paragraphs = 0) {
+    const entry = excluded.get(label) ?? { paragraphs: 0, hasText: false };
+    entry.paragraphs += paragraphs;
+    entry.hasText ||= hasText;
+    excluded.set(label, entry);
+  }
+  function scanInline(node) {
+    if (word(node, 'del') || word(node, 'moveFrom') || word(node, 'pPr') || word(node, 'rPr')) return;
+    if (node.namespaceURI === MC && node.localName === 'AlternateContent') {
+      record('alternate content', omittedText(node), descendants(node, 'p').length);
+    } else if (word(node, 'txbxContent') || (word(node, 'p') && nearestParagraph(node))) {
+      const label = word(node, 'txbxContent') ? 'text box' : 'nested paragraph';
+      record(label, omittedText(node), descendants(node, 'p').length + Number(word(node, 'p')));
+    } else if (word(node, 'altChunk') || word(node, 'subDoc')) {
+      record(`linked story (w:${node.localName})`, true);
+    } else if (embeddedText(node)) {
+      record(`embedded text (${node.nodeName})`, true);
+    } else {
+      for (const child of elements(node)) scanInline(child);
+    }
+  }
+  scanInline(body);
+  for (const { root, label } of stories) record(label, omittedText(root), descendants(root, 'p').length);
   let offset = 0;
   for (const paragraph of descendants(body, 'p')) {
-    if (nearestParagraph(paragraph) || withinAlternateContent(paragraph)) continue;
+    if (excludedParagraph(paragraph)) continue;
     const text = inlineText(paragraph, { owner: paragraph });
     const length = textLength(text);
     items.push({ paragraph, text, offset, length });
     offset += length + 1;
   }
-  return items;
+  return { items, excluded, length: Math.max(0, offset - 1) };
 }
 
-function locate(body, position, match) {
-  const items = editParagraphs(body);
+function locate(body, stories, position, match) {
+  const { items, excluded, length } = editParagraphs(body, stories);
+  const hasExcludedText = [...excluded.values()].some((entry) => entry.hasText);
+  const scope = () => {
+    const omitted = [...excluded].map(([label, entry]) => `${label}: ${entry.paragraphs} paragraphs`).join(', ');
+    return `Main-body addressable length: ${length} code points.${omitted ? ` Excluded locations: ${omitted}.` : ''}`;
+  };
+  if (match === undefined && hasExcludedText) {
+    if (!items.length) {
+      throw new Error(`No addressable main-body paragraph is available. ${scope()} Edit the excluded text in Word.`);
+    }
+    if (position === undefined) {
+      throw new Error(`Cannot place this edit by default when excluded locations contain text. ${scope()} Pass an explicit main-body --position or edit the excluded text in Word.`);
+    }
+  }
   if (!items.length && match === undefined && (position === undefined || position === 0)) {
     const paragraph = element(body.ownerDocument, 'p');
     body.insertBefore(paragraph, direct(body, 'sectPr') ?? null);
@@ -509,16 +672,16 @@ function locate(body, position, match) {
       hits.push({ ...item, start, position: item.offset + start, selectionLength: textLength(match) });
     }
     if (hits.length === 1) return hits[0];
-    throw new Error('The selected text was not found in one paragraph. Copy the exact current text from the document.');
+    throw new Error(`The selected text was not found in one main-body paragraph. ${scope()} Copy the exact current body text or edit an excluded location in Word.`);
   }
   const last = items.at(-1);
   const target = position ?? ((last?.offset ?? 0) + (last?.length ?? 0));
   const item = items.find(({ offset, length }) => target >= offset && target <= offset + length);
-  if (!item) throw new Error('--position is outside the document text. Pass a valid character offset.');
+  if (!item) throw new Error(`--position is outside the document text. ${scope()} Pass a valid main-body offset or edit an excluded location in Word.`);
   const start = target - item.offset;
   const selectionLength = match === undefined ? 0 : textLength(match);
   if (match !== undefined && [...item.text].slice(start, start + selectionLength).join('') !== match) {
-    throw new Error('The selected text does not match at --position. Use the exact current text and offset.');
+    throw new Error(`The selected text does not match at --position. ${scope()} Use the exact current text and offset.`);
   }
   return { ...item, start, position: target, selectionLength };
 }
@@ -587,8 +750,8 @@ function selectRuns(paragraph, start, length) {
 function nextId(nodes) {
   let max = -1n;
   for (const node of nodes) {
-    const id = attr(node, 'id');
-    if (/^[0-9]+$/.test(id)) {
+    const id = attr(node, 'id').trim();
+    if (/^[+-]?[0-9]+$/.test(id)) {
       const value = BigInt(id);
       if (value > max) max = value;
     }
@@ -602,15 +765,16 @@ function mark(node, id, author, date) {
   set(node, 'date', date);
 }
 
-function addChange(body, args, date) {
+function addChange(body, stories, args, date) {
   const text = requireText(args.text, '--text');
   if (!text.length) throw new Error('--text is empty. Supply text for the change.');
-  const author = requireText(args.author ?? 'AIM', '--author');
+  const author = requireAuthor(args.author);
   const inserting = args.type === 'insertion';
-  const target = locate(body, args.position, inserting ? undefined : text);
+  const target = locate(body, stories, args.position, inserting ? undefined : text);
   const { paragraph, start, selectionLength, position } = target;
-  const idNodes = descendants(body, '*').filter((node) =>
-    REVISION_TYPES.has(node.localName) || /^(moveFrom|moveTo)Range(Start|End)$/.test(node.localName));
+  const idNodes = [body, ...stories.map(({ root }) => root)]
+    .flatMap((root) => descendants(root, '*').filter((node) =>
+      REVISION_TYPES.has(node.localName) || TRACKED_RANGE.test(node.localName)));
   const wordIds = [];
   if (inserting) {
     const insertion = element(body.ownerDocument, 'ins');
@@ -694,22 +858,21 @@ function commentPart(codec, parts, types) {
   return { comments, part, rels, types };
 }
 
-function addComment(codec, parts, types, body, args, date) {
+function addComment(codec, parts, types, body, stories, args, date) {
   const text = requireText(args.text, '--text');
   if (!text.length) throw new Error('--text is empty. Supply the comment text.');
-  const author = requireText(args.author ?? 'AIM', '--author');
+  const author = requireAuthor(args.author);
   const initials = requireText(args.initials ?? author.trim().split(/\s+/).slice(0, 3)
     .map((word) => ([...word][0] ?? '').toUpperCase()).join(''), '--initials');
   const { comments, part, rels } = commentPart(codec, parts, types);
-  const target = locate(body, args.position);
+  const target = locate(body, stories, args.position);
   const { paragraph, start, position } = target;
   const length = args.length ?? 0;
   if (start + length > target.length) {
     throw new Error('The comment range extends past its paragraph. Shorten --length or change --position.');
   }
-  const commentIds = descendants(comments, 'comment').concat(
-    ['commentRangeStart', 'commentRangeEnd', 'commentReference'].flatMap((name) => descendants(body, name)),
-  );
+  const commentIds = [body, comments, ...stories.map(({ root }) => root)]
+    .flatMap((root) => descendants(root, '*').filter((node) => COMMENT_ANCHORS.has(node.localName)));
   const commentId = nextId(commentIds);
   const comment = add(comments, 'comment');
   mark(comment, commentId, author, date);
@@ -790,8 +953,12 @@ export async function runWordDocument(codec, command, args, bytes, { date, appro
   if (command === 'list-comments') return { result: { ...base, comments: listComments(codec, parts, body) } };
 
   let result;
-  if (command === 'add-change') result = { change: addChange(body, args, date) };
-  else if (command === 'add-comment') result = { comment: addComment(codec, parts, types, body, args, date) };
+  if (command === 'add-change' || command === 'add-comment') {
+    const stories = storyParts(codec, parts, types);
+    result = command === 'add-change'
+      ? { change: addChange(body, stories, args, date) }
+      : { comment: addComment(codec, parts, types, body, stories, args, date) };
+  }
   else {
     const changes = revisions(body, codec.XMLSerializer);
     const selected = selectChanges(changes, command, args);

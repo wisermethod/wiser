@@ -9,6 +9,9 @@ const PAGE_COUNTER = 'wiser-render-page';
 const NATIVE_FOOTER_PADDING = 16;
 const PAGE_LIMIT = 200;
 const PDF_DATE = "D:20000101000000+00'00'";
+const PROBE_PREFIX_LIMIT = 64 * 1024;
+const PROBE_BORDER = 32;
+const PAINTED_BOX = /(?:^|\n)[\d. ]+ RG ([\d.]+) ([\d.]+) ([\d.]+) rg\n(?:\/\w+ gs\n)?(-?[\d.]+) -?[\d.]+ ([\d.]+) ([\d.]+) re\nf(?=\n)/g;
 const INPUT_KEYS = new Set([
   'output', 'entry', 'timeout', 'paperSize', 'margin', 'printBackground',
   'footerFormat', 'footerPosition', 'footerFontSize', 'footerSkipFirst'
@@ -50,6 +53,7 @@ export function pdfOptions(input) {
   if (typeof footerSkipFirst !== 'boolean') refuse('footerSkipFirst must be a boolean.');
 
   const parts = footerFormat.split(/(\{pages?\})/).filter(Boolean);
+  const font = `${footerFontSize}pt ${footerSkipFirst ? 'serif' : FONT}`;
   if (footerSkipFirst) {
     // Chromium's native template is repeated on every page. Page margin boxes
     // can suppress :first. A separate page counter ignores author resets of page.
@@ -57,9 +61,9 @@ export function pdfOptions(input) {
       part === '{pages}' ? 'counter(pages)' : JSON.stringify(part)).join(' ');
     const box = `@bottom-${footerPosition}`;
     const footerCss = `@layer wiser-render-footer { @page { counter-increment: ${PAGE_COUNTER} 1; } }
-@page { ${box} { content: ${content}; font: ${footerFontSize}pt ${FONT}; color: black; vertical-align: bottom; padding-bottom: 0.2in; white-space: pre; } }
+@page { ${box} { all: initial; content: ${content}; font: ${font}; color: black; direction: ltr; vertical-align: bottom; padding-bottom: 0.2in; white-space: pre; } }
 @page :first { ${box} { content: none !important; } }`;
-    return { options, footerCss, counter: PAGE_COUNTER };
+    return { options, footer: { parts, font, padding: 0, skipFirst: true, css: footerCss, counter: PAGE_COUNTER } };
   }
   const escapeHtml = text => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const fill = parts.map(part => part === '{page}' ? '<span class="pageNumber"></span>' :
@@ -67,7 +71,7 @@ export function pdfOptions(input) {
   const footerTemplate = `<div style="width:100%;box-sizing:border-box;padding:0 ${NATIVE_FOOTER_PADDING}pt;font-size:${footerFontSize}pt;font-family:${FONT};text-align:${footerPosition};white-space:pre;">${fill}</div>`;
   return {
     options: { ...options, displayHeaderFooter: true, headerTemplate: '<div></div>', footerTemplate },
-    nativeFooter: { parts, font: `${footerFontSize}pt ${FONT}`, padding: NATIVE_FOOTER_PADDING }
+    footer: { parts, font, padding: NATIVE_FOOTER_PADDING, skipFirst: false }
   };
 }
 
@@ -124,21 +128,142 @@ export function addFooterCss({ css, counter }) {
   return true;
 }
 
-export function nativeFooterWidth({ parts, font, padding, pages }) {
+function footerWidths({ parts, font, padding, pages }) {
   const canvas = document.createElement('canvas').getContext('2d');
   canvas.font = font;
   const total = String(pages);
-  let width = 0;
-  for (let page = 1; page <= pages; page++) {
-    const text = parts.map(part => part === '{page}' ? String(page) : part === '{pages}' ? total : part).join('');
-    width = Math.max(width, canvas.measureText(text).width * 72 / 96);
-  }
-  return width + padding * 2;
+  return Array.from({ length: pages }, (_, index) => {
+    const text = parts.map(part => part === '{page}' ? String(index + 1) : part === '{pages}' ? total : part).join('');
+    return canvas.measureText(text).width * 72 / 96 + padding * 2;
+  });
 }
 
-export function checkedPdf(raw, needWidth = false) {
+function geometryStyle(css) {
+  const style = document.createElement('style');
+  style.textContent = css;
+  (document.head ?? document.documentElement).prepend(style);
+  if (style.sheet?.cssRules.length === 1) {
+    globalThis.wiserGeometry = style.sheet;
+    return;
+  }
+  // A caller's CSP can disallow inline elements. A constructed sheet still
+  // lets Chromium resolve the probe against the document's print styles.
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync(css);
+  document.adoptedStyleSheets = [sheet, ...document.adoptedStyleSheets];
+  globalThis.wiserGeometry = sheet;
+}
+
+function probeCss(colors) {
+  // Two independently colored borders identify the probe in Skia's page
+  // area without enabling print backgrounds or using the author's paint.
+  return `@layer wiser-render-geometry-${colors.flat().join('-')} {
+    @page {
+      ${['top', 'bottom'].map((edge, index) => `
+        @${edge}-left { content: none !important; }
+        @${edge}-right { content: none !important; }
+        @${edge}-center {
+          all: initial !important;
+          content: "" !important;
+          width: 100% !important;
+          height: 0 !important;
+          border-${edge === 'top' ? 'bottom' : 'top'}: ${PROBE_BORDER}px solid rgb(${colors[index].join(' ')}) !important;
+        }`).join('')}
+    }
+  }`;
+}
+
+export async function printPdf(page, context, options, footer) {
+  if (!footer) return checkedPdf(await page.pdf(options));
+  // Use Chromium's own paginated geometry, including named pages, pseudo
+  // pages and stylesheet cascade. Keep the probe and final layout still.
+  const session = await context.newCDPSession(page);
+  const { frameTree } = await session.send('Page.getFrameTree');
+  const { executionContextId } = await session.send('Page.createIsolatedWorld', {
+    frameId: frameTree.frame.id, worldName: 'wiser-pdf-geometry'
+  });
+  const evaluate = async (fn, input) => {
+    const { result, exceptionDetails } = await session.send('Runtime.evaluate', {
+      contextId: executionContextId, expression: `(${fn})(${JSON.stringify(input)})`, returnByValue: true, awaitPromise: true
+    });
+    if (exceptionDetails) refuse('could not verify PDF footer geometry; check the shared Chromium runtime and retry.');
+    return result.value;
+  };
+  // Give print preparation a single turn before taking the two snapshots.
+  await evaluate(async () => {
+    window.dispatchEvent(new Event('beforeprint'));
+    await document.fonts.ready;
+  });
+  await session.send('Emulation.setScriptExecutionDisabled', { value: true });
+  if (footer.css && !await evaluate(addFooterCss, footer)) {
+    refuse('Chromium lacks CSS page margin boxes; use a current shared browser build.');
+  }
+  const zoom = await evaluate(() => document.documentElement.currentCSSZoom);
+  const channel = () => 1 + Math.floor(Math.random() * 254);
+  const colors = [[channel(), channel(), channel()], [channel(), channel(), channel()]];
+  if (colors[0].every((value, index) => value === colors[1][index])) colors[1][0] = colors[0][0] % 254 + 1;
+  await evaluate(geometryStyle, probeCss(colors));
+  const probe = await page.pdf({ ...options, displayHeaderFooter: false });
+  const { pages, geometry } = checkedPdf(probe, true);
+  const blank = await context.newPage();
+  const widths = await blank.evaluate(footerWidths, { ...footer, pages });
+  const first = footer.skipFirst ? 1 : 0;
+  for (let index = first; index < pages; index++) {
+    const { width, height } = await pageGeometry(geometry[index], colors);
+    // Root zoom also scales CSS margin-box text. A border records Chromium's
+    // snapped scale in case print styling changes it in a page's viewport.
+    let scale = 1;
+    if (footer.skipFirst) scale = Math.abs(height - zoom * PROBE_BORDER) < 1 ? zoom : (height + 1) / PROBE_BORDER;
+    if (widths[index] * scale > width) {
+      refuse('the footer is too wide for the PDF page width inside its margins; shorten footerFormat or reduce footerFontSize.');
+    }
+  }
+  await evaluate(() => globalThis.wiserGeometry.deleteRule(0));
+  const printed = checkedPdf(await page.pdf(options));
+  if (printed.pages !== pages) refuse('PDF pagination changed during footer verification; retry with static print styles.');
+  return printed;
+}
+
+async function pageGeometry({ stream, compressed, width }, colors) {
+  // The page margin boxes precede the page body in Skia's content stream.
+  // Bound how much uncompressed browser output this probe can inspect.
+  let prefix = stream.subarray(0, PROBE_PREFIX_LIMIT);
+  if (compressed) {
+    const input = new ReadableStream({ start(controller) {
+      controller.enqueue(stream);
+      controller.close();
+    } });
+    const reader = input.pipeThrough(new DecompressionStream('deflate')).getReader();
+    const bytes = new Uint8Array(PROBE_PREFIX_LIMIT);
+    let size = 0;
+    try {
+      while (size < bytes.length) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        const chunk = value.subarray(0, bytes.length - size);
+        bytes.set(chunk, size);
+        size += chunk.length;
+      }
+    } finally {
+      await reader.cancel();
+    }
+    prefix = bytes.subarray(0, size);
+  }
+  const boxes = [...new TextDecoder().decode(prefix).matchAll(PAINTED_BOX)];
+  const pair = colors.map(color => boxes.filter(box =>
+    color.every((channel, index) => Math.round(Number(box[index + 1]) * 255) === channel)));
+  const [top, bottom] = pair.map(matches => matches[0]);
+  if (pair.some(matches => matches.length !== 1) || top[4] !== bottom[4] || top[5] !== bottom[5] ||
+      top[6] !== bottom[6] || !(Number(top[5]) > 0) || !(Number(top[6]) > 0)) {
+    refuse('could not verify the PDF page width inside its margins; check the shared Chromium runtime and page styles.');
+  }
+  return { width: Math.min(width, Number(top[5]) * 72 / 96), height: Number(top[6]) };
+}
+
+export function checkedPdf(raw, needGeometry = false) {
   const bytes = new Uint8Array(raw);
-  if (bytes.length >= OUTPUT_LIMIT) refuse('output files reach the 4 MiB limit; nothing was returned.');
+  if (needGeometry && bytes.length >= 2 * OUTPUT_LIMIT) refuse('PDF footer geometry exceeded its print budget; split the document and retry.');
+  if (!needGeometry && bytes.length >= OUTPUT_LIMIT) refuse('output files reach the 4 MiB limit; nothing was returned.');
   // Skia's xref offsets are byte offsets. Map each byte to one code unit
   // without relying on the host's support for legacy TextDecoder encodings.
   const chunks = [];
@@ -177,16 +302,16 @@ export function checkedPdf(raw, needWidth = false) {
   // Rewrite only the two timestamp strings in the Info object. Preserving
   // their lengths preserves the cross-reference table and every stream.
   const info = field(trailer, 'Info');
-  const dates = [...info.text.matchAll(/\n\/(?:CreationDate|ModDate) \((D:\d{14}[+-]\d{2}'\d{2}')\)/g)];
-  if (dates.length !== 2) invalid();
+  const dates = [...info.text.matchAll(/\n\/(CreationDate|ModDate)\b([^\n]*)/g)];
+  if (dates.length !== 2 || dates[0][1] === dates[1][1]) invalid();
   for (const date of dates) {
-    const start = info.offset + date.index + date[0].indexOf(date[1]);
+    const literal = /^ \((D:\d{14}[+-]\d{2}'\d{2}')\)(?:>>)?$/.exec(date[2]);
+    if (!literal) invalid();
+    const start = info.offset + date.index + date[0].indexOf(literal[1]);
     bytes.set(textBytes(PDF_DATE), start);
   }
-  let minWidth;
-  if (needWidth) {
-    minWidth = Infinity;
-    let leaves = 0;
+  const geometry = [];
+  if (needGeometry) {
     const pending = [tree.text];
     const seen = new Set();
     while (pending.length) {
@@ -195,17 +320,24 @@ export function checkedPdf(raw, needWidth = false) {
       if (!kids) {
         const width = Number(/\/MediaBox \[0 0 (\d+(?:\.\d+)?) [\d.]+\]/.exec(page)?.[1]);
         if (!(width > 0)) invalid();
-        minWidth = Math.min(minWidth, width);
-        leaves++;
+        const content = field(page, 'Contents');
+        const header = /^(\d+ 0 obj\n<<(?:\/Filter \/FlateDecode\n)?\/Length (\d+)>> stream\n)/.exec(content.text);
+        if (!header) invalid();
+        const start = content.offset + header[1].length;
+        const end = start + Number(header[2]);
+        if (end > xref || !source.startsWith('\nendstream', end)) invalid();
+        geometry.push({ width, stream: bytes.subarray(start, end), compressed: header[1].includes('/FlateDecode') });
         continue;
       }
+      const branches = [];
       for (const child of kids[1].matchAll(/(\d+) 0 R\b/g)) {
         if (seen.has(child[1]) || seen.size >= count) invalid();
         seen.add(child[1]);
-        pending.push(object(Number(child[1])).text);
+        branches.push(object(Number(child[1])).text);
       }
+      pending.push(...branches.reverse());
     }
-    if (leaves !== pages) invalid();
+    if (geometry.length !== pages) invalid();
   }
-  return { bytes, pages, minWidth };
+  return { bytes, pages, geometry };
 }

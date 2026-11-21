@@ -2,8 +2,6 @@
 import { INPUT_LIMIT, RenderError, refuse, positive, pixels, result, fileInput, upload, href, textOf, withPage, uploadRoutes, addressRoutes, textBytes, freezeDocument } from './browser-core.js';
 import { imageSize, readSvgSize, resolveOutputSize, withViewBox, buildDocument, buildShell, fitDiagram, viewportWidth, parseErrorLine } from './drawing-core.js';
 import { classifyFailure } from './failure-core.js';
-import { addFooterCss, checkedPdf, defaultPdfCharset, nativeFooterWidth, pdfOptions } from './pdf-core.js';
-export { pdfOptions } from './pdf-core.js';
 export const MERMAID_VERSION = '10.9.6';
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 function name(input, fallback, extensions) {
@@ -59,7 +57,9 @@ export async function renderHtml(input = {}, files = [], { browser, responseBody
   }), ms);
 }
 export async function renderPdf(input = {}, files = [], { browser, responseBody } = {}) {
-  const { options, footerCss, counter, nativeFooter } = pdfOptions(input);
+  // Existing hosted commands run from a vendored file set without this module.
+  const { defaultPdfCharset, printPdf, pdfOptions } = await import('./pdf-core.js');
+  const { options, footer } = pdfOptions(input);
   const output = input.output ?? 'render.pdf';
   if (typeof output !== 'string' || !/^[^/\\\x00-\x1f]+\.pdf$/i.test(output)) refuse('output must be a simple .pdf filename.');
   const source = await upload(input, files, { combined: true });
@@ -73,16 +73,10 @@ export async function renderPdf(input = {}, files = [], { browser, responseBody 
       await page.evaluate(async () => { await document.fonts.ready; });
     } finally { check(); }
     await freezeDocument(page);
-    if (footerCss && !await page.evaluate(addFooterCss, { css: footerCss, counter })) {
-      refuse('Chromium lacks CSS page margin boxes; use a current shared browser build or omit footerSkipFirst.');
-    }
-    let raw;
-    try { raw = await page.pdf(options); }
+    let printed;
+    try { printed = await printPdf(page, context, options, footer); }
     finally { check(); }
-    const { bytes, pages, minWidth } = checkedPdf(raw, Boolean(nativeFooter));
-    if (nativeFooter && await page.evaluate(nativeFooterWidth, { ...nativeFooter, pages }) > minWidth) {
-      refuse('the footer is too wide for a PDF page; shorten footerFormat or reduce footerFontSize.');
-    }
+    const { bytes, pages } = printed;
     return result({ output, format: 'pdf', pages }, [{ name: output, mediaType: 'application/pdf', bytes }]);
   }), ms);
 }

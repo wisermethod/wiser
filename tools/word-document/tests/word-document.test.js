@@ -135,9 +135,9 @@ test('adds real insertions and deletions with Unicode offsets and leaves each in
   const startingBytes = readFileSync(original);
 
   assert.equal(ok('add-change', '--input', original, '--output', inserted, '--type', 'insertion',
-    '--text', 'young ', '--position', '3').change.position, 3);
+    '--text', 'young ', '--author', AUTHOR, '--position', '3').change.position, 3);
   assert.equal(visible(inserted), 'A😀 young cedar birch');
-  assert.equal(nodes(part(inserted), 'ins')[0].getAttributeNS(W, 'author'), 'AIM');
+  assert.equal(nodes(part(inserted), 'ins')[0].getAttributeNS(W, 'author'), AUTHOR);
   const previous = readFileSync(inserted);
   ok('add-change', '--input', inserted, '--output', deleted, '--type', 'deletion',
     '--text', 'birch', '--author', AUTHOR);
@@ -148,7 +148,7 @@ test('adds real insertions and deletions with Unicode offsets and leaves each in
 
   const { changes } = ok('list-changes', '--input', deleted);
   assert.deepEqual(changes.map(({ type, author, text, status }) => [type, author, text, status]), [
-    ['insertion', 'AIM', 'young ', 'pending'], ['deletion', AUTHOR, 'birch', 'pending'],
+    ['insertion', AUTHOR, 'young ', 'pending'], ['deletion', AUTHOR, 'birch', 'pending'],
   ]);
   assert.notEqual(changes[0].wordId, changes[1].wordId);
   assert.match(changes[0].date, /Z$/);
@@ -188,7 +188,7 @@ test('uses exact revision identities and confines a batch to the reviewed author
   refused(/Change ID 9 is absent/, 'apply-change', '--input', input, '--change-id', '9');
 });
 
-test('keeps current formatting on apply and restores prior run and paragraph properties on reject', (t) => {
+test('restores prior formatting on reject and reports preserved paragraph-mark and section properties', (t) => {
   const path = temp(t);
   const input = path('formatted.docx');
   const accepted = path('accepted.docx');
@@ -210,7 +210,8 @@ test('keeps current formatting on apply and restores prior run and paragraph pro
   assert.equal(nodes(current, 'i').length, 0);
   assert.equal(nodes(current, 'jc')[0].getAttributeNS(W, 'val'), 'center');
   review('reject-change', input, runRejected, '--change-id', '1');
-  review('reject-change', runRejected, allRejected, '--change-id', '1');
+  const paragraphReceipt = review('reject-change', runRejected, allRejected, '--change-id', '1');
+  assert.deepEqual(paragraphReceipt.changes[0].formatting.preserved, ['w:rPr', 'w:sectPr']);
   const prior = part(allRejected);
   assert.equal(nodes(prior, 'b').length, 0);
   assert.equal(nodes(prior, 'i').length, 1);
@@ -221,7 +222,7 @@ test('keeps current formatting on apply and restores prior run and paragraph pro
 
   const added = path('added.docx');
   const rejected = path('rejected.docx');
-  ok('add-change', '--input', allRejected, '--output', added, '--type', 'formatting', '--format', 'underline', '--text', 'tyl');
+  ok('add-change', '--input', allRejected, '--output', added, '--type', 'formatting', '--format', 'underline', '--text', 'tyl', '--author', AUTHOR);
   const result = part(added);
   assert.equal(nodes(result, 'u')[0].getAttributeNS(W, 'val'), 'single');
   assert.equal(visible(added), 'Styled');
@@ -255,10 +256,10 @@ test('reads native comment ranges and writes connected comments with unique docu
   assert.equal(comments[1].commentedText, 'third');
   const overrides = Array.from(part(output, '[Content_Types].xml').getElementsByTagNameNS(TYPES, 'Override'));
   assert.ok(overrides.some((override) => override.getAttribute('PartName') === '/' + custom));
-  ok('add-comment', '--input', output, '--output', point, '--text', 'At the end', '--initials', 'AI');
+  ok('add-comment', '--input', output, '--output', point, '--text', 'At the end', '--author', AUTHOR, '--position', '18', '--initials', 'CE');
   const last = ok('list-comments', '--input', point).comments.at(-1);
-  assert.equal(last.author, 'AIM');
-  assert.equal(last.initials, 'AI');
+  assert.equal(last.author, AUTHOR);
+  assert.equal(last.initials, 'CE');
   assert.equal(last.commentedText, '');
   assert.equal(last.anchor, 'point');
   assert.equal(visible(point), 'first second third');
@@ -273,10 +274,10 @@ test('creates a comments relationship and keeps anchors readable when marked tex
   const accepted = path('accepted.docx');
   ok('create', '--output', original, '--text', 'A pine tree');
   assert.deepEqual(ok('list-comments', '--input', original).comments, []);
-  ok('add-comment', '--input', original, '--output', commented, '--position', '2', '--length', '4', '--text', 'Check species');
+  ok('add-comment', '--input', original, '--output', commented, '--position', '2', '--length', '4', '--text', 'Check species', '--author', AUTHOR);
   const rels = Array.from(part(commented, 'word/_rels/document.xml.rels').getElementsByTagNameNS(REL, 'Relationship'));
   assert.ok(rels.some((node) => node.getAttribute('Type') === COMMENTS_REL && node.getAttribute('Target') === 'comments.xml'));
-  ok('add-change', '--input', commented, '--output', deleted, '--type', 'deletion', '--text', 'pine');
+  ok('add-change', '--input', commented, '--output', deleted, '--type', 'deletion', '--text', 'pine', '--author', AUTHOR);
   assert.equal(ok('list-comments', '--input', deleted).comments[0].commentedText, 'pine');
   review('apply-change', deleted, accepted, '--change-id', '1');
   assert.equal(ok('list-comments', '--input', accepted).comments[0].commentedText, '');
@@ -348,11 +349,11 @@ test('refuses mismatched and ambiguous text ranges, broken archives and unfamili
   const output = path('new.docx');
   const bad = path('bad.docx');
   ok('create', '--output', original, '--text', 'red red');
-  const del = ['add-change', '--input', original, '--output', output, '--type', 'deletion', '--text', 'red'];
+  const del = ['add-change', '--input', original, '--output', output, '--type', 'deletion', '--text', 'red', '--author', AUTHOR];
   refused(/more than once/, ...del);
   refused(/does not match/, ...del, '--position', '1');
   refused(/outside the document/, ...del, '--position', '80');
-  refused(/past its paragraph/, 'add-comment', '--input', original, '--output', output, '--text', 'review', '--length', '1');
+  refused(/past its paragraph/, 'add-comment', '--input', original, '--output', output, '--text', 'review', '--author', AUTHOR, '--length', '1');
   refused(/Repeated option --output/, 'create', '-o', output, '--output', output);
   refused(/Unknown option --bogus/, 'create', '--help', '--bogus');
   refused(/--text needs a value before --bogus/, 'create', '--output', output, '--text', '--bogus');
@@ -372,7 +373,7 @@ test('refuses corrupt package members and missing main OPC metadata before editi
   const path = temp(t);
   const input = path('corrupt.docx');
   const output = path('new.docx');
-  const op = ['add-change', '--input', input, '--output', output, '--type', 'insertion', '--text', 'draft'];
+  const op = ['add-change', '--input', input, '--output', output, '--type', 'insertion', '--text', 'draft', '--author', AUTHOR];
   writeFileSync(input, zipSync({ [MAIN]: strToU8(`<q:document xmlns:q="${W}"><q:body/></q:document>`) }));
   refused(/missing _rels\/\.rels/, ...op);
   nativeFixture(input, '<q:p/>', { '[Content_Types].xml': `<Types xmlns="${TYPES}"/>` });
@@ -448,7 +449,7 @@ test('reads the final legacy ZIP member and publishes only one replacement part'
   for (const offset of starts) zip.write(MAIN, offset, 'utf8');
   writeFileSync(input, zip);
   assert.deepEqual(ok('list-changes', '--input', input).duplicateParts, [MAIN]);
-  ok('add-change', '--input', input, '--output', output, '--type', 'insertion', '--text', ' retained');
+  ok('add-change', '--input', input, '--output', output, '--type', 'insertion', '--text', ' retained', '--author', AUTHOR);
   assert.deepEqual(ok('list-changes', '--input', output).duplicateParts, []);
   assert.equal(visible(output), 'Latest Member retained');
 });
@@ -514,4 +515,203 @@ for (const path of Object.keys(lock.packages).filter(Boolean)) {
   assert.equal(JSON.parse(approved.stdout).output, output);
   assert.equal(visible(output), 'Approved copy');
   assert.equal(existsSync(join(sandbox, '.wiser-consent')), true);
+});
+
+
+test('creates one final section with explicit Letter geometry and one-inch margins', (t) => {
+  const path = temp(t);
+  for (const args of [[], ['--title', 'Sample', '--text', 'One paragraph']]) {
+    const output = path(args.length ? 'populated.docx' : 'blank.docx');
+    ok('create', '--output', output, ...args);
+    const xml = part(output);
+    const [section, ...other] = nodes(xml, 'sectPr');
+    assert.ok(section);
+    assert.deepEqual(other, []);
+    assert.equal(nodes(xml, 'body')[0].lastChild, section);
+    const read = (name, attributes) => attributes.map((key) => nodes(section, name)[0].getAttributeNS(W, key));
+    assert.deepEqual(read('pgSz', ['w', 'h']), ['12240', '15840']);
+    assert.deepEqual(read('pgMar', ['top', 'right', 'bottom', 'left']), Array(4).fill('1440'));
+  }
+});
+
+test('addressable body tables and nested tables accept offsets, with comment markers ordered around a range', (t) => {
+  const path = temp(t);
+  const text = '0123456789abcdefghijTEXT rest';
+  const table = (cell) => `<q:tbl><q:tr><q:tc>${cell}</q:tc></q:tr></q:tbl>`;
+  for (const [name, wrap] of [['table', table], ['nested', (cell) => table(table(cell))]]) {
+    const input = path(name + '.docx');
+    const output = path(name + '-change.docx');
+    const commented = path(name + '-comment.docx');
+    nativeFixture(input, wrap(`<q:p><q:r><q:t>${text}</q:t></q:r></q:p>`));
+    ok('add-change', '--input', input, '--output', output, '--type', 'insertion', '--text', '!', '--position', '20', '--author', AUTHOR);
+    assert.equal(visible(output), text.replace('TEXT', '!TEXT'));
+    assert.equal(nodes(part(output), 'ins')[0].parentNode.parentNode.localName, 'tc');
+
+    ok('add-comment', '--input', input, '--output', commented, '--text', 'Review', '--author', AUTHOR,
+      '--position', '20', '--length', '4');
+    const paragraph = nodes(part(commented), 'p')[0];
+    const children = Array.from(paragraph.childNodes).filter((child) => child.nodeType === 1);
+    assert.deepEqual(children.map((child) => child.localName), ['r', 'commentRangeStart', 'r', 'commentRangeEnd', 'r', 'r']);
+    assert.equal(children[2].textContent, 'TEXT');
+    assert.equal(nodes(children[4], 'commentReference').length, 1);
+  }
+});
+
+test('names excluded text-box, alternate-content and separate Word stories on placement refusals', (t) => {
+  const path = temp(t);
+  const text = '<q:p><q:r><q:t>Text outside the body map</q:t></q:r></q:p>';
+  const table = `<q:tbl><q:tr><q:tc>${text}</q:tc></q:tr></q:tbl>`;
+  const alternate = `<mc:AlternateContent xmlns:mc="${MC}"><mc:Fallback>${table}</mc:Fallback></mc:AlternateContent>`;
+  const cases = [
+    ['text box', `<q:p><q:r><q:pict><q:txbxContent>${table}</q:txbxContent></q:pict></q:r></q:p>`, {}],
+    ['alternate content', alternate, {}],
+    ...[
+      ['header', 'hdr', 'header1'],
+      ['footer', 'ftr', 'footer1'],
+      ['footnotes', 'footnotes', 'footnotes'],
+      ['endnotes', 'endnotes', 'endnotes'],
+      ['comments', 'comments', 'comments'],
+      ['glossary', 'glossaryDocument', 'glossary/document'],
+    ].map(([label, root, file]) => [label, '', {
+      [`word/${file}.xml`]: `<q:${root} xmlns:q="${W}">${table}</q:${root}>`,
+    }]),
+  ];
+  for (const [label, excluded, parts] of cases) {
+    const input = path(label + '.docx');
+    const output = path('refused.docx');
+    nativeFixture(input, '<q:p><q:r><q:t>body</q:t></q:r></q:p>' + excluded, parts);
+    const placement = new RegExp(`addressable length: \\d+.*${label}`, 'i');
+    const change = ['add-change', '--input', input, '--output', output, '--author', AUTHOR];
+    const insert = [...change, '--type', 'insertion', '--text', 'inserted'];
+    const comment = ['add-comment', '--input', input, '--output', output, '--text', 'review', '--author', AUTHOR];
+    for (const command of [insert, comment]) {
+      refused(placement, ...command);
+      refused(placement, ...command, '--position', '20');
+    }
+    refused(placement, ...change, '--type', 'deletion', '--text', 'Text outside the body map');
+    assert.equal(existsSync(output), false);
+  }
+});
+
+test('requires an explicit nonblank author for new revisions and comments', (t) => {
+  const path = temp(t);
+  const input = path('original.docx');
+  const output = path('wrong.docx');
+  ok('create', '--output', input, '--text', 'Sample');
+  for (const command of [['add-change', '--type', 'insertion'], ['add-comment']]) {
+    const args = [...command, '--input', input, '--output', output, '--text', 'example'];
+    refused(/--author.*required/i, ...args);
+    refused(/--author.*required/i, ...args, '--author', '   ');
+    assert.equal(existsSync(output), false);
+  }
+});
+
+test('previews and refuses revisions with omitted notes, objects, fields, symbols or foreign markup', (t) => {
+  const path = temp(t);
+  const input = path('hidden.docx');
+  const output = path('refused.docx');
+  const hidden = ['footnoteReference', 'endnoteReference', 'drawing', 'pict', 'object', 'fldChar', 'sym']
+    .map((name) => [name, `<q:${name}/>`]).concat([
+      ['oMath', '<m:oMath xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"><m:r><m:t>42</m:t></m:r></m:oMath>'],
+      ['page break', '<q:br q:type="page"/>'], ['column break', '<q:br q:type="column"/>'],
+    ]);
+  nativeFixture(input, '<q:p>' + hidden.flatMap(([, markup], index) => ['ins', 'del'].map((tag, side) =>
+    `<q:${tag} q:id="${index * 2 + side}"><q:r>${markup}</q:r></q:${tag}>`)).join('') + '</q:p>');
+  const starting = readFileSync(input);
+  const { changes } = ok('list-changes', '--input', input);
+  for (const change of changes) {
+    const [name] = hidden[Math.floor(Number(change.wordId) / 2)];
+    assert.equal(change.supported, false);
+    assert.match(change.unsupportedReason, new RegExp(name));
+    const command = [change.type === 'insertion' ? 'reject-change' : 'apply-change', '--input', input, '--change-id', String(change.id)];
+    const preview = ok(...command);
+    refused(new RegExp(name), ...command, '--confirm', preview.confirmationToken, '--output', output);
+    assert.equal(existsSync(output), false);
+  }
+  assert.deepEqual(readFileSync(input), starting);
+});
+
+test('allocates revision IDs above revisions and move markers in separate package stories', (t) => {
+  const path = temp(t);
+  const input = path('id-space.docx');
+  const output = path('new-id.docx');
+  const header = 'word/header1.xml';
+  const footer = 'word/nested/footer.xml';
+  nativeFixture(input, '<q:p><q:ins q:id="4"><q:r><q:t>Body</q:t></q:r></q:ins></q:p>', {
+    [header]: `<q:hdr xmlns:q="${W}"><q:p><q:ins q:id="5"><q:r><q:t>Header</q:t></q:r></q:ins></q:p></q:hdr>`,
+    [footer]: `<q:ftr xmlns:q="${W}"><q:p><q:moveToRangeStart q:id="+020"/><q:r><q:t>Footer</q:t></q:r><q:moveToRangeEnd q:id="20"/></q:p></q:ftr>`,
+  });
+  const { change } = ok('add-change', '--input', input, '--output', output, '--type', 'insertion', '--text', '!', '--position', '4', '--author', AUTHOR);
+  assert.deepEqual(change.wordIds, ['21']);
+  const [before, after] = [input, output].map((file) => unzipSync(readFileSync(file)));
+  for (const name of [header, footer]) assert.deepEqual(after[name], before[name]);
+});
+
+test('discovers stories at package paths declared by relationships and default content types', (t) => {
+  const path = temp(t);
+  const input = path('package-stories.docx');
+  const output = path('revised.docx');
+  const header = 'stories/page-heading.hdr';
+  const notes = 'stories/notes.fn';
+  nativeFixture(input, '<q:p><q:r><q:t>Body</q:t></q:r></q:p>', {
+    '[Content_Types].xml': `<Types xmlns="${TYPES}">
+      <Default Extension="fn" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"/>
+      <Override PartName="/${MAIN}" ContentType="${MAIN_TYPE}"/>
+    </Types>`,
+    'word/_rels/document.xml.rels': `<Relationships xmlns="${REL}">
+      <Relationship Id="rId8" Type="${OFFICE_REL}header" Target="../${header}"/>
+    </Relationships>`,
+    [header]: `<q:hdr xmlns:q="${W}"><q:p><q:ins q:id="+11"><q:r><q:t>Heading</q:t></q:r></q:ins></q:p></q:hdr>`,
+    [notes]: `<q:footnotes xmlns:q="${W}"><q:footnote q:id="2"><q:p>
+      <q:ins q:id="+13"><q:r><q:t>Footnote</q:t></q:r></q:ins>
+    </q:p></q:footnote></q:footnotes>`,
+  });
+  const command = ['add-change', '--type', 'insertion', '--text', '!', '--author', AUTHOR, '--input', input, '--output', output];
+  const missing = run(...command);
+  assert.equal(missing.status, 1);
+  assert.match(missing.stderr, /header \(stories\/page-heading\.hdr\)/);
+  assert.match(missing.stderr, /footnotes \(stories\/notes\.fn\)/);
+  assert.equal(existsSync(output), false);
+  assert.deepEqual(ok(...command, '--position', '4').change.wordIds, ['14']);
+});
+
+test('only visible unmapped story contents block implicit placement', (t) => {
+  const path = temp(t);
+  const input = path('decorations.docx');
+  const output = path('change.docx');
+  const write = (body, header) => nativeFixture(input, body, {
+    'word/header1.xml': `<q:hdr xmlns:q="${W}"><q:p>${header}</q:p></q:hdr>`,
+  });
+  const body = '<q:p><q:r><q:t>Body</q:t></q:r></q:p>';
+  const add = ['add-change', '--type', 'insertion', '--text', '!', '--author', AUTHOR, '--input', input];
+  write(body, '<q:r><q:sym q:font="Symbol" q:char="F04A"/></q:r>');
+  refused(/Excluded locations: header/, ...add, '--output', output);
+  write('', '<q:r><q:t>Heading</q:t></q:r>');
+  refused(/No addressable main-body paragraph.*addressable length: 0.*header/, ...add, '--output', output, '--position', '20');
+  write(body + '<q:p><q:r><q:pict><v:textpath xmlns:v="urn:schemas-microsoft-com:vml" string="WordArt"/></q:pict></q:r></q:p>', '');
+  refused(/embedded text \(v:textpath\)/, ...add, '--output', output);
+  write(body, '<q:pPr><q:tabs><q:tab q:val="left" q:pos="720"/></q:tabs></q:pPr>');
+  assert.equal(ok(...add, '--output', output).change.position, 4);
+});
+
+test('reserves comment anchor IDs from separate stories independently of revision IDs', (t) => {
+  const path = temp(t);
+  const input = path('anchored-stories.docx');
+  const output = path('with-comment.docx');
+  nativeFixture(input, '<q:p><q:r><q:t>Body</q:t></q:r><q:ins q:id="200"><q:r><q:t>!</q:t></q:r></q:ins></q:p>', {
+    'word/header1.xml': `<q:hdr xmlns:q="${W}"><q:p><q:commentRangeStart q:id="+8"/>
+      <q:r><q:t>Heading</q:t></q:r><q:commentRangeEnd q:id="8"/><q:r><q:commentReference q:id="8"/></q:r>
+    </q:p></q:hdr>`,
+  });
+  const result = ok('add-comment', '--input', input, '--output', output, '--text', 'Review', '--author', AUTHOR, '--position', '4');
+  assert.equal(result.comment.commentId, '9');
+});
+
+test('documents Word commands, their packages and their publication paths in the tool inventory', () => {
+  const index = readFileSync(join(here, '..', '..', 'AGENTS.md'), 'utf8');
+  assert.match(index, /### Documents[^]*?\| `word-document\/TOOL\.md` \|[^]*?### Knowledge/);
+  assert.match(index, /\| `word-document` `help` \|/);
+  assert.match(index, /\| Node packages \|[^\n]*node_modules[^\n]*word-document/);
+  assert.match(index, /\|[^\n]*\.docx[^\n]*--output[^\n]*word-document/);
+  assert.match(index, /\|[^\n]*\.wiser-word-document-\*[^\n]*kill[^\n]*word-document/);
 });
