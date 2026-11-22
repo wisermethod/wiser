@@ -167,23 +167,88 @@ function checkedFiles(entries, ordered) {
   return { files: [...files.values()] };
 }
 
-// Wiser CRM release/FORMAT.md, “Format 3”. The constants are the closed
-// admission contract. The installer reads the selected entry's declarations.
+function headerValue(name, value) {
+  try { return new Headers({ [name]: value }).get(name); }
+  catch { return null; }
+}
+
+function positiveSafeInteger(value) {
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0;
+}
+
+function validDisplayName(value, maxLength) {
+  const length = [...value.trim()].length;
+  return length > 0 && length <= maxLength && !/[\p{Cc}<>\u2028\u2029]/u.test(value);
+}
+
+const INTAKE_OPTIONAL = ['INTAKE_MAX_PER_ADDRESS_PER_DAY', 'INTAKE_MAX_PER_HOUR', 'CRM_URL'];
+
+// Wiser CRM release/FORMAT.md, “Format 3”. Both apps must match the same set
+// of optional declarations (original in 0.2.0, branded in 0.3.0).
+// The installer reads the selected entry's declarations.
 const RELEASE_APPS = {
   [CRM]: {
     d1: [{ name: 'DB', database: 'crm' }, { name: 'INTAKE_DB', database: 'intake' }],
     mail: [],
-    vars: { required: ['ACCESS_TEAM_DOMAIN', 'ACCESS_AUD', 'AGENT_CLIENT_ID', 'WISER_INSTANCE', 'WISER_READ_ONLY'], optional: [] },
+    vars: { required: ['ACCESS_TEAM_DOMAIN', 'ACCESS_AUD', 'AGENT_CLIENT_ID', 'WISER_INSTANCE', 'WISER_READ_ONLY'],
+      optional: { original: [], branded: ['BRAND_NAME', 'BRAND_ACCENT'] } },
+    // The Access and instance forms are from Wiser CRM d73341c.
+    forms: {
+      // worker/sign-in.ts isConfigured (called by worker/index.ts keySet).
+      ACCESS_TEAM_DOMAIN: [(value) => /^https:\/\/[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.cloudflareaccess\.com$/.test(value),
+        'be the whole team address, https://<team>.cloudflareaccess.com, with one lowercase team label and no trailing slash, path, or port'],
+      // worker/sign-in.ts isConfigured.
+      ACCESS_AUD: [(value) => /^[A-Za-z0-9_-]+$/.test(value),
+        'be a nonempty Access audience tag using only letters, digits, underscores, and hyphens'],
+      // worker/sign-in.ts signIn, GET or HEAD /api/wiser/instance.
+      WISER_INSTANCE: [Boolean, 'be a nonempty CRM instance name'],
+      // Wiser CRM 0.3.0 worker/brand.ts displayName ignores a malformed name and uses its default.
+      // The connector deliberately refuses it so the installer can correct a typo.
+      BRAND_NAME: [(value) => validDisplayName(value, 40),
+        'have 1 to 40 characters after trimming, with no control characters, angle brackets, or line breaks'],
+      // Wiser CRM 0.3.0 worker/brand.ts installBrand ignores a malformed accent and uses its default.
+      // The connector deliberately refuses it so the installer can correct a typo.
+      BRAND_ACCENT: [(value) => value.length === 7 && /^#[0-9a-f]{6}$/i.test(value), 'be # followed by exactly six hexadecimal digits'],
+    },
     baseline: '0001_baseline.sql',
   },
   [INTAKE]: {
     d1: [{ name: 'INTAKE_DB', database: 'intake' }],
     mail: [{ name: 'NOTICE', destination_var: 'NOTICE_TO', sender_var: 'NOTICE_FROM' }],
     vars: { required: ['INTAKE_ORIGIN', 'INTAKE_RETURN_URL', 'NOTICE_TO', 'NOTICE_FROM'],
-      optional: ['INTAKE_MAX_PER_ADDRESS_PER_DAY', 'INTAKE_MAX_PER_HOUR', 'CRM_URL'] },
+      optional: { original: INTAKE_OPTIONAL, branded: [...INTAKE_OPTIONAL, 'NOTICE_FROM_NAME'] } },
+    forms: {
+      // intake/worker.ts fetch compares the configured value verbatim to Origin.
+      INTAKE_ORIGIN: [(value) => !!value && value !== 'null' && headerValue('Origin', value) === value,
+        'match the form’s Origin header exactly and be neither empty nor the literal null'],
+      // intake/worker.ts fetch builds the 303 response with reply before saving.
+      INTAKE_RETURN_URL: [(value) => !!value && headerValue('Location', value) !== null,
+        'be a nonempty redirect destination that can be used in a Location header, with no embedded line breaks'],
+      // intake/notice.ts sendNotice skips the notice when the destination is empty.
+      NOTICE_TO: [Boolean, 'be a nonempty mail destination'],
+      // intake/notice.ts sendNotice skips the notice when the sender is empty.
+      NOTICE_FROM: [Boolean, 'be a nonempty mail sender'],
+      // Wiser CRM 0.3.0 intake/notice.ts senderName ignores a malformed sender name and uses its default.
+      // The connector deliberately refuses it so the installer can correct a typo.
+      NOTICE_FROM_NAME: [(value) => validDisplayName(value, 60) && !/[",;:@\\]/.test(value),
+        'have 1 to 60 characters after trimming, with no control characters, line breaks, angle brackets, double quotes, commas, semicolons, colons, at signs, or backslashes'],
+      // intake/throttle.ts limit, as used by saveWithinThrottle for the per-address limit.
+      INTAKE_MAX_PER_ADDRESS_PER_DAY: [positiveSafeInteger,
+        'be a number that converts to a positive safe integer (1 to 9007199254740991)'],
+      // intake/throttle.ts limit, as used by saveWithinThrottle for the hourly limit.
+      INTAKE_MAX_PER_HOUR: [positiveSafeInteger,
+        'be a number that converts to a positive safe integer (1 to 9007199254740991)'],
+    },
     baseline: '0001_intake.sql',
   },
 };
+function appVarProblem(app, vars) {
+  for (const [field, [accepts, form]] of Object.entries(RELEASE_APPS[app]?.forms ?? {})) {
+    if (Object.hasOwn(vars, field) && !accepts(vars[field])) return { field, reason: `${field} must ${form}.` };
+  }
+}
+
 const sameList = (actual, expected) => Array.isArray(actual) && actual.length === expected.length
   && expected.every((value, index) => actual[index] === value);
 const sameRecords = (actual, expected, keys) => Array.isArray(actual) && actual.length === expected.length
@@ -211,8 +276,9 @@ function checkedApp3(app, entry) {
   const spec = RELEASE_APPS[app];
   if (!orderedShape(bindings, ['d1', 'mail']) || !sameRecords(bindings.d1, spec.d1, ['name', 'database'])) return before(`release ${app} D1 bindings malformed`);
   if (!sameRecords(bindings.mail, spec.mail, ['name', 'destination_var', 'sender_var'])) return before(`release ${app} mail binding malformed`);
-  if (!orderedShape(vars, ['required', 'optional']) || !sameList(vars.required, spec.vars.required)
-    || !sameList(vars.optional, spec.vars.optional)) return before(`release ${app} variable declarations malformed`);
+  if (!orderedShape(vars, ['required', 'optional']) || !sameList(vars.required, spec.vars.required)) {
+    return before(`release ${app} variable declarations malformed`);
+  }
   if (!orderedShape(migrations, ['database', 'table', 'files']) || migrations.database !== spec.d1[0].database
     || migrations.table !== 'd1_migrations' || !Array.isArray(migrations.files) || migrations.files[0]?.name !== spec.baseline) {
     return before(`release ${app} migrations malformed`);
@@ -225,9 +291,18 @@ function checkedManifest3(manifest, input, raw) {
   if (!Object.hasOwn(manifest.apps, input.app)) return { error: before('release does not carry selected app') };
   const headerError = checkedHeader(manifest, { ...input, app: CRM }, ['apps']);
   if (headerError) return { error: headerError };
+  let optionalSet;
   for (const [app, entry] of Object.entries(manifest.apps)) {
     const error = checkedApp3(app, entry);
     if (error) return { error };
+    const match = Object.entries(RELEASE_APPS[app].vars.optional)
+      .find(([, names]) => sameList(entry.vars.optional, names));
+    if (!match) return { error: before(`release ${app} variable declarations malformed`) };
+    const [set] = match;
+    if (optionalSet !== undefined && set !== optionalSet) {
+      return { error: before('release variable declarations malformed: both apps must use the same set of optional variables') };
+    }
+    optionalSet = set;
   }
   return checkedFiles(Object.values(manifest.apps), true);
 }
@@ -796,12 +871,17 @@ function deploymentBindings(input, loaded) {
     if (Object.keys(input.vars).length !== required.length || !required.every((name) => Object.hasOwn(input.vars, name))) {
       return { error: invalid('vars', 'vars must exactly match release vars_required') };
     }
+    const problem = appVarProblem(input.app, input.vars);
+    if (problem) return { error: invalid(problem.field, problem.reason) };
     if (input.intake_database_id !== undefined || input.peer_script_name !== undefined) {
       return { error: invalid('release', 'intake deployment inputs require a format 3 release') };
     }
     return { vars: required, d1: [{ type: 'd1', name: entry.worker.d1_binding, database_id: input.database_id }], mail: [] };
   }
   const allowed = [...entry.vars.required, ...entry.vars.optional];
+  if (Object.keys(input.vars).some((name) => !allowed.includes(name))) return { error: invalid('vars', 'undeclared variable') };
+  const problem = appVarProblem(input.app, input.vars);
+  if (problem) return { error: invalid(problem.field, problem.reason) };
   for (const { destination_var, sender_var } of entry.bindings.mail) {
     if (!Object.hasOwn(input.vars, destination_var) || !input.vars[destination_var].trim()) return { error: invalid('vars', 'missing mail destination') };
     if (!Object.hasOwn(input.vars, sender_var) || !input.vars[sender_var].trim()) return { error: invalid('vars', 'missing mail sender') };
@@ -809,7 +889,6 @@ function deploymentBindings(input, loaded) {
   if (entry.vars.required.some((name) => !Object.hasOwn(input.vars, name) || (name !== 'WISER_READ_ONLY' && !input.vars[name].trim()))) {
     return { error: invalid('vars', 'missing or empty required variable') };
   }
-  if (Object.keys(input.vars).some((name) => !allowed.includes(name))) return { error: invalid('vars', 'undeclared variable') };
   if (input.app === CRM && input.intake_database_id === undefined) return { error: invalid('intake_database_id', 'intake_database_id is required for the CRM') };
   const intakeId = input.app === CRM ? input.intake_database_id : input.database_id;
   if (input.app === CRM && input.database_id === intakeId) return { error: invalid('intake_database_id', 'the CRM and intake need distinct databases') };
@@ -946,6 +1025,8 @@ export function workerActions({ buildMultipart, assetHash, MAX_UPLOAD_BYTES, red
       if (keys_set.some((name) => !allowed.includes(name))) {
         return { ...refused(manifest.format === 2 ? 'vars contains a name outside release vars_required' : 'vars contains an undeclared variable'), field: 'vars' };
       }
+      const problem = appVarProblem(input.app, input.vars);
+      if (problem) return { ...refused(problem.reason), field: problem.field };
       if (manifest.format === 3) {
         if (entry.bindings.mail.some(({ destination_var }) => Object.hasOwn(input.vars, destination_var))) {
           return { ...refused('redeploy the release to change the pinned mail destination'), field: 'vars' };

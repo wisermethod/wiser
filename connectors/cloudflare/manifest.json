@@ -428,6 +428,28 @@
         "privilege": "write"
       },
       "actions": {
+        "list_service_tokens": {
+          "description": "List an account's Access service tokens across counted pages. Returns only each token's id, name and expires_at when present. Use id as service_token_id in create_policy. Never returns client_id or accepts or returns a client secret. Refuses the whole listing if any row has a client_secret field, token-shaped text or an unusable id or name.",
+          "privilege": "read",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "account_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{32}$"
+              }
+            },
+            "required": [
+              "account_id"
+            ],
+            "additionalProperties": false
+          }
+        },
         "create_app": {
           "description": "Create a self-hosted Access application for one hostname at Cloudflare's edge only; proxied DNS is needed for Access to see traffic. Other Worker addresses are not covered: workers.deploy_worker_release enables workers.dev, and the caller turns it off with workers.set_workers_dev after every deploy. The CRM wrapper refuses requests without a valid Access token on every address. Reads the organization and a counted application list (numeric total_count equal to rows read), refusing covering or unresolved applications. Checks policies before POST and again afterward, and reads the stored application with the get_app checker: the requested hostname and policy ids, self_hosted type, no destination overrides and read_service_tokens_from_header absent, null or empty; the create omits that setting. Any validation failure removes the application and reads it absent, reporting the id and removal result. A missing id is reconciled by hostname, or removal is reported unconfirmed by hostname. Token-shaped text is refused.",
           "risk": "high",
@@ -473,7 +495,7 @@
           }
         },
         "create_policy": {
-          "description": "Create a reusable Allow policy with 1 to 50 emails, or a Service Auth (non_identity) policy with one existing service token id, exactly one shape. Reads the organization first, then verifies the stored policy by read-back: supported decision and includes, empty or absent exclude and require, reusable true, and exactly the submitted include. On failure deletes the policy and reads it absent; vendor_error names its id and whether removal was confirmed. Never creates a service token. Token-shaped text is refused.",
+          "description": "Create a reusable Allow policy with 1 to 50 emails, or a Service Auth (non_identity) policy with one existing service token id from list_service_tokens, exactly one shape. Reads the organization first, then verifies the stored policy by read-back: supported decision and includes, empty or absent exclude and require, reusable true, and exactly the submitted include. On failure deletes the policy and reads it absent; vendor_error names its id and whether removal was confirmed. Never creates a service token. Token-shaped text is refused.",
           "risk": "high",
           "confirmation": "always",
           "execution": {
@@ -693,7 +715,7 @@
           }
         },
         "deploy_worker_release": {
-          "description": "Deploy one app from a signed Worker release admitted by release.json. See Wiser CRM release/FORMAT.md. App and version are identifiers. For format 3 use database_id for the selected app’s database and, for the CRM, give a distinct intake_database_id for its second binding. Use that same ID as database_id for intake. Both format 3 deploys need Account / D1 / Read to verify that the intake database records all signed intake migrations and none of the CRM’s. Supply peer_script_name to check the other Worker’s serving intake database. A first intake install may precede the CRM peer. Each version receiving traffic on the Worker being deployed must have a readable INTAKE_DB matching the requested ID. When there are no deployments, use the existing Worker’s settings bindings. A serving CRM version with its legacy DB and ASSETS bindings and no INTAKE_DB is eligible for the upgrade. Zero-traffic versions are skipped. The vars object supplies signed variable names and values, including the mail destination and sender for intake. The destination is also the send_email pin. Intake opens no assets session. This action does not run migrations.",
+          "description": "Deploy one app from a signed Worker release admitted by release.json. See Wiser CRM release/FORMAT.md. App and version are identifiers. For format 3 use database_id for the selected app’s database and, for the CRM, give a distinct intake_database_id for its second binding. Use that same ID as database_id for intake. Both format 3 deploys need Account / D1 / Read to verify that the intake database records all signed intake migrations and none of the CRM’s. Supply peer_script_name to check the other Worker’s serving intake database. A first intake install may precede the CRM peer. Each version receiving traffic on the Worker being deployed must have a readable INTAKE_DB matching the requested ID. When there are no deployments, use the existing Worker’s settings bindings. A serving CRM version with its legacy DB and ASSETS bindings and no INTAKE_DB is eligible for the upgrade. Zero-traffic versions are skipped. The vars object supplies signed variable names and values, including the mail destination and sender for intake. The destination is also the send_email pin. ACCESS_TEAM_DOMAIN must be the whole address https://<team>.cloudflareaccess.com, with one lowercase team label, no port, path, or trailing slash. ACCESS_AUD must be nonempty and use only letters, digits, underscores, and hyphens. WISER_INSTANCE must be nonempty. INTAKE_ORIGIN must match the submitted Origin header exactly and cannot be empty or the literal null. INTAKE_RETURN_URL must be nonempty and usable in a Location header. NOTICE_TO and NOTICE_FROM must be nonempty. INTAKE_MAX_PER_ADDRESS_PER_DAY and INTAKE_MAX_PER_HOUR, when supplied, must convert to positive safe integers. When the release declares them, BRAND_NAME is optional and sets the name shown beside Wiser CRM, BRAND_ACCENT is optional and sets the accent colour the CRM fits to readable tones, and NOTICE_FROM_NAME is optional and sets the notice email’s sender name. Trimmed BRAND_NAME must be 1 to 40 characters, with no control characters, angle brackets or line breaks. BRAND_ACCENT must be # followed by exactly six hexadecimal digits. Trimmed NOTICE_FROM_NAME must be 1 to 60 characters, with the same restrictions as BRAND_NAME plus no double quotes, commas, semicolons, colons, at signs or backslashes. The action checks supplied values before any Cloudflare call. Intake opens no assets session. This action does not run migrations.",
           "privilege": "write",
           "risk": "high",
           "confirmation": "always",
@@ -855,7 +877,7 @@
           }
         },
         "set_vars": {
-          "description": "Set a non-empty subset of the selected app’s signed plain-text variables on an existing Worker, without uploading code. Verify the release before any Cloudflare call. Changing the pinned mail destination requires a deploy. vars obeys the deploy name and 512 Unicode-character bounds; unlisted names are refused without echoing keys or values. Preserve every other binding by inheritance; refuse replacing a non-plain binding. Read back binding names and types, never values, and require every set key as plain_text. The answer contains keys_set and version_id only when a single version serves 100 percent of traffic after the update and it is not the version serving before it; otherwise report settings updated but unverified. Before PATCH, read the active deployment and complete version history; refuse unless a uniquely newest created_on version alone serves 100 percent, including after rollback or when newest timestamps tie. Cloudflare changes variables only on the newest deployed version; roll back to a recorded version or deploy a release instead. Failed PATCH adds integer-only provider_codes with no provider message. Record the read-only true update version_id as stopped N for failure recovery.",
+          "description": "Set a non-empty subset of the selected app’s signed plain-text variables on an existing Worker, without uploading code. Verify the release before any Cloudflare call. Changing the pinned mail destination requires a deploy. NOTICE_FROM_NAME can be updated here. vars obeys the deploy name and 512 Unicode-character bounds; unlisted names are refused without echoing keys or values. ACCESS_TEAM_DOMAIN must be the whole address https://<team>.cloudflareaccess.com, with one lowercase team label, no port, path, or trailing slash. ACCESS_AUD must be nonempty and use only letters, digits, underscores, and hyphens. WISER_INSTANCE must be nonempty. INTAKE_ORIGIN must match the submitted Origin header exactly and cannot be empty or the literal null. INTAKE_RETURN_URL must be nonempty and usable in a Location header. NOTICE_TO and NOTICE_FROM must be nonempty. INTAKE_MAX_PER_ADDRESS_PER_DAY and INTAKE_MAX_PER_HOUR, when supplied, must convert to positive safe integers. When the release declares them, BRAND_NAME is optional and sets the name shown beside Wiser CRM, BRAND_ACCENT is optional and sets the accent colour the CRM fits to readable tones, and NOTICE_FROM_NAME is optional and sets the notice email’s sender name. Trimmed BRAND_NAME must be 1 to 40 characters, with no control characters, angle brackets or line breaks. BRAND_ACCENT must be # followed by exactly six hexadecimal digits. Trimmed NOTICE_FROM_NAME must be 1 to 60 characters, with the same restrictions as BRAND_NAME plus no double quotes, commas, semicolons, colons, at signs or backslashes. The action only checks supplied values and never echoes a refused value. Preserve every other binding by inheritance; refuse replacing a non-plain binding. Read back binding names and types, never values, and require every set key as plain_text. The answer contains keys_set and version_id only when a single version serves 100 percent of traffic after the update and it is not the version serving before it; otherwise report settings updated but unverified. Before PATCH, read the active deployment and complete version history; refuse unless a uniquely newest created_on version alone serves 100 percent, including after rollback or when newest timestamps tie. Cloudflare changes variables only on the newest deployed version; roll back to a recorded version or deploy a release instead. Failed PATCH adds integer-only provider_codes with no provider message. Record the read-only true update version_id as stopped N for failure recovery.",
           "privilege": "write",
           "risk": "high",
           "confirmation": "always",
@@ -889,7 +911,7 @@
                   "ACCESS_AUD": {
                     "type": "string",
                     "maxLength": 512,
-                    "description": "Optional Access audience tag, allowed only when the signed app declares ACCESS_AUD. Other listed plain-text names may be set independently."
+                    "description": "Optional Access audience tag using only letters, digits, underscores and hyphens. It must be nonempty when supplied and is allowed only when the signed app declares ACCESS_AUD."
                   }
                 },
                 "propertyNames": {

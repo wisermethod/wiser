@@ -10,7 +10,7 @@ import { createTestGateway, putActive } from '../../../gateway/test/fake-provide
 const ACCOUNT = '0123456789abcdef0123456789abcdef';
 const DATABASE = '01234567-89ab-cdef-0123-456789abcdef';
 const VERSION_ID = '12345678-1234-1234-1234-123456789abc';
-const VARS = { ACCESS_TEAM_DOMAIN: 'fixture-team.example', ACCESS_AUD: 'fixture-audience', AGENT_CLIENT_ID: 'fixture-client-id' };
+const VARS = { ACCESS_TEAM_DOMAIN: 'https://fixture-team.cloudflareaccess.com', ACCESS_AUD: 'fixture-audience', AGENT_CLIENT_ID: 'fixture-client-id' };
 const INPUT = { account_id: ACCOUNT, script_name: 'proof-worker', app: 'wiser-crm', version: '1.0.0', database_id: DATABASE, vars: VARS };
 const BASE = 'https://releases.example.test/';
 // The temporary connector copy lists the test host, so no test depends on the host the release ships.
@@ -179,6 +179,25 @@ test('assemble format 2 exact bytes signed by a generated key are accepted with 
   assert.equal(env.calls.some((c) => c.endpoint.includes('/d1/')), false);
   noTokens(result);
 });
+
+for (const [label, name, value] of [
+  ['bare hostname', 'ACCESS_TEAM_DOMAIN', 'fixture-team.cloudflareaccess.com'],
+  ['trailing slash', 'ACCESS_TEAM_DOMAIN', VARS.ACCESS_TEAM_DOMAIN + '/'],
+  ['path', 'ACCESS_TEAM_DOMAIN', VARS.ACCESS_TEAM_DOMAIN + '/path'],
+  ['malformed audience', 'ACCESS_AUD', 'bad.fixture.audience'],
+]) {
+  test(`format 2 deploy refuses a ${label} before any Cloudflare call`, async (t) => {
+    const env = await setup(t, { assembled: true, noneMissing: true });
+    const result = await env.execute('deploy_worker_release', { ...INPUT, vars: { ...VARS, [name]: value } });
+    assert.equal(result.status, 'invalid_arguments');
+    assert.equal(result.field, name);
+    assert.ok(result.reason.includes(name));
+    assert.equal(env.calls.length, 0);
+    assert.equal(JSON.stringify(result).includes(value), false);
+    assert.equal((await env.execute()).script_name, INPUT.script_name);
+  });
+}
+
 test('good release splits a returned bucket into capped multipart requests and reports the whole proof', async (t) => {
   const env = await setup(t, { scriptBytes: 1600000 });
   const result = await env.execute();
@@ -533,13 +552,13 @@ for (const [name, vars] of [
   assert.equal(JSON.stringify(result).includes('invented-secret-value'), false);
 });
 test('vars 512 Unicode code points and empty values are accepted and uploaded unchanged', async (t) => {
-  const vars = { ACCESS_TEAM_DOMAIN: '𐐀'.repeat(512), ACCESS_AUD: '', AGENT_CLIENT_ID: 'fixture-client-id' };
-  const env = await setup(t, { assembled: true, noneMissing: true });
+  const vars = { ...VARS, AGENT_CLIENT_ID: '𐐀'.repeat(512), WISER_READ_ONLY: '' };
+  const env = await setup(t, { assembled: true, noneMissing: true, change: (m) => { m.worker.vars_required.push('WISER_READ_ONLY'); } });
   const result = await env.execute('deploy_worker_release', { ...INPUT, vars });
   assert.equal(result.script_name, INPUT.script_name);
   const form = await parseForm(env.calls.find((c) => c.method === 'PUT'));
   assert.deepEqual(JSON.parse(form.get('metadata')).bindings.slice(2), Object.entries(vars).map(([name, text]) => ({ name, text, type: 'plain_text' })));
-  assert.equal(JSON.stringify(result).includes(vars.ACCESS_TEAM_DOMAIN), false);
+  assert.equal(JSON.stringify(result).includes(vars.AGENT_CLIENT_ID), false);
   noTokens(result);
 });
 test('a release with no required variables accepts an empty vars object', async (t) => {
@@ -585,7 +604,7 @@ for (const [field, value] of [['app', '../app'], ['app', 'https://example.test/'
 }
 
 test('short plain variables preserve result hashes, identifiers and vendor statuses', async (t) => {
-  const vars = { ACCESS_TEAM_DOMAIN: 'a', ACCESS_AUD: '1', AGENT_CLIENT_ID: 'f' };
+  const vars = { ACCESS_TEAM_DOMAIN: 'https://a.cloudflareaccess.com', ACCESS_AUD: '1', AGENT_CLIENT_ID: 'f' };
   const env = await setup(t, { assembled: true, noneMissing: true });
   const result = await env.execute('deploy_worker_release', { ...INPUT, vars });
   assert.equal(result.script_name, INPUT.script_name);

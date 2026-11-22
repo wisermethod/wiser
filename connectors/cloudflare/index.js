@@ -2441,8 +2441,9 @@ const ACCESS_WHOLE_TOKEN_SHAPE = /^[A-Za-z0-9_-]{40}$/;
 const accessEmail = (v) => typeof v === 'string' && [...v].length <= 254
   && /^[^\s@\u0000]+@[^\s@\u0000]+$/.test(v) && !ACCESS_TOKEN_SHAPE.test(v)
   && !ACCESS_WHOLE_TOKEN_SHAPE.test(v.split('@')[0]);
+const accessTokenText = (value) => ACCESS_TOKEN_SHAPE.test(value) || ACCESS_WHOLE_TOKEN_SHAPE.test(value);
 const accessName = (v) => typeof v === 'string' && [...v].length >= 1 && [...v].length <= 100
-  && /^[^\u0000-\u001f\u007f]+$/.test(v) && !ACCESS_TOKEN_SHAPE.test(v) && !ACCESS_WHOLE_TOKEN_SHAPE.test(v);
+  && /^[^\u0000-\u001f\u007f]+$/.test(v) && !accessTokenText(v);
 const accessHostname = (v) => typeof v === 'string' && [...v].length <= 253
   && HOSTNAME.test(v) && !ACCESS_TOKEN_SHAPE.test(v) && !v.split('.').some((label) => ACCESS_WHOLE_TOKEN_SHAPE.test(label));
 const accessPath = (account) => `/accounts/${encodeURIComponent(account)}/access`;
@@ -2586,34 +2587,75 @@ async function accessTeam(input, ctx) {
   }
   return null;
 }
-async function accessListApps(input, ctx) {
-  const root = `${accessPath(input.account_id)}/apps`;
-  const apps = [];
-  let total;
+async function accessCountedList(ctx, { root, label, perPage, readRow }) {
+  const rows = [];
+  let total, totalPages;
   for (let page = 1; page <= 10000; page += 1) {
-    const req = { endpoint: `${root}?per_page=1000&page=${page}`, method: 'GET' };
+    const req = { endpoint: `${root}?per_page=${perPage}&page=${page}`, method: 'GET' };
     const reply = await strictProxyResponse(ctx, req);
     if (reply.error) return reply.error;
-    if (!Array.isArray(reply.result) || reply.result.some((app) => !asObject(app))) return strictVendorError(req);
-    const incomplete = { ...strictVendorError(req), reason: 'Access application listing incomplete; a counted list could not be established.' };
+    if (!Array.isArray(reply.result)) return strictVendorError(req);
+    const incomplete = { ...strictVendorError(req), reason: `Access ${label} listing incomplete; a counted list could not be established.` };
     if (!Number.isSafeInteger(reply.info?.total_count) || reply.info.total_count < 0
       || (total !== undefined && total !== reply.info.total_count)) return incomplete;
     total = reply.info.total_count;
-    apps.push(...reply.result);
-    if (apps.length > total) return incomplete;
-    if (reply.info.total_pages !== undefined && (!Number.isInteger(reply.info.total_pages)
-      || reply.info.total_pages < page || reply.info.total_pages > 10000)) return incomplete;
-    if (apps.length === total) {
-      // A count met before the last page, or met by repeated rows, is not a complete list.
-      if (reply.info.total_pages !== undefined && page < reply.info.total_pages) return incomplete;
-      if (new Set(apps.map((app) => app.id)).size !== apps.length) return incomplete;
-      return { apps };
+    for (const raw of reply.result) {
+      const row = readRow(raw);
+      if (!row) return strictVendorError(req);
+      rows.push(row);
     }
-    if (reply.result.length === 0 || (reply.info.total_pages !== undefined && page >= reply.info.total_pages)) {
+    if (rows.length > total) return incomplete;
+    const pages = reply.info.total_pages;
+    if (pages !== undefined) {
+      if (!Number.isInteger(pages) || pages < (total === 0 ? 0 : page) || pages > 10000
+        || (totalPages !== undefined && pages !== totalPages)) return incomplete;
+      totalPages = pages;
+    }
+    if (rows.length === total) {
+      // A count met before the last page, or met by repeated rows, is not a complete list.
+      if (totalPages > page) return incomplete;
+      if (new Set(rows.map((row) => row.id)).size !== rows.length) return incomplete;
+      return { rows };
+    }
+    if (reply.result.length === 0 || page >= totalPages) {
       return incomplete;
     }
   }
-  return { ...strictVendorError({ endpoint: root, method: 'GET' }), reason: 'Access application listing exceeded the page bound.' };
+  return { ...strictVendorError({ endpoint: root, method: 'GET' }), reason: `Access ${label} listing exceeded the page bound.` };
+}
+
+async function accessListApps(input, ctx) {
+  const listed = await accessCountedList(ctx, {
+    root: `${accessPath(input.account_id)}/apps`, label: 'application', perPage: 1000,
+    readRow: (row) => asObject(row) ? row : null,
+  });
+  return listed.status ? listed : { apps: listed.rows };
+}
+
+function accessServiceTokenRow(row) {
+  if (!asObject(row) || typeof row.id !== 'string' || !ACCESS_UUID.test(row.id)
+    || typeof row.name !== 'string' || !row.name.trim()
+    || (row.expires_at != null && (typeof row.expires_at !== 'string' || !row.expires_at.trim()))) return null;
+  const fields = [row];
+  while (fields.length) {
+    const value = fields.pop();
+    if (typeof value === 'string' && accessTokenText(value)) return null;
+    if (value === null || typeof value !== 'object') continue;
+    for (const [key, item] of Object.entries(value)) {
+      if (key === 'client_secret' || accessTokenText(key)) return null;
+      fields.push(item);
+    }
+  }
+  const { id, name, expires_at } = row;
+  return { id, name, ...(expires_at != null ? { expires_at } : {}) };
+}
+
+async function listAccessServiceTokens(input, ctx) {
+  const listed = await accessCountedList(ctx, {
+    root: `${accessPath(input.account_id)}/service_tokens`, label: 'service token', perPage: 25,
+    readRow: accessServiceTokenRow,
+  });
+  return listed.status ? listed : { success: true, result: listed.rows };
 }
 async function accessDuplicate(input, ctx) {
   const listed = await accessListApps(input, ctx);
@@ -3063,6 +3105,7 @@ export const modules = {
   },
 
   access: {
+    list_service_tokens: listAccessServiceTokens,
     async create_app(input, ctx) {
       if (typeof input?.name === 'string' && !accessName(input.name)) return invalid('name');
       if (typeof input?.hostname === 'string' && !accessHostname(input.hostname)) return invalid('hostname');

@@ -252,10 +252,30 @@ for (const badVars of [{ ACCESS_TOKEN: VALUE }, { 'BAD-NAME': VALUE }, { ACCESS_
     assert.ok(!JSON.stringify(result).includes('ACCESS_TOKEN'));
   });
 }
+
+for (const [label, name, value, corrected] of [
+  ['bare hostname', 'ACCESS_TEAM_DOMAIN', 'fixture-team.cloudflareaccess.com', 'https://fixture-team.cloudflareaccess.com'],
+  ['trailing slash', 'ACCESS_TEAM_DOMAIN', 'https://fixture-team.cloudflareaccess.com/', 'https://fixture-team.cloudflareaccess.com'],
+  ['path', 'ACCESS_TEAM_DOMAIN', 'https://fixture-team.cloudflareaccess.com/path', 'https://fixture-team.cloudflareaccess.com'],
+  ['malformed audience', 'ACCESS_AUD', 'bad.fixture.audience', VALUE],
+]) {
+  test(`format 2 set_vars refuses a ${label} before any Cloudflare call`, async (t) => {
+    const env = await setup(t, { bindings: [...currentBindings, { name: 'ACCESS_TEAM_DOMAIN', type: 'plain_text' }] });
+    const result = await env.execute('set_vars', { ...vars, vars: { [name]: value } });
+    assert.equal(result.status, 'invalid_arguments');
+    assert.equal(result.field, name);
+    assert.ok(result.reason.includes(name));
+    assert.equal(env.calls.length, 0);
+    assert.equal(JSON.stringify(result).includes(value), false);
+    assert.deepEqual(await env.execute('set_vars', { ...vars, vars: { [name]: corrected } }), {
+      keys_set: [name], version_id: UPDATED,
+    });
+  });
+}
+
 test('set_vars: Unicode bound counts 512 code points and permits partial updates', async (t) => {
-  // ACCESS_AUD is documented as an optional property, not a required update key.
-  const env = await setup(t, { bindings: [...currentBindings, { name: 'ACCESS_TEAM_DOMAIN', type: 'plain_text' }] });
-  assert.deepEqual(await env.execute('set_vars', { ...vars, vars: { ACCESS_TEAM_DOMAIN: '\u{1f600}'.repeat(512) } }), { keys_set: ['ACCESS_TEAM_DOMAIN'], version_id: UPDATED });
+  const env = await setup(t, { bindings: [...currentBindings, { name: 'AGENT_CLIENT_ID', type: 'plain_text' }] });
+  assert.deepEqual(await env.execute('set_vars', { ...vars, vars: { AGENT_CLIENT_ID: '\u{1f600}'.repeat(512) } }), { keys_set: ['AGENT_CLIENT_ID'], version_id: UPDATED });
 });
 test('set_vars: an allowed name cannot overwrite a resource or secret binding', async (t) => {
   const env = await setup(t, { bindings: [{ name: 'ACCESS_AUD', type: 'secret_text' }] });
@@ -407,7 +427,7 @@ test('set_vars: read-back confirms every set key using names/types without readi
     if (req.method === 'GET') return envelope({ bindings: ++reads === 1 ? currentBindings : after });
     return envelope({});
   } });
-  const answer = await env.execute('set_vars', { ...vars, vars: { ACCESS_AUD: VALUE, ACCESS_TEAM_DOMAIN: 'example.test' } });
+  const answer = await env.execute('set_vars', { ...vars, vars: { ACCESS_AUD: VALUE, ACCESS_TEAM_DOMAIN: 'https://fixture-team.cloudflareaccess.com' } });
   assert.deepEqual(answer, { keys_set: ['ACCESS_AUD', 'ACCESS_TEAM_DOMAIN'], version_id: UPDATED });
   assert.equal(reads, 2); noValues(answer);
 });

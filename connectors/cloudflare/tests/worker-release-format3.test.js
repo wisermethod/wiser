@@ -15,7 +15,7 @@ const VERSION_ID = '11111111-1111-1111-1111-111111111111';
 const RETIRED_VERSION = '22222222-2222-2222-2222-222222222222';
 const ROOT = `/accounts/${ACCOUNT}/workers`;
 const BASE = 'https://releases.example.com/';
-const CRM_VARS = { ACCESS_TEAM_DOMAIN: 'team.example.com', ACCESS_AUD: 'audience', AGENT_CLIENT_ID: 'client',
+const CRM_VARS = { ACCESS_TEAM_DOMAIN: 'https://example-team.cloudflareaccess.com', ACCESS_AUD: 'audience', AGENT_CLIENT_ID: 'client',
   WISER_INSTANCE: 'demo', WISER_READ_ONLY: '' };
 const INTAKE_VARS = { INTAKE_ORIGIN: 'https://www.example.com', INTAKE_RETURN_URL: 'https://www.example.com/thanks',
   NOTICE_TO: 'recipient@example.com', NOTICE_FROM: 'sender@example.com' };
@@ -240,6 +240,281 @@ async function installBoth(env) {
 
 test('format 3 installs intake and CRM with exact signed bindings, one shared ID, and no intake assets calls', async (t) => {
   await installBoth(await setup(t));
+});
+
+
+function declareBrandVars(manifest) {
+  manifest.version = '0.3.0';
+  manifest.apps[CRM].vars.optional.push('BRAND_NAME', 'BRAND_ACCENT');
+  manifest.apps[INTAKE].vars.optional.push('NOTICE_FROM_NAME');
+}
+
+const brandVars = {
+  [CRM]: { BRAND_NAME: '  Northwind Studio  ', BRAND_ACCENT: '#7a4BD6' },
+  [INTAKE]: { NOTICE_FROM_NAME: '  Northwind Enquiries  ' },
+};
+
+function setReleaseVars(env, app, vars) {
+  const { account_id, script_name, version } = env.input(app);
+  return env.write('workers.set_vars', { account_id, script_name, app, version, vars });
+}
+
+async function assertBrandSettingsUpdate(env, app, vars) {
+  const before = env.deployed.get(app);
+  const retained = before.filter(({ name }) => !Object.hasOwn(vars, name));
+  const updates = Object.entries(vars).map(([name, text]) => ({ name, text, type: 'plain_text' }));
+  const expectedBindings = [...retained.map(({ name }) => ({ name, type: 'inherit' })), ...updates];
+  const originalProxy = env.fake.auth.proxy;
+  const script = ROOT + '/scripts/' + app;
+  let patched = false;
+  env.fake.auth.proxy = async (req) => {
+    env.calls.push(req);
+    if (req.endpoint === script + '/settings') {
+      if (req.method === 'GET') return envelope({ bindings: patched ? [...retained, ...updates] : before });
+      assert.equal(req.method, 'PATCH');
+      const form = await new Response(Buffer.from(req.binary_body.base64, 'base64'),
+        { headers: { 'Content-Type': req.binary_body.content_type } }).formData();
+      assert.deepEqual(JSON.parse(form.get('settings')), { bindings: expectedBindings });
+      patched = true;
+      return envelope({});
+    }
+    if (req.endpoint === script + '/deployments') {
+      const version_id = patched ? RETIRED_VERSION : VERSION_ID;
+      return envelope({ deployments: [{ versions: [{ version_id, percentage: 100 }] }] });
+    }
+    if (req.endpoint === script + '/versions') {
+      return envelope({ items: [{ id: VERSION_ID, metadata: { created_on: '2026-11-20T00:00:00Z' } }] });
+    }
+    assert.fail('unexpected fake settings request');
+  };
+  try {
+    assert.deepEqual(await setReleaseVars(env, app, vars), { keys_set: Object.keys(vars), version_id: RETIRED_VERSION });
+    assert.ok(patched);
+  } finally {
+    env.fake.auth.proxy = originalProxy;
+  }
+}
+
+test('brand vars: a 0.3.0-shaped release installs both apps with defaults when omitted', async (t) => {
+  const env = await setup(t, { change: declareBrandVars });
+  await installBoth(env);
+  for (const app of [INTAKE, CRM]) {
+    await assertBrandSettingsUpdate(env, app, brandVars[app]);
+  }
+});
+
+test('brand vars: a 0.3.0-shaped release deploys supplied brand bindings and accepts settings updates', async (t) => {
+  const env = await setup(t, { change: declareBrandVars });
+  for (const app of [INTAKE, CRM]) {
+    const result = await env.deploy(app, { vars: { ...env.input(app).vars, ...brandVars[app] } });
+    assert.equal(result.app, app, JSON.stringify(result));
+    assert.deepEqual(env.deployed.get(app).slice(-Object.keys(brandVars[app]).length),
+      Object.entries(brandVars[app]).map(([name, text]) => ({ name, text, type: 'plain_text' })));
+  }
+
+  await assertBrandSettingsUpdate(env, CRM, { BRAND_NAME: '  Wiser Example  ', BRAND_ACCENT: '#Ab12f0' });
+  await assertBrandSettingsUpdate(env, INTAKE, { NOTICE_FROM_NAME: '  Enquiries From Wiser Example  ' });
+});
+
+test('brand vars: a 0.2.0-shaped release installs both apps and refuses every undeclared brand variable', async (t) => {
+  const env = await setup(t, { change: (m) => { m.version = '0.2.0'; } });
+  await installBoth(env);
+  env.calls.length = 0;
+  for (const app of [INTAKE, CRM]) {
+    for (const [name, valid] of Object.entries(brandVars[app])) {
+      for (const value of [valid, 'fixture<invalid>']) {
+        const supplied = { [name]: value };
+        const deployed = await env.deploy(app, { vars: { ...env.input(app).vars, ...supplied } });
+        const updated = await setReleaseVars(env, app, supplied);
+        for (const result of [deployed, updated]) {
+          assert.equal(result.status, 'invalid_arguments', name);
+          assert.equal(result.field, 'vars', name);
+          assert.match(result.reason, /undeclared/, name);
+          assert.ok(!JSON.stringify(result).includes(value), name);
+        }
+        assert.equal(env.calls.length, 0);
+      }
+    }
+  }
+});
+
+for (const [label, app, change, reason] of [
+  ['original CRM and branded intake', CRM, (m) => { m.apps[CRM].vars.optional = []; }, /variable declarations malformed.*same set/],
+  ['branded CRM and original intake', INTAKE, (m) => { m.apps[INTAKE].vars.optional.pop(); }, /variable declarations malformed.*same set/],
+  ['partial CRM list', CRM, (m) => { m.apps[CRM].vars.optional.pop(); }, /variable declarations.*malformed/i],
+  ['reordered CRM list', INTAKE, (m) => { m.apps[CRM].vars.optional.reverse(); }, /variable declarations.*malformed/i],
+  ['reordered intake list', CRM, (m) => { m.apps[INTAKE].vars.optional.reverse(); }, /variable declarations.*malformed/i],
+  ['duplicated intake name', INTAKE, (m) => { m.apps[INTAKE].vars.optional.push('NOTICE_FROM_NAME'); }, /variable declarations.*malformed/i],
+  ['extra CRM name', CRM, (m) => { m.apps[CRM].vars.optional.push('NOTICE_FROM_NAME'); }, /variable declarations.*malformed/i],
+]) {
+  test(`brand vars: format 3 refuses ${label}`, async (t) => {
+    const env = await setup(t, { change: (m) => { declareBrandVars(m); change(m); } });
+    for (const result of [await env.deploy(app), await setReleaseVars(env, app, env.input(app).vars)]) {
+      assert.equal(result.status, 'invalid_arguments');
+      assert.equal(result.field, 'release');
+      assert.match(result.reason, reason);
+    }
+    assert.equal(env.calls.length, 0);
+  });
+}
+
+const nonBmpLetter = '\u{10400}';
+const nameControls = ['\x00', '\t', '\r', '\n', '\x7f', '\x85', '\u2028', '\u2029', '<', '>'];
+
+for (const [app, name, invalidValues, validValues] of [
+  [CRM, 'BRAND_NAME',
+    ['', '   ', nonBmpLetter.repeat(41), '\nA brand', ...nameControls.map((char) => `A${char} brand`)],
+    ['A', '  ' + nonBmpLetter.repeat(40) + '  ', 'Café north']],
+  [CRM, 'BRAND_ACCENT',
+    ['ddee00', '#abc', '#aabbccdd', '#g12345', ' #aabbcc', '#aabbcc\n'], ['#000000', '#AaBb01']],
+  [INTAKE, 'NOTICE_FROM_NAME',
+    ['', '   ', nonBmpLetter.repeat(61), 'A sender\r',
+      ...[...nameControls, '"', ',', ';', ':', '@', '\\'].map((char) => `A${char} sender`)],
+    ['N', '  ' + nonBmpLetter.repeat(60) + '  ', 'Café north']],
+]) {
+  test(`brand vars: ${name} checks supplied values on deploy and set_vars`, async (t) => {
+    const env = await setup(t, { change: declareBrandVars });
+    if (app === CRM) env.deployed.set(INTAKE, [intakeBinding(INTAKE_DB)]);
+    for (const value of invalidValues) {
+      const supplied = { [name]: value };
+      const deployed = await env.deploy(app, { vars: { ...env.input(app).vars, ...supplied } });
+      const updated = await setReleaseVars(env, app, supplied);
+      for (const result of [deployed, updated]) {
+        assert.equal(result.status, 'invalid_arguments');
+        assert.equal(result.field, name);
+        assert.ok(result.reason.includes(name));
+        const display = JSON.stringify(value).slice(1, -1);
+        if (display) assert.ok(!JSON.stringify(result).includes(display), 'refusal echoed the submitted value');
+      }
+      assert.equal(env.calls.length, 0);
+    }
+    for (const value of validValues) {
+      const result = await env.deploy(app, { vars: { ...env.input(app).vars, [name]: value } });
+      assert.equal(result.app, app);
+      assert.deepEqual(env.deployed.get(app).find((binding) => binding.name === name),
+        { name, text: value, type: 'plain_text' });
+      await assertBrandSettingsUpdate(env, app, { [name]: value });
+    }
+  });
+}
+
+// Expected cases come from wiser-crm worker/sign-in.ts isConfigured at d73341c.
+for (const [name, cases] of [
+  ['ACCESS_TEAM_DOMAIN', [
+    ['bare team hostname', 'example-team.cloudflareaccess.com', false],
+    ['trailing slash', CRM_VARS.ACCESS_TEAM_DOMAIN + '/', false],
+    ['path', CRM_VARS.ACCESS_TEAM_DOMAIN + '/path', false],
+    ['HTTP', 'http://example-team.cloudflareaccess.com', false],
+    ['uppercase team', 'https://Example.cloudflareaccess.com', false],
+    ['leading hyphen', 'https://-example.cloudflareaccess.com', false],
+    ['trailing hyphen', 'https://example-.cloudflareaccess.com', false],
+    ['64-character team', 'https://' + 'a'.repeat(64) + '.cloudflareaccess.com', false],
+    ['more than one team label', 'https://sub.example.cloudflareaccess.com', false],
+    ['query', CRM_VARS.ACCESS_TEAM_DOMAIN + '?query', false],
+    ['newline', CRM_VARS.ACCESS_TEAM_DOMAIN + '\n', false],
+    ['one-character team', 'https://x.cloudflareaccess.com', true],
+    ['hyphenated team', CRM_VARS.ACCESS_TEAM_DOMAIN, true],
+    ['63-character team', 'https://' + 'a'.repeat(63) + '.cloudflareaccess.com', true],
+  ]],
+  ['ACCESS_AUD', [
+    ['empty audience', '', false],
+    ['malformed audience', 'invalid.fixture.audience', false],
+    ['audience with whitespace', 'with space', false],
+    ['audience with newline', 'example\n', false],
+    ['short audience', 'A', true],
+    ['letters, digits, hyphen and underscore', 'Ab9-_', true],
+  ]],
+]) {
+  test(`format 3 ${name} matches CRM isConfigured at d73341c`, async (t) => {
+    const env = await setup(t);
+    env.deployed.set(INTAKE, [intakeBinding(INTAKE_DB)]);
+    for (const [label, value, accepted] of cases) {
+      const count = env.calls.length;
+      const result = await env.deploy(CRM, { vars: { ...CRM_VARS, [name]: value } });
+      if (accepted) {
+        assert.equal(result.app, CRM, label);
+        assert.ok(env.calls.length > count, label);
+        assert.equal(env.deployed.get(CRM).find((binding) => binding.name === name).text, value, label);
+      } else {
+        assert.equal(result.status, 'invalid_arguments', label);
+        assert.equal(result.field, name, label);
+        assert.ok(result.reason.includes(name), label);
+        assert.equal(env.calls.length, 0, label);
+        const { account_id, script_name, app, version } = env.input(CRM);
+        const updated = await env.write('workers.set_vars', { account_id, script_name, app, version, vars: { [name]: value } });
+        assert.equal(updated.status, 'invalid_arguments', label);
+        assert.equal(updated.field, name, label);
+        assert.ok(updated.reason.includes(name), label);
+        assert.equal(env.calls.length, 0, label);
+      }
+    }
+  });
+}
+
+for (const [app, name, invalidValues, validValue] of [
+  [CRM, 'WISER_INSTANCE', [''], 'fixture install'],
+  [INTAKE, 'INTAKE_ORIGIN', ['', 'null', ' trimmed.example', 'broken\norigin'], 'example-origin'],
+  [INTAKE, 'INTAKE_RETURN_URL', ['', 'broken\nlocation'], '/thank-you'],
+  [INTAKE, 'NOTICE_TO', [''], 'recipient@example.com'],
+  [INTAKE, 'NOTICE_FROM', [''], 'sender@example.com'],
+  [INTAKE, 'INTAKE_MAX_PER_ADDRESS_PER_DAY', ['0', '-1', '1.5', '9007199254740992', 'garbage'], ' 0x5 '],
+  [INTAKE, 'INTAKE_MAX_PER_HOUR', ['0', '-1', '1.5', '9007199254740992', 'garbage'], '6e1'],
+]) {
+  test(`format 3 refuses invalid ${name} before any Cloudflare call`, async (t) => {
+    const env = await setup(t);
+    if (app === CRM) env.deployed.set(INTAKE, [intakeBinding(INTAKE_DB)]);
+    const { account_id, script_name, version, vars } = env.input(app);
+    for (const value of invalidValues) {
+      const deployed = await env.deploy(app, { vars: { ...vars, [name]: value } });
+      assert.equal(deployed.status, 'invalid_arguments');
+      assert.equal(deployed.field, name);
+      assert.ok(deployed.reason.includes(name));
+      assert.equal(env.calls.length, 0);
+      const updated = await env.write('workers.set_vars', { account_id, script_name, app, version, vars: { [name]: value } });
+      assert.equal(updated.status, 'invalid_arguments');
+      assert.equal(updated.field, name);
+      assert.ok(updated.reason.includes(name));
+      assert.equal(env.calls.length, 0);
+    }
+    const deployed = await env.deploy(app, { vars: { ...vars, [name]: validValue } });
+    assert.equal(deployed.app, app);
+    assert.equal(env.deployed.get(app).find((binding) => binding.name === name).text, validValue);
+  });
+}
+
+test('format 3 sets a corrected team address in a partial update without reading sibling values', async (t) => {
+  const env = await setup(t);
+  const { account_id, script_name, app, version } = env.input(CRM);
+  const bindings = [
+    { name: 'ACCESS_TEAM_DOMAIN', type: 'plain_text' },
+    { name: 'ACCESS_AUD', type: 'plain_text', get text() { assert.fail('must not check an omitted value'); } },
+  ];
+  env.fake.auth.proxy = async (req) => {
+    env.calls.push(req);
+    if (req.endpoint.endsWith('/settings')) return envelope({ bindings });
+    if (req.endpoint.endsWith('/deployments')) {
+      const version_id = env.calls.some(({ method }) => method === 'PATCH') ? VERSION_ID : RETIRED_VERSION;
+      return envelope({ deployments: [{ versions: [{ version_id, percentage: 100 }] }] });
+    }
+    if (req.endpoint.endsWith('/versions')) {
+      return envelope({ items: [{ id: RETIRED_VERSION, metadata: { created_on: '2026-11-20T00:00:00Z' } }] });
+    }
+    assert.fail('unexpected fake request');
+  };
+  const vars = { ACCESS_TEAM_DOMAIN: CRM_VARS.ACCESS_TEAM_DOMAIN };
+  assert.deepEqual(await env.write('workers.set_vars', { account_id, script_name, app, version, vars }),
+    { keys_set: ['ACCESS_TEAM_DOMAIN'], version_id: VERSION_ID });
+  assert.equal(env.calls.filter(({ method }) => method === 'PATCH').length, 1);
+});
+
+test('format 3 passes through CRM_URL text and the app’s read-only flag unchanged', async (t) => {
+  const env = await setup(t);
+  const CRM_URL = 'fixture display text\nwith a line break';
+  const WISER_READ_ONLY = 'arbitrary-nonempty-flag';
+  assert.equal((await env.deploy(INTAKE, { vars: { ...INTAKE_VARS, CRM_URL } })).app, INTAKE);
+  assert.equal((await env.deploy(CRM, { vars: { ...CRM_VARS, WISER_READ_ONLY } })).app, CRM);
+  assert.equal(env.deployed.get(INTAKE).find(({ name }) => name === 'CRM_URL').text, CRM_URL);
+  assert.equal(env.deployed.get(CRM).find(({ name }) => name === 'WISER_READ_ONLY').text, WISER_READ_ONLY);
 });
 
 if (process.env.CRM_UNSIGNED_RELEASE_DIR) {
