@@ -3,7 +3,7 @@ name: SEO Assets
 type: skill
 category: seo
 description: Produce the ready-to-use artifacts a site's decided search changes need, each built from evidence pulled for it, held to its own standards, and handed over as files with placement and verification instructions.
-version: 0.14.0
+version: 0.14.1
 memory:
   - voice
   - about
@@ -93,7 +93,7 @@ All seven account reads use the gateway's `execute` tool and are `confirmation: 
 What each hand-off needs to be right:
 
 - A saved search-console query response is a JSON file holding a `rows` array, and that file is what the tools read. Rows grouped by query feed `seo-data` `keywords`'s `--queries`, rows grouped by query and page feed `--query-pages`, and each refuses the other's rows, so the grouping decides which flag it can serve. Run `node scripts/seo-data.js previous-window --start <d> --end <d>` before comparing a trend: it prints the earlier window the comparison assumes, and that window's rows go to `keywords` as `--previous-queries`.
-- `seo-data` `audit` reads one bundle assembled by this skill. Its search sections take the `rows` array out of each saved response, its sitemap section takes the `sitemap` array a search-console sitemaps reading holds, and its analytics sections take the reports as the platform returned them, headers included and not flattened. The bundle is refused whole if a section is missing, so a period with no analytics data produces no audit dataset.
+- `seo-data` `audit` reads one bundle assembled by this skill. Its `searchConsole.topQueries` and `searchConsole.topPages` take the bare `rows` arrays from their saved responses, and `searchConsole.sitemaps` takes the bare `sitemap` array from the sitemaps response. Use `[]` for a fetched Search Console section that returned nothing. Its Analytics sections take the reports as the platform returned them, headers included. The bundle is refused whole if a required section is missing.
 - `seo-page-analyzer` opens no connection: it reads HTML from a file and needs `--page-url` to tell the page's own links from links off it. A static page's markup is retrieved however the host retrieves a page; a page that builds itself in JavaScript, or one behind a sign-in, comes through `Browser Control`, whose snapshot returns the markup in its `content` field, which is what gets written out rather than the object around it.
 - `Browser Control` reads no credential and takes no `--env`. It keeps sign-ins in the profile directory `--profile` names, resolved in the owning root per `standards/conventions.md` and never guessed, and a sign-in, a second factor, or a challenge is handed to the person at the window rather than driven. A vendor that blocks the automated browser is read in the person's own, per `experts/Webmaster/ahrefs-browser.md`.
 - Search Console rows arrive two to three days late, stop at sixteen months, and are a top slice with rare queries withheld, so a total summed from them describes the rows and never the property. Any artifact quoting one says which.

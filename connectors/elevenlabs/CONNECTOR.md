@@ -3,7 +3,7 @@ name: elevenlabs
 type: connector
 category: media
 description: Synthesizes timestamped MP3 speech to a local file, lists voices and models, and creates and deletes instant voice clones, confirming every write unless a standing approval covers narration
-version: 0.1.1
+version: 0.1.2
 ---
 
 # ElevenLabs
@@ -12,7 +12,7 @@ ElevenLabs supplies speech synthesis and voice cloning. This connector sends one
 
 ## Status
 
-Unreleased. Verified by offline fake-provider tests and the gateway's integration checks.
+Shipped in `v2026.10.27.5`. Verified by offline fake-provider tests and the gateway's integration checks.
 
 ## Reaching it
 

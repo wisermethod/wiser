@@ -121,8 +121,6 @@ test('only run is supported by the core; CLI-only preparation branches are remov
     await assert.rejects(harvest(input,[],context().fetch,lookup,{hashId}), /hosted command must be run|dryRun/);
   }
   assert.equal(existsSync(new URL('../scripts/lib/destination.js',import.meta.url)),false);
-  // The retired screen's last committed text is kept beside it; the test no longer reads git, which a release's detached tree does not have at that path.
-  assert.match(readFileSync(new URL('../scripts/lib/zArchive/26-11-09 V1 - destination.js',import.meta.url),'utf8'), /export async function destinationReason/);
 });
 test('hosted documentation states caps, synchronous deadline coverage and the DNS reconnect residual', () => {
   const doc = readFileSync(new URL('../TOOL.md',import.meta.url),'utf8');

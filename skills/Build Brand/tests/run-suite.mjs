@@ -1,7 +1,7 @@
-// Run the suite without writing scratch outside this skill or changing its scripts.
-// The scripts correctly refuse outputs inside their own skill, so test an exact
-// disposable copy whose outputs can sit beside that copy, still under tests/.
+// Test a disposable copy in the system temporary directory. The scripts refuse
+// outputs inside their own skill, so the test outputs sit beside that copy.
 import {copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync} from 'node:fs';
+import {tmpdir} from 'node:os';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
@@ -9,7 +9,7 @@ import {readFileSync} from 'node:fs';
 import {comparePartsSplit} from './parts-split.mjs';
 
 const here=dirname(fileURLToPath(import.meta.url)), skill=resolve(here,'..'), plugin=resolve(skill,'../..');
-const scratch=mkdtempSync(join(here,'verification-')), copied=join(scratch,'plugin/skills/Build Brand');
+const scratch=mkdtempSync(join(tmpdir(),'build-brand-verification-')), copied=join(scratch,'plugin/skills/Build Brand');
 const copyDirectory=(from,to,filter=()=>true)=>{
   mkdirSync(to,{recursive:true});
   for(const entry of readdirSync(from,{withFileTypes:true})){
@@ -24,17 +24,17 @@ try{
   for(const entry of readdirSync(skill,{withFileTypes:true}))if(entry.isFile()&&entry.name.endsWith('.md'))copyFileSync(join(skill,entry.name),join(copied,entry.name));
   for(const dir of ['scripts','paths'])if(existsSync(join(skill,dir)))copyDirectory(join(skill,dir),join(copied,dir));
   copyDirectory(here,join(copied,'tests'),e=>e.isFile()&&e.name.endsWith('.mjs'));
+  copyDirectory(join(here,'fixtures'),join(copied,'tests/fixtures'));
   copyDirectory(join(skill,'parts'),join(copied,'parts'),e=>e.isFile());
   copyDirectory(join(skill,'parts/fonts'),join(copied,'parts/fonts'));
   symlinkSync(join(plugin,'tools'),join(scratch,'plugin/tools'),'dir');
   copyFileSync(join(plugin,'skills/AGENTS.md'),join(scratch,'plugin/skills/AGENTS.md'));
   // The places carry reads the voice coach's P12 (flow.test.mjs).
   mkdirSync(join(scratch,'plugin/skills/Build Voice'));copyFileSync(join(plugin,'skills/Build Voice/questions.md'),join(scratch,'plugin/skills/Build Voice/questions.md'));
-  copyDirectory(join(skill,'parts/zArchive'),join(copied,'parts/zArchive'));
   if(process.argv.includes('--baseline')){
-    const read=path=>readFileSync(join(skill,path),'utf8');
-    const sections=comparePartsSplit(read('parts/zArchive/26-10-31 V1 - parts.md'),read('parts/parts.md'),read('parts/catalogue.md'));
-    process.stdout.write(`Parts split baseline: ${sections.length} sections match their archive or dated contract pins.\n`);
+    const read=path=>readFileSync(join(copied,path),'utf8');
+    const sections=comparePartsSplit(read('tests/fixtures/parts-contract-baseline.md'),read('parts/parts.md'),read('parts/catalogue.md'));
+    process.stdout.write(`Parts split baseline: ${sections.length} sections match the library, fixture or contract pins.\n`);
   }
   const tmp=join(scratch,'tmp');mkdirSync(tmp);
   const journey=process.env.BUILD_BRAND_JOURNEY||resolve(plugin,'../journey.md');

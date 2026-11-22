@@ -3,7 +3,7 @@ name: seo-data
 type: tool
 category: seo
 description: Consolidates Search Console and Analytics results for one site and date range into one audit dataset, and turns Search Console query rows into a keyword report of top performers, opportunities, trends, cannibalization, and target-keyword standings
-version: 0.2.5
+version: 0.2.6
 runs: both
 hosted:
   - audit 2MiB 15s
@@ -72,7 +72,7 @@ A bundle that does not meet the input contract is a failure, not a result: the m
 
 ### Input Bundle
 
-One JSON file holds everything a run reads. Each reporting section is passed through as the API returned it, headers included, because that is what the fetching caller already has:
+One JSON file holds everything a run reads. Use bare arrays for Search Console and pass through Analytics reports as the API returned them, headers included.
 
 ```
 {
@@ -93,7 +93,7 @@ One JSON file holds everything a run reads. Each reporting section is passed thr
 }
 ```
 
-Every section is required except `targetKeywords`. A section that returned nothing is present with an empty `rows` array, which is not the same as a section that was never fetched.
+Every section is required except `targetKeywords`. A fetched Search Console section that returned nothing is an empty array. A fetched Analytics report with no rows retains its headers.
 
 Values are addressed by header name, never by position, so a report carrying extra metrics is read correctly and one missing a named metric is named in the error rather than silently read as zero. Each analytics section must carry these:
 
@@ -280,7 +280,7 @@ The stops every tool shares, an unknown flag and a path that is relative or insi
 | `Error: no file at <path>` | The path given does not exist | Check the path; an absolute one cannot be misread |
 | `Error: <path> is not JSON.` | The audit file is not JSON, often the wrong file entirely | Point `--input` at the bundle; the file's own content is never quoted back |
 | `Error: <path> is JSON but not an audit input bundle.` | The top level is an array or a bare value | Wrap the sections in one object per Input Bundle |
-| `Error: <section> is missing from the input bundle.` | A required section was never fetched, or sits under a different key | Fetch it and add it; an empty result is an empty `rows` array, not an absent section |
+| `Error: <section> is missing from the input bundle.` | A required section was never fetched, or sits under a different key | Fetch the required section. Use an empty array for an empty Search Console result. Keep the report object and its headers for an empty Analytics result |
 | `Error: <section> carries no "<name>" metric.` or `carries no "<name>" dimension.` | The report was fetched without the metric this dataset reads, or built on a different dimension than the one Input Bundle names | Re-fetch that report with the metric and the dimension named in Input Bundle |
 | `Error: <section> carries no metricHeaders array.` or `no dimensionHeaders array.` | The response was unwrapped before it was written to the bundle | Pass the report as the API returned it, headers included |
 | `Error: <section> row N has no keys array.` | A search analytics row was reshaped, or a different report was pasted in | Pass the search rows unchanged |

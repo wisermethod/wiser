@@ -113,8 +113,8 @@ Chart selection:
 |---------|-----------|
 | Trend over time | Line chart |
 | Comparison | Bar chart |
-| Part of a whole | Pie chart (max 5 segments) or stacked bar |
-| Relationship | Scatter plot |
+| Part of a whole | Bar chart of shares when separate bars show the parts honestly. Otherwise the chart is a gap named at its slide, never a hand-drawn substitute. |
+| Relationship | The chart is a gap named at its slide, never a hand-drawn substitute. |
 | Single metric | Big number, centered |
 
 Data design rules:

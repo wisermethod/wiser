@@ -3,7 +3,7 @@ name: Create Presentation
 type: skill
 category: design
 description: Build a single-file reveal.js HTML slide deck with a narrative arc, conclusion headlines, and brand-consistent design, including a request for a native Keynote deck, which the body routes to the tool that builds it
-version: 0.11.2
+version: 0.11.3
 memory:
   - design
 ---
