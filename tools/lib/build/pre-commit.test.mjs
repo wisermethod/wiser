@@ -16,6 +16,7 @@ function fixture(t, omittedPaths = [], installed = []) {
   mkdirSync(join(root, 'system/hooks'), { recursive: true });
   cpSync(join(ROOT, 'system/hooks/pre-commit'), join(root, 'system/hooks/pre-commit'));
   mkdirSync(join(root, 'system/gates'));
+  cpSync(join(ROOT, 'system/gates/no-own-archive.sh'), join(root, 'system/gates/no-own-archive.sh'));
   // These unrelated gates are outside this test's subject. Node and both
   // carried-copy builders are real processes operating on the fixture bytes.
   for (const name of ['typed-file-flags.sh', 'tool-frontmatter.sh', 'classifier-seam.sh']) {
@@ -87,6 +88,18 @@ if (process.argv.includes('--check') && ['copy-assets.mjs','one-file.mjs'].some(
 const copy = tool => ['tools/lib/build/copy-assets.mjs', tool, '--check'];
 const data = ['tools/lib/build/one-file.mjs', '--check'];
 const compilerCommand = 'npm cache add esbuild@0.25.10 "@esbuild/$(node -p \'process.platform + "-" + process.arch\')@0.25.10" --cache "$HOME/.cache/wiser-connector-launch/npm"';
+
+test('hook allows a template archive placeholder and refuses a staged plugin archive', t => {
+  const f = fixture(t);
+  f.stage('system/templates/Example Root Template/work/zArchive/.gitkeep');
+  const allowed = f.run();
+  assert.equal(allowed.status, 0, allowed.stderr);
+  const archive = 'docs/zArchive/old file.md';
+  f.stage(archive);
+  const refused = f.run();
+  assert.equal(refused.status, 1, refused.stderr);
+  assert.equal(refused.stderr.trim(), `REFUSED: ${archive}`);
+});
 
 test('hook names keynote-render when only its packages are absent', t => {
   const f = fixture(t, [], ['data', 'Content Harvester', 'keynote-render']);

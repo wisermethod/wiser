@@ -2,8 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { Worker } from 'node:worker_threads';
-import { existsSync, readFileSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { harvest } from '../scripts/harvest-core.js';
 import { collectUrl } from '../scripts/adapters/urls.js';
 import { fetchText } from '../scripts/lib/fetch.js';
@@ -126,8 +125,6 @@ test('fetchText without an explicit body cap still uses the 1 MiB bound', async 
   await assert.rejects(fetchText('https://feed.test/a','*/*',{fetch:async () => new Response('x'.repeat(1048577)),lookup,timeoutMs:1000}), error => error.fatal && /fetched body/.test(error.message));
 });
 
-test('the unused filesystem renderer is removed with its last committed text archived', () => {
+test('the unused filesystem renderer is absent', () => {
   assert.equal(existsSync(new URL('../scripts/lib/render.js',import.meta.url)),false);
-  const expected = execFileSync('git',['show','c88b4613:tools/Content Harvester/scripts/lib/render.js'],{cwd:process.env.WISER_TEST_SOURCE_ROOT || new URL('../../../',import.meta.url)});
-  assert.deepEqual(readFileSync(new URL('../scripts/lib/zArchive/26-11-09 V2 - render.js',import.meta.url)), expected);
 });

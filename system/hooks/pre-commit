@@ -1,5 +1,5 @@
 #!/bin/sh
-# Five checks, triggered by the staged set.
+# Six checks, triggered by the staged set.
 #
 # Why these and not the others: over the 52 commits of the Close-out range, the
 # em-dash sweep fired zero times, the retired-word sweep fired zero times, and
@@ -48,7 +48,10 @@
 GREP=/usr/bin/grep
 PATTERN='zBuilds/playbooks/gates/|zBuilds/registry\.md|zBuilds/templates/|zBuilds/repos/|wiser-builds|/Volumes'
 
-staged=$(git -c core.quotePath=false diff --cached --name-only --diff-filter=ACMR)
+staged=$(git -c core.quotePath=false diff --cached --name-only --diff-filter=ACMR) || {
+  echo "pre-commit: git could not list staged paths; cannot measure." >&2
+  exit 1
+}
 # The seam check also sees a type change (T), including a regular file
 # replaced by a symlink. The checks above stay on A, C, M and R.
 # core.quotePath=false: a path with a non-ASCII name, which the conventions
@@ -92,6 +95,18 @@ gate_path() {
   fi
 }
 
+# Archived plugin files can be introduced by any staged path.
+if [ -n "$staged" ]; then
+  ARCHIVE_GATE=$(gate_path no-own-archive.sh)
+  if [ ! -x "$ARCHIVE_GATE" ]; then
+    echo "pre-commit: $ARCHIVE_GATE is missing or not executable, so the" >&2
+    echo "archive check could not run. That is a failure to measure and not a pass." >&2
+    exit 1
+  fi
+  "$ARCHIVE_GATE" --staged "$ROOT" || exit 1
+fi
+
+hits=$(mktemp "${TMPDIR:-/tmp}/wiser-precommit-hits.XXXXXX") || exit 1
 printf '%s\n' "$staged" | while IFS= read -r f; do
   [ -n "$f" ] || continue
   git show ":$f" 2>/dev/null | $GREP -nE -- "$PATTERN" | while IFS= read -r hit; do
@@ -102,19 +117,19 @@ printf '%s\n' "$staged" | while IFS= read -r f; do
     if [ "$f" = system/hooks/pre-commit ] && [ "$rest" = "PATTERN='$PATTERN'" ]; then continue; fi
     printf '  %s:%s\n' "$f" "$hit"
   done
-done > /tmp/.wiser-precommit-hits.$$
+done > "$hits"
 
-if [ -s /tmp/.wiser-precommit-hits.$$ ]; then
+if [ -s "$hits" ]; then
   echo "pre-commit: a build-workspace path is in the staged set." >&2
   echo "wiser ships alone; this path resolves to nothing for a reader who installs it." >&2
   echo >&2
-  cat /tmp/.wiser-precommit-hits.$$ >&2
+  cat "$hits" >&2
   echo >&2
   echo "Remove it, or commit with --no-verify if it is genuinely intended." >&2
-  rm -f /tmp/.wiser-precommit-hits.$$
+  rm -f "$hits"
   exit 1
 fi
-rm -f /tmp/.wiser-precommit-hits.$$
+rm -f "$hits"
 
 # Carried-copy checks see rename sources and deletions. Match the covered inputs
 # case-insensitively, including wrongly cased directory names.

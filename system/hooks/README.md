@@ -13,6 +13,8 @@ paths, the lanes directory among them, so a reader who installs this plugin
 is not sent to a directory that does not ship. It accepts the user-root
 homonym declared by `standards/user-root.md` C3 and C8.
 
+The hook runs `system/gates/no-own-archive.sh --staged` to refuse plugin archives and allow template archive placeholders.
+
 The hook finds its gates beside its own directory, in `system/gates/`, so the
 same copy checks another plugin's staged set when it is run from that
 repository's root. A copy in a clone's `.git/hooks/` has no gates beside it
