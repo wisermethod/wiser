@@ -23,7 +23,7 @@ Seven were removed on 2026-09-20 because the capability had shipped and the decl
 
 ### Publisher
 
-- producing a print interior with bleed
+- producing a print interior with bind-side bleed
 - producing a print cover with its spine
 
 ### Research Expert
@@ -116,7 +116,7 @@ Seven were removed on 2026-09-20 because the capability had shipped and the decl
 
 ### Set Up Book
 
-- producing a print interior with bleed
+- producing a print interior with bind-side bleed
 
 ### Speech Writing
 

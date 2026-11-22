@@ -3,7 +3,7 @@ name: heygen
 type: connector
 category: media
 description: Synthesizes timestamped WAV speech, manages instant voice clones, discovers avatars and looks, uploads narration, renders caller-chosen Avatar IV or Avatar V video to MP4 with no engine default and reads API wallet and key permissions, confirming uploads, clone changes and video creation unless a standing approval covers the render
-version: 0.1.0
+version: 0.1.1
 ---
 
 # HeyGen
@@ -12,7 +12,7 @@ Six modules and thirteen actions cover instant narration, existing avatar discov
 
 ## Status
 
-Unreleased. Verified with offline fake-provider tests and gateway integration checks.
+Shipped in `v2026.10.29.4`. Verified with offline fake-provider tests and gateway integration checks.
 
 ## Reaching it
 

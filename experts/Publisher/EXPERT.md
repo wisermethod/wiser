@@ -3,9 +3,9 @@ name: Publisher
 type: expert
 category: operations
 description: Judge a book's production specifications before writing or ingestion and its built editions for distribution, returning readiness or routed findings against current platform requirements
-version: 0.1.1
+version: 0.1.2
 gaps:
-  - producing a print interior with bleed
+  - producing a print interior with bind-side bleed
   - producing a print cover with its spine
 ---
 
@@ -58,7 +58,7 @@ No finished artifact or real chapters are required for this verdict. Manuscript-
 
 ### Job 3: Judge the built editions
 
-For each edition, read the artifact against its own specifications and platform sources, by format. A print edition: the print template sets every page of the files this build wrote to the configured trim, its binding side to the configured `margins.inner`, so that config is the geometry evidence for those files, judged against the platform's trim and gutter minimums at the built page count; it has no bleed, Rule 2's gap. The tool's five structural results, `outputIntentProfile`, `cmykOnly`, `pdf13`, `fontsEmbedded` and `evenPageCount` in `outputs.pdfx`, describe the PDF/X file `outputs.print_pdfx` only; the interior PDF `outputs.print_pdf` is the same pages before conversion and takes none of them. A failed structural check reaches the caller as the build's stderr and exit 1, not as `outputs.pdfx`: it is a finding. An EPUB edition: its format and the platform's acceptance requirements; trim, bleed, parity and the PDF/X results do not apply to it and are outside its scope, not unavailable. Use the tool's results for the checks it makes, without reproducing its deterministic work. Do those results identify these files and supply every required check within that coverage? Yes: use them. A result fails: return the evidenced failure as Findings. A result is missing, cannot be tied to these files or does not cover a required property beyond the geometry the config establishes: name the required check as unavailable, rather than treating build success as its evidence.
+For each edition, read the artifact against its own specifications and platform sources, by format. A print edition: the print template sets every page's trim to the configured dimensions and its binding-side margin to `margins.inner`. The build's `outputs.bleed` records whether the pages extend 0.125 in beyond trim on the outer, top and bottom edges. Judge that geometry against the platform's trim, bleed and gutter requirements at the built page count. The tool's six structural results, `pageBoxes`, `outputIntentProfile`, `cmykOnly`, `pdf13`, `fontsEmbedded` and `evenPageCount` in `outputs.pdfx`, describe the PDF/X file `outputs.print_pdfx` only; the interior PDF `outputs.print_pdf` is the same pages before conversion and takes none of them. A failed structural check reaches the caller as the build's stderr and exit 1, not as `outputs.pdfx`: it is a finding. An EPUB edition: its format and the platform's acceptance requirements; trim, bleed, parity and the PDF/X results do not apply to it and are outside its scope, not unavailable. Use the tool's results for the checks it makes, without reproducing its deterministic work. Do those results identify these files and supply every required check within that coverage? Yes: use them. A result fails: return the evidenced failure as Findings. A result is missing, cannot be tied to these files or does not cover a required property beyond the geometry the config establishes: name the required check as unavailable, rather than treating build success as its evidence.
 
 Does the evidence establish production readiness in that scope, apart from PDF/X-1a conformance? Yes: return **Ready**, identifying the edition and files. An evidenced defect remains: return **Findings**. A required check remains unavailable: withhold the affected readiness claim. Conformance evidence follows Rule 1 and is not a reason to rebuild merely to obtain a certification claim.
 
@@ -71,7 +71,7 @@ Does the evidence establish production readiness in that scope, apart from PDF/X
 ## Rules
 
 1. Book Publisher's PDF/X checks are structural and return `certified: false`. Never call a file PDF/X-1a conformant on those checks. Conformance requires evidence from the printer's own upload preflight or Adobe Acrobat Pro's Preflight for these exact files. Send a conformance finding to Publish Book's preflight hand-off; any concrete correction it identifies still receives its route under Verdicts. Absent evidence is pending conformance, separate from Job 3's readiness scope.
-2. No primitive in this root produces a print interior with bleed or a print cover with its spine. Book Publisher has no bleed setting and builds interiors. A requested build of either remains unproduced by this root: name the gap and withhold dependent artifact readiness, per the constitution's Behavioral Core; a file the session makes itself on the member's ask, as that rule allows, is said to be the session's and carries no readiness verdict. At setup, a platform's bleed requirement is a specification finding unless Production requirements record the member's waiver.
+2. Book Publisher builds print interiors with 0.125 in of bleed on the outer, top and bottom edges when `trim.bleed` enables it. Bind-side bleed and a print cover with its spine remain gaps. A requested build of either remains unproduced by this root: name the gap and withhold dependent artifact readiness, per the constitution's Behavioral Core; a file the session makes itself on the member's ask, as that rule allows, is said to be the session's and carries no readiness verdict. At setup, a platform's bleed requirement the edition settings do not meet is a specification finding unless Production requirements record the member's waiver.
 3. Select and hand over skills under `standards/primitives.md` Invocation, and do no skill's work inside a verdict.
 
 ## Pitfalls

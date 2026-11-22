@@ -3,9 +3,9 @@ name: Set Up Book
 type: skill
 category: onboarding
 description: Settle a book's production decisions and fill its project instructions and edition configurations before writing or bringing in a manuscript
-version: 0.1.2
+version: 0.1.3
 gaps:
-  - producing a print interior with bleed
+  - producing a print interior with bind-side bleed
 ---
 
 # Set Up Book
@@ -54,7 +54,7 @@ Which editions and destinations are settled? All named: retain them. Missing or 
 
 Are the book details supplied? Yes: check them against the tool's required fields. Missing: ask for the required details before configuring.
 
-Are each edition's trim, margins, binding, expected extent and front and back matter settled against the tool contract and the current platform documents read in Step 1? Yes: retain them. Unsettled: propose supported choices together with their production reason and take the member's decision. Conflicting or unsupported requirements: name the conflict and a supported option and ask; unresolved, stop that edition rather than inventing a setting. Producing a print interior with bleed is this skill's declared gap: an edition requiring it stops unless the member accepts it without bleed, a waiver Step 5 records.
+Are each edition's trim, margins, binding, expected extent and front and back matter settled against the tool contract and the current platform documents read in Step 1? Yes: retain them. Unsettled: propose supported choices together with their production reason and take the member's decision. Conflicting or unsupported requirements: name the conflict and a supported option and ask; unresolved, stop that edition rather than inventing a setting. Book Publisher's `trim.bleed` provides 0.125 in on the outer, top and bottom edges when enabled. Producing a print interior with bind-side bleed is this skill's declared gap. An edition requiring it stops unless the member accepts it without bind-side bleed, a waiver Step 5 records.
 
 ### 3. Decide structure and retrieval
 

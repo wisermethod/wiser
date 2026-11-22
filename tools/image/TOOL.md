@@ -3,7 +3,7 @@ name: image
 type: tool
 category: media
 description: Applies local edits to an existing image or composites an overlay over a base image, and writes the result as a PNG, JPEG, or WEBP
-version: 0.3.5
+version: 0.3.6
 runs: local
 local-only: edit and compose read and write local images through sharp
 ---
@@ -16,7 +16,7 @@ One tool for raster files that already exist: local pixel edits on one image, or
 
 Use it whenever a raster image that already exists has to arrive somewhere in a different shape, or when two existing images have to become one file. A photograph cropped to a fixed frame, a screenshot resized to the dimensions a template expects, a PNG converted to WEBP or JPEG to cut its weight, a background dimmed or desaturated so text can sit on it, a scan turned upright, a cutout set at a measured place in a fixed frame, a prepared watermark, frame, border, badge, or texture stamped over a photograph. It costs nothing per run, needs no account, and answers in the time a file takes to read and write.
 
-Do not use it to change what the picture shows. Removing an object or a background, restyling, extending a scene, and anything else that has to understand the content are generative work, and they belong to `skills/Media Generator/` and the generation connector behind it, which this release does not ship. When the request matches neither this tool nor that generative work, ask, and do not run `edit` or `compose`. Do not use it for a different kind of input either: vector artwork is rendered by `render` `svg`, an HTML page by `render` `html`, a Mermaid diagram by `render` `mermaid`, and a live page by `render` `url`, each of which sizes its input properly; an SVG handed to `edit` is refused rather than quietly flattened at whatever size it declares. A video is `video-edit`.
+Do not use it to change what the picture shows. Removing an object or a background, restyling, extending a scene, and anything else that has to understand the content are generative work, and they belong to `skills/Media Generator/`. When the request matches neither this tool nor that generative work, ask, and do not run `edit` or `compose`. Do not use it for a different kind of input either: vector artwork is rendered by `render` `svg`, an HTML page by `render` `html`, a Mermaid diagram by `render` `mermaid`, and a live page by `render` `url`, each of which sizes its input properly; an SVG handed to `edit` is refused rather than quietly flattened at whatever size it declares. A video is `video-edit`.
 
 `edit` is one image on its own, including placement on an empty canvas at a position the caller computes. `compose` is two images, the overlay stretched over the base edge to edge. The same overlay across a set of bases is one `compose` per base. More than two overlays on one base is one `compose` per layer, each result fed in as the next base. Reach for the matching subcommand instead of wrapping one job as the other.
 

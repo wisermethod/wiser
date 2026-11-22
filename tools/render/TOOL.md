@@ -3,11 +3,10 @@ name: render
 type: tool
 category: media
 description: Renders local HTML to a PDF with CSS page geometry or to a PNG or JPEG, renders an SVG or Mermaid diagram to a PNG, and captures a PNG of a public web page after screening its address
-version: 0.3.2
+version: 0.3.3
 runs: both
 hosted:
   - html 8MiB 60s
-  - pdf 8MiB 60s
   - svg 8MiB 60s
   - mermaid 8MiB 60s
   - url 8MiB 60s
@@ -29,7 +28,7 @@ Classifier seam: none.
 
 ## Hosted mode
 
-`html`, `pdf`, `svg`, `mermaid`, and `url` run on either host through `scripts/render-core.js`. `pdf` uses one browser job per call and keeps upload and output bytes in memory. The host owns the browser and passes it as the third argument. Each job creates and closes its own context. `check` stays local because it surveys and installs this machine's browser. No core imports Node or a browser package.
+`html`, `svg`, `mermaid`, and `url` run on either host through `scripts/render-core.js`. `pdf` runs only on the member's side for now. It uses one browser job per call and keeps upload and output bytes in memory. The host owns the browser and passes it as the third argument. Each job creates and closes its own context. `check` stays local because it surveys and installs this machine's browser. No core imports Node or a browser package.
 
 Call `renderHtml`, `renderPdf`, `renderSvg`, `renderMermaid`, or `captureUrl` with JSON options and at most one `{ name, mediaType, bytes: Uint8Array }` upload. JSON option names are the CLI flags without `--`, converted to camelCase. Omit disk paths and CLI-only `install` and `overwrite`. `output` is an optional simple filename. HTML and PDF each accept one HTML file or one ZIP. Select the HTML inside a ZIP with `entry`, which defaults to root `index.html` or the only HTML file. SVG and Mermaid take one source file. Address capture takes no file. The return is `{ answer, files }`, each file carrying its name, media type and bytes. PDF defaults to `render.pdf` and returns `application/pdf`. Pass booleans for `printBackground` and `footerSkipFirst`, and a number for `footerFontSize`.
 
