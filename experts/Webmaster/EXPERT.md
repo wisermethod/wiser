@@ -3,7 +3,7 @@ name: Webmaster
 type: expert
 category: web
 description: Judge a site's search visibility, broken URLs, technical search foundations, content and authority, and the search artifacts made to improve them.
-version: 0.4.9
+version: 0.4.10
 ---
 
 # Webmaster

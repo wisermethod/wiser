@@ -3,7 +3,7 @@ name: vercel
 type: connector
 category: development
 description: Reads projects, their domains and deployments, removes a project domain, and creates a deployment, uploading its files by reference, with confirmation on every write
-version: 0.4.1
+version: 0.4.2
 ---
 
 # Vercel
@@ -36,7 +36,7 @@ vercel.deployments.create    { name, dir? | files? | git_source?, project?,
                                team_id?, slug? }                                     confirmation: always
 ```
 
-Projects and deployments are separate grants, both write-capable. `projects.list`, `projects.get` and `deployments.list` use the catalog. `projects.list_domains`, `projects.remove_domain`, `upload_file` and `create` reach the platform directly. `team_id` or `slug` selects the team where the action accepts it. `list_domains` and `remove_domain` accept `team_id` and not `slug`. Inputs use the manifest names, remapped to platform field casing.
+Projects and deployments are separate grants, both write-capable. `projects.list`, `projects.get` and `deployments.list` use the catalog. `projects.list_domains`, `projects.remove_domain`, `upload_file` and `create` reach the platform directly. `upload_file` and `create` run on the local gateway only, since each can read a file from this computer: through the Wiser endpoint a call to either answers `local_only` before anything is sent. `team_id` or `slug` selects the team where the action accepts it. `list_domains` and `remove_domain` accept `team_id` and not `slug`. Inputs use the manifest names, remapped to platform field casing.
 
 ### Project domains
 

@@ -3,7 +3,7 @@ name: icon-set
 type: tool
 category: media
 description: Searches two pinned open-source sets, Phosphor 2.1.1 (MIT) and Health Icons 2.0.0 (CC0 icons, MIT package), and writes one icon recoloured at the caller's size as an SVG file or a fragment to place inside a drawing
-version: 0.2.3
+version: 0.2.4
 runs: both
 hosted:
   - search 2KiB 15s
@@ -13,7 +13,7 @@ hosted:
 
 ## Context
 
-Use it for an icon as a detail inside a picture or an interface: a sign, a glyph on a drawn screen, a pictogram for a person. Drawing a scene or an illustration belongs to `skills/Illustrator/`. Do not use it for a logo or a brand mark, or for converting or editing an existing SVG, which belongs to `tools/image/` or `tools/render/`.
+Use it for an icon as a detail inside a picture or an interface: a sign, a glyph on a drawn screen, a pictogram for a person. Drawing a scene or an illustration belongs to `skills/Illustrator/`. Do not use it for a logo or a brand mark, or for converting or editing an existing SVG: `tools/render/` `svg` turns one into a picture, which `tools/image/` can then edit, and no tool here edits the SVG itself.
 
 Health Icons draws people in roles, ages and groups, and health subjects; Phosphor draws postures and everything else. Which set draws the people in a picture is `skills/Illustrator/drawing.md`'s People rule. `--set health` selects Health; omitting `--set` keeps Phosphor.
 

@@ -42,6 +42,6 @@ Run the checks in TOOL.md's Success section. On a correctly set up copy, `help`,
 
 **`chromium: false` / `Chromium cannot launch`** Read the `remediation` field on `node scripts/deck.js check` (or the error line). It names the gap and one next step. Missing OS libraries are self-healed where possible; otherwise the base image or a C compiler is the next step, never a root-only `install-deps` recipe from this tree.
 
-**Proxy-only egress / CDN decks stall** Export `HTTPS_PROXY` or `HTTP_PROXY` in the process environment; the shared runtime forwards them into Chromium automatically.
+**Proxy-only egress** Export `HTTPS_PROXY` or `HTTP_PROXY` in the process environment for the install, which reaches `registry.npmjs.org` and `cdn.playwright.dev`. Rendering fetches nothing: a deck's CDN reference is served from the carried reveal.js bytes or refused, as `TOOL.md` states, so a proxy does not make a CDN deck load.
 
 **Shared browser cache (optional)** To keep the Chromium build on a shared writable volume, and avoid re-fetching it for every fresh copy of this plugin, set `PLAYWRIGHT_BROWSERS_PATH` to that directory before install and render. Leave it unset for Playwright's own default. `tools/AGENTS.md` names where each setting puts the build.
