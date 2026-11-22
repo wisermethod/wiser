@@ -6,9 +6,8 @@ the plugin root:
     cp system/hooks/pre-commit .git/hooks/pre-commit
     chmod +x .git/hooks/pre-commit
 
-The check scans the staged set, except the typed-file and tool-frontmatter
-gates, which read the whole working tree, as the hook says where it runs
-them. It refuses operator build-workspace
+The check scans the staged set, except the typed-file, tool-frontmatter and
+delivery gates, which read the whole working tree. It refuses operator build-workspace
 paths, the lanes directory among them, so a reader who installs this plugin
 is not sent to a directory that does not ship. It accepts the user-root
 homonym declared by `standards/user-root.md` C3 and C8.
@@ -83,3 +82,19 @@ checked is what lands.
 Run it by hand at any time:
 
     bash system/gates/classifier-seam.sh --tree . --base HEAD
+
+## The delivery check
+
+When the staged set touches `skills/`, `experts/`, `tools/` or
+`system/deliverables.json`, the hook checks the working tree in `wiser` and
+in any other plugin that carries or is adding a delivery list. The gate
+checks that file-set users cite `tools/DELIVERY.md` and name their set,
+and that each skill that needs the procedure cites it or has a current
+exception in the list. The hook first compares each staged delivery input
+with disk, including deletions. The gate then reads the whole working
+tree, which can include other unstaged changes.
+
+From the plugin root, run the gate against the tree or its temporary fixtures.
+
+    sh system/gates/delivery.sh .
+    sh system/gates/delivery.sh --self-test

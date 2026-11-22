@@ -1,0 +1,52 @@
+{
+  "sets": [
+    {
+      "name": "starter-personal",
+      "source": { "kind": "personal-starter" },
+      "maxBytes": 65536,
+      "users": ["skills/Onboard Root"]
+    }
+  ],
+  "exceptions": [
+    {
+      "skill": "skills/Animated Explainer",
+      "reason": "The site and slide paths use the installed starters, and the video path stops without the plugin."
+    },
+    {
+      "skill": "skills/Ask in a Form",
+      "reason": "The skill names installed Form and Browser Control scripts for its local paths, and on the connector alone the hosted form engine already draws the form."
+    },
+    {
+      "skill": "skills/Build Brand",
+      "reason": "The skill runs programs from the installed plugin, stops on the connector alone, and its move to delivery belongs to brand flow."
+    },
+    {
+      "skill": "skills/Build Voice",
+      "reason": "Not yet assessed."
+    },
+    {
+      "skill": "skills/Connector Author",
+      "reason": "Not yet assessed."
+    },
+    {
+      "skill": "skills/Create Presentation",
+      "reason": "The skill copies its installed starter deck when no template is supplied, and that file is unavailable on the connector alone."
+    },
+    {
+      "skill": "skills/Headshot Normalizer",
+      "reason": "Not yet assessed."
+    },
+    {
+      "skill": "skills/Housekeeping",
+      "reason": "The update path compares against the installed template and runs the reference checker, both of which are unavailable on the connector alone."
+    },
+    {
+      "skill": "skills/Onboard Plugin Root",
+      "reason": "Not yet assessed."
+    },
+    {
+      "skill": "skills/SEO Assets",
+      "reason": "Not yet assessed."
+    }
+  ]
+}

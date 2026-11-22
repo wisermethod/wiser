@@ -165,3 +165,5 @@ Whether work that changes this root takes a Playbook is the test in `standards/p
 A change a member would notice is recorded in `CHANGELOG.md` in the release that ships it, and that release is tagged. `CHANGELOG.md` says what an entry holds and how a tag is named.
 
 `system/templates/` holds the root templates a new working folder is created from, and `skills/Onboard Root/` is what reads them. Everything under `system/templates/` is inert: a template's `AGENTS.md` and declarations belong to the copy it will become, not to this chain.
+
+`system/deliverables.json` lists the plugin's file sets for the hosted service to build from its pinned release. It also records which skills still need an exception to the delivery check in `system/gates/delivery.sh`.

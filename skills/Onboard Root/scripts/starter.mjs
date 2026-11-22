@@ -40,7 +40,7 @@ export function personalStarter(templateFiles) {
 
 const usage = `Usage: node starter.mjs <id|check|help> [--help]
   id       Print the personal starter id as plain text.
-  check    Check SKILL.md's download id; print one JSON object on success.
+  check    Verify Step 1 points to delivery and print the tracked starter's id and counts as JSON.
   help     Print this usage without reading git or the checkout.
   --help   Print this usage without reading git or the checkout.
 Requires git for id and check (presence check: git --version).
@@ -78,9 +78,9 @@ function main(args) {
     return;
   }
   const skill = readFileSync(resolve(root, 'skills/Onboard Root/SKILL.md'), 'utf8');
-  const ids = [...skill.matchAll(/\/starter\/personal-([0-9a-f]{16})\.tar\.gz/g)].map(match => match[1]);
-  if (ids.length !== 1 || ids[0] !== id) {
-    throw new Error(`Stale starter id in skills/Onboard Root/SKILL.md: ${ids.join(', ') || 'missing'}; tracked template computes ${id}. Update the download id to match the template and service pin.`);
+  const step = skill.split(/^### Step 1: Copy\r?$/m)[1]?.split(/^### /m)[0];
+  if (!step || !step.includes('`starter-personal`') || !step.includes('`tools/DELIVERY.md`') || step.includes('/starter/personal-')) {
+    throw new Error('SKILL.md Step 1 must name starter-personal, cite tools/DELIVERY.md and omit the starter download address.');
   }
   process.stdout.write(`${JSON.stringify({ id, files: files.size, bytes: [...files.values()].reduce((sum, bytes) => sum + bytes.length, 0) })}\n`);
 }

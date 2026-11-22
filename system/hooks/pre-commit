@@ -1,5 +1,5 @@
 #!/bin/sh
-# Five checks, triggered by the staged set.
+# Checks triggered by the staged set.
 #
 # Why these and not the others: over the 52 commits of the Close-out range, the
 # em-dash sweep fired zero times, the retired-word sweep fired zero times, and
@@ -132,22 +132,24 @@ if [ -f "$ROOT/tools/lib/build/one-file.mjs" ]; then
   data_paths=$(printf '%s\n' "$data_paths" "$graph_paths")
 fi
 
-# The builders read disk. Refuse a different staged blob before measuring it.
-# An absent index entry and absent disk file is a staged deletion, which the
-# corresponding builder must inspect. Linked inputs are refused as well.
-printf '%s\n' "$render_paths" "$deck_paths" "$asset_builder_paths" "$data_paths" | while IFS= read -r f; do
-  [ -n "$f" ] || continue
-  index_blob=$(git rev-parse --verify ":$f" 2>/dev/null) || index_blob=
-  if [ -z "$index_blob" ] && [ ! -e "$ROOT/$f" ] && [ ! -L "$ROOT/$f" ]; then continue; fi
-  disk_blob=
-  if [ -f "$ROOT/$f" ] && [ ! -L "$ROOT/$f" ]; then
-    disk_blob=$(git hash-object --no-filters -- "$ROOT/$f") || exit 1
-  fi
-  if [ -z "$index_blob" ] || [ "$index_blob" != "$disk_blob" ]; then
-    printf 'pre-commit: %s staged copy differs from the worktree, so stage the bytes to be checked.\n' "$f" >&2
-    exit 1
-  fi
-done || exit 1
+# These checks read disk. Refuse a different staged blob before measuring it.
+# A staged deletion must also be absent on disk.
+require_matching_index() {
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    index_blob=$(git rev-parse --verify ":$f" 2>/dev/null) || index_blob=
+    if [ -z "$index_blob" ] && [ ! -e "$ROOT/$f" ] && [ ! -L "$ROOT/$f" ]; then continue; fi
+    disk_blob=
+    if [ -f "$ROOT/$f" ] && [ ! -L "$ROOT/$f" ]; then
+      disk_blob=$(git hash-object --no-filters -- "$ROOT/$f") || return 1
+    fi
+    if [ -z "$index_blob" ] || [ "$index_blob" != "$disk_blob" ]; then
+      printf 'pre-commit: %s staged copy differs from the worktree, so stage the bytes to be checked.\n' "$f" >&2
+      return 1
+    fi
+  done
+}
+printf '%s\n' "$render_paths" "$deck_paths" "$asset_builder_paths" "$data_paths" | require_matching_index || exit 1
 
 check_carried_copy() {
   copy_log=$(mktemp "${TMPDIR:-/tmp}/wiser-copy-hook.XXXXXX") || return 1
@@ -260,5 +262,22 @@ if printf '%s\n' "$seam_staged" | $GREP -q -i -E '^(skills|experts|tools)/'; the
   fi
   bash "$SEAM" --tree "$ROOT" --base "$SEAM_BASE" --staged >/dev/null || {
     bash "$SEAM" --tree "$ROOT" --base "$SEAM_BASE" --staged >&2; exit 1; }
+fi
+
+# Delivery measures the working tree. Only the root that owns the list, or a
+# root adding one, takes this check. Include deletions and rename sources.
+delivery_paths=$(printf '%s\n' "$copy_paths" | $GREP -iE '^((skills|experts|tools)/|system/deliverables\.json$)')
+if [ -n "$delivery_paths" ] && {
+  [ -e "$ROOT/system/deliverables.json" ] ||
+  $GREP -qx 'root: wiser' "$ROOT/AGENTS.md" 2>/dev/null ||
+  printf '%s\n' "$copy_paths" | $GREP -qiE '^system/deliverables\.json$';
+}; then
+  printf '%s\n' "$delivery_paths" | require_matching_index || exit 1
+  DELIVERY=$(gate_path delivery.sh)
+  if [ ! -x "$DELIVERY" ]; then
+    echo "pre-commit: $DELIVERY is missing or not executable, so the delivery check could not run." >&2
+    exit 1
+  fi
+  "$DELIVERY" "$ROOT" || exit 1
 fi
 exit 0

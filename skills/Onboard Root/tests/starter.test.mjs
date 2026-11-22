@@ -2,9 +2,8 @@ import { tmpdir } from 'node:os';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { execFileSync, spawn, spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
-import { createServer } from 'node:http';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync, gunzipSync } from 'node:zlib';
@@ -18,7 +17,6 @@ const skillPath = 'skills/Onboard Root/SKILL.md';
 const skill = readFileSync(join(plugin, skillPath), 'utf8');
 const step = skill.split('### Step 1: Copy\n')[1].split('### Step 2: Voice\n')[0];
 const blocks = [...step.matchAll(/```(?:sh)?\n([\s\S]*?)\n```/g)].map(match => match[1]);
-const download = blocks.find(block => block.includes('/starter/personal-'));
 const fill = blocks.find(block => block.includes("folder='<folder name>'"));
 const grep = blocks.find(block => block.startsWith('grep -rn'));
 const expectedId = 'b16fc63c21ffec54';
@@ -217,28 +215,33 @@ test('starter id and check pass on this checkout', { skip: needs(['git']) }, () 
   assert.deepEqual(JSON.parse(check.stdout), { id: expectedId, files: 13, bytes: 11951 });
 });
 
-test('starter check names a stale SKILL.md id in a temporary checkout', { skip: needs(['git']) }, t => {
-  const { root, env } = checkoutCopy(t);
-  writeFileSync(join(root, skillPath), skill.replace(expectedId, '0000000000000000'));
-  const result = cli(root, ['check'], env);
-  assert.equal(result.status, 1);
-  assert.equal(result.stdout, '');
-  assert.match(result.stderr, /Stale starter id.*SKILL\.md.*0000000000000000/);
-  assert.ok(result.stderr.includes(expectedId));
-});
+for (const [label, change] of [
+  ['does not name the set', value => value.replace('`starter-personal`', '`other-set`')],
+  ['does not cite the page', value => value.replaceAll('`tools/DELIVERY.md`', '`tools/RUNNING.md`')],
+  ['names a starter download address', value => value + '\n/starter/personal-old.tar.gz\n'],
+]) {
+  test('starter check refuses Step 1 when it ' + label, { skip: needs(['git']) }, t => {
+    const { root, env } = checkoutCopy(t);
+    writeFileSync(join(root, skillPath), skill.replace(step, change(step)));
+    const result = cli(root, ['check'], env);
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, '');
+    assert.match(result.stderr, /SKILL\.md Step 1 must name starter-personal, cite tools\/DELIVERY\.md and omit the starter download address/);
+  });
+}
 
-test('starter check names the old and computed ids when tracked bytes change', { skip: needs(['git']) }, t => {
+test('starter check reports the computed id when tracked bytes change', { skip: needs(['git']) }, t => {
   const { root, env } = checkoutCopy(t);
   const changed = join(root, prefix, 'CLAUDE.md');
-  writeFileSync(changed, Buffer.concat([readFileSync(changed), Buffer.from('\nChanged tracked bytes.\n')]));
+  const extra = Buffer.from('\nChanged tracked bytes.\n');
+  writeFileSync(changed, Buffer.concat([readFileSync(changed), extra]));
   const id = cli(root, ['id'], env);
   assert.equal(id.status, 0, id.stderr);
   assert.notEqual(id.stdout.trim(), expectedId);
   const result = cli(root, ['check'], env);
-  assert.equal(result.status, 1);
-  assert.equal(result.stdout, '');
-  assert.ok(result.stderr.includes(expectedId));
-  assert.ok(result.stderr.includes(id.stdout.trim()));
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stderr, '');
+  assert.deepEqual(JSON.parse(result.stdout), { id: id.stdout.trim(), files: 13, bytes: 11951 + extra.length });
 });
 
 test('starter ignores untracked files and .DS_Store', { skip: needs(['git']) }, t => {
@@ -271,13 +274,16 @@ test('starter help works without git; unknown flags and unavailable git fail cle
   assert.match(noGit.stderr, /git is unavailable.*git --version/);
 });
 
-test('Step 1 provides fixed commands, the download on the origin of the wiser server in .mcp.json', () => {
-  assert.ok(download && fill && grep);
-  const url = download.match(/'(https:[^']+)'/)[1];
-  const configured = JSON.parse(readFileSync(join(plugin, '.mcp.json'), 'utf8')).mcpServers.wiser.url;
-  assert.equal(url, `${new URL(configured).origin}/starter/personal-${expectedId}.tar.gz`);
-  assert.match(step, /single quotes, writing every `'` as `'\\''`/);
+test('Step 1 names the starter set and routes it through the delivery page', () => {
+  assert.match(step, /`starter-personal`/);
+  assert.match(step, /`tools\/DELIVERY\.md`/);
+  assert.doesNotMatch(step, /\bcurl\b|account\.wisermemory\.com|wiser\.(?:starter\.personal|delivery\.get)|\/starter\/personal-/i);
+});
+
+test('Step 1 has fixed fill and placeholder-check commands', () => {
+  assert.ok(fill && grep);
   assert.doesNotMatch(fill, /\b(?:sed|perl|python)\b/);
+  assert.equal(grep, String.raw`grep -rn '\[name\]' '<the root>'; s=$?; [ "$s" -eq 1 ] && echo none; [ "$s" -le 1 ]`);
 });
 
 // BASH5 names a bash 5.2 or later anywhere, for a machine whose bash 5 is not Homebrew's.
@@ -293,7 +299,7 @@ const shells = [
 ];
 const shellNeeds = (shell, commands) => shell.command ? needs([shell.command, ...commands]) : shell.absent;
 const filledCommand = (root, folder, person) => fill.replace("'<destination>'", quote(root)).replace("'<folder name>'", quote(folder)).replace("'<person name>'", quote(person));
-const grepCommand = root => grep.replace('"<the root>"', quote(root));
+const grepCommand = root => grep.replace("'<the root>'", quote(root));
 const allowedFolder = name => /^[\p{L}\p{N} _.-]+$/u.test(name) && !/^[ .]|[ .]$/.test(name) && !/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)/i.test(name);
 
 test('existing folder with an approved Always section keeps exactly one through the scripted fill', { skip: needs(['/bin/bash', 'git', 'cat']) }, t => {
@@ -332,8 +338,8 @@ for (const shell of shells) {
       assert.equal(result.stdout, '');
       equalFiles(readFiles(root), expectedFill(files, folder, person));
       const checked = spawnSync(shell.command, ['-c', grepCommand(root)], { encoding: 'utf8' });
-      assert.equal(checked.status, 1, checked.stderr); // grep's no-match result.
-      assert.equal(checked.stdout, '');
+      assert.equal(checked.status, 0, checked.stderr);
+      assert.equal(checked.stdout, 'none\n');
       assert.equal(checked.stderr, '');
     });
   }
@@ -363,13 +369,14 @@ for (const shell of shells) {
     const result = spawnSync(shell.command, ['-c', filledCommand(root, 'Rowan', 'Rowan')], { encoding: 'utf8' });
     assert.notEqual(result.status, 0);
   });
-  test(`download extracted from SKILL.md under ${shell.name}: a quoted ~ path is refused and makes nothing`, { skip: shellNeeds(shell, ['curl', 'tar', 'mktemp', 'rm']) }, t => {
-    const directory = scratch(t);
-    const remote = download.match(/'(https:[^']+)'/)[1];
-    const command = download.replace(quote(remote), quote('http://127.0.0.1:9/never')).replaceAll("'<destination>'", quote('~/Desktop/Wiser/Ann'));
-    const result = spawnSync(shell.command, ['-c', command], { cwd: directory, encoding: 'utf8', env: { ...process.env, HOME: directory } });
-    assert.notEqual(result.status, 0);
-    assert.deepEqual(readdirSync(directory), [], 'a folder was made');
+  test(`placeholder check prints a hit and exits 0 under ${shell.name}`, { skip: shellNeeds(shell, ['grep']) }, t => {
+    const root = join(scratch(t), "O'Brien destination");
+    const pending = join(root, 'pending.md');
+    writeFiles(root, new Map([['pending.md', Buffer.from('[name]\n')]]));
+    const checked = spawnSync(shell.command, ['-c', grepCommand(root)], { encoding: 'utf8' });
+    assert.equal(checked.status, 0, checked.stderr);
+    assert.equal(checked.stdout, `${pending}:1:[name]\n`);
+    assert.equal(checked.stderr, '');
   });
 }
 
@@ -402,7 +409,7 @@ function archive(files) {
   return gzipSync(Buffer.concat(blocks), { mtime: 0 });
 }
 
-test('HTTP fixture archive follows deterministic gzip and POSIX ustar rules', { skip: needs(['git']) }, () => {
+test('Starter fixture archive follows deterministic gzip and POSIX ustar rules', { skip: needs(['git']) }, () => {
   const files = personalStarter(trackedTemplate()).files;
   const compressed = archive(files);
   assert.ok(compressed.equals(archive(files)));
@@ -439,58 +446,8 @@ test('HTTP fixture archive follows deterministic gzip and POSIX ustar rules', { 
   equalFiles(extracted, files);
 });
 
-function runShell(shell, command, env) {
-  return new Promise((resolveResult, reject) => {
-    const child = spawn(shell, ['-c', command], { env });
-    let stdout = '', stderr = '';
-    const timer = setTimeout(() => { child.kill(); reject(new Error('local download timed out')); }, 10000);
-    child.stdout.on('data', bytes => { stdout += bytes; });
-    child.stderr.on('data', bytes => { stderr += bytes; });
-    child.on('error', error => { clearTimeout(timer); reject(error); });
-    child.on('close', status => { clearTimeout(timer); resolveResult({ status, stdout, stderr }); });
-  });
-}
-
-for (const shell of shells) {
-  for (const status of [200, 404]) {
-    test(`download extracted from SKILL.md under ${shell.name}: HTTP ${status}`, { skip: shellNeeds(shell, ['git', 'curl', 'tar', 'mktemp', 'rm']) }, async t => {
-      const files = personalStarter(trackedTemplate()).files;
-      const body = status === 200 ? archive(files) : Buffer.from('Not found\n');
-      const server = createServer((request, response) => {
-        assert.equal(request.url, `/starter/personal-${expectedId}.tar.gz`);
-        response.writeHead(status, { 'Content-Type': status === 200 ? 'application/gzip' : 'text/plain', 'Content-Length': body.length, Connection: 'close' });
-        response.end(body);
-      });
-      await new Promise((resolveListen, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolveListen); });
-      t.after(() => new Promise(resolveClose => server.close(resolveClose)));
-      const directory = scratch(t);
-      const root = join(directory, "O'Brien destination");
-      const tmp = join(directory, 'tmp');
-      mkdirSync(root); mkdirSync(tmp);
-      const before = status === 404 ? new Map([['keep.txt', Buffer.from('keep exactly\n')]]) : new Map();
-      writeFiles(root, before);
-      const remote = download.match(/'(https:[^']+)'/)[1];
-      const local = `http://127.0.0.1:${server.address().port}/starter/personal-${expectedId}.tar.gz`;
-      const command = download.replace(quote(remote), quote(local)).replaceAll("'<destination>'", quote(root));
-      const result = await runShell(shell.command, command, { ...process.env, TMPDIR: tmp, NO_PROXY: '127.0.0.1', no_proxy: '127.0.0.1' });
-      assert.equal(result.stdout, '');
-      if (status === 200) assert.equal(result.status, 0, result.stderr);
-      else assert.notEqual(result.status, 0);
-      equalFiles(readFiles(root), status === 200 ? files : before);
-      assert.deepEqual(readdirSync(tmp), [], 'download removes its temporary file');
-    });
-  }
-  test(`download extracted from SKILL.md under ${shell.name}: a missing destination is refused, made by nothing, and a caller's t survives`, { skip: shellNeeds(shell, ['curl', 'tar', 'mktemp', 'rm']) }, async t => {
-    const directory = scratch(t);
-    const root = join(directory, 'Wiser', 'Rowan');
-    const keep = join(directory, 'keep.txt');
-    writeFileSync(keep, 'keep exactly\n');
-    const remote = download.match(/'(https:[^']+)'/)[1];
-    const command = `t=${quote(keep)}; ` + download.replace(quote(remote), quote('http://127.0.0.1:9/never')).replaceAll("'<destination>'", quote(root)) + `; s=$?; [ "$t" = ${quote(keep)} ] || s=99; exit "$s"`;
-    const result = await runShell(shell.command, command, { ...process.env, NO_PROXY: '127.0.0.1', no_proxy: '127.0.0.1' });
-    assert.notEqual(result.status, 0);
-    assert.notEqual(result.status, 99, 'the download changed the caller\'s t');
-    assert.equal(existsSync(join(directory, 'Wiser')), false, 'the download made a folder');
-    assert.equal(readFileSync(keep, 'utf8'), 'keep exactly\n');
-  });
-}
+test('placeholder check never reads a failure as none: a missing root fails and prints no none', { skip: needs(['/bin/bash', 'grep']) }, t => {
+  const missing = spawnSync('/bin/bash', ['-c', grepCommand(join(scratch(t), 'no such root'))], { encoding: 'utf8' });
+  assert.notEqual(missing.status, 0);
+  assert.doesNotMatch(missing.stdout, /none/);
+});

@@ -1,6 +1,6 @@
 # Hosting a tool command
 
-Use this page to prepare a portable core, a hosted declaration and shared cases. A command stays on the member's side when it needs more than one file, a directory, an app or device on the member's machine, or anything it cannot be handed in one call: stop and omit it from `hosted:`. A command that reads one file the caller names can be hosted, since the host hands the core that file's bytes. `copy-check`'s `facts` stops here: it needs three files (`--copy`, `--ledger`, `--fact-map`) and a list (`--allow`); do not bundle or drop inputs to make it fit. A hosted command returns files only in its answer.
+Use this page to prepare a portable core, a hosted declaration and shared cases. A command stays on the member's side when it needs more than one file, a directory, an app or device on the member's machine, or anything it cannot be handed in one call: stop and omit it from `hosted:`. A command that reads one file the caller names can be hosted, since the host hands the core that file's bytes. `copy-check`'s `facts` stops here: it needs three files (`--copy`, `--ledger`, `--fact-map`) and a list (`--allow`); do not bundle or drop inputs to make it fit. A hosted command returns files only in its answer. Hosting takes a member's file to Wiser's side for one call. Taking Wiser's own files to the member's side is the other direction and is `tools/DELIVERY.md`; a command is never hosted only because a session lacks the plugin's files to run it.
 
 ## 1. Isolate the work
 
