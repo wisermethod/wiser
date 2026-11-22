@@ -4,6 +4,19 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.22, November 22, 2026
+
+- Wiser's own files now reach a session that cannot read the plugin by one procedure, the page `tools/DELIVERY.md`. The session asks the Wiser connector for a named set of files, checks the archive it gets against its SHA-256, unpacks it, and removes its own copy. Where a step cannot be done it says so in one line and stops; it writes nothing from memory. (989893e8)
+- Onboard Root 0.50.9 sets up your folder from the plugin's own template where the session can read it, and otherwise gets the starter files by that page. It no longer starts with a download that Claude Cowork refuses, so setting up with only the Wiser connector shows no failed step before your folder is made. (989893e8, 609734a2)
+- The plugin no longer installs old copies of its own files. The 118 files under its `zArchive/` folders are removed; each is still in the repository's history. (a11e964d, 9fe32f95)
+- The ElevenLabs 0.1.2 and HeyGen 0.1.1 connector guides name the releases that shipped them where they said Unreleased, and the image tool 0.3.6 sends a request to generate a picture to Media Generator without saying its connector is not shipped. (99726b17)
+- The Cloudflare connector 0.11.2 guide records that the publisher's catalog for Pages deploys is published and matched its pin when read on November 22, 2026, where it said none was published. (99726b17, fe1d1cee)
+- Set Up Book 0.1.3 and the Publisher expert count the bleed Book Publisher makes on the outer, top and bottom edges of a print interior, leaving only bleed on the bind side as a gap, and read six PDF/X checks where they read five. (99726b17, fe1d1cee)
+- The render tool 0.3.3 says its `pdf` command runs only on your own computer, and the guide to running tools lists it among the commands that need a browser there. (99726b17)
+- Create Presentation 0.11.3 offers only the charts the chart tool draws, a bar chart or a line chart, and names any other chart as a gap at its slide. (99726b17)
+- SEO Assets 0.14.1 and seo-data 0.2.6 describe the Search Console sections of an audit as plain lists, an empty one included, which is the shape the tool accepts. (99726b17)
+- Four more places where a chat was sent into a refusal are corrected: the Vercel connector 0.4.2 says its file upload and create actions run on the local gateway only, the Webmaster expert 0.4.10 says a crawl on the Wiser endpoint reads at most 10 pages, icon-set 0.2.4 no longer sends an existing SVG to the image tool to edit, and deck-export's setup no longer says a proxy makes a deck load from a CDN. (d68added, fe1d1cee)
+
 ## v2026.11.21, November 21, 2026
 
 - The render tool 0.3.2 has a new `pdf` command. It turns a finished HTML page into a PDF at the page size and margins the page's own print styles set, and can add a page-number footer. It runs on your own computer; the Wiser endpoint does not serve it yet. (e639a6ca, 404c6613, 746dfafc)
