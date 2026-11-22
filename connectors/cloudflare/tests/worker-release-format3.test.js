@@ -17,8 +17,32 @@ const ROOT = `/accounts/${ACCOUNT}/workers`;
 const BASE = 'https://releases.example.com/';
 const CRM_VARS = { ACCESS_TEAM_DOMAIN: 'https://example-team.cloudflareaccess.com', ACCESS_AUD: 'audience', AGENT_CLIENT_ID: 'client',
   WISER_INSTANCE: 'demo', WISER_READ_ONLY: '' };
+const OWNER_EMAIL = 'First.Owner@example.com';
 const INTAKE_VARS = { INTAKE_ORIGIN: 'https://www.example.com', INTAKE_RETURN_URL: 'https://www.example.com/thanks',
   NOTICE_TO: 'recipient@example.com', NOTICE_FROM: 'sender@example.com' };
+// Ordered apps.*.vars copied from the published 0.2.0 and unsigned 0.3.0 manifests.
+const RELEASE_VAR_DECLARATIONS = {
+  '0.2.0': {
+    [CRM]: {
+      required: ['ACCESS_TEAM_DOMAIN', 'ACCESS_AUD', 'AGENT_CLIENT_ID', 'WISER_INSTANCE', 'WISER_READ_ONLY'],
+      optional: [],
+    },
+    [INTAKE]: {
+      required: ['INTAKE_ORIGIN', 'INTAKE_RETURN_URL', 'NOTICE_TO', 'NOTICE_FROM'],
+      optional: ['INTAKE_MAX_PER_ADDRESS_PER_DAY', 'INTAKE_MAX_PER_HOUR', 'CRM_URL'],
+    },
+  },
+  '0.3.0': {
+    [CRM]: {
+      required: ['ACCESS_TEAM_DOMAIN', 'ACCESS_AUD', 'AGENT_CLIENT_ID', 'WISER_INSTANCE', 'WISER_READ_ONLY', 'OWNER_EMAIL'],
+      optional: ['BRAND_NAME', 'BRAND_ACCENT'],
+    },
+    [INTAKE]: {
+      required: ['INTAKE_ORIGIN', 'INTAKE_RETURN_URL', 'NOTICE_TO', 'NOTICE_FROM'],
+      optional: ['INTAKE_MAX_PER_ADDRESS_PER_DAY', 'INTAKE_MAX_PER_HOUR', 'CRM_URL', 'NOTICE_FROM_NAME'],
+    },
+  },
+};
 const key = generateKeyPairSync('ed25519');
 const otherKey = generateKeyPairSync('ed25519');
 const rawKey = key.publicKey.export({ type: 'spki', format: 'der' }).subarray(-32);
@@ -45,7 +69,7 @@ function syntheticRelease() {
         assets: { binding: 'ASSETS', config: { html_handling: 'auto-trailing-slash', not_found_handling: 'single-page-application', run_worker_first: true },
           files: [{ path: '/index.html', ...record('<!doctype html>'), content_type: 'text/html; charset=utf-8' }] },
         bindings: { d1: [{ name: 'DB', database: 'crm' }, { name: 'INTAKE_DB', database: 'intake' }], mail: [] },
-        vars: { required: Object.keys(CRM_VARS), optional: [] },
+        vars: structuredClone(RELEASE_VAR_DECLARATIONS['0.2.0'][CRM]),
         migrations: { database: 'crm', table: 'd1_migrations',
           files: [{ name: '0001_baseline.sql', ...record('CREATE TABLE contacts (id TEXT);') }] },
       },
@@ -55,7 +79,7 @@ function syntheticRelease() {
         assets: null,
         bindings: { d1: [{ name: 'INTAKE_DB', database: 'intake' }],
           mail: [{ name: 'NOTICE', destination_var: 'NOTICE_TO', sender_var: 'NOTICE_FROM' }] },
-        vars: { required: Object.keys(INTAKE_VARS), optional: ['INTAKE_MAX_PER_ADDRESS_PER_DAY', 'INTAKE_MAX_PER_HOUR', 'CRM_URL'] },
+        vars: structuredClone(RELEASE_VAR_DECLARATIONS['0.2.0'][INTAKE]),
         migrations: { database: 'intake', table: 'd1_migrations',
           files: [{ name: '0001_intake.sql', ...record('CREATE TABLE submissions (id TEXT);') }] },
       },
@@ -176,10 +200,11 @@ async function setup(t, options = {}) {
     }
     assert.fail(`unexpected request: ${req.method} ${req.endpoint}`);
   };
+  const crmVars = release.version === '0.3.0' ? { ...CRM_VARS, OWNER_EMAIL } : CRM_VARS;
   const input = (app, overrides = {}) => ({
     account_id: ACCOUNT, script_name: app, app, version: release.version,
     database_id: app === CRM ? CRM_DB : INTAKE_DB,
-    vars: app === CRM ? CRM_VARS : INTAKE_VARS,
+    vars: app === CRM ? crmVars : INTAKE_VARS,
     peer_script_name: app === CRM ? INTAKE : CRM,
     ...(app === CRM ? { intake_database_id: INTAKE_DB } : {}),
     ...overrides,
@@ -228,6 +253,7 @@ async function installBoth(env) {
   assert.equal(env.calls.slice(firstDeployCall).some(({ endpoint }) => endpoint.endsWith(`/d1/database/${CRM_DB}/query`)), false);
   const crmPut = env.calls.filter(({ method }) => method === 'PUT').at(-1);
   const uploaded = JSON.parse(await metadata(crmPut));
+  const { vars: CRM_VARS } = env.input(CRM);
   assert.deepEqual(uploaded.bindings, [
     { type: 'd1', name: 'DB', database_id: CRM_DB },
     { type: 'd1', name: 'INTAKE_DB', database_id: INTAKE_DB },
@@ -245,8 +271,9 @@ test('format 3 installs intake and CRM with exact signed bindings, one shared ID
 
 function declareBrandVars(manifest) {
   manifest.version = '0.3.0';
-  manifest.apps[CRM].vars.optional.push('BRAND_NAME', 'BRAND_ACCENT');
-  manifest.apps[INTAKE].vars.optional.push('NOTICE_FROM_NAME');
+  for (const [app, declarations] of Object.entries(RELEASE_VAR_DECLARATIONS['0.3.0'])) {
+    manifest.apps[app].vars = structuredClone(declarations);
+  }
 }
 
 const brandVars = {
@@ -259,7 +286,7 @@ function setReleaseVars(env, app, vars) {
   return env.write('workers.set_vars', { account_id, script_name, app, version, vars });
 }
 
-async function assertBrandSettingsUpdate(env, app, vars) {
+async function assertSettingsUpdate(env, app, vars) {
   const before = env.deployed.get(app);
   const retained = before.filter(({ name }) => !Object.hasOwn(vars, name));
   const updates = Object.entries(vars).map(([name, text]) => ({ name, text, type: 'plain_text' }));
@@ -299,7 +326,7 @@ test('brand vars: a 0.3.0-shaped release installs both apps with defaults when o
   const env = await setup(t, { change: declareBrandVars });
   await installBoth(env);
   for (const app of [INTAKE, CRM]) {
-    await assertBrandSettingsUpdate(env, app, brandVars[app]);
+    await assertSettingsUpdate(env, app, brandVars[app]);
   }
 });
 
@@ -312,8 +339,8 @@ test('brand vars: a 0.3.0-shaped release deploys supplied brand bindings and acc
       Object.entries(brandVars[app]).map(([name, text]) => ({ name, text, type: 'plain_text' })));
   }
 
-  await assertBrandSettingsUpdate(env, CRM, { BRAND_NAME: '  Wiser Example  ', BRAND_ACCENT: '#Ab12f0' });
-  await assertBrandSettingsUpdate(env, INTAKE, { NOTICE_FROM_NAME: '  Enquiries From Wiser Example  ' });
+  await assertSettingsUpdate(env, CRM, { BRAND_NAME: '  Wiser Example  ', BRAND_ACCENT: '#Ab12f0' });
+  await assertSettingsUpdate(env, INTAKE, { NOTICE_FROM_NAME: '  Enquiries From Wiser Example  ' });
 });
 
 test('brand vars: a 0.2.0-shaped release installs both apps and refuses every undeclared brand variable', async (t) => {
@@ -339,13 +366,18 @@ test('brand vars: a 0.2.0-shaped release installs both apps and refuses every un
 });
 
 for (const [label, app, change, reason] of [
-  ['original CRM and branded intake', CRM, (m) => { m.apps[CRM].vars.optional = []; }, /variable declarations malformed.*same set/],
+  ['original CRM and branded intake', CRM, (m) => { m.apps[CRM].vars = structuredClone(RELEASE_VAR_DECLARATIONS['0.2.0'][CRM]); }, /variable declarations malformed.*same set/],
   ['branded CRM and original intake', INTAKE, (m) => { m.apps[INTAKE].vars.optional.pop(); }, /variable declarations malformed.*same set/],
+  ['six CRM required names with the original CRM optional list', CRM, (m) => { m.apps[CRM].vars.optional = []; }, /variable declarations malformed.*same set/],
+  ['five CRM required names with the branded CRM optional list', CRM, (m) => { m.apps[CRM].vars.required.pop(); }, /variable declarations malformed.*same set/],
   ['partial CRM list', CRM, (m) => { m.apps[CRM].vars.optional.pop(); }, /variable declarations.*malformed/i],
   ['reordered CRM list', INTAKE, (m) => { m.apps[CRM].vars.optional.reverse(); }, /variable declarations.*malformed/i],
   ['reordered intake list', CRM, (m) => { m.apps[INTAKE].vars.optional.reverse(); }, /variable declarations.*malformed/i],
+  ['reordered CRM required list', INTAKE, (m) => { m.apps[CRM].vars.required.reverse(); }, /variable declarations.*malformed/i],
+  ['reordered intake required list', CRM, (m) => { m.apps[INTAKE].vars.required.reverse(); }, /variable declarations.*malformed/i],
   ['duplicated intake name', INTAKE, (m) => { m.apps[INTAKE].vars.optional.push('NOTICE_FROM_NAME'); }, /variable declarations.*malformed/i],
   ['extra CRM name', CRM, (m) => { m.apps[CRM].vars.optional.push('NOTICE_FROM_NAME'); }, /variable declarations.*malformed/i],
+  ['extra CRM required name', INTAKE, (m) => { m.apps[CRM].vars.required.push('OTHER_VAR'); }, /variable declarations.*malformed/i],
 ]) {
   test(`brand vars: format 3 refuses ${label}`, async (t) => {
     const env = await setup(t, { change: (m) => { declareBrandVars(m); change(m); } });
@@ -360,6 +392,52 @@ for (const [label, app, change, reason] of [
 
 const nonBmpLetter = '\u{10400}';
 const nameControls = ['\x00', '\t', '\r', '\n', '\x7f', '\x85', '\u2028', '\u2029', '<', '>'];
+
+test('owner email: 0.3.0 CRM deploy refuses a missing OWNER_EMAIL before Cloudflare', async (t) => {
+  const env = await setup(t, { change: declareBrandVars });
+  const result = await env.deploy(CRM, { vars: CRM_VARS });
+  assert.equal(result.status, 'invalid_arguments');
+  assert.equal(result.field, 'vars');
+  assert.match(result.reason, /missing or empty required variable/);
+  assert.deepEqual(env.calls, []);
+});
+
+test('owner email: the 0.2.0 declaration rejects OWNER_EMAIL as undeclared on deploy and set_vars', async (t) => {
+  const env = await setup(t, { change: (manifest) => { manifest.version = '0.2.0'; } });
+  for (const result of [await env.deploy(CRM, { vars: { ...CRM_VARS, OWNER_EMAIL } }),
+    await setReleaseVars(env, CRM, { OWNER_EMAIL })]) {
+    assert.equal(result.status, 'invalid_arguments');
+    assert.equal(result.field, 'vars');
+    assert.match(result.reason, /undeclared variable/);
+  }
+  assert.deepEqual(env.calls, []);
+});
+
+test('owner email: deploy and set_vars refuse addresses outside plainEmail before Cloudflare', async (t) => {
+  const env = await setup(t, { change: declareBrandVars });
+  const invalidEmails = ['', 'owner.example.com', '@example.com', 'owner@', 'owner@@example.com',
+    ...[...nameControls, ' ', '\u00a0', ',', ';'].map((character) => `first${character}owner@example.com`),
+    'owner@example.com\n', ' owner@example.com'];
+  for (const value of invalidEmails) {
+    const supplied = { OWNER_EMAIL: value };
+    for (const result of [await env.deploy(CRM, { vars: { ...CRM_VARS, ...supplied } }),
+      await setReleaseVars(env, CRM, supplied)]) {
+      assert.equal(result.status, 'invalid_arguments');
+      assert.equal(result.field, 'OWNER_EMAIL');
+      assert.match(result.reason, /OWNER_EMAIL must be one plain email address/);
+      if (value) assert.ok(!result.reason.includes(value));
+    }
+    assert.deepEqual(env.calls, []);
+  }
+});
+
+test('owner email: deploy and set_vars pass well-formed addresses through verbatim', async (t) => {
+  const env = await setup(t, { change: declareBrandVars });
+  await installBoth(env);
+  assert.deepEqual(env.deployed.get(CRM).find(({ name }) => name === 'OWNER_EMAIL'),
+    { name: 'OWNER_EMAIL', text: OWNER_EMAIL, type: 'plain_text' });
+  await assertSettingsUpdate(env, CRM, { OWNER_EMAIL: 'Équipe+Owner@example.com' });
+});
 
 for (const [app, name, invalidValues, validValues] of [
   [CRM, 'BRAND_NAME',
@@ -393,7 +471,7 @@ for (const [app, name, invalidValues, validValues] of [
       assert.equal(result.app, app);
       assert.deepEqual(env.deployed.get(app).find((binding) => binding.name === name),
         { name, text: value, type: 'plain_text' });
-      await assertBrandSettingsUpdate(env, app, { [name]: value });
+      await assertSettingsUpdate(env, app, { [name]: value });
     }
   });
 }

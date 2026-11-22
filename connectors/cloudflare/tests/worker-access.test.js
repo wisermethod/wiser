@@ -20,6 +20,7 @@ const inputs = {
   create_app: { account_id: ACCOUNT, hostname: 'crm.example.com', name: 'CRM', policy_ids: [POLICY] },
   create_policy: { account_id: ACCOUNT, name: 'CRM staff', decision: 'allow', emails: ['one@example.com'] },
   set_staff: { account_id: ACCOUNT, policy_id: POLICY, remove: 'one@example.com' },
+  list_staff: { account_id: ACCOUNT, policy_id: POLICY },
   get_app: { account_id: ACCOUNT, app_id: ID },
 };
 const app = () => ({ id: ID, type: 'self_hosted', domain: 'crm.example.com', self_hosted_domains: ['crm.example.com'], destinations: [{ type: 'public', uri: 'crm.example.com' }],
@@ -91,10 +92,11 @@ for (const [action, input] of Object.entries(inputs)) {
     const env = await setup(t); const result = await env.execute(action);
     assert.equal(result.success, true); clean(result);
     const keys = { create_app: ['success', 'id', 'aud'], create_policy: ['success', 'id'],
-      set_staff: ['success', 'policy_id', 'changed', 'before', 'after'], get_app: ['success', 'id', 'aud', 'hostname', 'policy_ids'] };
+      set_staff: ['success', 'policy_id', 'changed', 'before', 'after'], list_staff: ['success', 'policy_id', 'emails'],
+      get_app: ['success', 'id', 'aud', 'hostname', 'policy_ids'] };
     assert.deepEqual(Object.keys(result).sort(), keys[action].sort());
   });
-  if (action !== 'get_app') {
+  if (action !== 'get_app' && action !== 'list_staff') {
     test(`${action}: confirmation always stops before transport`, async (t) => {
       const env = await setup(t);
       const first = await env.gw.execute({ action: `cloudflare.access.${action}`, input });
@@ -186,6 +188,82 @@ for (const policy of [{ ...staff(), decision: 'non_identity' }, { ...staff(), in
     const env = await setup(t, { policy }); assert.equal((await env.execute('set_staff')).status, 'invalid_arguments'); assert.equal(env.calls.length, 2);
   });
 }
+
+const staffRead = [['GET', ROOT + '/organizations'], ['GET', ROOT + '/policies/' + POLICY]];
+test('list_staff: returns only the stored emails in order and case using two GETs without confirmation', async (t) => {
+  const emails = ['Zoe@example.com', 'alice@example.com', 'zOE@example.com'];
+  const env = await setup(t, { policy: staff(emails) });
+  const result = await env.gw.execute({ action: 'cloudflare.access.list_staff', input: inputs.list_staff });
+  assert.deepEqual(result, { success: true, policy_id: POLICY, emails });
+  assert.deepEqual(trace(env.calls), staffRead);
+});
+
+for (const count of [1, 50]) test(`list_staff: accepts ${count} email includes with absent exclude and require`, async (t) => {
+  const emails = Array.from({ length: count }, (_, index) => `person${index}@example.com`);
+  const { exclude, require, ...policy } = staff(emails);
+  const env = await setup(t, { policy });
+  assert.deepEqual(await env.execute('list_staff'), { success: true, policy_id: POLICY, emails });
+  assert.deepEqual(trace(env.calls), staffRead);
+});
+
+test('list_staff: disabled Access refuses after only the organization GET', async (t) => {
+  const env = await setup(t, { off: true });
+  const answer = await env.execute('list_staff');
+  assert.deepEqual(answer, await env.execute('set_staff'));
+  assert.equal(answer.status, 'denied');
+  assert.equal(answer.access_enabled, false);
+  assert.match(answer.reason, /Access is not enabled/);
+  assert.deepEqual(trace(env.calls), [staffRead[0], staffRead[0]]);
+});
+
+const staffRuleRefusal = 'Staff changes require a reusable Allow policy containing only 1 to 50 explicit email includes.';
+const staffPolicyRefusal = 'The policy has unsupported settings or is not reusable; update it in Cloudflare.';
+for (const [label, policy, reason] of [
+  ['policy is not reusable', { ...staff(), reusable: false }, staffPolicyRefusal],
+  ['non-Allow decision', { ...staff(), decision: 'deny' }, staffRuleRefusal],
+  ['non-email include', { ...staff(), include: [{ everyone: {} }] }, staffRuleRefusal],
+  ['zero includes', staff([]), staffRuleRefusal],
+  ['51 includes', staff(Array.from({ length: 51 }, (_, index) => `person${index}@example.com`)), staffRuleRefusal],
+  ['nonempty exclude', { ...staff(), exclude: staff().include }, 'exclude must be absent or an empty array.'],
+  ['nonempty require', { ...staff(), require: staff().include }, 'require must be absent or an empty array.'],
+  ['unfamiliar setting', { ...staff(), future_setting: true }, staffPolicyRefusal],
+  ['mismatched policy id', { ...staff(), id: ID }, staffPolicyRefusal],
+]) test(`list_staff: refuses ${label} with the set_staff wording`, async (t) => {
+  const env = await setup(t, { policy });
+  const expected = { status: 'invalid_arguments', field: 'policy_id', reason };
+  assert.deepEqual(await env.execute('list_staff'), expected);
+  assert.deepEqual(await env.execute('set_staff'), expected);
+  assert.deepEqual(trace(env.calls), [...staffRead, ...staffRead]);
+});
+
+test('list_staff: propagates a sanitized policy vendor error and stops after two GETs', async (t) => {
+  const env = await setup(t, { responder: (req) => req.endpoint.endsWith('/organizations')
+    ? ok({ auth_domain: 'team.cloudflareaccess.com' }) : error(502) });
+  const answer = await env.execute('list_staff');
+  assert.deepEqual(answer, await env.execute('set_staff'));
+  assert.equal(answer.status, 'vendor_error');
+  assert.equal(answer.http_status, 502);
+  assert.equal(answer.endpoint, ROOT + '/policies/' + POLICY);
+  assert.deepEqual(trace(env.calls), [...staffRead, ...staffRead]);
+});
+
+test('list_staff: publishes only the staff IDs and the service token listing’s execution settings', async (t) => {
+  const { list_staff, set_staff, list_service_tokens } = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url))).modules.access.actions;
+  for (const key of ['privilege', 'risk', 'confirmation', 'execution']) assert.deepEqual(list_staff[key], list_service_tokens[key]);
+  assert.deepEqual(list_staff.input, {
+    type: 'object',
+    properties: { account_id: set_staff.input.properties.account_id, policy_id: set_staff.input.properties.policy_id },
+    required: ['account_id', 'policy_id'],
+    additionalProperties: false,
+  });
+  const env = await setup(t);
+  for (const input of [{ account_id: ACCOUNT }, { ...inputs.list_staff, policy_id: ID.toUpperCase() },
+    { ...inputs.list_staff, add: 'three@example.com' }, { ...inputs.list_staff, remove: 'one@example.com' }]) {
+    assert.equal((await env.execute('list_staff', input)).status, 'invalid_arguments');
+  }
+  assert.deepEqual(env.calls, []);
+});
+
 test('get_app: only hostname, policy ids and public audience are returned', async (t) => {
   const env = await setup(t); const result = await env.execute('get_app');
   assert.deepEqual(trace(env.calls), [['GET', ROOT + '/apps/' + ID], ['GET', ROOT + '/policies/' + POLICY]]);
@@ -216,7 +294,7 @@ test('all Access schemas: recursive field walk has no secret-named input and Q7 
   };
   for (const [name, action] of Object.entries(actions)) {
     walk(action.input); assert.equal(action.input.additionalProperties, false);
-    assert.equal(action.confirmation, ['get_app', 'list_service_tokens'].includes(name) ? 'none' : 'always');
+    assert.equal(action.confirmation, ['get_app', 'list_service_tokens', 'list_staff'].includes(name) ? 'none' : 'always');
     assert.equal(Object.hasOwn(action.input.properties, 'read_service_tokens_from_header'), false);
   }
 });

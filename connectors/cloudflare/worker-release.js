@@ -182,17 +182,27 @@ function validDisplayName(value, maxLength) {
   return length > 0 && length <= maxLength && !/[\p{Cc}<>\u2028\u2029]/u.test(value);
 }
 
-const INTAKE_OPTIONAL = ['INTAKE_MAX_PER_ADDRESS_PER_DAY', 'INTAKE_MAX_PER_HOUR', 'CRM_URL'];
-
 // Wiser CRM release/FORMAT.md, “Format 3”. Both apps must match the same set
-// of optional declarations (original in 0.2.0, branded in 0.3.0).
+// of required and optional declarations (original in 0.2.0, branded in 0.3.0).
 // The installer reads the selected entry's declarations.
+const CRM_REQUIRED = ['ACCESS_TEAM_DOMAIN', 'ACCESS_AUD', 'AGENT_CLIENT_ID', 'WISER_INSTANCE', 'WISER_READ_ONLY'];
+const INTAKE_REQUIRED = ['INTAKE_ORIGIN', 'INTAKE_RETURN_URL', 'NOTICE_TO', 'NOTICE_FROM'];
+const INTAKE_OPTIONAL = ['INTAKE_MAX_PER_ADDRESS_PER_DAY', 'INTAKE_MAX_PER_HOUR', 'CRM_URL'];
+const VARIABLE_SETS = {
+  original: {
+    [CRM]: { required: CRM_REQUIRED, optional: [] },
+    [INTAKE]: { required: INTAKE_REQUIRED, optional: INTAKE_OPTIONAL },
+  },
+  branded: {
+    [CRM]: { required: [...CRM_REQUIRED, 'OWNER_EMAIL'], optional: ['BRAND_NAME', 'BRAND_ACCENT'] },
+    [INTAKE]: { required: INTAKE_REQUIRED, optional: [...INTAKE_OPTIONAL, 'NOTICE_FROM_NAME'] },
+  },
+};
+
 const RELEASE_APPS = {
   [CRM]: {
     d1: [{ name: 'DB', database: 'crm' }, { name: 'INTAKE_DB', database: 'intake' }],
     mail: [],
-    vars: { required: ['ACCESS_TEAM_DOMAIN', 'ACCESS_AUD', 'AGENT_CLIENT_ID', 'WISER_INSTANCE', 'WISER_READ_ONLY'],
-      optional: { original: [], branded: ['BRAND_NAME', 'BRAND_ACCENT'] } },
     // The Access and instance forms are from Wiser CRM d73341c.
     forms: {
       // worker/sign-in.ts isConfigured (called by worker/index.ts keySet).
@@ -203,6 +213,9 @@ const RELEASE_APPS = {
         'be a nonempty Access audience tag using only letters, digits, underscores, and hyphens'],
       // worker/sign-in.ts signIn, GET or HEAD /api/wiser/instance.
       WISER_INSTANCE: [Boolean, 'be a nonempty CRM instance name'],
+      // Wiser CRM runtime/people/index.ts plainEmail, called by worker/sign-in.ts signIn.
+      OWNER_EMAIL: [(value) => /^[^@]+@[^@]+$/.test(value) && !/[\s\p{Cc}<>,;]/u.test(value),
+        'be one plain email address with exactly one @, characters on both sides, and no whitespace, control characters, angle brackets, commas or semicolons'],
       // Wiser CRM 0.3.0 worker/brand.ts displayName ignores a malformed name and uses its default.
       // The connector deliberately refuses it so the installer can correct a typo.
       BRAND_NAME: [(value) => validDisplayName(value, 40),
@@ -216,8 +229,6 @@ const RELEASE_APPS = {
   [INTAKE]: {
     d1: [{ name: 'INTAKE_DB', database: 'intake' }],
     mail: [{ name: 'NOTICE', destination_var: 'NOTICE_TO', sender_var: 'NOTICE_FROM' }],
-    vars: { required: ['INTAKE_ORIGIN', 'INTAKE_RETURN_URL', 'NOTICE_TO', 'NOTICE_FROM'],
-      optional: { original: INTAKE_OPTIONAL, branded: [...INTAKE_OPTIONAL, 'NOTICE_FROM_NAME'] } },
     forms: {
       // intake/worker.ts fetch compares the configured value verbatim to Origin.
       INTAKE_ORIGIN: [(value) => !!value && value !== 'null' && headerValue('Origin', value) === value,
@@ -276,7 +287,7 @@ function checkedApp3(app, entry) {
   const spec = RELEASE_APPS[app];
   if (!orderedShape(bindings, ['d1', 'mail']) || !sameRecords(bindings.d1, spec.d1, ['name', 'database'])) return before(`release ${app} D1 bindings malformed`);
   if (!sameRecords(bindings.mail, spec.mail, ['name', 'destination_var', 'sender_var'])) return before(`release ${app} mail binding malformed`);
-  if (!orderedShape(vars, ['required', 'optional']) || !sameList(vars.required, spec.vars.required)) {
+  if (!orderedShape(vars, ['required', 'optional'])) {
     return before(`release ${app} variable declarations malformed`);
   }
   if (!orderedShape(migrations, ['database', 'table', 'files']) || migrations.database !== spec.d1[0].database
@@ -291,18 +302,15 @@ function checkedManifest3(manifest, input, raw) {
   if (!Object.hasOwn(manifest.apps, input.app)) return { error: before('release does not carry selected app') };
   const headerError = checkedHeader(manifest, { ...input, app: CRM }, ['apps']);
   if (headerError) return { error: headerError };
-  let optionalSet;
   for (const [app, entry] of Object.entries(manifest.apps)) {
     const error = checkedApp3(app, entry);
     if (error) return { error };
-    const match = Object.entries(RELEASE_APPS[app].vars.optional)
-      .find(([, names]) => sameList(entry.vars.optional, names));
-    if (!match) return { error: before(`release ${app} variable declarations malformed`) };
-    const [set] = match;
-    if (optionalSet !== undefined && set !== optionalSet) {
-      return { error: before('release variable declarations malformed: both apps must use the same set of optional variables') };
-    }
-    optionalSet = set;
+  }
+  const matches = Object.values(VARIABLE_SETS).some((set) => Object.entries(set).every(([app, vars]) =>
+    sameList(manifest.apps[app].vars.required, vars.required)
+    && sameList(manifest.apps[app].vars.optional, vars.optional)));
+  if (!matches) {
+    return { error: before('release variable declarations malformed: both apps must use the same set of required and optional variables') };
   }
   return checkedFiles(Object.values(manifest.apps), true);
 }

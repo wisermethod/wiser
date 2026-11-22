@@ -60,6 +60,7 @@ cloudflare.access.list_service_tokens { account_id }                            
 cloudflare.access.create_app       { account_id, hostname, name, policy_ids }     confirmation: always
 cloudflare.access.create_policy    { account_id, name, decision, emails? , service_token_id? } confirmation: always
 cloudflare.access.set_staff        { account_id, policy_id, add? , remove? }      confirmation: always
+cloudflare.access.list_staff       { account_id, policy_id }                     confirmation: none
 cloudflare.access.get_app          { account_id, app_id }                         confirmation: none
 
 cloudflare.workers.workers_subdomain { account_id }                            confirmation: none
@@ -419,6 +420,9 @@ settings updates pass each value through as supplied.
 - `ACCESS_AUD` is the nonempty audience tag from `access.get_app`. Use only
   letters, digits, underscores and hyphens.
 - `WISER_INSTANCE` is a nonempty instance name.
+- `OWNER_EMAIL` is one plain email address with exactly one at sign, characters
+  on both sides, and no whitespace, control characters, angle brackets, commas
+  or semicolons.
 - `BRAND_NAME` is the optional name shown beside “Wiser CRM”. Use 1 to 40
   characters after trimming, with no control characters, angle brackets or line breaks.
 - `BRAND_ACCENT` is the optional accent colour the CRM fits to readable tones.
@@ -442,6 +446,7 @@ settings updates pass each value through as supplied.
 Before the first format 3 install write, the installer checks both apps'
 required and any supplied optional install variables against the [forms above](#install-variable-forms)
 and the signed variable lists in [release/FORMAT.md](https://github.com/wisermethod/wiser-crm/blob/main/release/FORMAT.md#format-3).
+The 0.3.0 declaration set requires `OWNER_EMAIL` for the CRM.
 The 0.3.0 declaration set adds optional `BRAND_NAME` for the name shown beside
 “Wiser CRM”, `BRAND_ACCENT` for the accent colour the CRM fits to readable tones,
 and `NOTICE_FROM_NAME` for the notice email's sender name. The two apps must use
@@ -602,6 +607,14 @@ a failed read-back is a refusal, even when the write may already have taken effe
 A policy may contain at most 50 staff emails here. A concurrent edit between
 read and PUT can be overwritten; this action has no conditional-write guarantee.
 Changing a reusable policy affects every application carrying it.
+
+`access.list_staff` takes `account_id` and `policy_id`. It checks the Access
+organization and reads one reusable Allow policy, returning its id and the 1
+to 50 explicit emails in their stored order and case. It refuses disabled
+Access, an unreadable or mismatched policy, unfamiliar settings, and policies
+with other rule shapes or nonempty `exclude` or `require` lists. Use this read
+before and after a staff change, or to compare the policy with an app's own
+people list.
 
 `access.get_app` reads `account_id` and `app_id`, returning the single `hostname`,
 `policy_ids`, `aud`, `id` and `success`. It refuses an ambiguous application rather

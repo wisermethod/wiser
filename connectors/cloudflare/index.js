@@ -2798,6 +2798,18 @@ function accessStaffProblem(policy, id) {
   }
   return accessPolicyProblem(policy);
 }
+async function readAccessStaff(input, ctx) {
+  const team = await accessTeam(input, ctx);
+  if (team) return { error: team };
+  const req = { endpoint: `${accessPath(input.account_id)}/policies/${encodeURIComponent(input.policy_id)}`, method: 'GET' };
+  const { error, result: policy } = await strictProxyResponse(ctx, req);
+  if (error) return { error };
+  const emails = accessStaffEmails(policy);
+  if (!emails) return { error: invalid('policy_id', 'Staff changes require a reusable Allow policy containing only 1 to 50 explicit email includes.') };
+  const problem = accessStaffProblem(policy, input.policy_id);
+  if (problem) return { error: invalid('policy_id', problem) };
+  return { req, policy, emails };
+}
 async function accessRemoveFailedPolicy(account, id, failure, ctx) {
   const req = { endpoint: `${accessPath(account)}/policies/${encodeURIComponent(id)}`, method: 'DELETE' };
   const deleted = await strictProxyResponse(ctx, req);
@@ -3192,15 +3204,8 @@ export const modules = {
       const adding = Object.hasOwn(input, 'add');
       if (adding === Object.hasOwn(input, 'remove')) return invalid('add', 'Supply exactly one of add or remove.');
       if (!accessEmail(adding ? input.add : input.remove)) return invalid(adding ? 'add' : 'remove');
-      const team = await accessTeam(input, ctx);
-      if (team) return team;
-      const req = { endpoint: `${accessPath(input.account_id)}/policies/${encodeURIComponent(input.policy_id)}`, method: 'GET' };
-      const first = await strictProxyResponse(ctx, req);
-      if (first.error) return first.error;
-      const before = accessStaffEmails(first.result);
-      if (!before) return invalid('policy_id', 'Staff changes require a reusable Allow policy containing only 1 to 50 explicit email includes.');
-      const problem = accessStaffProblem(first.result, input.policy_id);
-      if (problem) return invalid('policy_id', problem);
+      const { error, req, policy, emails: before } = await readAccessStaff(input, ctx);
+      if (error) return error;
       const target = (adding ? input.add : input.remove).toLowerCase();
       const present = before.some((email) => email.toLowerCase() === target);
       const after = adding ? present ? [...before] : [...before, input.add] : before.filter((email) => email.toLowerCase() !== target);
@@ -3208,7 +3213,7 @@ export const modules = {
       if (after.length > 50) return invalid('add', 'A staff policy may contain at most 50 emails.');
       const changed = !sameStaff(before, after);
       if (changed) {
-        const body = Object.fromEntries(ACCESS_POLICY_FIELDS.filter((key) => Object.hasOwn(first.result, key)).map((key) => [key, first.result[key]]));
+        const body = Object.fromEntries(ACCESS_POLICY_FIELDS.filter((key) => Object.hasOwn(policy, key)).map((key) => [key, policy[key]]));
         body.include = after.map((email) => ({ email: { email } }));
         const written = await strictProxyResponse(ctx, { ...req, method: 'PUT', body });
         if (written.error) return written.error;
@@ -3220,6 +3225,11 @@ export const modules = {
         return { ...strictVendorError(req), reason: 'Staff policy read-back did not confirm the requested emails and supported settings.' };
       }
       return { success: true, policy_id: input.policy_id, changed, before, after: readBack };
+    },
+    async list_staff(input, ctx) {
+      const { error, emails } = await readAccessStaff(input, ctx);
+      if (error) return error;
+      return { success: true, policy_id: input.policy_id, emails };
     },
     async get_app(input, ctx) {
       const req = { endpoint: `${accessPath(input.account_id)}/apps/${encodeURIComponent(input.app_id)}`, method: 'GET' };

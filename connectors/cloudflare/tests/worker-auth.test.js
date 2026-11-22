@@ -32,6 +32,7 @@ test('fix2 access auth row covers app read, three writes and organization read w
   for (const action of ['create_app', 'create_policy', 'set_staff']) assert.ok(access.includes('`' + action + '`'));
   assert.match(access, /`create_app`, `create_policy` and `set_staff` need Account \/ Access: Apps and Policies \/ Write/);
   assert.match(access, /Account \/ Access: Organizations, Identity Providers, and Groups \/ Read/);
+  assert.match(access, /`list_staff` needs Account \/ Access: Apps and Policies \/ Read or Write for the policy and Account \/ Access: Organizations, Identity Providers, and Groups \/ Read for the organization check/);
   // The explicit exclusion is allowed; no affirmative permission clause may request it.
   assert.match(access, /No Service Tokens Write permission is needed/);
   assert.doesNotMatch(access.replace('No Service Tokens Write permission is needed', ''), /Service Tokens.*(?:Write|Edit)/i);
