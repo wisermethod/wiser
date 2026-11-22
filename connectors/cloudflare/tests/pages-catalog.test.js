@@ -3,7 +3,7 @@
 // first Cloudflare call. Every key here is an in-memory FIXTURE identity and
 // every publisher download is served by a fake; the shipping trust file is never
 // modified and no test reaches the network. A pass proves nothing about a
-// production catalog, which is unsigned and unpublished until its own step.
+// production catalog, which is signed and published by its own step.
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
