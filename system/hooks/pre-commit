@@ -106,7 +106,7 @@ if [ -n "$staged" ]; then
   "$ARCHIVE_GATE" --staged "$ROOT" || exit 1
 fi
 
-hits=$(mktemp "${TMPDIR:-/tmp}/wiser-precommit-hits.XXXXXX") || exit 1
+hits=$(mktemp "${TMPDIR:-/tmp}/wiser-precommit-hits.XXXXXX") || { echo "pre-commit: could not make a scratch file under ${TMPDIR:-/tmp}; cannot measure, so this commit is refused." >&2; exit 1; }
 printf '%s\n' "$staged" | while IFS= read -r f; do
   [ -n "$f" ] || continue
   git show ":$f" 2>/dev/null | $GREP -nE -- "$PATTERN" | while IFS= read -r hit; do

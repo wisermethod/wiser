@@ -14,9 +14,12 @@ list_paths() {
 }
 
 check_paths() {
-  local path refused=0
+  local path lower refused=0
   while IFS= read -r -d '' path; do
-    case "/$path" in */zArchive/*) ;; *) continue ;; esac
+    # Any spelling of the folder counts: on a filesystem that ignores case,
+    # zarchive/ is the same directory and ships the same way.
+    lower=$(printf '%s' "$path" | tr '[:upper:]' '[:lower:]')
+    case "/$lower" in */zarchive/*) ;; *) continue ;; esac
     case $path in
       system/templates/*/zArchive/.gitkeep)
         # A template's own placeholder is allowed only outside archived trees.
