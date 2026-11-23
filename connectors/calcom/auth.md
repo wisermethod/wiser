@@ -1,0 +1,49 @@
+# Connecting Cal.com
+
+Connect one personal Cal.com account per label to run `calcom.*` actions.
+
+## Which route
+
+- **The Wiser endpoint.** Sign in to Wiser in your app. Wiser uses its own provider project.
+- **The local gateway.** Attach the gateway to a command-line app and configure a provider project of your own.
+
+Both routes use a Cal.com API key and the same hosted connect flow. See [Gateway setup](../../gateway/SETUP.md).
+
+## On Cal.com's side, first
+
+1. In the Cal.com account you want to connect, open Settings > Developer > API keys.
+2. Create an API key with a name and an expiry. Cal.com offers no permission choice for the key.
+3. Use a key with the `cal_live_` prefix for a live Cal.com account. Keep it for the provider's hosted page in the next steps.
+
+## On the provider's side
+
+Toolkit `CAL` ships with the provider. There is nothing to register on either route. The gateway uses the API-key scheme.
+
+**One blueprint per toolkit, not per module**, and for a toolkit the provider already ships there is nothing to prepare: the gateway creates the blueprint on the first connect that finds none. A second blueprint on one toolkit makes every module on that toolkit unconnectable until it is removed, with a `vendor_error` naming the toolkit and the count.
+
+## Through the gateway
+
+1. Say "Connect Cal.com" and give the account's name, such as its Cal.com username, as the label. The skill can start with any Cal.com module, such as `profile`.
+2. The skill runs `start_connect` for service `calcom` and the module with that label, then gives you the hosted link.
+3. Open the link in your browser and enter the Cal.com API key only on the provider's page.
+4. The skill runs `connect_status` with the same label. On `ACTIVE`, every Cal.com module is bound under that label. Include the label when you call a Cal.com action.
+
+Use a distinct label for each additional account. See [Several accounts](CONNECTOR.md#several-accounts).
+
+## Revoking
+
+**Revoke through the gateway.** `disconnect`, with this service and any of its modules, revokes the credential at the provider and removes every local record of it.
+
+- **It ends every module bound to that credential and not only the one you name.** It stops first and lists them in `modules_ending`. **That list is what you approve**: if anything else is bound to the credential before you answer, nothing is revoked and it stops again with the new list. The answer reports what was actually removed.
+- **If someone wants one of those modules kept, their request cannot be met as asked, and saying so is the answer.** The credential is the unit; there is no way to end part of one. Two routes work. Either agree that both end, or first connect the module they want kept on a credential of its own, `start_connect` for that service and module and then `connect_status`, and only then run `disconnect`, **naming a module still on the old credential**, checking that `modules_ending` no longer lists the one you moved. **A labelled connection moves as one**: connecting again under a label moves every module of its toolkit under that label, so to keep one module out of a labelled connection, connect that module with no label first, then `disconnect` naming the label. **Do not approve the teardown hoping it spares one**, and do not take the vendor route instead, which is broader rather than narrower.
+- **The vendor route below does not reach the same set, and may reach further.** `disconnect` acts on one provider account, and that account is what defines its scope; `modules_ending` reports the local bindings known to it when it asks. Rolling or deleting a credential at the vendor acts on everything that credential authorises, which can include modules bound to a different provider account, other machines, and other people. **`modules_ending` does not describe the vendor route**; before taking it, work out what else uses that credential.
+- **It acts on one credential.** A service connected more than once needs one `disconnect` per credential. **`list_connections` shows what the gateway has recorded and nothing more**: it cannot establish that no credential for this service remains at the provider, because discovery lists only ACTIVE accounts, skips a toolkit holding more than one, and adds nothing when the provider cannot be read. To be sure a service is gone, check at the vendor. Do not read one teardown, or an empty listing, as removing a service entirely.
+- **Revoking is not scoped to this workspace.** The credential lives at the provider, and the store is per person rather than per workspace, so ending it can end access from another machine or another workspace using the same grant. Settle that before approving.
+- **It removes nothing locally unless the provider confirms the credential is gone**, so a grant that is merely suspended keeps its records.
+- **A finished teardown says what it established, in `credential_revoked`.** `yes` means every step the provider reported succeeded. **`unknown` means the provider's record of the credential is gone and an earlier step failed**, so the credential may still work at the vendor even though nothing here points at it any more. Removing the local rows is right either way; **`unknown` is not a completed cutoff**, and the vendor route below is what finishes it.
+
+**At the vendor instead**, if you would rather, or if `disconnect` answers `needs_provider_capability`, meaning this provider will not revoke this credential for you. In Cal.com, open Settings > Developer > API keys and delete the key. Afterwards run `connect_status` for each module you revoked and read what it returns: it asks the provider and records the answer, so the row stops reading ACTIVE only once the provider agrees, and a provider error leaves it unchanged. A `how` field on the gateway's answer is the adapter's own words; where it names a route this guide does not list, the two disagree and that is worth reporting rather than following.
+
+## Last connected
+
+Not yet.

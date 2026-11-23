@@ -106,6 +106,14 @@ const CONNECTORS = fileURLToPath(new URL('../../connectors', import.meta.url));
  * wrong entry fails loudly, and a pattern with no entry fails rather than being skipped.
  */
 const PATTERN_OK = {
+  // Cal.com identifiers, booking and calendar fields, colours, and workflow condition ids.
+  '^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$': 'event_1',
+  '^#?([0-9A-F]{3}|[0-9A-F]{4}|[0-9A-F]{6}|[0-9A-F]{8})$': '#ABC',
+  '^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$': '#aBc123',
+  '^#[0-9a-f]{6}$': '#abc123',
+  '^[\\w-]{1,64}$': 'condition-1',
+  '^[a-z0-9-]+$': 'personal-services',
+  '^\\d+,.+$': '135,calendar@example.test',
   // Gmail: single mailboxes, RFC Message-IDs and caller-named attachment paths.
   "^[^\\s@\\u0000,;:<>()\\[\\]\"\\\\]+@[^\\s@\\u0000,;:<>()\\[\\]\"\\\\]+$": "person@example.com",
   "^<[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*>$": "<parent.1@example.test>",

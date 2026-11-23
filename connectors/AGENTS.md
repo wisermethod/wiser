@@ -119,6 +119,7 @@ guide's `## Revoking` section carries the same working through, from `connectors
 | `linkedin/CONNECTOR.md` | Reads the connected profile and one post |
 | `x/CONNECTOR.md` | Reads the connected X account, one post and the account's own recent posts, and creates or deletes one post with confirmation |
 | `microsoft/CONNECTOR.md` | Reads Outlook messages, Calendar events, OneDrive files, SharePoint lists, Excel values, and joined teams through six separate grants |
+| `calcom/CONNECTOR.md` | Reads and manages bookings, availability, calendars, events, and related settings in personal Cal.com accounts through labelled connections, with confirmation on every write |
 
 ### Media
 

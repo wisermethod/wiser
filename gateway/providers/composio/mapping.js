@@ -124,6 +124,7 @@ const TOOLKITS = {
   courtlistener: 'CUSTOM_COURTLISTENER',
   vm: 'CUSTOM_VM',
   twenty: 'CUSTOM_TWENTY',
+  calcom: 'CAL',
   'google-apis': 'CUSTOM_GOOGLE_APIS',
   'google-cloud': 'GOOGLEBIGQUERY',
   dataforseo: 'DATAFORSEO',
