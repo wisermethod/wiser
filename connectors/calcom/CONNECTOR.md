@@ -12,7 +12,7 @@ Cal.com schedules meetings and hosts events. This connector reaches the personal
 
 ## Status
 
-Shipped 2026-11-23. Verified at release against the gateway's fake provider, and before release by live calls to Cal.com's API: a read in each module, every one answering except `verified-resources`, and a create, read back and removal of an event type, a schedule, an out-of-office entry, a webhook, a slot reservation and a booking. Every other write is verified against the fake provider only. After release every action was called through the Wiser endpoint: each read the test accounts could serve answered, and each write stopped for confirmation before reaching Cal.com.
+Shipped 2026-11-23. Verified at release against the gateway's fake provider, and before release by live calls to Cal.com's API: a read in each module, every one answering except `verified-resources`, and a create, read back and removal of an event type, a schedule, an out-of-office entry, a webhook, a slot reservation and a booking. Every other write is verified against the fake provider only. After the first release every action was called through the Wiser endpoint, each write stopping for confirmation before it reached Cal.com; that sweep found the refused calendar event ids that 0.1.2 fixes.
 
 ## Several accounts
 

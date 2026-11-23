@@ -380,6 +380,21 @@ test('the calendar event actions accept a Google event id with a leading undersc
   assert.equal(other.test('_abc'), false, 'every other path id keeps the shared pattern');
 });
 
+// Adversarial review of 0.1.2: the id reaches Cal.com as one path segment, and a path-like id never leaves the gateway.
+test('get_event sends an underscore id as one segment and refuses a path-like id before the proxy', async (t) => {
+  const { gw, calls } = await fixture(t);
+  const id = '_6abc123def456ghi789jkl0mn1op2qr3st4uv5';
+  const result = await gw.execute({ action: 'calcom.calendars.get_event', input: { calendar: 'google', eventUid: id } });
+  assert.notEqual(result.status, 'invalid_arguments');
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].endpoint, `/v2/calendars/google/event/${id}`);
+  for (const bad of ['..', 'a/b', 'a.b']) {
+    const refused = await gw.execute({ action: 'calcom.calendars.get_event', input: { calendar: 'google', eventUid: bad } });
+    assert.equal(refused.status, 'invalid_arguments', bad);
+  }
+  assert.equal(calls.length, 1);
+});
+
 // Adversarial review round 1, 2026-11-23: a calendar event's join codes travel beside its password.
 test('a calendar event location withholds its password, PIN, access code and meeting code', async (t) => {
   const data = { status: 'success', data: { locations: [{ type: 'phone', url: 'tel:+15550100', password: 'fake-pw',
