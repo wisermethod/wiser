@@ -3,7 +3,7 @@ name: calcom
 type: connector
 category: communication
 description: Reads and manages bookings, availability, calendars, events, and related settings in personal Cal.com accounts through labelled connections, with confirmation on every write
-version: 0.1.0
+version: 0.1.1
 ---
 
 # Cal.com

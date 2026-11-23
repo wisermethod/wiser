@@ -1,7 +1,7 @@
-import { readFileSync } from 'node:fs';
-import { routes, withheldFields } from './routes.js';
+// No file is read here: the hosted service runs connectors in Cloudflare Workers, which has no
+// filesystem, so each action's published input comes from the generated routes.js (2026-11-23).
+import { inputs, routes, withheldFields } from './routes.js';
 
-const manifest = JSON.parse(readFileSync(new URL('./manifest.json', import.meta.url), 'utf8'));
 const withheldKeys = new Set(withheldFields);
 const querySeparators = { form: ',', spaceDelimited: ' ', pipeDelimited: '|' };
 
@@ -126,5 +126,5 @@ export const modules = {};
 for (const [id, route] of Object.entries(routes)) {
   const [, module, action] = id.split('.');
   modules[module] ??= {};
-  modules[module][action] = handlerFor(route, manifest.modules[module].actions[action].input);
+  modules[module][action] = handlerFor(route, inputs[id]);
 }

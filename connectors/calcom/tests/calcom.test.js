@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { confirmCall, createFakeProviders, createTestGateway, putActive } from '../../../gateway/test/fake-provider.js';
 import { statusSignal } from '../../../gateway/src/errors.js';
-import { routes } from '../routes.js';
+import { inputs, routes } from '../routes.js';
 import { validateArgs } from '../../../gateway/src/tools.js';
 
 const manifest = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'));
@@ -374,4 +374,17 @@ test('a calendar event location withholds its password, PIN, access code and mee
     accessCode: null, meetingCode: null, label: 'Dial in' });
   assert.deepEqual(result.withheld.sort(), ['data.locations[0].accessCode', 'data.locations[0].meetingCode',
     'data.locations[0].password', 'data.locations[0].pin']);
+});
+
+// Found by the hosted service's Workers suites on 2026-11-23: index.js read manifest.json at load,
+// and Cloudflare Workers has no filesystem, so every hosted connector failed to load.
+test('the module loads without a filesystem and its inputs match the manifest', () => {
+  for (const file of ['../index.js', '../routes.js']) {
+    const source = readFileSync(new URL(file, import.meta.url), 'utf8');
+    assert.doesNotMatch(source, /node:fs|['"]fs['"]|readFileSync|import\.meta\.url/, file);
+  }
+  const manifest = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'));
+  for (const [mod, def] of Object.entries(manifest.modules)) {
+    for (const [act, spec] of Object.entries(def.actions)) assert.deepEqual(inputs[`calcom.${mod}.${act}`], spec.input, `${mod}.${act}`);
+  }
 });
