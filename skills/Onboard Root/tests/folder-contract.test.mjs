@@ -85,6 +85,49 @@ test('empty AGENTS.md is an undeclared working file and cannot be overwritten by
   assert.match(read('skills/Onboard Root/SKILL.md'), /An existing `AGENTS.md`, even empty, is a working file:[^\n]*only on an adoption request, never overwrite it on an empty-copy path/);
 });
 
+for (const [name, skill] of [['Housekeeping', house], ['existing root', adoption]]) {
+  test(`${name} routes both sets through one delivery citation beside the work`, () => {
+    const files = skill.split('## Wiser files\n')[1].split('\n## Steps')[0];
+    const method = 'Beside the work, to read, compare with or run.';
+    assert.ok(read('tools/DELIVERY.md').includes(method));
+    assert.equal(skill.match(/tools\/DELIVERY\.md/g)?.length, 1);
+    assert.match(files, /can this session read [^\n]*installed[^\n]*\?/);
+    assert.match(files, /\*\*Yes\.\*\* Use [^\n]*installed paths/);
+    assert.match(files, /\*\*No\.\*\* [^\n]*file set `starter-personal`[^\n]*by `tools\/DELIVERY\.md`/);
+    assert.match(files, /file set `reference-check`/);
+    assert.ok(files.includes(method));
+    assert.match(files, /Leave the member's folder untouched during delivery/);
+    assert.match(files, /from the delivered `tools\/reference-check\/`/);
+  });
+}
+
+test('Housekeeping compares the delivered personal template and reacquires the sets for apply', () => {
+  assert.match(house, /anything other than `personal`[^\n]*I need the Wiser plugin to update this folder[^\n]*stop/);
+  assert.match(house, /Use the delivered starter directory for every template read, including `AGENTS\.md`, `memory\/answers\/AGENTS\.md` and `programs\/AGENTS\.md`/);
+  assert.match(house, /frontmatter `type:` line, outside the section being compared/);
+  assert.match(house, /Use Step 2's span to compare every byte of `## Always`/);
+  assert.match(house, /For Step 9[^\n]*get both sets again/);
+  assert.match(house, /After Step 8 writes or returns the plan, before waiting for approval, and when Step 9 finishes[^\n]*every delivered copy, including its Step 6/);
+  const steps = house.split('\n## Steps\n')[1];
+  for (const step of [2, 3, 9]) {
+    const body = steps.split(`\n${step}. `)[1].split(/\n(?:\d+\. |## )/)[0];
+    assert.match(body, /selected under Wiser files/);
+  }
+});
+
+test('existing-root checks for its plugin-only prerequisites before taking the snapshot', () => {
+  const no = adoption.split('\n').find((line) => line.startsWith('- **No.**'));
+  assert.match(no, /Is the folder's type `personal`\? No: stop before Step 2[^\n]*I need the Wiser plugin/);
+  assert.match(no, /Yes: get the file set `starter-personal`/);
+  assert.match(no, /its `memory\/about\.md`, `memory\/design\.md` and `memory\/voice\.md` are the personal prompt sheets/);
+  assert.match(no, /holds no `prompts\/` directory/);
+  assert.match(no, /a gate that reads `gates\.sh` is recorded SKIP/);
+  assert.doesNotMatch(adoption, /installed at `system\/templates/);
+  for (const text of [house, adoption]) assert.match(text, /never from `read_skill_file`/);
+  assert.match(adoption, /select sources under Wiser files before scoring any clause that reads the template/);
+  assert.match(adoption, /every delivered copy after its last use or on an early stop, including its Step 6/);
+});
+
 for (const [name, value, reviewers, close, fails] of [
   ['independent completed audit', 'yes', 'Independent reader', '', false],
   ['disclosed shared context', 'no', 'Producing context', 'The audit was not independent.', true],

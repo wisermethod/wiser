@@ -4,7 +4,13 @@
       "name": "starter-personal",
       "source": { "kind": "personal-starter" },
       "maxBytes": 65536,
-      "users": ["skills/Onboard Root"]
+      "users": ["skills/Onboard Root", "skills/Housekeeping"]
+    },
+    {
+      "name": "reference-check",
+      "source": { "kind": "paths", "paths": ["tools/reference-check"] },
+      "maxBytes": 65536,
+      "users": ["skills/Housekeeping", "skills/Onboard Root"]
     }
   ],
   "exceptions": [
@@ -35,10 +41,6 @@
     {
       "skill": "skills/Headshot Normalizer",
       "reason": "Not yet assessed."
-    },
-    {
-      "skill": "skills/Housekeeping",
-      "reason": "The update path compares against the installed template and runs the reference checker, both of which are unavailable on the connector alone."
     },
     {
       "skill": "skills/Onboard Plugin Root",

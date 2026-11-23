@@ -96,6 +96,15 @@ exception in the list. The hook first compares each staged delivery input
 with disk, including deletions. The gate then reads the whole working
 tree, which can include other unstaged changes.
 
+Each set has a name made of lowercase letters, digits and hyphens, a
+`source`, a positive integer `maxBytes` and at least one primitive in `users`. The `personal-starter` source uses
+`{"kind":"personal-starter"}`. A `paths` source uses
+`{"kind":"paths","paths":["tools/reference-check"]}`. Give it one or more
+plugin-relative files or directories. The archive keeps their plugin paths,
+including the contents of each listed directory. Use `/` between nonempty
+path components, with no backslashes or control characters. A component
+cannot be `.` or `..`, and the source cannot name `.pin` at the plugin root.
+
 From the plugin root, run the gate against the tree or its temporary fixtures.
 
     sh system/gates/delivery.sh .

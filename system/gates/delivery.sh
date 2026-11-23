@@ -85,6 +85,14 @@ self_test() {
   expect 1 'invalid set name' 'invalid set name'
   write_registry "$clean_sets,$clean_sets" "$clean_exceptions"
   expect 1 'duplicate set name' 'duplicate set name'
+  write_registry '{"name":"sample-set","source":{"kind":"paths","paths":["tools/Other","tools/Other/scripts/run.js"]},"maxBytes":1024,"users":["skills/Example"]}' "$clean_exceptions"
+  expect 0 'plugin-relative directory and file sources' 'delivery: pass'
+  for bad_source in '{"kind":"paths"}' '{"kind":"paths","paths":[]}' \
+    '{"kind":"paths","paths":["/tools/Other"]}' '{"kind":"paths","paths":["tools/../Other"]}' \
+    '{"kind":"paths","paths":[".pin"]}'; do
+    write_registry "{\"name\":\"sample-set\",\"source\":$bad_source,\"maxBytes\":1024,\"users\":[\"skills/Example\"]}" "$clean_exceptions"
+    expect 1 "invalid source $bad_source" 'requires a personal-starter or paths source'
+  done
   write_registry '{"name":"sample-set","source":{"kind":"personal-starter"},"users":["skills/Example"]}' "$clean_exceptions"
   expect 1 'missing limit' 'positive integer maxBytes'
   write_registry '{"name":"sample-set","source":{"kind":"personal-starter"},"maxBytes":1024,"users":["skills/Missing"]}' "$clean_exceptions"
