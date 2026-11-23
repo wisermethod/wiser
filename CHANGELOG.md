@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.23.7, November 23, 2026
+
+- The Cal.com connector 0.1.3 no longer shows the private address of a calendar feed imported into Cal.com. A feed's address, such as a Google Calendar secret iCal link, lets anyone who has it read that calendar, and listing your calendars used to show it. The address is now withheld wherever a calendar answer would carry it. You can still read a feed's busy times, or turn it on or off for clash checking, by naming it with its credential number and `ics-feed`; the connector looks the address up itself. Google calendars, credential numbers and a booking's calendar links are unchanged. (f48f65ad)
+
 ## v2026.11.23.6, November 23, 2026
 
 - The Cloudflare connector 0.12.0 reads who an app's sign-in list lets in. `access.list_staff` returns the emails one reusable Allow policy admits and changes nothing, and `access.get_app` now gives each of an application's policies with its decision, so a staff sign-in list is told from the policy that lets an agent in. `access.list_service_tokens` lists an account's Access service tokens by id and name, with each one's expiry where Cloudflare gives it, and never a secret. (c9927c60, 92eac9c1, 46f2931b)
