@@ -4480,7 +4480,7 @@
           }
         },
         "get_busy_times": {
-          "description": "Get busy times. Get busy times from a calendar. Example request URL is `https://api.cal.com/v2/calendars/busy-times?timeZone=Europe%2FMadrid&dateFrom=2024-12-18&dateTo=2024-12-18&calendar=135,skrauciz%40gmail.com&calendar=200,bob%40gmail.com`. The `calendar` query parameter identifies one calendar as `<credentialId>,<externalId>`, e.g. `calendar=135,alice@example.com`. Both values are returned for each connected calendar by `GET /v2/calendars`. To load busy times from multiple calendars, pass the `calendar` query parameter multiple times, e.g. `calendar=135,alice@example.com&calendar=200,bob@example.com`. Only the first comma separates the two values, so an `externalId` containing commas is kept intact. Note: loggedInUsersTz is deprecated, use timeZone instead. If accessed using an OAuth access token, the `APPS_READ` scope is required.",
+          "description": "Get busy times. Get busy times from a calendar. Example request URL is `https://api.cal.com/v2/calendars/busy-times?timeZone=Europe%2FMadrid&dateFrom=2024-12-18&dateTo=2024-12-18&calendar=135,skrauciz%40gmail.com&calendar=200,bob%40gmail.com`. The `calendar` query parameter identifies one calendar as `<credentialId>,<externalId>`, e.g. `calendar=135,alice@example.com`. Both values are returned for each connected calendar by `GET /v2/calendars`. To load busy times from multiple calendars, pass the `calendar` query parameter multiple times, e.g. `calendar=135,alice@example.com&calendar=200,bob@example.com`. Only the first comma separates the two values, so an `externalId` containing commas is kept intact. Note: loggedInUsersTz is deprecated, use timeZone instead. If accessed using an OAuth access token, the `APPS_READ` scope is required. Use `<credentialId>,ics-feed` in `calendar` for an ICS feed, whose address is withheld.",
           "risk": "low",
           "confirmation": "none",
           "execution": {
@@ -4523,7 +4523,7 @@
           }
         },
         "list": {
-          "description": "Get all calendars. If accessed using an OAuth access token, the `APPS_READ` scope is required.",
+          "description": "Get all calendars. If accessed using an OAuth access token, the `APPS_READ` scope is required. ICS feed addresses are withheld, so use `<credentialId>,ics-feed` for busy times or `externalId: \"ics-feed\"` with the feed's `credentialId` for selected calendars.",
           "risk": "low",
           "confirmation": "none",
           "execution": {
@@ -4657,7 +4657,7 @@
           }
         },
         "add_selected": {
-          "description": "Add a selected calendar. If accessed using an OAuth access token, the `APPS_WRITE` scope is required.",
+          "description": "Add a selected calendar. If accessed using an OAuth access token, the `APPS_WRITE` scope is required. For an ICS feed, whose address is withheld, set `externalId` to `\"ics-feed\"` and give the feed's `credentialId`.",
           "risk": "medium",
           "confirmation": "always",
           "execution": {
@@ -4688,7 +4688,7 @@
           }
         },
         "remove_selected": {
-          "description": "Delete a selected calendar. If accessed using an OAuth access token, the `APPS_WRITE` scope is required.",
+          "description": "Delete a selected calendar. If accessed using an OAuth access token, the `APPS_WRITE` scope is required. For an ICS feed, whose address is withheld, set `externalId` to `\"ics-feed\"` and give the feed's `credentialId`.",
           "risk": "destructive",
           "confirmation": "always",
           "execution": {

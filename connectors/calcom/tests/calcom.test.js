@@ -216,6 +216,186 @@ test('answers withhold exact keys recursively and retain flags and IDs', async (
   assert.equal(data.data[0].secret, 'fake-webhook-value');
 });
 
+const googleId = 'someone@example.test';
+const feedAddress = 'https://calendar.google.com/calendar/ical/someone%40example.test/private-0123456789abcdef/basic.ics';
+const otherFeedAddress = 'webcal://feeds.example.test/work';
+const busyInput = { dateFrom: '2026-01-01', dateTo: '2026-01-02' };
+
+function connectedCalendar(credentialId, integration, externalId) {
+  const primary = { credentialId, integration, externalId, primary: true, readOnly: integration === 'ics-feed_calendar', isSelected: true };
+  return {
+    credentialId, integration: { url: 'https://cal.com/', logo: 'apps/calendar/icon.svg' },
+    primary, calendars: [primary],
+  };
+}
+
+function calendarListRule(connectedCalendars, moreData = {}) {
+  return { match: (endpoint) => endpoint === '/v2/calendars', result: { status: 200,
+    data: { status: 'success', data: { connectedCalendars, ...moreData } } } };
+}
+
+test('list withholds both feed addresses and retains Google IDs and all credential IDs', async (t) => {
+  const google = connectedCalendar(10, 'google_calendar', googleId);
+  google.calendars.push({ credentialId: 10, integration: 'google_calendar', externalId: 'team@example.test' });
+  const feed = connectedCalendar(20, 'ics-feed_calendar', feedAddress);
+  const otherFeed = connectedCalendar(21, 'ics-feed_calendar', otherFeedAddress);
+  const destinationCalendar = { credentialId: 20, integration: 'ics-feed_calendar', externalId: feedAddress };
+  const { gw } = await fixture(t, { proxyRules: [calendarListRule([google, feed, otherFeed], { destinationCalendar })] });
+  const result = await gw.execute({ action: 'calcom.calendars.list', input: {} });
+  assert.deepEqual(result, {
+    status: 'success',
+    data: {
+      connectedCalendars: [google, connectedCalendar(20, 'ics-feed_calendar', null), connectedCalendar(21, 'ics-feed_calendar', null)],
+      destinationCalendar: { ...destinationCalendar, externalId: null },
+    },
+    withheld: [
+      'data.connectedCalendars[1].primary.externalId', 'data.connectedCalendars[1].calendars[0].externalId',
+      'data.connectedCalendars[2].primary.externalId', 'data.connectedCalendars[2].calendars[0].externalId',
+      'data.destinationCalendar.externalId',
+    ],
+  });
+  for (const address of [feedAddress, otherFeedAddress]) assert.equal(JSON.stringify(result).includes(address), false);
+});
+
+test('the calendars backstop withholds feed URL values and leaves booking calendar links usable', async (t) => {
+  const booking = { status: 'success', data: [{ label: 'ICS', link: 'https://cal.com/booking/example.ics' }] };
+  const ordinary = ['https://cal.com/', '/apps/ics-feed/icon.svg', 'https://cal.com/apps/ics-feed/icon.svg',
+    'https://example.test/download?file=feed.ics', 'https://example.test/download#/calendar/ical/'];
+  const { gw } = await fixture(t, { proxyRules: [
+    { match: (endpoint) => endpoint === '/v2/calendars/ics-feed/check', result: { status: 200, data: {
+      status: 'success', data: { 'new-key': [otherFeedAddress, 'webcals://feeds.example.test/personal',
+        'http://feeds.example.test/team.ICS?access=example#calendar',
+        'https://feeds.example.test/calendar/ical/opaque?access=example', ...ordinary] },
+    } } },
+    { match: (endpoint) => endpoint === '/v2/bookings/booking-1/calendar-links', result: { status: 200, data: booking } },
+  ] });
+  assert.deepEqual(await gw.execute({ action: 'calcom.calendars.check_ics_feed', input: {} }), {
+    status: 'success', data: { 'new-key': [null, null, null, null, ...ordinary] },
+    withheld: [0, 1, 2, 3].map((index) => `data["new-key"][${index}]`),
+  });
+  assert.deepEqual(await gw.execute({ action: 'calcom.bookings.get_calendar_links', input: { bookingUid: 'booking-1' } }), booking);
+});
+
+test('an event type withholds a feed externalId even when its address has no recognizable feed path', async (t) => {
+  const data = { status: 'success', data: {
+    destinationCalendar: { integration: 'ics-feed_calendar', externalId: 'https://feeds.example.test/opaque' },
+  } };
+  const { gw } = await fixture(t, { proxyRules: [{ match: () => true, result: { status: 200, data } }] });
+  assert.deepEqual(await gw.execute({ action: 'calcom.event-types.get', input: { eventTypeId: '10' } }), {
+    status: 'success', data: { destinationCalendar: { integration: 'ics-feed_calendar', externalId: null } },
+    withheld: ['data.destinationCalendar.externalId'],
+  });
+});
+
+test('busy times resolve each alias with a list request and withhold feed addresses from the answer', async (t) => {
+  const opaqueAddress = 'https://feeds.example.test/opaque';
+  const calendar = [`10,${googleId}`, '20,ics-feed', '21,ics-feed'];
+  const google = connectedCalendar(10, 'google_calendar', googleId);
+  const period = { start: '2026-01-01T08:00:00Z', end: '2026-01-01T09:00:00Z' };
+  const { gw, calls } = await fixture(t, { proxyRules: [
+    calendarListRule([google, connectedCalendar(20, 'ics-feed_calendar', feedAddress), connectedCalendar(21, 'ics-feed_calendar', opaqueAddress)]),
+    { match: (endpoint) => endpoint === '/v2/calendars/busy-times', result: { status: 200, data: {
+      status: 'success', data: [feedAddress, `21,${opaqueAddress}`, googleId].map((source) => ({ ...period, source })),
+    } } },
+  ] });
+  await gw.execute({ action: 'calcom.calendars.list', input: {} });
+  const result = await gw.execute({ action: 'calcom.calendars.get_busy_times', input: { ...busyInput, calendar } });
+  assert.deepEqual(result, {
+    status: 'success', data: [null, null, googleId].map((source) => ({ ...period, source })),
+    withheld: ['data[0].source', 'data[1].source'],
+  });
+  assert.equal(calls.length, 4);
+  assert.deepEqual(calls.slice(1, 3), [calls[0], calls[0]]);
+  assert.equal(calls[3].endpoint, '/v2/calendars/busy-times');
+  assert.deepEqual(calls[3].parameters.filter(({ name }) => name === 'calendar').map(({ value }) => value),
+    [`10,${googleId}`, `20,${feedAddress}`, `21,${opaqueAddress}`]);
+  assert.deepEqual(calendar, [`10,${googleId}`, '20,ics-feed', '21,ics-feed']);
+  for (const address of [feedAddress, opaqueAddress]) assert.equal(JSON.stringify(result).includes(address), false);
+});
+
+test('a busy-times feed alias must identify exactly one feed calendar', async (t) => {
+  const ambiguous = connectedCalendar(20, 'ics-feed_calendar', feedAddress);
+  ambiguous.calendars.push({ integration: 'ics-feed_calendar', externalId: otherFeedAddress });
+  const { gw, calls } = await fixture(t, { proxyRules: [
+    calendarListRule([connectedCalendar(10, 'google_calendar', googleId), ambiguous]),
+  ] });
+  for (const id of [99, 20, 10]) {
+    assert.deepEqual(await gw.execute({ action: 'calcom.calendars.get_busy_times',
+      input: { ...busyInput, calendar: [`${id},ics-feed`] } }), { status: 'invalid_arguments', field: 'calendar' });
+  }
+  assert.deepEqual(calls.map(({ endpoint }) => endpoint), Array(3).fill('/v2/calendars'));
+  const calendar = [`10,${googleId}`, `20,${feedAddress}`, '10,ics-feed,suffix'];
+  assert.deepEqual(await gw.execute({ action: 'calcom.calendars.get_busy_times', input: { ...busyInput, calendar } }), {});
+  assert.equal(calls.length, 4);
+  assert.equal(calls[3].endpoint, '/v2/calendars/busy-times');
+  assert.deepEqual(calls[3].parameters.filter(({ name }) => name === 'calendar').map(({ value }) => value), calendar);
+});
+
+test('failed feed lookups and busy-times calls report safe route endpoints without the address', async (t) => {
+  const list = '/v2/calendars';
+  const busy = '/v2/calendars/busy-times';
+  const providerError = { status: 502, error: { code: 'vendor_error', endpoint: `${busy}?calendar=20,${feedAddress}` } };
+  for (const [endpoint, reply, httpStatus, extra] of [
+    [list, { status: 503, data: { source: feedAddress } }, 503],
+    [list, providerError, 502],
+    [list, { status: 200, data: { status: 'success', data: {} } }, 200],
+    [busy, { status: 400, data: { source: feedAddress } }, 400],
+    [busy, providerError, 502],
+    [busy, () => { throw new Error(`Failed request for ${feedAddress}`); }, null],
+    [busy, { status: 200, data: { status: 'error', error: { code: `Bad calendar ${feedAddress}`,
+      message: feedAddress } } }, 200, { code: null, withheld: ['code'] }],
+  ]) {
+    const { gw, calls } = await fixture(t, { proxyRules: [
+      { match: (path) => path === endpoint, result: reply },
+      calendarListRule([connectedCalendar(20, 'ics-feed_calendar', feedAddress)]),
+    ] });
+    const result = await gw.execute({ action: 'calcom.calendars.get_busy_times',
+      input: { ...busyInput, calendar: ['20,ics-feed'] } });
+    assert.deepEqual(result, { status: 'vendor_error', http_status: httpStatus, endpoint, method: 'GET', ...extra });
+    assert.equal(JSON.stringify(result).includes(feedAddress), false);
+    assert.deepEqual(calls.map(({ endpoint }) => endpoint), endpoint === list ? [list] : [list, busy]);
+  }
+});
+
+test('add and remove selected calendars resolve feed aliases only after confirmation', async (t) => {
+  const integration = 'ics-feed_calendar';
+  const { gw, calls } = await fixture(t, { proxyRules: [
+    calendarListRule([connectedCalendar(20, integration, feedAddress)]),
+    { match: (endpoint) => endpoint === '/v2/selected-calendars', result: { status: 200, data: {
+      status: 'success', data: { userId: 1, integration, credentialId: 20, externalId: feedAddress },
+    } } },
+  ] });
+  for (const [name, method, credentialId] of [['add_selected', 'POST', 20], ['remove_selected', 'DELETE', '20']]) {
+    const action = `calcom.calendars.${name}`;
+    const input = { integration, externalId: 'ics-feed', credentialId };
+    const count = calls.length;
+    const stop = await gw.execute({ action, input });
+    assert.equal(stop.status, 'needs_confirmation');
+    assert.match(JSON.stringify(stop), /ics-feed/);
+    assert.equal(JSON.stringify(stop).includes(feedAddress), false);
+    assert.equal(calls.length, count);
+    const result = await gw.execute({ action, input, confirm: true });
+    assert.deepEqual(result, { status: 'success', data: { userId: 1, integration, credentialId: 20, externalId: null },
+      withheld: ['data.externalId'] });
+    const [lookup, sent] = calls.slice(count);
+    assert.equal(lookup.endpoint, '/v2/calendars');
+    assert.equal(lookup.method, 'GET');
+    assert.equal(sent.endpoint, '/v2/selected-calendars');
+    assert.equal(sent.method, method);
+    if (method === 'POST') assert.deepEqual(sent.body, { ...input, externalId: feedAddress });
+    else assert.deepEqual(sent.parameters, Object.entries({ ...input, externalId: feedAddress })
+      .map(([name, value]) => ({ name, value, type: 'query' })));
+    assert.equal(input.externalId, 'ics-feed');
+    assert.deepEqual(await confirmCall(gw, { action, input: { ...input,
+      credentialId: method === 'POST' ? 99 : '99' } }), { status: 'invalid_arguments', field: 'externalId' });
+    assert.deepEqual(calls.slice(count).map(({ endpoint }) => endpoint),
+      ['/v2/calendars', '/v2/selected-calendars', '/v2/calendars']);
+    assert.deepEqual(await confirmCall(gw, { action, input: { ...input, externalId: feedAddress } }), result);
+    assert.equal(calls.length, count + 4);
+    assert.deepEqual(calls.at(-1), sent);
+  }
+});
+
 test('D8 HTTP refusals omit code and message, while a 2xx application error keeps only its code', async (t) => {
   const { gw } = await fixture(t, { proxyRules: [
     { match: (endpoint) => endpoint === '/v2/me', result: { status: 400,
@@ -418,4 +598,60 @@ test('the module loads without a filesystem and its inputs match the manifest', 
   for (const [mod, def] of Object.entries(manifest.modules)) {
     for (const [act, spec] of Object.entries(def.actions)) assert.deepEqual(inputs[`calcom.${mod}.${act}`], spec.input, `${mod}.${act}`);
   }
+});
+
+test('the backstop finds a feed address with a trailing slash, inside a longer string, or joined by a comma, with no lookup', async (t) => {
+  const slashed = 'https://feeds.example.test/secret0123/calendar.ics/';
+  const values = [slashed, `${slashed}?ctz=UTC`, `20,${slashed}`, 'Subscribed at https://feeds.example.test/y/calendar.ics.',
+    'https://feeds.example.test/a.ics,https://feeds.example.test/b'];
+  const ordinary = ['https://cal.com/', 'https://cal.com/apps/ics-feed/icon.svg', 'https://example.test/download?file=feed.ics', googleId];
+  const { gw, calls } = await fixture(t, { proxyRules: [
+    { match: (endpoint) => endpoint === '/v2/calendars/ics-feed/check', result: { status: 200, data: {
+      status: 'success', data: { found: values, ordinary } } } },
+  ] });
+  assert.deepEqual(await gw.execute({ action: 'calcom.calendars.check_ics_feed', input: {} }), {
+    status: 'success', data: { found: values.map(() => null), ordinary },
+    withheld: values.map((_, index) => `data.found[${index}]`),
+  });
+  assert.deepEqual(calls.map(({ endpoint }) => endpoint), ['/v2/calendars/ics-feed/check']);
+});
+
+test('busy times withhold an echo of a resolved address in the other @ encoding, or only its decoded secret, and keep short values', async (t) => {
+  const atAddress = 'https://feeds.example.test/u/someone@example.test/calendar';
+  const encodedSecretAddress = 'https://feeds.example.test/private%2D0123456789abcdef/basic.ics';
+  const shortAddress = '2026-01-01';
+  const period = { start: '2026-01-01T08:00:00Z', end: '2026-01-01T09:00:00Z' };
+  const feeds = [connectedCalendar(21, 'ics-feed_calendar', atAddress), connectedCalendar(22, 'ics-feed_calendar', encodedSecretAddress),
+    connectedCalendar(23, 'ics-feed_calendar', shortAddress)];
+  const echoes = ['https://feeds.example.test/u/someone%40example.test/calendar', 'private-0123456789abcdef'];
+  const { gw } = await fixture(t, { proxyRules: [
+    calendarListRule([connectedCalendar(10, 'google_calendar', googleId), ...feeds]),
+    { match: (endpoint) => endpoint === '/v2/calendars/busy-times', result: { status: 200, data: {
+      status: 'success', data: [...echoes.map((calendarId) => ({ ...period, calendarId })),
+        { ...period, calendarId: googleId, source: googleId }],
+    } } },
+  ] });
+  const result = await gw.execute({ action: 'calcom.calendars.get_busy_times',
+    input: { ...busyInput, calendar: [`10,${googleId}`, '21,ics-feed', '22,ics-feed', '23,ics-feed'] } });
+  assert.deepEqual(result, {
+    status: 'success',
+    data: [...echoes.map(() => ({ ...period, calendarId: null })), { ...period, calendarId: googleId, source: googleId }],
+    withheld: echoes.map((_, index) => `data[${index}].calendarId`),
+  });
+});
+
+test('list withholds a feed address repeated under a calendar name or email', async (t) => {
+  const feed = connectedCalendar(20, 'ics-feed_calendar', feedAddress);
+  feed.calendars[0] = { ...feed.calendars[0], name: feedAddress, email: feedAddress };
+  const google = connectedCalendar(10, 'google_calendar', googleId);
+  google.calendars[0] = { ...google.calendars[0], name: googleId, email: googleId };
+  const { gw } = await fixture(t, { proxyRules: [calendarListRule([google, feed])] });
+  const result = await gw.execute({ action: 'calcom.calendars.list', input: {} });
+  assert.deepEqual(result.data.connectedCalendars[0], google);
+  assert.equal(result.data.connectedCalendars[1].credentialId, 20);
+  assert.deepEqual(result.withheld.filter((path) => path.startsWith('data.connectedCalendars[1].calendars[0]')).sort(), [
+    'data.connectedCalendars[1].calendars[0].email', 'data.connectedCalendars[1].calendars[0].externalId',
+    'data.connectedCalendars[1].calendars[0].name',
+  ]);
+  assert.equal(JSON.stringify(result).includes(feedAddress), false);
 });

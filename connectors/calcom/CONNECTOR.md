@@ -3,7 +3,7 @@ name: calcom
 type: connector
 category: communication
 description: Reads and manages bookings, availability, calendars, events, and related settings in personal Cal.com accounts through labelled connections, with confirmation on every write
-version: 0.1.2
+version: 0.1.3
 ---
 
 # Cal.com
@@ -55,6 +55,8 @@ Cal.com charges nothing per API call on a personal plan. Calendar disconnect rem
 ## Secrets
 
 The connector replaces every answer field named `secret` (webhook signing secret), `password`, `pin`, `accessCode` or `meetingCode` (what a calendar event's video, phone or SIP location needs to join), or `shareToken` (Cal Video recording token) with `null`. When it withholds values, the result includes a `withheld` array with each field's path. Identifiers such as `credentialId` and flags such as `hasSecret` pass through.
+
+The connector withholds an ICS feed's `externalId` and also withholds feed URLs in calendar answers. Use `<credentialId>,ics-feed` in `calendar` for busy times, or supply the feed's `credentialId` and set `externalId` to `"ics-feed"` when adding or removing a selected calendar.
 
 No action publishes a `secret` input. Workflow step objects are open because Cal.com defines their variants. A step carrying a top-level `secret` key is refused as `invalid_arguments` on `steps` before the connector sends the request. Set webhook and workflow signing secrets in Cal.com.
 
