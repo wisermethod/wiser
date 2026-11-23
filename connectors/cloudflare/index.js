@@ -2693,13 +2693,14 @@ function accessPolicyRefusal(policyId, reason, req) {
   const id = typeof policyId === 'string' && ACCESS_UUID.test(policyId) ? policyId : null;
   return { ...strictVendorError(req), ...(id ? { policy_id: id } : {}), reason: `Policy ${id || '(unidentified)'}: ${reason}` };
 }
-async function accessReadPolicy(account, id, ctx) {
+async function accessReadPolicy(account, id, ctx, { includeDecision = false } = {}) {
   const req = { endpoint: `${accessPath(account)}/policies/${encodeURIComponent(id)}`, method: 'GET' };
   const reply = await strictProxyResponse(ctx, req);
   if (reply.error) return { ...reply.error, ...accessPolicyRefusal(id, 'Policy could not be read and checked.', req) };
   if (reply.result?.id !== id) return accessPolicyRefusal(id, 'Policy read-back id did not match the linked policy.', req);
   const problem = accessPolicyProblem(reply.result);
-  return problem ? accessPolicyRefusal(id, problem, req) : null;
+  if (problem) return accessPolicyRefusal(id, problem, req);
+  return includeDecision ? reply.result.decision : null;
 }
 async function accessRemoveFailedApp(input, app, failure, ctx) {
   let id = app?.id;
@@ -3237,11 +3238,13 @@ export const modules = {
       if (reply.error) return reply.error;
       const result = accessAppResult(reply.result, req, true);
       if (result.status === 'vendor_error') return result;
+      const policies = [];
       for (const id of result.policy_ids) {
-        const problem = await accessReadPolicy(input.account_id, id, ctx);
-        if (problem) return problem;
+        const decision = await accessReadPolicy(input.account_id, id, ctx, { includeDecision: true });
+        if (typeof decision !== 'string') return decision;
+        policies.push({ id, decision });
       }
-      return result;
+      return { ...result, policies };
     },
   },
 

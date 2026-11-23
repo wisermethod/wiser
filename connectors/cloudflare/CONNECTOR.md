@@ -617,12 +617,15 @@ before and after a staff change, or to compare the policy with an app's own
 people list.
 
 `access.get_app` reads `account_id` and `app_id`, returning the single `hostname`,
-`policy_ids`, `aud`, `id` and `success`. It refuses an ambiguous application rather
-than imply it protects only one hostname. A non-empty destination `overrides`
-array or an enabled single-header setting is reported as `vendor_error`. Every
-attached policy is fetched by id and checked with `accessPolicyProblem`, even
-when the embed contains rules. Embedded rules must also pass the supported-shape
-checks. Any policy failure names the policy and reason.
+`policy_ids`, `policies`, `aud`, `id` and `success`. `policies` gives each
+`policy_ids` entry, in order, as `{ id, decision }`, with `decision` taken from
+the live policy read: `allow` for a sign-in list, `non_identity` for Service Auth.
+It refuses an ambiguous application rather than imply it protects only one
+hostname. A non-empty destination `overrides` array or an enabled single-header
+setting is reported as `vendor_error`. Every attached policy is fetched by id
+and checked with `accessPolicyProblem`, even when the embed contains rules.
+Embedded rules must also pass the supported-shape checks. Any policy failure
+names the policy and reason.
 App, policy and service token ids use
 UUID spelling; account ids use 32 lowercase hexadecimal characters. Names are
 1 to 100 characters, hostnames at most 253, and emails at most 254. Published

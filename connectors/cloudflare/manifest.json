@@ -656,7 +656,7 @@
           }
         },
         "get_app": {
-          "description": "Read a self-hosted Access application's hostname, policy ids and audience tag using the same application checker as create_app. Refuses ambiguous or malformed applications, destination overrides, and a single-header service-token setting other than absent or false. Reads every attached policy live even when embedded rules are present; both embedded rules and live policy must pass the supported-shape checks. A policy failure is vendor_error naming the policy and reason.",
+          "description": "Read a self-hosted Access application's hostname, policy ids, each attached policy's id and decision (allow or non_identity, from the live policy read), and audience tag using the same application checker as create_app. Refuses ambiguous or malformed applications, destination overrides, and a single-header service-token setting other than absent or false. Reads every attached policy live even when embedded rules are present; both embedded rules and live policy must pass the supported-shape checks. A policy failure is vendor_error naming the policy and reason.",
           "risk": "low",
           "confirmation": "none",
           "execution": {

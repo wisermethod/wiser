@@ -93,7 +93,7 @@ for (const [action, input] of Object.entries(inputs)) {
     assert.equal(result.success, true); clean(result);
     const keys = { create_app: ['success', 'id', 'aud'], create_policy: ['success', 'id'],
       set_staff: ['success', 'policy_id', 'changed', 'before', 'after'], list_staff: ['success', 'policy_id', 'emails'],
-      get_app: ['success', 'id', 'aud', 'hostname', 'policy_ids'] };
+      get_app: ['success', 'id', 'aud', 'hostname', 'policy_ids', 'policies'] };
     assert.deepEqual(Object.keys(result).sort(), keys[action].sort());
   });
   if (action !== 'get_app' && action !== 'list_staff') {
@@ -264,10 +264,31 @@ test('list_staff: publishes only the staff IDs and the service token listing’s
   assert.deepEqual(env.calls, []);
 });
 
-test('get_app: only hostname, policy ids and public audience are returned', async (t) => {
+test('get_app: only hostname, policy ids, policy decisions and public audience are returned', async (t) => {
   const env = await setup(t); const result = await env.execute('get_app');
   assert.deepEqual(trace(env.calls), [['GET', ROOT + '/apps/' + ID], ['GET', ROOT + '/policies/' + POLICY]]);
-  assert.deepEqual(result, { success: true, id: ID, hostname: 'crm.example.com', policy_ids: [POLICY], aud: AUD });
+  assert.deepEqual(result, { success: true, id: ID, hostname: 'crm.example.com', policy_ids: [POLICY], policies: [{ id: POLICY, decision: 'allow' }], aud: AUD });
+});
+const staffPolicyDecision = { id: POLICY, decision: 'allow' };
+const agentPolicyDecision = { id: TOKEN_ID, decision: 'non_identity' };
+for (const [label, embedded, expected] of [
+  ['Allow then Service Auth', [attachable(), agentPolicy()], [staffPolicyDecision, agentPolicyDecision]],
+  ['Service Auth then Allow', [agentPolicy(), attachable()], [agentPolicyDecision, staffPolicyDecision]],
+  ['id-only entries', [{ id: POLICY }, { id: TOKEN_ID }], [staffPolicyDecision, agentPolicyDecision]],
+  ['embedded decisions that contradict the live reads', [{ ...attachable(), id: TOKEN_ID }, { ...agentPolicy(), id: POLICY }], [agentPolicyDecision, staffPolicyDecision]],
+  ['a repeated policy id', [{ id: POLICY }, { id: POLICY }], [staffPolicyDecision, staffPolicyDecision]],
+]) test(`get_app: returns live decisions in policy id order for ${label}`, async (t) => {
+  const env = await setup(t, { app: { ...app(), policies: embedded } });
+  const result = await env.execute('get_app');
+  const ids = expected.map(({ id }) => id);
+
+  assert.equal(result.success, true);
+  assert.deepEqual(result.policy_ids, ids);
+  assert.deepEqual(result.policies, expected);
+  assert.deepEqual(trace(env.calls), [
+    ['GET', ROOT + '/apps/' + ID],
+    ...ids.map((id) => ['GET', ROOT + '/policies/' + id]),
+  ]);
 });
 for (const response of [{ ...app(), destinations: [{ type: 'public', uri: 'elsewhere.example.com' }] }, { ...app(), aud: JWT }, { ...app(), policies: [{ id: API_TOKEN }] }]) {
   test('get_app: malformed or ambiguous public fields refused without leaking', async (t) => {
