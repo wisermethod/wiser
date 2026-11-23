@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.23.4, November 23, 2026
+
+- Housekeeping 0.9.5 corrects four things a session with only the Wiser connector did on "update root". It now gets the reference checker as its own step and stops where the scan did not run, where it had written a plan without one. It decides where the template comes from before it reads any template path, so no failed step shows first. It asks one question for the listed changes, the plan file's creation among them, and writes nothing a member did not approve. It reads the Archives rule before it names the copy of a file it replaces. A stop on that path removes the files it had fetched. (7a0497cc)
+- Onboard Root 0.50.11 does the same where it brings an existing personal folder up to date, and says the onboarding is paused where Housekeeping stops without a plan. (7a0497cc)
+
 ## v2026.11.23.3, November 23, 2026
 
 - The Cal.com connector 0.1.1 can run on the Wiser endpoint as well as on the local gateway: it no longer reads one of its own files when it starts, which the endpoint cannot do. Its actions are unchanged. (9254661a)
