@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.23.2, November 23, 2026
+
+- A new connector, calcom 0.1.0, reaches personal Cal.com accounts: bookings and their attendees, event types, available slots, schedules, calendars and busy times, conferencing apps, contacts, Events, webhooks, workflows, insights, out-of-office entries and Discover, 185 actions in all. Connect each account once with an API key from Cal.com's Settings > Developer > API keys, under a name you choose, and name the account on each request; several accounts work side by side. Every change, send and delete asks you first, and webhook signing secrets and meeting join codes are never shown. Teams, Organizations and Platform actions, and uploading an Event's images, are not included. (d20e8a11)
+
 ## v2026.11.23, November 23, 2026
 
 - Housekeeping 0.9.4 answers "update root" for a personal folder in a session that has only the Wiser connector. Where it cannot read the plugin's template and reference checker on your computer, it gets both by the page `tools/DELIVERY.md`, sets them down beside your folder and never in it, and removes them when the plan is written and again after the change. A folder of another type still needs the plugin, and the skill says so in one sentence. With the plugin installed nothing changes. (2a9aa09e)
