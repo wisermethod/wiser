@@ -6,7 +6,7 @@ Changes before September 27, 2026 are in the commit history only.
 
 ## v2026.11.23.5, November 23, 2026
 
-- The Cal.com connector 0.1.2 can read and change a Google Calendar event that Cal.com created: those events have ids beginning with an underscore, which the connector refused before. Every other action is unchanged. (33a882ce)
+- The Cal.com connector 0.1.2 can read and change a Google Calendar event that Cal.com created: those events have ids beginning with an underscore, which the connector refused before. Every other action is unchanged. (33a882ce, 381c7c67)
 
 ## v2026.11.23.4, November 23, 2026
 
