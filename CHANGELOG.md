@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.23, November 23, 2026
+
+- Housekeeping 0.9.4 answers "update root" for a personal folder in a session that has only the Wiser connector. Where it cannot read the plugin's template and reference checker on your computer, it gets both by the page `tools/DELIVERY.md`, sets them down beside your folder and never in it, and removes them when the plan is written and again after the change. A folder of another type still needs the plugin, and the skill says so in one sentence. With the plugin installed nothing changes. (2a9aa09e)
+- Onboard Root 0.50.10 does the same where it brings an existing personal folder up to date, and records a check that needs the plugin as skipped, with that reason. (2a9aa09e)
+
 ## v2026.11.22, November 22, 2026
 
 - Wiser's own files now reach a session that cannot read the plugin by one procedure, the page `tools/DELIVERY.md`. The session asks the Wiser connector for a named set of files, checks the archive it gets against its SHA-256, unpacks it, and removes its own copy. Where a step cannot be done it says so in one line and stops; it writes nothing from memory. (989893e8)
