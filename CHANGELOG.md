@@ -4,6 +4,12 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.23.6, November 23, 2026
+
+- The Cloudflare connector 0.12.0 reads who an app's sign-in list lets in. `access.list_staff` returns the emails one reusable Allow policy admits and changes nothing, and `access.get_app` now gives each of an application's policies with its decision, so a staff sign-in list is told from the policy that lets an agent in. `access.list_service_tokens` lists an account's Access service tokens by name and id only. (c9927c60, 92eac9c1, 46f2931b)
+- The connector is ready for Wiser CRM 0.3.0, whose install asks for the first owner's email address and can carry a brand name, an accent colour and a sender name for the notice email. A release installs only with one complete set of the settings it declares, and each value you give is checked against the form the app accepts before anything is written. Wiser CRM 0.2.0 installs as before. (c9927c60, 92eac9c1)
+- Cloudflare Setup 0.2.1 says that an app's sign-in setting takes the Zero Trust team domain as the whole address, with `https://` in front. (c9927c60)
+
 ## v2026.11.23.5, November 23, 2026
 
 - The Cal.com connector 0.1.2 can read and change a Google Calendar event that Cal.com created: those events have ids beginning with an underscore, which the connector refused before. Every other action is unchanged. (33a882ce, 381c7c67)
