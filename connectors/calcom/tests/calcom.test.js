@@ -19,6 +19,7 @@ const byRoute = (method, path) => {
 
 const examples = {
   '^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$': 'example_id-1',
+  '^[A-Za-z0-9_][A-Za-z0-9_-]{0,1023}$': '_example_event-1',
   '^#?([0-9A-F]{3}|[0-9A-F]{4}|[0-9A-F]{6}|[0-9A-F]{8})$': '#ABC',
   '^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$': '#aBc123',
   '^#[0-9a-f]{6}$': '#abc123',
@@ -362,6 +363,21 @@ test('every action id passes the execute and describe_action argument checks', (
     assert.equal(validateArgs('execute', { action, input: {}, label: 'personal' }), null, action);
     assert.equal(validateArgs('describe_action', { action }), null, action);
   }
+});
+
+// Found on the Wiser endpoint on 2026-11-23: Cal.com returns Google event ids that begin with an
+// underscore, and the shared path pattern refused them, so neither calendar event action could take
+// an id Cal.com had just handed back. Both accept one now, and still refuse a path separator.
+test('the calendar event actions accept a Google event id with a leading underscore and nothing path-like', () => {
+  for (const action of ['calcom.calendars.get_event', 'calcom.calendars.update_event']) {
+    const [, mod, name] = action.split('.');
+    const pattern = new RegExp(manifest.modules[mod].actions[name].input.properties.eventUid.pattern);
+    assert.equal(pattern.test('_6abc123def456ghi789jkl0mn1op2qr3st4uv5'), true, action);
+    assert.equal(pattern.test('abc123_20261201T170000Z'), true, action);
+    for (const bad of ['', '.', '..', 'a/b', 'a.b', 'a%2Fb', '-abc']) assert.equal(pattern.test(bad), false, `${action} ${bad}`);
+  }
+  const other = new RegExp(manifest.modules.bookings.actions.get.input.properties.bookingUid.pattern);
+  assert.equal(other.test('_abc'), false, 'every other path id keeps the shared pattern');
 });
 
 // Adversarial review round 1, 2026-11-23: a calendar event's join codes travel beside its password.

@@ -46,4 +46,4 @@ Use a distinct label for each additional account. See [Several accounts](CONNECT
 
 ## Last connected
 
-Not yet.
+Yes.

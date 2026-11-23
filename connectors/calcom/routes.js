@@ -6573,7 +6573,7 @@ export const inputs = {
       "eventUid": {
         "type": "string",
         "description": "The Google Calendar event ID. You can retrieve this by getting booking references from the following endpoints: - For team events: https://cal.com/docs/api-reference/v2/orgs-teams-bookings/get-booking-references-for-a-booking - For user events: https://cal.com/docs/api-reference/v2/bookings/get-booking-references-for-a-booking",
-        "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$"
+        "pattern": "^[A-Za-z0-9_][A-Za-z0-9_-]{0,1023}$"
       }
     },
     "additionalProperties": false,
@@ -6594,7 +6594,7 @@ export const inputs = {
       "eventUid": {
         "type": "string",
         "description": "The Google Calendar event ID. You can retrieve this by getting booking references from the following endpoints: - For team events: https://cal.com/docs/api-reference/v2/orgs-teams-bookings/get-booking-references-for-a-booking - For user events: https://cal.com/docs/api-reference/v2/bookings/get-booking-references-for-a-booking",
-        "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$"
+        "pattern": "^[A-Za-z0-9_][A-Za-z0-9_-]{0,1023}$"
       },
       "start": {
         "type": "object",
