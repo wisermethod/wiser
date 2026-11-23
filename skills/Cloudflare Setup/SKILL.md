@@ -3,7 +3,7 @@ name: Cloudflare Setup
 type: skill
 category: development
 description: Take a member from no Cloudflare connection to one account-owned token, made from the pre-filled link for their job and pasted once, with each Cloudflare module their job needs proved by a read through it, the account id and, where an app needs sign-in, the Zero Trust team domain handed back, and a domain's DNS move handed to Zone Publisher
-version: 0.2.0
+version: 0.2.1
 gaps:
   - a token link for installing an app on Cloudflare Workers, its staff sign-in included
 ---
@@ -136,7 +136,7 @@ The member does not narrow these rows: the domain being moved is not on the acco
 
 9. **A domain's DNS.** When the member asks to move a domain's DNS onto Cloudflare, hand it to `skills/Zone Publisher/`, Moving a Domain's DNS, under `experts/IT Expert/`, with the account id and the domain. Their registrar stays where it is.
 
-10. **Hand back.** Tell the member, and the caller where there is one: the account's name and id; each module the job needs, proved by a read or the stop it met; the team domain where step 8 ran; what the token can do; and that a later job edits this same token through step 7.
+10. **Hand back.** Tell the member, and the caller where there is one: the account's name and id; each module the job needs, proved by a read or the stop it met; the team domain where step 8 ran, and that an app's sign-in setting takes it as the whole address, `https://` in front of that hostname (Wiser CRM's `ACCESS_TEAM_DOMAIN` refuses the bare hostname); what the token can do; and that a later job edits this same token through step 7.
 
 ## Pitfalls
 

@@ -56,9 +56,11 @@ cloudflare.zones.get_email_sending_domain { zone_id, domain }                 co
 cloudflare.zones.onboard_email_sending_domain { zone_id, domain }             confirmation: always
 cloudflare.zones.remove_email_sending_domain { zone_id, domain }              confirmation: always
 
+cloudflare.access.list_service_tokens { account_id }                            confirmation: none
 cloudflare.access.create_app       { account_id, hostname, name, policy_ids }     confirmation: always
 cloudflare.access.create_policy    { account_id, name, decision, emails? , service_token_id? } confirmation: always
 cloudflare.access.set_staff        { account_id, policy_id, add? , remove? }      confirmation: always
+cloudflare.access.list_staff       { account_id, policy_id }                     confirmation: none
 cloudflare.access.get_app          { account_id, app_id }                         confirmation: none
 
 cloudflare.workers.workers_subdomain { account_id }                            confirmation: none
@@ -193,7 +195,8 @@ reads provide no lock against a concurrent deployment.
 Retry a refused `INTAKE_DB` change with the serving Worker's current database ID.
 For an intentional move, migrate the data and cut over both Workers together separately.
 
-Supply each app's install variables in `vars`. Intake takes the notice
+Supply each app's install variables in `vars` using the [install variable forms](#install-variable-forms).
+Deploy checks supplied values before any Cloudflare call. Intake takes the notice
 destination and sender in the manifest's named variables. A destination or
 sender omitted or left empty stops intake before any write. The destination
 also becomes the upload's pinned `send_email` address. Intake opens no asset
@@ -226,12 +229,14 @@ Live verification of format 3 is pending.
 `vars`. It shares deploy's release verification. Format 2 fetches only the
 manifest and signature. Names must be a non-empty subset of the selected app's
 signed declarations. Changing the pinned destination requires a redeploy so
-the binding and the variable change together. The deploy's non-secret
-uppercase-name rule and 512 Unicode-character value limit apply.
-Unlisted names are refused before any Cloudflare call; refusals echo neither
-variable names nor values. It reads the existing Worker's bindings, refuses a
-plain variable that would replace a resource or secret, then reads the active
-deployment and the complete version history through `list_versions`' paging and
+the binding and the variable change together. If the signed release declares
+`NOTICE_FROM_NAME`, use `set_vars` to change the optional sender name. The
+deploy's non-secret uppercase-name rule and 512 Unicode-character value limit apply.
+Before any Cloudflare call, it refuses unlisted names without echoing them and
+checks only the supplied values against the [install variable forms](#install-variable-forms).
+A form refusal names the variable and the form it needs. It reads the existing
+Worker's bindings, refuses a plain variable that would replace a resource or
+secret, then reads the active deployment and the complete version history through `list_versions`' paging and
 checks. It selects the newest by `created_on`, irrespective of list order. If no
 single version serves 100 percent or that version is not the newest, it refuses
 before any PATCH: the Worker's newest version is not the one serving, as after a
@@ -403,11 +408,50 @@ Both restore and rollback require confirmation every time. Their API behavior
 is fake-provider tested; the local live run of 2026-10-26 verified restore and
 rollback. The hosted run remains unverified.
 
+### Install variable forms
+
+Use these forms wherever the signed release declares the variable. Deploy and
+settings updates pass each value through as supplied.
+
+- `ACCESS_TEAM_DOMAIN` is the whole address `https://<team>.cloudflareaccess.com`.
+  Use one lowercase team label of 1 to 63 letters, digits or interior hyphens.
+  Include `https://` before the hostname shown in Zero Trust settings. Leave
+  out any port, path, trailing slash, query or fragment.
+- `ACCESS_AUD` is the nonempty audience tag from `access.get_app`. Use only
+  letters, digits, underscores and hyphens.
+- `WISER_INSTANCE` is a nonempty instance name.
+- `OWNER_EMAIL` is one plain email address with exactly one at sign, characters
+  on both sides, and no whitespace, control characters, angle brackets, commas
+  or semicolons.
+- `BRAND_NAME` is the optional name shown beside “Wiser CRM”. Use 1 to 40
+  characters after trimming, with no control characters, angle brackets or line breaks.
+- `BRAND_ACCENT` is the optional accent colour the CRM fits to readable tones.
+  Use `#` followed by exactly six hexadecimal digits.
+- `INTAKE_ORIGIN` is the exact nonempty `Origin` header sent by the form, such
+  as `https://www.example.com`. Its literal value cannot be `null`.
+- `INTAKE_RETURN_URL` is a nonempty redirect destination usable as a
+  `Location` header, with no embedded line breaks. A relative path is accepted.
+- `NOTICE_TO` is the nonempty mail destination and becomes the pinned
+  `send_email` address. Redeploy to change it.
+- `NOTICE_FROM` is the nonempty mail sender.
+- `NOTICE_FROM_NAME` is the optional sender name on the notice email. Use 1 to
+  60 characters after trimming, with no control characters, line breaks, angle
+  brackets, double quotes, commas, semicolons, colons, at signs or backslashes.
+- `INTAKE_MAX_PER_ADDRESS_PER_DAY` and `INTAKE_MAX_PER_HOUR` each take a value
+  that converts to an integer from 1 to 9007199254740991. Omit either to use
+  the app's default.
+
 ### Upgrade and failure recovery sequence
 
 Before the first format 3 install write, the installer checks both apps'
-required install variables against [release/FORMAT.md](https://github.com/wisermethod/wiser-crm/blob/main/release/FORMAT.md#format-3)
-and records the two Worker names and where each database ID will come from.
+required and any supplied optional install variables against the [forms above](#install-variable-forms)
+and the signed variable lists in [release/FORMAT.md](https://github.com/wisermethod/wiser-crm/blob/main/release/FORMAT.md#format-3).
+The 0.3.0 declaration set requires `OWNER_EMAIL` for the CRM.
+The 0.3.0 declaration set adds optional `BRAND_NAME` for the name shown beside
+“Wiser CRM”, `BRAND_ACCENT` for the accent colour the CRM fits to readable tones,
+and `NOTICE_FROM_NAME` for the notice email's sender name. The two apps must use
+the same declaration set. Omit these variables to use the app's defaults.
+Record the two Worker names and where each database ID will come from.
 Use one recorded intake ID for its migration and both deploys. Onboard the
 sending domain if needed, then start at step 4. A first install has no previous
 CRM version or restore point. If it stops, read the state of both Workers and
@@ -530,16 +574,25 @@ preflight check is not an atomic reservation.
 
 `access.create_policy` takes `account_id`, `name` and exactly one alternative:
 `decision: allow` with 1 to 50 `emails`, or `decision: non_identity` with one
-`service_token_id`. The latter is Cloudflare's Service Auth policy. Its include
-rule carries only `service_token: { token_id }`, the existing token's public UUID.
+`service_token_id` from `access.list_service_tokens`. The latter decision is
+Cloudflare's Service Auth policy. Its include rule carries only
+`service_token: { token_id }`, the existing token's public UUID.
 The new policy is read back by id. It must pass the supported-shape check, carry
 `reusable: true`, and have exactly the submitted decision and include rules.
 Failure deletes the policy and reads it back absent; `vendor_error` names the id
 and whether removal was confirmed. The result is the checked reusable policy's
-`id` and `success`. No action creates a
-service token or accepts or returns its client secret. The member creates it in
-Cloudflare's dashboard. Its credentials belong only on the connecting service's
-hosted connect page, never in this action's inputs.
+`id` and `success`.
+
+`access.list_service_tokens` reads the account's service tokens using
+`account_id`. It follows the pages until the number of distinct rows matches
+the numeric total count and refuses an incomplete listing. It returns only
+`id`, `name` and `expires_at` when present. Find the token by name and use its
+`id` as `service_token_id` for the Service Auth policy. The whole listing is
+refused if any row includes a `client_secret` field, token-shaped text or lacks
+a usable id or name. No action creates a service token or accepts or returns
+its client secret. The listing also omits `client_id`. Create the token in
+Cloudflare's dashboard and enter its credentials only on the connecting
+service's hosted connect page. [Service token listing](https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/service_tokens/methods/list/)
 
 `access.set_staff` takes `account_id`, `policy_id` and exactly one of `add` or
 `remove`, each one email. It reads a reusable Allow policy with only explicit
@@ -555,13 +608,24 @@ A policy may contain at most 50 staff emails here. A concurrent edit between
 read and PUT can be overwritten; this action has no conditional-write guarantee.
 Changing a reusable policy affects every application carrying it.
 
+`access.list_staff` takes `account_id` and `policy_id`. It checks the Access
+organization and reads one reusable Allow policy, returning its id and the 1
+to 50 explicit emails in their stored order and case. It refuses disabled
+Access, an unreadable or mismatched policy, unfamiliar settings, and policies
+with other rule shapes or nonempty `exclude` or `require` lists. Use this read
+before and after a staff change, or to compare the policy with an app's own
+people list.
+
 `access.get_app` reads `account_id` and `app_id`, returning the single `hostname`,
-`policy_ids`, `aud`, `id` and `success`. It refuses an ambiguous application rather
-than imply it protects only one hostname. A non-empty destination `overrides`
-array or an enabled single-header setting is reported as `vendor_error`. Every
-attached policy is fetched by id and checked with `accessPolicyProblem`, even
-when the embed contains rules. Embedded rules must also pass the supported-shape
-checks. Any policy failure names the policy and reason.
+`policy_ids`, `policies`, `aud`, `id` and `success`. `policies` gives each
+`policy_ids` entry, in order, as `{ id, decision }`, with `decision` taken from
+the live policy read: `allow` for a sign-in list, `non_identity` for Service Auth.
+It refuses an ambiguous application rather than imply it protects only one
+hostname. A non-empty destination `overrides` array or an enabled single-header
+setting is reported as `vendor_error`. Every attached policy is fetched by id
+and checked with `accessPolicyProblem`, even when the embed contains rules.
+Embedded rules must also pass the supported-shape checks. Any policy failure
+names the policy and reason.
 App, policy and service token ids use
 UUID spelling; account ids use 32 lowercase hexadecimal characters. Names are
 1 to 100 characters, hostnames at most 253, and emails at most 254. Published
@@ -605,7 +669,7 @@ This connector holds none. One token connected on any one module, with no label,
 | `dns` | write | Records in a named zone |
 | `zones` | write | Every zone the token can see, plus accounts, zone settings, Email Sending domains, and reads of bot management, certificate packs, Workers routes and Access applications |
 | `pages` | write | Pages projects, domains and custom-domain status, production deploys of a signed release payload, including its publisher-approved Pages Function when the payload carries one, production deploys with Pages Functions, plain static deploys, Web Analytics on a Pages project, and the D1 databases a Pages site uses: list, get, create, a read-only query, confirmed writes and migrations, binding, removal, and a confirmed validation retry |
-| `access` | write | One-host self-hosted applications with reusable policies, Allow staff email lists, Service Auth by existing token id, and application audience reads |
+| `access` | write | One-host self-hosted applications with reusable policies, Allow staff email lists, Service Auth by existing token id, and reads of application audiences and service tokens |
 | `workers` | write | Read deployed versions and binding names; deploy signed releases with D1, optional assets and mail bindings, and plain variables; apply release migrations and adopt a baseline; take D1 bookmarks, restore and roll back to a recorded version; delete with a read-back |
 | `rulesets` | write | Rulesets, Page Rules, reads of every phase `get_phase_entrypoint` accepts, redirect writes on the two redirect phases, and Bulk Redirect lists |
 

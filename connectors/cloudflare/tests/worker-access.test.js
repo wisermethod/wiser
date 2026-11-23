@@ -20,6 +20,7 @@ const inputs = {
   create_app: { account_id: ACCOUNT, hostname: 'crm.example.com', name: 'CRM', policy_ids: [POLICY] },
   create_policy: { account_id: ACCOUNT, name: 'CRM staff', decision: 'allow', emails: ['one@example.com'] },
   set_staff: { account_id: ACCOUNT, policy_id: POLICY, remove: 'one@example.com' },
+  list_staff: { account_id: ACCOUNT, policy_id: POLICY },
   get_app: { account_id: ACCOUNT, app_id: ID },
 };
 const app = () => ({ id: ID, type: 'self_hosted', domain: 'crm.example.com', self_hosted_domains: ['crm.example.com'], destinations: [{ type: 'public', uri: 'crm.example.com' }],
@@ -91,10 +92,11 @@ for (const [action, input] of Object.entries(inputs)) {
     const env = await setup(t); const result = await env.execute(action);
     assert.equal(result.success, true); clean(result);
     const keys = { create_app: ['success', 'id', 'aud'], create_policy: ['success', 'id'],
-      set_staff: ['success', 'policy_id', 'changed', 'before', 'after'], get_app: ['success', 'id', 'aud', 'hostname', 'policy_ids'] };
+      set_staff: ['success', 'policy_id', 'changed', 'before', 'after'], list_staff: ['success', 'policy_id', 'emails'],
+      get_app: ['success', 'id', 'aud', 'hostname', 'policy_ids', 'policies'] };
     assert.deepEqual(Object.keys(result).sort(), keys[action].sort());
   });
-  if (action !== 'get_app') {
+  if (action !== 'get_app' && action !== 'list_staff') {
     test(`${action}: confirmation always stops before transport`, async (t) => {
       const env = await setup(t);
       const first = await env.gw.execute({ action: `cloudflare.access.${action}`, input });
@@ -186,10 +188,107 @@ for (const policy of [{ ...staff(), decision: 'non_identity' }, { ...staff(), in
     const env = await setup(t, { policy }); assert.equal((await env.execute('set_staff')).status, 'invalid_arguments'); assert.equal(env.calls.length, 2);
   });
 }
-test('get_app: only hostname, policy ids and public audience are returned', async (t) => {
+
+const staffRead = [['GET', ROOT + '/organizations'], ['GET', ROOT + '/policies/' + POLICY]];
+test('list_staff: returns only the stored emails in order and case using two GETs without confirmation', async (t) => {
+  const emails = ['Zoe@example.com', 'alice@example.com', 'zOE@example.com'];
+  const env = await setup(t, { policy: staff(emails) });
+  const result = await env.gw.execute({ action: 'cloudflare.access.list_staff', input: inputs.list_staff });
+  assert.deepEqual(result, { success: true, policy_id: POLICY, emails });
+  assert.deepEqual(trace(env.calls), staffRead);
+});
+
+for (const count of [1, 50]) test(`list_staff: accepts ${count} email includes with absent exclude and require`, async (t) => {
+  const emails = Array.from({ length: count }, (_, index) => `person${index}@example.com`);
+  const { exclude, require, ...policy } = staff(emails);
+  const env = await setup(t, { policy });
+  assert.deepEqual(await env.execute('list_staff'), { success: true, policy_id: POLICY, emails });
+  assert.deepEqual(trace(env.calls), staffRead);
+});
+
+test('list_staff: disabled Access refuses after only the organization GET', async (t) => {
+  const env = await setup(t, { off: true });
+  const answer = await env.execute('list_staff');
+  assert.deepEqual(answer, await env.execute('set_staff'));
+  assert.equal(answer.status, 'denied');
+  assert.equal(answer.access_enabled, false);
+  assert.match(answer.reason, /Access is not enabled/);
+  assert.deepEqual(trace(env.calls), [staffRead[0], staffRead[0]]);
+});
+
+const staffRuleRefusal = 'Staff changes require a reusable Allow policy containing only 1 to 50 explicit email includes.';
+const staffPolicyRefusal = 'The policy has unsupported settings or is not reusable; update it in Cloudflare.';
+for (const [label, policy, reason] of [
+  ['policy is not reusable', { ...staff(), reusable: false }, staffPolicyRefusal],
+  ['non-Allow decision', { ...staff(), decision: 'deny' }, staffRuleRefusal],
+  ['non-email include', { ...staff(), include: [{ everyone: {} }] }, staffRuleRefusal],
+  ['zero includes', staff([]), staffRuleRefusal],
+  ['51 includes', staff(Array.from({ length: 51 }, (_, index) => `person${index}@example.com`)), staffRuleRefusal],
+  ['nonempty exclude', { ...staff(), exclude: staff().include }, 'exclude must be absent or an empty array.'],
+  ['nonempty require', { ...staff(), require: staff().include }, 'require must be absent or an empty array.'],
+  ['unfamiliar setting', { ...staff(), future_setting: true }, staffPolicyRefusal],
+  ['mismatched policy id', { ...staff(), id: ID }, staffPolicyRefusal],
+]) test(`list_staff: refuses ${label} with the set_staff wording`, async (t) => {
+  const env = await setup(t, { policy });
+  const expected = { status: 'invalid_arguments', field: 'policy_id', reason };
+  assert.deepEqual(await env.execute('list_staff'), expected);
+  assert.deepEqual(await env.execute('set_staff'), expected);
+  assert.deepEqual(trace(env.calls), [...staffRead, ...staffRead]);
+});
+
+test('list_staff: propagates a sanitized policy vendor error and stops after two GETs', async (t) => {
+  const env = await setup(t, { responder: (req) => req.endpoint.endsWith('/organizations')
+    ? ok({ auth_domain: 'team.cloudflareaccess.com' }) : error(502) });
+  const answer = await env.execute('list_staff');
+  assert.deepEqual(answer, await env.execute('set_staff'));
+  assert.equal(answer.status, 'vendor_error');
+  assert.equal(answer.http_status, 502);
+  assert.equal(answer.endpoint, ROOT + '/policies/' + POLICY);
+  assert.deepEqual(trace(env.calls), [...staffRead, ...staffRead]);
+});
+
+test('list_staff: publishes only the staff IDs and the service token listing’s execution settings', async (t) => {
+  const { list_staff, set_staff, list_service_tokens } = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url))).modules.access.actions;
+  for (const key of ['privilege', 'risk', 'confirmation', 'execution']) assert.deepEqual(list_staff[key], list_service_tokens[key]);
+  assert.deepEqual(list_staff.input, {
+    type: 'object',
+    properties: { account_id: set_staff.input.properties.account_id, policy_id: set_staff.input.properties.policy_id },
+    required: ['account_id', 'policy_id'],
+    additionalProperties: false,
+  });
+  const env = await setup(t);
+  for (const input of [{ account_id: ACCOUNT }, { ...inputs.list_staff, policy_id: ID.toUpperCase() },
+    { ...inputs.list_staff, add: 'three@example.com' }, { ...inputs.list_staff, remove: 'one@example.com' }]) {
+    assert.equal((await env.execute('list_staff', input)).status, 'invalid_arguments');
+  }
+  assert.deepEqual(env.calls, []);
+});
+
+test('get_app: only hostname, policy ids, policy decisions and public audience are returned', async (t) => {
   const env = await setup(t); const result = await env.execute('get_app');
   assert.deepEqual(trace(env.calls), [['GET', ROOT + '/apps/' + ID], ['GET', ROOT + '/policies/' + POLICY]]);
-  assert.deepEqual(result, { success: true, id: ID, hostname: 'crm.example.com', policy_ids: [POLICY], aud: AUD });
+  assert.deepEqual(result, { success: true, id: ID, hostname: 'crm.example.com', policy_ids: [POLICY], policies: [{ id: POLICY, decision: 'allow' }], aud: AUD });
+});
+const staffPolicyDecision = { id: POLICY, decision: 'allow' };
+const agentPolicyDecision = { id: TOKEN_ID, decision: 'non_identity' };
+for (const [label, embedded, expected] of [
+  ['Allow then Service Auth', [attachable(), agentPolicy()], [staffPolicyDecision, agentPolicyDecision]],
+  ['Service Auth then Allow', [agentPolicy(), attachable()], [agentPolicyDecision, staffPolicyDecision]],
+  ['id-only entries', [{ id: POLICY }, { id: TOKEN_ID }], [staffPolicyDecision, agentPolicyDecision]],
+  ['embedded decisions that contradict the live reads', [{ ...attachable(), id: TOKEN_ID }, { ...agentPolicy(), id: POLICY }], [agentPolicyDecision, staffPolicyDecision]],
+  ['a repeated policy id', [{ id: POLICY }, { id: POLICY }], [staffPolicyDecision, staffPolicyDecision]],
+]) test(`get_app: returns live decisions in policy id order for ${label}`, async (t) => {
+  const env = await setup(t, { app: { ...app(), policies: embedded } });
+  const result = await env.execute('get_app');
+  const ids = expected.map(({ id }) => id);
+
+  assert.equal(result.success, true);
+  assert.deepEqual(result.policy_ids, ids);
+  assert.deepEqual(result.policies, expected);
+  assert.deepEqual(trace(env.calls), [
+    ['GET', ROOT + '/apps/' + ID],
+    ...ids.map((id) => ['GET', ROOT + '/policies/' + id]),
+  ]);
 });
 for (const response of [{ ...app(), destinations: [{ type: 'public', uri: 'elsewhere.example.com' }] }, { ...app(), aud: JWT }, { ...app(), policies: [{ id: API_TOKEN }] }]) {
   test('get_app: malformed or ambiguous public fields refused without leaking', async (t) => {
@@ -206,9 +305,9 @@ test('organization: absent result and missing team domain both prevent writes', 
     const answer = await env.execute('create_policy'); assert.equal(answer.status, 'vendor_error'); assert.equal(env.calls.length, 1);
   }
 });
-test('all four schemas: recursive field walk has no secret-named input and Q7 setting is absent', () => {
+test('all Access schemas: recursive field walk has no secret-named input and Q7 setting is absent', () => {
   const manifest = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url)));
-  const actions = manifest.modules.access.actions; assert.deepEqual(Object.keys(actions).sort(), Object.keys(inputs).sort());
+  const actions = manifest.modules.access.actions; assert.deepEqual(Object.keys(actions).sort(), [...Object.keys(inputs), 'list_service_tokens'].sort());
   const walk = (schema) => {
     if (!schema || typeof schema !== 'object') return;
     for (const field of Object.keys(schema.properties ?? {})) assert.doesNotMatch(field, /secret|password|credential|client_id/i);
@@ -216,7 +315,7 @@ test('all four schemas: recursive field walk has no secret-named input and Q7 se
   };
   for (const [name, action] of Object.entries(actions)) {
     walk(action.input); assert.equal(action.input.additionalProperties, false);
-    assert.equal(action.confirmation, name === 'get_app' ? 'none' : 'always');
+    assert.equal(action.confirmation, ['get_app', 'list_service_tokens', 'list_staff'].includes(name) ? 'none' : 'always');
     assert.equal(Object.hasOwn(action.input.properties, 'read_service_tokens_from_header'), false);
   }
 });
@@ -631,3 +730,88 @@ test('fix5 docs: the upgrade sequence turns workers.dev off after each deploy, a
   assert.doesNotMatch(manifest.modules.access.actions.create_app.description, /explicitly sends false/);
   assert.match(manifest.modules.access.actions.create_app.description, /omit/i);
 });
+
+const TOKEN_LIST_INPUT = { account_id: ACCOUNT };
+const TOKEN_LIST = ROOT + '/service_tokens';
+const EXPIRY = '2027-11-22T00:00:00Z';
+const tokenRow = { id: TOKEN_ID, name: 'Fixture automation', client_id: '0123456789abcdef0123456789abcdef.access',
+  expires_at: EXPIRY, created_at: '2026-11-22T00:00:00Z', updated_at: '2026-11-22T00:00:00Z' };
+
+test('list_service_tokens is read-only and returns only id, name and any expiry across counted pages', async (t) => {
+  const env = await setup(t, { responder: (req, call) => {
+    assert.equal(req.method, 'GET');
+    assert.equal(req.endpoint, TOKEN_LIST + '?per_page=25&page=' + call);
+    return ok(call === 1 ? [tokenRow] : [{ id: ID, name: 'Fixture integration', client_id: 'other-fixture-id.access' }],
+      { total_count: 2, total_pages: 2 });
+  } });
+  const result = await env.execute('list_service_tokens', TOKEN_LIST_INPUT);
+  assert.deepEqual(result, { success: true, result: [
+    { id: TOKEN_ID, name: 'Fixture automation', expires_at: EXPIRY },
+    { id: ID, name: 'Fixture integration' },
+  ] });
+  assert.equal(env.calls.length, 2);
+  assert.equal(JSON.stringify(result).includes(tokenRow.client_id), false);
+});
+
+test('list_service_tokens accepts an explicitly counted empty listing', async (t) => {
+  for (const total_pages of [0, 1, undefined]) {
+    const env = await setup(t, { responder: () => ok([], { total_count: 0, total_pages }) });
+    assert.deepEqual(await env.execute('list_service_tokens', TOKEN_LIST_INPUT), { success: true, result: [] });
+    assert.equal(env.calls.length, 1);
+  }
+});
+
+test('list_service_tokens continues by count when total_pages is absent', async (t) => {
+  const env = await setup(t, { responder: (req, call) =>
+    ok(call === 1 ? [tokenRow] : [{ id: ID, name: 'Other fixture' }], { total_count: 2 }) });
+  const result = await env.execute('list_service_tokens', TOKEN_LIST_INPUT);
+  assert.deepEqual(result.result?.map(({ id }) => id), [TOKEN_ID, ID]);
+  assert.equal(env.calls.length, 2);
+});
+
+test('list_service_tokens refuses undeclared input fields before Cloudflare', async (t) => {
+  const env = await setup(t);
+  const result = await env.execute('list_service_tokens', { ...TOKEN_LIST_INPUT, client_secret: 'invented-secret-value' });
+  assert.equal(result.status, 'invalid_arguments');
+  assert.equal(env.calls.length, 0);
+});
+
+for (const [label, badRow] of [
+  ['client_secret field even with a null value', { ...tokenRow, id: ID, client_secret: null }],
+  ['JWT-shaped name', { ...tokenRow, id: ID, name: JWT }],
+  ['token-shaped text in an omitted field', { ...tokenRow, id: ID, metadata: { note: API_TOKEN } }],
+  ['whole 40-character token shape with hyphens', { ...tokenRow, id: ID, name: '-'.repeat(40) }],
+  ['missing id', { name: tokenRow.name }],
+  ['missing name', { id: ID }],
+]) {
+  test(`list_service_tokens refuses the whole listing with a ${label}`, async (t) => {
+    const env = await setup(t, { responder: (req, call) =>
+      ok(call === 1 ? [tokenRow] : [badRow], { total_count: 2, total_pages: 2 }) });
+    const result = await env.execute('list_service_tokens', TOKEN_LIST_INPUT);
+    assert.equal(result.status, 'vendor_error');
+    assert.equal(result.result, undefined);
+    assert.equal(env.calls.length, 2);
+  });
+}
+
+for (const [label, pages] of [
+  ['missing total count', [ok([tokenRow], { total_pages: 1 })]],
+  ['a short last page', [ok([tokenRow], { total_count: 2, total_pages: 1 })]],
+  ['a count that changes during pagination', [
+    ok([tokenRow], { total_count: 2, total_pages: 2 }), ok([], { total_count: 1, total_pages: 2 }),
+  ]],
+  ['duplicate ids across pages', [
+    ok([tokenRow], { total_count: 2, total_pages: 2 }), ok([tokenRow], { total_count: 2, total_pages: 2 }),
+  ]],
+  ['a page count that changes during pagination', [
+    ok([tokenRow], { total_count: 2, total_pages: 3 }), ok([{ id: ID, name: 'Other fixture' }], { total_count: 2, total_pages: 2 }),
+  ]],
+]) {
+  test(`list_service_tokens refuses ${label}`, async (t) => {
+    const env = await setup(t, { responder: (req, call) => pages[call - 1] });
+    const result = await env.execute('list_service_tokens', TOKEN_LIST_INPUT);
+    assert.equal(result.status, 'vendor_error');
+    assert.equal(result.result, undefined);
+    assert.equal(env.calls.length, pages.length);
+  });
+}
