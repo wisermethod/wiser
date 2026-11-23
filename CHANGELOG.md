@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.23.3, November 23, 2026
+
+- The Cal.com connector 0.1.1 can run on the Wiser endpoint as well as on the local gateway: it no longer reads one of its own files when it starts, which the endpoint cannot do. Its actions are unchanged. (9254661a)
+
 ## v2026.11.23.2, November 23, 2026
 
 - A new connector, calcom 0.1.0, reaches personal Cal.com accounts: bookings and their attendees, event types, available slots, schedules, calendars and busy times, conferencing apps, contacts, Events, webhooks, workflows, insights, out-of-office entries and Discover, 185 actions in all. Connect each account once with an API key from Cal.com's Settings > Developer > API keys, under a name you choose, and name the account on each request; several accounts work side by side. Every change, send and delete asks you first, and webhook signing secrets and meeting join codes are never shown. Teams, Organizations and Platform actions, and uploading an Event's images, are not included. (d20e8a11)
