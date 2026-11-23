@@ -85,7 +85,14 @@ test('empty AGENTS.md is an undeclared working file and cannot be overwritten by
   assert.match(read('skills/Onboard Root/SKILL.md'), /An existing `AGENTS.md`, even empty, is a working file:[^\n]*only on an adoption request, never overwrite it on an empty-copy path/);
 });
 
-for (const [name, skill] of [['Housekeeping', house], ['existing root', adoption]]) {
+function step(skill, number) {
+  return skill.split('\n## Steps\n')[1].split(`\n${number}. `)[1].split(/\n(?:\d+\. |## )/)[0];
+}
+
+for (const [name, skill, checkerSteps] of [
+  ['Housekeeping', house, [3, 9]],
+  ['existing root', adoption, [2, 9]],
+]) {
   test(`${name} routes both sets through one delivery citation beside the work`, () => {
     const files = skill.split('## Wiser files\n')[1].split('\n## Steps')[0];
     const method = 'Beside the work, to read, compare with or run.';
@@ -93,11 +100,13 @@ for (const [name, skill] of [['Housekeeping', house], ['existing root', adoption
     assert.equal(skill.match(/tools\/DELIVERY\.md/g)?.length, 1);
     assert.match(files, /can this session read [^\n]*installed[^\n]*\?/);
     assert.match(files, /\*\*Yes\.\*\* Use [^\n]*installed paths/);
-    assert.match(files, /\*\*No\.\*\* [^\n]*file set `starter-personal`[^\n]*by `tools\/DELIVERY\.md`/);
-    assert.match(files, /file set `reference-check`/);
+    assert.match(files, /\*\*No\.\*\* [^\n]*file set `starter-personal`[^\n]*by the delivery page `tools\/DELIVERY\.md`/);
+    for (const number of checkerSteps) {
+      assert.match(step(skill, number), /On the delivery path, [^\n]*`reference-check`[^?]*\? No: get the file set `reference-check` now by the delivery page, unpacked \*\*Beside the work, to read, compare with or run\.\*\*\. Yes: use its checked copy/);
+    }
     assert.ok(files.includes(method));
     assert.match(files, /Leave the member's folder untouched during delivery/);
-    assert.match(files, /from the delivered `tools\/reference-check\/`/);
+    assert.match(files, /it runs from that set's own `tools\/reference-check\/`/);
   });
 }
 
@@ -106,12 +115,11 @@ test('Housekeeping compares the delivered personal template and reacquires the s
   assert.match(house, /Use the delivered starter directory for every template read, including `AGENTS\.md`, `memory\/answers\/AGENTS\.md` and `programs\/AGENTS\.md`/);
   assert.match(house, /frontmatter `type:` line, outside the section being compared/);
   assert.match(house, /Use Step 2's span to compare every byte of `## Always`/);
-  assert.match(house, /For Step 9[^\n]*get both sets again/);
+  assert.match(house, /For Step 9, make the same decision again\. On the delivery path, get the starter again/);
+  assert.match(step(house, 9), /has `reference-check` been delivered for this apply\?/);
   assert.match(house, /After Step 8 writes or returns the plan, before waiting for approval, and when Step 9 finishes[^\n]*every delivered copy, including its Step 6/);
-  const steps = house.split('\n## Steps\n')[1];
-  for (const step of [2, 3, 9]) {
-    const body = steps.split(`\n${step}. `)[1].split(/\n(?:\d+\. |## )/)[0];
-    assert.match(body, /selected under Wiser files/);
+  for (const number of [2, 3, 9]) {
+    assert.match(step(house, number), /selected under Wiser files/);
   }
 });
 
@@ -126,6 +134,32 @@ test('existing-root checks for its plugin-only prerequisites before taking the s
   for (const text of [house, adoption]) assert.match(text, /never from `read_skill_file`/);
   assert.match(adoption, /select sources under Wiser files before scoring any clause that reads the template/);
   assert.match(adoption, /every delivered copy after its last use or on an early stop, including its Step 6/);
+});
+
+test('connector update stops before a plan if the scan did not run successfully', () => {
+  assert.match(step(house, 3), /has `reference-check` been delivered in this run\?[\s\S]*?node check\.cjs scan --root <target>[\s\S]*?did the scan run and return that JSON\? No: stop without producing a plan\. Yes: continue/);
+});
+
+test('connector update and adoption meet the local template decision before a template path', () => {
+  const beforeTemplate = [house, adoption].map(skill => skill.split('`system/templates/User Root Template/')[0]);
+  const decision = /Read Wiser files before following any template citation[\s\S]*?before opening any template path[\s\S]*?never from `read_skill_file`/;
+  assert.deepEqual(beforeTemplate.map(text => decision.test(text)), [true, true]);
+});
+
+test('a first-use Housekeeping plan home requires the same approval as the listed edits', () => {
+  assert.deepEqual({
+    listed: /a `create` row citing `standards\/user-root\.md` C8 for each missing directory in `zBuilds\/playbooks\/` and for `zBuilds\/playbooks\/housekeeping\.plan\.md`/.test(step(house, 8)),
+    asked: /including any plan-home rows, and ask one question\. "Do you approve applying these rows as listed\?"/.test(step(house, 8)),
+    enforced: /No, including no answer: stop before any apply write[\s\S]*?Take the snapshot[\s\S]*?Apply the approved rows, writing only the approved paths in the target/.test(step(house, 9)),
+    handedOff: /Housekeeping Step 8's single approval question[\s\S]*?No, including no answer: authorize no apply or plan-home write/.test(step(adoption, 3)),
+  }, { listed: true, asked: true, enforced: true, handedOff: true });
+});
+
+test('connector update and adoption read the archive standard before naming replacement paths', () => {
+  const readArchives = /have you read Archives in `wiser\/standards\/conventions\.md`\? No: read that file with the connector's `read_skill_file`/;
+  const beforePlan = house.split('\n## Steps\n')[0];
+  const beforeSnapshot = step(adoption, 2).split('Inventory the root')[0];
+  assert.deepEqual([beforePlan, beforeSnapshot].map(text => readArchives.test(text)), [true, true]);
 });
 
 for (const [name, value, reviewers, close, fails] of [
@@ -148,4 +182,13 @@ for (const [name, value, reviewers, close, fails] of [
   const rows = result.stdout.trim().split('\n').map(line => JSON.parse(line));
   assert.equal(rows[0].gate, 'G15');
   assert.equal(rows[0].status, fails ? 'fail' : 'pass');
+});
+
+test('a stop on the delivery path removes the delivered copies, and the checker is its own set', () => {
+  assert.match(house, /Every other stop on the delivery path[^\n]*first finishes the page for every copy this run delivered, including its Step 6/);
+  assert.match(house, /The checker is not in the starter: it is the set `reference-check`/);
+  assert.doesNotMatch(house, /Read and run the checker from the delivered/);
+  assert.match(house, /Step 2's rule against making first-use homes does not drop them/);
+  assert.match(adoption, /Did Housekeeping stop without a plan\? Yes: finish the page for every delivered copy/);
+  assert.match(adoption, /The checker is not in the starter/);
 });
