@@ -138,7 +138,7 @@ guide's `## Revoking` section carries the same working through, from `connectors
 
 | Connector | Description |
 |-----------|-------------|
-| `courtlistener/CONNECTOR.md` | Read CourtListener case law search, one docket, one opinion cluster, and the courts list |
+| `courtlistener/CONNECTOR.md` | Search CourtListener case law, look up reporter citations, and read one docket, one opinion cluster, or the courts list |
 | `dataforseo/CONNECTOR.md` | Reaches DataForSEO SERP, keyword, and backlink research through two grants, each recorded write because it spends |
 | `tinyfish/CONNECTOR.md` | Search the web and fetch content from up to ten HTTPS URLs through Tiny Fish |
 | `notion/CONNECTOR.md` | Searches pages and databases and reads page properties |

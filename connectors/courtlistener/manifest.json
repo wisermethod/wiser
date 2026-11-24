@@ -95,6 +95,63 @@
             "required": [],
             "additionalProperties": false
           }
+        },
+        "lookup_citation": {
+          "description": "Look up reporter citations",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64000,
+                "pattern": "\\S"
+              },
+              "volume": {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              "reporter": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100,
+                "pattern": "\\S"
+              },
+              "page": {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              }
+            },
+            "required": [],
+            "oneOf": [
+              {
+                "required": [
+                  "text"
+                ],
+                "properties": {
+                  "volume": false,
+                  "reporter": false,
+                  "page": false
+                }
+              },
+              {
+                "required": [
+                  "volume",
+                  "reporter",
+                  "page"
+                ],
+                "properties": {
+                  "text": false
+                }
+              }
+            ],
+            "additionalProperties": false
+          }
         }
       },
       "unwrap_token": false,

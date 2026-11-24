@@ -555,6 +555,41 @@ export async function call(fn, input, service, module, action, declaration, tran
 }
 
 /**
+ * The base a property's own probes, directions E and B, run on. The sampler builds one
+ * base from the first `oneOf` or `anyOf` branch, and a later branch can be the only one
+ * that takes a property: `courtlistener caselaw.lookup_citation` takes `text` or all of
+ * `volume`, `reporter` and `page`, and each branch forbids the other's fields with
+ * `false`. Added to the `text` base, an admitted `volume` is refused by the composition
+ * before its pattern is reached, which direction E reported as the module refusing what
+ * its schema permits, and which direction B would read as enforcement it never measured.
+ * So where the base with that property sampled fails the schema, the probes run on a base
+ * built from a branch that requires the property, judged valid by the independent checker
+ * and reached by the module first. Where no branch yields one, the original base is kept,
+ * which is what every probe ran on before 2026-11-24.
+ */
+async function baseTaking(schema, base, pn, run) {
+  const props = schema.properties ?? {};
+  const declared = props[pn];
+  const probe = { ...base, [pn]: Object.hasOwn(base, pn) ? base[pn] : sample(declared) };
+  if (schemaViolation(schema, probe) === null) return base;
+  for (const key of ['oneOf', 'anyOf']) {
+    for (const branch of schema[key] ?? []) {
+      if (!(branch?.required ?? []).includes(pn)) continue;
+      const alt = { ...base };
+      for (const [name, d] of Object.entries(branch.properties ?? {})) if (d === false) delete alt[name];
+      for (const r of branch.required) {
+        const narrowed = branch.properties?.[r];
+        const own = props[r] ?? { type: 'string' };
+        alt[r] = sample(narrowed && typeof narrowed === 'object' ? { ...own, ...narrowed } : own);
+      }
+      if (schemaViolation(schema, alt) !== null) continue;
+      if ((await run(alt)).kind === 'reached') return alt;
+    }
+  }
+  return base;
+}
+
+/**
  * Judge composition probes against the independent schema checker before invoking
  * the action. None/all are invalid for exclusive choices, but both are valid for
  * an optional all-or-none group. In that shape every proper nonempty subset is a
@@ -858,13 +893,16 @@ async function collect() {
 
         for (const [pn, ps] of Object.entries(schema.properties ?? {})) {
           if (!ps || typeof ps !== 'object') continue;
+          const pbase = await baseTaking(schema, base, pn, run);
 
-          // E. a second exemplar the published pattern admits.
+          // E. a second exemplar the published pattern admits, in an instance the whole
+          // schema admits: a probe the composition refuses is no exemplar of acceptance.
           for (const cand of PATTERN_ADVERSARIAL[ps.pattern] ?? []) {
             if (!new RegExp(ps.pattern).test(cand)) continue;
             if (ps.maxLength !== undefined && [...cand].length > ps.maxLength) continue;
             if (ps.minLength !== undefined && [...cand].length < ps.minLength) continue;
-            const rp = await run({ ...base, [pn]: cand });
+            if (schemaViolation(schema, { ...pbase, [pn]: cand }) !== null) continue;
+            const rp = await run({ ...pbase, [pn]: cand });
             if (rp.kind === 'refused') found.add(`E ${where} ${pn} ${JSON.stringify(cand)}`);
           }
 
@@ -903,7 +941,7 @@ async function collect() {
           else if (ps.type === 'array') muts.push(['type', 'not-an-array']);
 
           for (const [why, value] of muts) {
-            const rr = await run({ ...base, [pn]: value });
+            const rr = await run({ ...pbase, [pn]: value });
             // Only a value that reached the vendor proves the module let it through. A throw
             // is neither enforcement nor acceptance and is recorded as its own thing.
             if (rr.kind === 'reached') found.add(`B ${where} ${pn} ${why}`);

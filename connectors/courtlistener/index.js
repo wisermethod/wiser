@@ -1,5 +1,5 @@
-async function proxyData(ctx, endpoint) {
-  const res = await ctx.proxy({ endpoint, method: 'GET' });
+async function proxyData(ctx, endpoint, method = 'GET', body) {
+  const res = await ctx.proxy({ endpoint, method, ...(body === undefined ? {} : { body }) });
   return res && typeof res === 'object' && Object.hasOwn(res, 'data') ? res.data : res;
 }
 
@@ -12,10 +12,10 @@ function getById(resource, input, ctx) {
   return proxyData(ctx, `/api/rest/v4/${resource}/${input.id}/`);
 }
 
+// The four GET response shapes were proved live on 2026-09-08.
+// The lookup shape comes from the vendor documentation and source. A live lookup remains unverified.
 export const modules = {
   caselaw: {
-    // grant ACTIVE 2026-09-08; Token header injection confirmed. search/list_courts
-    // { count, next, previous, results }. get_cluster/get_docket object with id.
     async search(input, ctx) {
       if (typeof input?.q !== 'string' || !input.q.trim()) return invalidArguments('q');
       if (input.type !== undefined && !['o', 'r', 'oa', 'p'].includes(input.type)) return invalidArguments('type');
@@ -31,6 +31,27 @@ export const modules = {
     },
     async list_courts(input, ctx) {
       return proxyData(ctx, '/api/rest/v4/courts/');
+    },
+    async lookup_citation(input, ctx) {
+      const { text, volume, reporter, page } = input;
+      let body;
+      if (Object.hasOwn(input, 'text')) {
+        for (const field of ['volume', 'reporter', 'page']) {
+          if (Object.hasOwn(input, field)) return invalidArguments(field);
+        }
+        if (typeof text !== 'string' || !text.trim() || [...text].length > 64000) return invalidArguments('text');
+        body = { text };
+      } else {
+        for (const field of ['volume', 'reporter', 'page']) {
+          if (!Object.hasOwn(input, field)) return invalidArguments(field);
+        }
+        if (typeof volume !== 'string' || !/^[0-9]+$/.test(volume)) return invalidArguments('volume');
+        if (typeof reporter !== 'string' || !reporter.trim() || [...reporter].length > 100) return invalidArguments('reporter');
+        if (typeof page !== 'string' || !/^[0-9]+$/.test(page)) return invalidArguments('page');
+        body = { volume, reporter, page };
+      }
+      const results = await proxyData(ctx, '/api/rest/v4/citation-lookup/', 'POST', body);
+      return Array.isArray(results) ? { results } : { status: 'vendor_error', reason: 'unexpected_response' };
     },
   },
 };
