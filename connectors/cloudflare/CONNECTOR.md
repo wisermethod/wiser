@@ -3,7 +3,7 @@ name: cloudflare
 type: connector
 category: development
 description: Reaches Cloudflare DNS, zones and their settings, the zone's configuration reads, D1 databases, Pages projects, domains and custom-domain status, production deploys of a signed release payload with its publisher-approved Pages Function, of a site with its Pages Functions, or of a plain static build output, Web Analytics on a Pages project, rulesets, redirect rules and Bulk Redirects, with every removal, setting change, analytics change, redirect write and production deploy confirmed
-version: 0.12.0
+version: 0.13.0
 ---
 
 # Cloudflare
@@ -27,6 +27,8 @@ At 0.10.0, `zones.update_setting` also changes `email_obfuscation` and `browser_
 At 0.11.0, `pages.deploy` takes a signed release contract and its signature instead of a fixed layout and the fingerprint allowlist file that sat beside the connector, which is removed. Its trust is `pages-trust.json`, Pages-only. All three Pages deploy actions now also read each trusted publisher's signed layout catalog from the publisher host before their first Cloudflare call, and refuse when any catalog cannot be read or verified. It is covered by fake-provider tests that sign synthetic contracts and catalogs with fixture keys generated in memory and serve every publisher download from a fake. The publisher's catalog and its detached signature are published at the URLs `pages-trust.json` names, and the catalog matched its installed SHA-256 pin when read on 2026-11-22. The plugin records no production release contract accepted by these paths, and no live deploy has run at 0.11.0. A payload without a signed contract, including every site deployed before 0.11.0, is refused until its release installs one.
 
 At 0.12.0, `access.list_staff` reads the emails one reusable Allow policy admits and writes nothing, `access.list_service_tokens` lists the account's service tokens by id and name, with `expires_at` where Cloudflare gives one, and `access.get_app` also returns `policies`, each attached policy's id and decision. A format 3 release is admitted only as one whole declaration set, the 0.2.0 set as published or the 0.3.0 set, which requires `OWNER_EMAIL` for the CRM, and supplied install values are checked against the [install variable forms](#install-variable-forms) before any write. All of it is covered by fake-provider tests. Verified live 2026-11-23 at `46f2931b`, through the gateway's own `execute` with its confirmation stop: `get_app` returned `policies` on two applications, telling a staff sign-in list from a Service Auth policy by decision; on a throwaway application and Allow policy, `set_staff` added one email and removed it, each read back through `list_staff`; on a second throwaway Allow policy holding one email, `set_staff` refused to remove it, and `list_staff` read the list unchanged. The throwaway application and policies were then removed and read back absent.
+
+At 0.13.0, `access.create_app` can set `Authorization` as the single service-token header and checks the stored setting after creation. `access.get_app` reads that setting as `single_header`, and Access errors carry numeric `provider_codes` when Cloudflare supplies them. `access.set_single_header` changes that setting on an existing application and verifies the stored result. All of it is covered by fake-provider tests; none of it has run live. The upgrade sequence also gives the read-back steps after a lost D1 adoption or migration answer.
 
 ## Reaching it
 
@@ -59,7 +61,7 @@ cloudflare.zones.onboard_email_sending_domain { zone_id, domain }             co
 cloudflare.zones.remove_email_sending_domain { zone_id, domain }              confirmation: always
 
 cloudflare.access.list_service_tokens { account_id }                            confirmation: none
-cloudflare.access.create_app       { account_id, hostname, name, policy_ids }     confirmation: always
+cloudflare.access.create_app       { account_id, hostname, name, policy_ids, single_header? } confirmation: always
 cloudflare.access.create_policy    { account_id, name, decision, emails? , service_token_id? } confirmation: always
 cloudflare.access.set_staff        { account_id, policy_id, add? , remove? }      confirmation: always
 cloudflare.access.list_staff       { account_id, policy_id }                     confirmation: none
@@ -487,6 +489,33 @@ next write:
    2. Use `workers.d1_migrate` for each app and its own database. Both schemas
       need to be ready before either new Worker serves. For an existing CRM
       schema, see [Release migrations and adoption](#release-migrations-and-adoption).
+
+      If `workers.d1_adopt` or `workers.d1_migrate` returns a timeout,
+      `uncertain` or no answer, do not call it again at once: the call may
+      still be running. With `pages.d1_query`, read the target database's
+      `sqlite_master` for a table named `d1_migrations`, and when there is
+      one, the names it holds. Read every page of `pages.d1_list_databases`
+      too. Read both again a minute later, and act only when the two reads
+      agree. If a read fails, stop and retry nothing.
+      - After `workers.d1_adopt`: with no `d1_migrations` table, nothing was
+        recorded, and `workers.d1_adopt` may be called once more. It records
+        the baseline's name only when the schema matches, and runs no
+        baseline SQL on the target database. With the table holding the
+        baseline's name, the adoption landed, so do not adopt again. With
+        the table present and the name absent, neither action will repair
+        the database: on an upgrade, recover from the bookmark as step 6
+        says; on a first install, migrate a new empty database instead.
+      - After `workers.d1_migrate`: every release file named in
+        `d1_migrations` means the migration landed. A file not named may have
+        run in part, so do not call `workers.d1_migrate` again. Treat it as a
+        failed migration: on an upgrade, recover from the bookmark as step 6
+        says; on a first install, migrate a new empty database instead.
+      - A listed database whose name starts with `wiser-adopt-`, and whose ID
+        is not the target database's, is a temporary database adoption did
+        not remove. Delete it with `pages.d1_delete_database` by the ID the
+        list gives, then list again to confirm it is gone. Never delete any
+        other database this way: `pages.d1_delete_database` deletes whatever
+        ID it is given.
    3. Deploy `wiser-crm-intake` with `workers.deploy_worker_release`, naming
       the CRM script as `peer_script_name`. The public endpoint must be serving
       before the CRM starts taking in submissions. When using a custom domain,
@@ -526,11 +555,12 @@ upgrade, the caller turns the CRM's `workers.dev` off with
 `workers.set_workers_dev` using `enabled: false` and `previews_enabled: false`.
 The CRM's own wrapper refuses any request without a valid Access token on
 every address. Creating this application alone does not close those other routes.
-Its three writes require confirmation every time.
+Its four writes require confirmation every time.
 Each write first reads the account's Zero Trust organization. A 403 with only
 Cloudflare error code 9999 means Access is not enabled and refuses the write,
 naming Cloudflare Setup as the next step. An absent or incomplete organization also refuses without declaring Access off.
-A plain permission failure stays `vendor_error`; it is not evidence Access is off.
+A plain permission failure stays `vendor_error`. Access actions include
+Cloudflare's numeric error codes as `provider_codes` when available.
 A successful organization read must include a usable team domain. These actions
 never create the organization or change its identity providers. The team must
 already offer emailed-code sign-in if staff are to use it.
@@ -538,7 +568,8 @@ An Allow policy admits the listed emails through any identity provider the team 
 
 The edge strips a client-sent `Cf-Access-Authenticated-User-Email` before any Worker runs, on `workers.dev` too, while `Cf-Access-Jwt-Assertion` passes through; verify the JWT rather than trusting a supplied email header. A service token's Access JWT has empty `sub`, `common_name` equal to its Client ID and `aud` as a string. Need the application's audience tag without dashboard access? Read `kid=` in an unauthenticated request's redirect; otherwise use `access.get_app`. Wrangler's OAuth sign-in has no Access scope, so applications, policies and service tokens require the dashboard or an API token with Access permissions.
 
-`access.create_app` takes `account_id`, `hostname`, `name` and 1 to 50 `policy_ids`.
+`access.create_app` takes `account_id`, `hostname`, `name`, 1 to 50 `policy_ids`
+and an optional boolean `single_header` that defaults to `false`.
 It reads a counted application list first: the number of object rows read must
 equal a numeric `result_info.total_count`; missing or inconsistent counts refuse
 creation, even if page metadata says the list is finished. It refuses a hostname
@@ -554,10 +585,10 @@ other decision or include rule is refused with the policy id and reason.
 The create response must carry the requested policy id set and policy details
 satisfying the same checks. Each linked policy is read again after POST.
 After POST, GET of the stored application must pass the same checker as `get_app`
-and confirm the requested id, hostname and policy id set. It must be self-hosted,
-with that hostname as `domain`, as its one public destination, and
-as its one `self_hosted_domains` entry. Destination overrides must
-be absent or empty, and `read_service_tokens_from_header` must be absent, null or empty.
+and confirm the requested id, hostname, policy id set and single-header setting.
+It must be self-hosted, with that hostname as `domain` and as its one public
+destination. If `self_hosted_domains` is present, it must name only that hostname.
+Destination overrides must be absent or empty.
 Missing details, a different id set, a failed read or an unsafe application or policy cause the
 created application to be deleted and read back absent before `vendor_error`
 reports its removal. If removal cannot be confirmed, the error names the
@@ -566,13 +597,37 @@ When the create response has no usable id, a counted application list is searche
 for one exact hostname match and that application is removed. An ambiguous or
 unreadable list reports by hostname that removal could not be confirmed.
 It returns only `id` and the public audience tag `aud`, beside `success`.
-It has no single-header input and leaves `read_service_tokens_from_header` out
-of the create. Cloudflare's [application-create reference](https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/applications/methods/create/)
-marks this property optional and describes it as a header-name string, so leaving
-it out keeps the two-header service-token check; the stored application is then
-read back and refused unless the setting is absent, null or empty.
+With `single_header: true`, the create sends
+`read_service_tokens_from_header: "Authorization"`. Cloudflare then reads the
+service token from that header as a JSON object with `cf-access-client-id` and
+`cf-access-client-secret`. With `single_header: false` or when the input is
+omitted, the create leaves `read_service_tokens_from_header` out and keeps
+Cloudflare's two-header check. The stored setting must match the requested mode.
+The checker reads `Authorization` as on, with a case-insensitive comparison,
+and reads an absent, null, false or empty value as off. It refuses every other
+stored value. Cloudflare's [application-create reference](https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/applications/methods/create/)
+describes this optional property as a header-name string.
 Concurrent application creation after the final read is still possible; the
 preflight check is not an atomic reservation.
+
+`access.set_single_header` turns on the `Authorization` single-header form for
+an existing application, one created before this form or by hand, or switches
+it back to two headers.
+It takes `account_id`, `app_id`, and the required boolean `single_header`.
+It checks the application and its attached
+policies with the `get_app` checks before writing. It refuses unsupported
+non-null settings, including SCIM or OAuth configuration, to protect settings
+that can contain secrets. Its whole-application write omits metadata and null
+settings and sends policies as links at their read precedences, so it refuses
+an application whose attached policies lack distinct whole-number precedences.
+It makes no write when the stored mode already matches. It reads the
+application back even if the write fails, and reports success when that read
+shows the requested setting with nothing else changed, since a write can land
+after its answer is lost. If the read confirms the earlier settings, it reports the
+failure without another write. If the read fails or shows an unexpected change,
+it attempts one restore and reads again to verify it. On `restored: false`,
+read the application with `access.get_app` before any further changes. The
+action keeps no copy of the earlier read.
 
 `access.create_policy` takes `account_id`, `name` and exactly one alternative:
 `decision: allow` with 1 to 50 `emails`, or `decision: non_identity` with one
@@ -619,13 +674,16 @@ before and after a staff change, or to compare the policy with an app's own
 people list.
 
 `access.get_app` reads `account_id` and `app_id`, returning the single `hostname`,
-`policy_ids`, `policies`, `aud`, `id` and `success`. `policies` gives each
+`policy_ids`, `policies`, `aud`, `id`, `single_header` and `success`.
+`single_header` is true when the stored setting names `Authorization` and false
+when it reads as off under the same checker as `create_app`. `policies` gives each
 `policy_ids` entry, in order, as `{ id, decision }`, with `decision` taken from
 the live policy read: `allow` for a sign-in list, `non_identity` for Service Auth.
 It refuses an ambiguous application rather than imply it protects only one
-hostname. A non-empty destination `overrides` array or an enabled single-header
-setting is reported as `vendor_error`. Every attached policy is fetched by id
-and checked with `accessPolicyProblem`, even when the embed contains rules.
+hostname. A non-empty destination `overrides` array or an unsupported
+single-header setting is reported as `vendor_error`. Every attached policy is
+fetched by id and checked with `accessPolicyProblem`, even when the embed
+contains rules.
 Embedded rules must also pass the supported-shape checks. Any policy failure
 names the policy and reason.
 App, policy and service token ids use

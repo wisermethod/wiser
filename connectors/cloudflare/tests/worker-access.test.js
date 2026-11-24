@@ -33,6 +33,11 @@ const error = (status, codes = [10000]) => ({ status, data: { success: false, er
 const clean = (result) => {
   const text = JSON.stringify(result);
   for (const secret of secrets) assert.ok(!text.includes(secret), 'invented credential must not reach any answer or stop');
+  assert.ok(!text.includes(secrets.join(' ')), 'provider message must not reach any answer or stop');
+  // The public audience tag intentionally has 64 hex digits.
+  const withoutPublicAudience = text.replaceAll(`"aud":"${AUD}"`, '');
+  assert.ok(!/eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+|[A-Za-z0-9_]{40}/.test(withoutPublicAudience),
+    'token-shaped text must not reach any answer or stop');
 };
 const trace = (calls) => calls.map(({ method, endpoint }) => [method, endpoint]);
 async function setup(t, options = {}) {
@@ -51,7 +56,7 @@ async function setup(t, options = {}) {
     if (options.responder) return options.responder(req, calls.length);
     if (req.endpoint === ROOT + '/organizations') return options.off ? error(403, [9999]) : ok({ auth_domain: 'team.cloudflareaccess.com', secret: CLIENT_VALUE });
     if (req.endpoint.startsWith(ROOT + '/apps?')) return ok(posted ? options.recoveryApps ?? [] : options.duplicates ?? [], options.listInfo ?? { total_pages: 1, total_count: (posted ? options.recoveryApps ?? [] : options.duplicates ?? []).length });
-    if (req.endpoint === ROOT + '/apps' && req.method === 'POST') { posted = true; postedApp = { ...app(), domain: req.body.domain, self_hosted_domains: [req.body.domain], destinations: req.body.destinations, policies: req.body.policies.map(({ id }) => id === TOKEN_ID ? agentPolicy() : { ...attachable(), id }) }; return ok(options.createdApp ?? postedApp); }
+    if (req.endpoint === ROOT + '/apps' && req.method === 'POST') { posted = true; postedApp = { ...app(), domain: req.body.domain, self_hosted_domains: [req.body.domain], destinations: req.body.destinations, read_service_tokens_from_header: req.body.read_service_tokens_from_header, policies: req.body.policies.map(({ id }) => id === TOKEN_ID ? agentPolicy() : { ...attachable(), id }) }; return ok(options.createdApp ?? postedApp); }
     if (req.endpoint === ROOT + '/apps/' + ID && req.method === 'DELETE') {
       if (options.deleteFails) return error(502);
       deleted = true; return ok({ id: ID });
@@ -93,7 +98,7 @@ for (const [action, input] of Object.entries(inputs)) {
     assert.equal(result.success, true); clean(result);
     const keys = { create_app: ['success', 'id', 'aud'], create_policy: ['success', 'id'],
       set_staff: ['success', 'policy_id', 'changed', 'before', 'after'], list_staff: ['success', 'policy_id', 'emails'],
-      get_app: ['success', 'id', 'aud', 'hostname', 'policy_ids', 'policies'] };
+      get_app: ['success', 'id', 'aud', 'hostname', 'policy_ids', 'policies', 'single_header'] };
     assert.deepEqual(Object.keys(result).sort(), keys[action].sort());
   });
   if (action !== 'get_app' && action !== 'list_staff') {
@@ -264,10 +269,10 @@ test('list_staff: publishes only the staff IDs and the service token listing’s
   assert.deepEqual(env.calls, []);
 });
 
-test('get_app: only hostname, policy ids, policy decisions and public audience are returned', async (t) => {
+test('get_app: only hostname, policy ids, policy decisions, public audience and single-header mode are returned', async (t) => {
   const env = await setup(t); const result = await env.execute('get_app');
   assert.deepEqual(trace(env.calls), [['GET', ROOT + '/apps/' + ID], ['GET', ROOT + '/policies/' + POLICY]]);
-  assert.deepEqual(result, { success: true, id: ID, hostname: 'crm.example.com', policy_ids: [POLICY], policies: [{ id: POLICY, decision: 'allow' }], aud: AUD });
+  assert.deepEqual(result, { success: true, id: ID, hostname: 'crm.example.com', policy_ids: [POLICY], policies: [{ id: POLICY, decision: 'allow' }], aud: AUD, single_header: false });
 });
 const staffPolicyDecision = { id: POLICY, decision: 'allow' };
 const agentPolicyDecision = { id: TOKEN_ID, decision: 'non_identity' };
@@ -305,9 +310,10 @@ test('organization: absent result and missing team domain both prevent writes', 
     const answer = await env.execute('create_policy'); assert.equal(answer.status, 'vendor_error'); assert.equal(env.calls.length, 1);
   }
 });
-test('all Access schemas: recursive field walk has no secret-named input and Q7 setting is absent', () => {
+test('all Access schemas: recursive field walk has no secret-named input or raw header-name setting', () => {
   const manifest = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url)));
-  const actions = manifest.modules.access.actions; assert.deepEqual(Object.keys(actions).sort(), [...Object.keys(inputs), 'list_service_tokens'].sort());
+  const actions = manifest.modules.access.actions;
+  assert.deepEqual(Object.keys(actions).sort(), [...Object.keys(inputs), 'list_service_tokens', 'set_single_header'].sort());
   const walk = (schema) => {
     if (!schema || typeof schema !== 'object') return;
     for (const field of Object.keys(schema.properties ?? {})) assert.doesNotMatch(field, /secret|password|credential|client_id/i);
@@ -565,7 +571,6 @@ const storedAppCases = [
   ['second destination', { destinations: [{ type: 'public', uri: 'crm.example.com' }, { type: 'public', uri: 'other.example.com' }] }],
   ['another self-hosted domain', { self_hosted_domains: ['crm.example.com', 'other.example.com'] }],
   ['header enabled', { read_service_tokens_from_header: true }],
-  ['named single header', { read_service_tokens_from_header: 'Authorization' }],
   ['wrong type', { type: 'saas' }],
   ['wrong domain', { domain: 'other.example.com', destinations: [{ type: 'public', uri: 'other.example.com' }] }],
   ['wrong audience', { aud: 'invalid' }],
@@ -680,7 +685,7 @@ test('fix4 docs: edge scope, workers.dev closure, counted reads and live policie
     for (const term of ['workers.dev', 'workers.set_workers_dev', 'proxied', 'valid Access token']) assert.ok(text.includes(term), term);
   }
   assert.match(guide, /total_count/); assert.match(guide, /any identity provider the team has/);
-  assert.match(guide, /leaves `read_service_tokens_from_header` out/);
+  assert.match(guide.replace(/\s+/g, ' '), /single_header: true.*read_service_tokens_from_header: "Authorization".*single_header: false.*leaves `read_service_tokens_from_header` out/);
   assert.match(manifest.modules.access.actions.create_policy.description, /read.back/i);
   assert.match(manifest.modules.access.actions.get_app.description, /every attached policy/i);
   assert.match(manifest.modules.access.actions.set_staff.description, /before.*after/i);
@@ -721,7 +726,7 @@ test('fix5 create_policy: an answer with no usable id reports the name and that 
   assert.equal(result.removed, false);
   assert.equal(result.policy_name, 'CRM staff');
 });
-test('fix5 docs: the upgrade sequence turns workers.dev off after each deploy, and the manifest says the header setting is omitted', () => {
+test('fix5 docs: the upgrade sequence turns workers.dev off after each deploy, and the manifest says the header setting is omitted by default', () => {
   const guide = readFileSync(new URL('../CONNECTOR.md', import.meta.url), 'utf8');
   const manifest = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url)));
   const step = guide.split('\n').findIndex((line) => line.startsWith('4. `workers.deploy_worker_release`'));
@@ -815,3 +820,394 @@ for (const [label, pages] of [
     assert.equal(env.calls.length, pages.length);
   });
 }
+
+test('M7 create_app: optional boolean controls the POST body', async (t) => {
+  for (const setting of [true, false, undefined]) {
+    const env = await setup(t);
+    const input = setting === undefined ? inputs.create_app : { ...inputs.create_app, single_header: setting };
+    const result = await env.execute('create_app', input);
+    assert.equal(result.success, true, 'create accepts ' + setting);
+    const { body } = env.calls.find(({ method }) => method === 'POST');
+    if (setting) assert.equal(body.read_service_tokens_from_header, 'Authorization');
+    else assert.equal(Object.hasOwn(body, 'read_service_tokens_from_header'), false);
+  }
+});
+
+test('M7 create_app: non-boolean single_header is refused before transport', async (t) => {
+  const env = await setup(t);
+  const calls = [];
+  for (const setting of ['true', 1, null, {}]) {
+    const input = { ...inputs.create_app, single_header: setting };
+    assert.equal((await env.execute('create_app', input)).status, 'invalid_arguments');
+    const result = await modules.access.create_app(input, { proxy: async (req) => { calls.push(req); return error(403); } });
+    clean(result);
+    assert.equal(result.status, 'invalid_arguments');
+    assert.equal(result.field, 'single_header');
+  }
+  assert.deepEqual(env.calls, []);
+  assert.deepEqual(calls, []);
+});
+
+test('M7 Access checker: only Authorization is accepted as a named single header', async (t) => {
+  for (const [header, supported] of [['Authorization', true], ['authorization', true], [true, false], ['X-Token', false], [0, false], [{}, false]]) {
+    const env = await setup(t, { app: { ...app(), read_service_tokens_from_header: header } });
+    const result = await env.execute('get_app');
+    assert.equal(result.success === true, supported, 'stored header ' + JSON.stringify(header));
+    if (!supported) assert.equal(result.status, 'vendor_error');
+  }
+});
+
+for (const asked of [true, false]) test(`M7 create_app: stored single-header mismatch removes the app (requested ${asked})`, async (t) => {
+  const env = await setup(t, { app: { ...app(), read_service_tokens_from_header: asked ? false : 'Authorization' } });
+  const result = await env.execute('create_app', { ...inputs.create_app, single_header: asked });
+  assert.equal(result.status, 'vendor_error');
+  assertRemoved(result, env.calls);
+  assert.match(result.reason, /single-header.*did not match/i);
+});
+
+test('M7 get_app: reports the stored single_header boolean for on and off settings', async (t) => {
+  for (const [header, enabled] of [[undefined, false], [null, false], [false, false], ['', false], ['Authorization', true], ['authorization', true]]) {
+    const env = await setup(t, { app: { ...app(), read_service_tokens_from_header: header } });
+    const result = await env.execute('get_app');
+    assert.equal(result.success, true);
+    assert.equal(result.single_header, enabled);
+  }
+});
+
+const refusedRequests = [
+  ['create_app', 'POST', ROOT + '/apps'],
+  ['create_policy', 'POST', ROOT + '/policies'],
+  ['set_staff', 'PUT', ROOT + '/policies/' + POLICY],
+  ['list_staff', 'GET', ROOT + '/policies/' + POLICY],
+  ['get_app', 'GET', ROOT + '/apps/' + ID],
+  ['list_service_tokens', 'GET', TOKEN_LIST + '?per_page=25&page=1'],
+];
+for (const [action, method, endpoint] of refusedRequests) test(`M7 ${action}: 403 exposes provider codes only`, async (t) => {
+  const env = await setup(t, { responder: (req) => {
+    if (req.method === method && req.endpoint === endpoint) return error(403);
+    if (req.endpoint.endsWith('/organizations')) return ok({ auth_domain: 'team.cloudflareaccess.com' });
+    if (req.endpoint.includes('/apps?')) return ok([], { total_count: 0 });
+    if (req.endpoint === ROOT + '/policies/' + POLICY) return ok(staff());
+    assert.fail('unexpected fake request');
+  } });
+  const result = await env.execute(action, action === 'list_service_tokens' ? TOKEN_LIST_INPUT : inputs[action]);
+  assert.equal(result.status, 'vendor_error');
+  assert.equal(result.http_status, 403);
+  assert.deepEqual(result.provider_codes, [10000]);
+});
+
+test('M7 Access diagnostics: codes are safe integers, unique and capped at ten', async (t) => {
+  const codes = [10000, 10000, '10001', 1.5, null, {}, 2 ** 53, ...Array.from({ length: 12 }, (_, i) => 10001 + i)];
+  const env = await setup(t, { responder: () => error(403, codes) });
+  const result = await env.execute('get_app');
+  assert.deepEqual(result.provider_codes, Array.from({ length: 10 }, (_, i) => 10000 + i));
+});
+
+test('M7 create_policy: refused read-back preserves codes through cleanup', async (t) => {
+  const env = await setup(t, { responder: (req, count) => {
+    if (count === 1) return ok({ auth_domain: 'team.cloudflareaccess.com' });
+    if (req.method === 'POST' || req.method === 'DELETE') return ok({ id: POLICY });
+    return error(count === 3 ? 403 : 404, count === 3 ? [10000] : [9999]);
+  } });
+  const result = await env.execute('create_policy');
+  assert.equal(result.status, 'vendor_error');
+  assert.equal(result.removed, true);
+  assert.deepEqual(result.provider_codes, [10000]);
+});
+
+test('M7 guide: a lost migration answer is read twice, never re-migrated, and cleans up only temporary databases', () => {
+  const guide = readFileSync(new URL('../CONNECTOR.md', import.meta.url), 'utf8');
+  const sequence = guide.split('### Upgrade and failure recovery sequence')[1].split(/\n#{2,3} /)[0].replace(/\s+/g, ' ').replaceAll('`', '');
+  const rules = [
+    /workers\.d1_adopt or workers\.d1_migrate returns a timeout, uncertain or no answer, do not call it again at once: the call may still be running/,
+    /With pages\.d1_query, read the target database's sqlite_master for a table named d1_migrations, and when there is one, the names it holds/,
+    /Read every page of pages\.d1_list_databases too/,
+    /Read both again a minute later, and act only when the two reads agree\. If a read fails, stop and retry nothing/,
+    /After workers\.d1_adopt: with no d1_migrations table, nothing was recorded, and workers\.d1_adopt may be called once more/,
+    /It records the baseline's name only when the schema matches, and runs no baseline SQL on the target database/,
+    /With the table holding the baseline's name, the adoption landed, so do not adopt again/,
+    /With the table present and the name absent, neither action will repair the database: on an upgrade, recover from the bookmark as step 6 says; on a first install, migrate a new empty database instead/,
+    /After workers\.d1_migrate: every release file named in d1_migrations means the migration landed/,
+    /A file not named may have run in part, so do not call workers\.d1_migrate again\. Treat it as a failed migration: on an upgrade, recover from the bookmark as step 6 says; on a first install, migrate a new empty database instead/,
+    /A listed database whose name starts with wiser-adopt-, and whose ID is not the target database's, is a temporary database adoption did not remove/,
+    /Delete it with pages\.d1_delete_database by the ID the list gives, then list again to confirm it is gone/,
+    /Never delete any other database this way: pages\.d1_delete_database deletes whatever ID it is given/,
+  ];
+  for (const rule of rules) assert.match(sequence, rule);
+  assert.doesNotMatch(sequence, /Retry only what d1_migrations does not record/);
+  assert.doesNotMatch(sequence, /With the name absent, workers\.d1_adopt may be called once more/);
+});
+
+test('M7 docs: the release, Access fields and provider diagnostics are published', () => {
+  const guide = readFileSync(new URL('../CONNECTOR.md', import.meta.url), 'utf8');
+  const { create_app, get_app } = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url))).modules.access.actions;
+  assert.match(guide, /^version: 0\.13\.0$/m);
+  assert.match(guide, /^At 0\.13\.0, /m);
+  const access = guide.split('### Access applications and staff')[1].split(/\n#{2,3} /)[0];
+  for (const term of ['single_header', 'Authorization', 'provider_codes', 'case-insensitive']) assert.ok(access.includes(term), term);
+  for (const { description } of [create_app, get_app]) {
+    for (const term of ['single_header', 'Authorization', 'provider_codes']) assert.ok(description.includes(term), term);
+  }
+  assert.deepEqual(create_app.input.properties.single_header, { type: 'boolean', default: false });
+  assert.ok(!create_app.input.required.includes('single_header'));
+});
+
+const APP_PATH = ROOT + '/apps/' + ID;
+const HEADER = 'read_service_tokens_from_header';
+const singleHeaderInput = { ...inputs.get_app, single_header: true };
+const appSettings = {
+  type: 'self_hosted', domain: 'crm.example.com', name: 'CRM',
+  destinations: [{ type: 'public', uri: 'crm.example.com' }],
+  self_hosted_domains: ['crm.example.com'], allow_iframe: false,
+  cors_headers: { allow_origins: ['https://crm.example.com'], allow_credentials: true },
+  allowed_idps: [], custom_deny_message: '', tags: ['crm'],
+};
+const singleHeaderApp = () => ({
+  ...appSettings, id: ID, uid: ID, aud: AUD, created_at: 'before', updated_at: 'before',
+  policies: [{ ...agentPolicy(), precedence: 3 }, { ...attachable(), precedence: 2 }],
+});
+const policyLinks = [{ id: POLICY, precedence: 2 }, { id: TOKEN_ID, precedence: 3 }];
+const singleHeaderResult = (single_header, changed) => ({
+  success: true, app_id: ID, hostname: 'crm.example.com', single_header, changed,
+});
+
+async function setupSingleHeader(t, { before = singleHeaderApp(), reads = [], writes = [], policy = ok(staff()) } = {}) {
+  const remainingReads = [ok(before), ...reads];
+  const remainingWrites = [...writes];
+  const env = await setup(t, { responder: (req) => {
+    if (req.endpoint === ROOT + '/organizations' && req.method === 'GET') return ok({ auth_domain: 'team.cloudflareaccess.com' });
+    if (req.endpoint === ROOT + '/policies/' + POLICY && req.method === 'GET') return policy;
+    if (req.endpoint === ROOT + '/policies/' + TOKEN_ID && req.method === 'GET') return ok(agentPolicy());
+    if (req.endpoint === APP_PATH && req.method === 'GET' && remainingReads.length) return remainingReads.shift();
+    if (req.endpoint === APP_PATH && req.method === 'PUT' && remainingWrites.length) {
+      const reply = remainingWrites.shift();
+      if (reply instanceof Error) throw reply;
+      return reply;
+    }
+    assert.fail('unexpected fake request');
+  } });
+  return {
+    ...env,
+    set: (input = singleHeaderInput) => env.execute('set_single_header', input),
+    puts: () => env.calls.filter(({ method }) => method === 'PUT').map(({ body }) => body),
+  };
+}
+
+test('set_single_header: turns on and preserves the whole application', async (t) => {
+  const before = { ...singleHeaderApp(), scim_config: null };
+  const after = {
+    ...before, [HEADER]: 'Authorization', updated_at: 'after',
+    cors_headers: { allow_credentials: true, allow_origins: before.cors_headers.allow_origins },
+    policies: [{ ...attachable(), precedence: 2, updated_at: 'after' }, { id: TOKEN_ID, precedence: 3 }],
+  };
+  const env = await setupSingleHeader(t, { before, reads: [ok(after)], writes: [ok(null)] });
+  assert.deepEqual(await env.set(), singleHeaderResult(true, true));
+  assert.deepEqual(env.puts(), [{ ...appSettings, policies: policyLinks, [HEADER]: 'Authorization' }]);
+  assert.deepEqual(trace(env.calls), [
+    ['GET', ROOT + '/organizations'], ['GET', APP_PATH],
+    ['GET', ROOT + '/policies/' + TOKEN_ID], ['GET', ROOT + '/policies/' + POLICY],
+    ['PUT', APP_PATH], ['GET', APP_PATH],
+  ]);
+});
+
+test('set_single_header: a null setting read back absent is unchanged', async (t) => {
+  const before = { ...singleHeaderApp(), custom_deny_url: null };
+  const { custom_deny_url, ...after } = { ...before, [HEADER]: 'Authorization' };
+  const env = await setupSingleHeader(t, { before, reads: [ok(after)], writes: [ok(null)] });
+  assert.deepEqual(await env.set(), singleHeaderResult(true, true));
+  assert.equal(env.puts().length, 1);
+  assert.ok(!Object.hasOwn(env.puts()[0], 'custom_deny_url'));
+});
+
+test('set_single_header: a missing or shared policy precedence is refused without a PUT', async (t) => {
+  for (const policies of [
+    [{ ...agentPolicy(), precedence: 3 }, attachable()],
+    [{ ...agentPolicy(), precedence: 2 }, { ...attachable(), precedence: 2 }],
+    [{ ...agentPolicy(), precedence: '3' }, { ...attachable(), precedence: 2 }],
+  ]) {
+    const env = await setupSingleHeader(t, { before: { ...singleHeaderApp(), policies } });
+    const result = await env.set();
+    assert.equal(result.status, 'vendor_error');
+    assert.match(result.reason, /precedence/);
+    assert.deepEqual(env.puts(), []);
+  }
+});
+
+test('set_single_header: a read-back with renumbered policies is restored', async (t) => {
+  const before = singleHeaderApp();
+  const renumbered = { ...before, [HEADER]: 'Authorization',
+    policies: [{ ...agentPolicy(), precedence: 4 }, { ...attachable(), precedence: 2 }] };
+  const env = await setupSingleHeader(t, { before, reads: [ok(renumbered), ok(before)], writes: [ok(null), ok(null)] });
+  const result = await env.set();
+  assert.equal(result.status, 'vendor_error');
+  assert.equal(result.restored, true);
+  assert.deepEqual(result.changed_fields, ['policies', HEADER].sort());
+  assert.equal(env.puts().length, 2);
+});
+
+test('set_single_header: eager_redirect_cookie_setting is written back as read', async (t) => {
+  for (const value of [true, false]) {
+    const before = { ...singleHeaderApp(), eager_redirect_cookie_setting: value };
+    const after = { ...before, [HEADER]: 'Authorization', updated_at: 'after' };
+    const env = await setupSingleHeader(t, { before, reads: [ok(after)], writes: [ok(null)] });
+    assert.deepEqual(await env.set(), singleHeaderResult(true, true));
+    assert.deepEqual(env.puts(), [{ ...appSettings, eager_redirect_cookie_setting: value, policies: policyLinks, [HEADER]: 'Authorization' }]);
+  }
+});
+
+test('set_single_header: turns off by omitting the header key', async (t) => {
+  const after = singleHeaderApp();
+  const env = await setupSingleHeader(t, {
+    before: { ...after, [HEADER]: 'Authorization' }, reads: [ok(after)], writes: [ok(null)],
+  });
+  assert.deepEqual(await env.set({ ...singleHeaderInput, single_header: false }), singleHeaderResult(false, true));
+  assert.deepEqual(env.puts(), [{ ...appSettings, policies: policyLinks }]);
+});
+
+test('set_single_header: skips PUT when already on or off', async (t) => {
+  for (const [single_header, setting] of [[true, 'authorization'], [false, null]]) {
+    const env = await setupSingleHeader(t, { before: { ...singleHeaderApp(), [HEADER]: setting } });
+    assert.deepEqual(await env.set({ ...singleHeaderInput, single_header }), singleHeaderResult(single_header, false));
+    assert.deepEqual(env.puts(), []);
+  }
+});
+
+test('set_single_header: rejects non-boolean and missing input before transport', async (t) => {
+  const env = await setupSingleHeader(t);
+  const calls = [];
+  for (const input of [inputs.get_app, ...['true', 1, null, {}].map((single_header) => ({ ...singleHeaderInput, single_header }))]) {
+    assert.equal((await env.set(input)).status, 'invalid_arguments');
+    const result = await modules.access.set_single_header(input, { proxy: async (req) => { calls.push(req); return error(403); } });
+    clean(result);
+    assert.deepEqual(result, { status: 'invalid_arguments', field: 'single_header' });
+  }
+  assert.deepEqual(env.calls, []);
+  assert.deepEqual(calls, []);
+});
+
+for (const [key, value] of [
+  ['scim_config', { authentication: { token: CLIENT_VALUE } }],
+  ['oauth_configuration', { name: JWT }],
+  ['unknown_setting', API_TOKEN],
+]) test(`set_single_header: refuses non-null ${key}`, async (t) => {
+  const env = await setupSingleHeader(t, { before: { ...singleHeaderApp(), [key]: value } });
+  const result = await env.set();
+  assert.deepEqual(env.puts(), []);
+  assert.equal(result.status, 'vendor_error');
+  assert.deepEqual(result.unsupported_fields, [key]);
+});
+
+test('set_single_header: reports only safe, sorted, bounded unsupported names', async (t) => {
+  const fields = Array.from({ length: 22 }, (_, i) => `extra_${String(i).padStart(2, '0')}`);
+  const before = {
+    ...singleHeaderApp(), [JWT]: true, [API_TOKEN]: true,
+    ...Object.fromEntries([...fields].reverse().map((key) => [key, true])),
+  };
+  const env = await setupSingleHeader(t, { before });
+  const result = await env.set();
+  assert.equal(result.status, 'vendor_error');
+  assert.deepEqual(result.unsupported_fields, fields.slice(0, 20));
+  assert.deepEqual(env.puts(), []);
+});
+
+test('set_single_header: refuses unsupported applications and failed live policy checks', async (t) => {
+  for (const options of [
+    { before: { ...singleHeaderApp(), [HEADER]: 'X-Token' } },
+    { before: { ...singleHeaderApp(), destinations: [{ ...appSettings.destinations[0], overrides: [{}] }] } },
+    { policy: error(403) },
+  ]) {
+    const env = await setupSingleHeader(t, options);
+    const result = await env.set();
+    assert.equal(result.status, 'vendor_error');
+    assert.deepEqual(env.puts(), []);
+    if (options.policy) {
+      assert.deepEqual(result.provider_codes, [10000]);
+      assert.equal(result.policy_id, POLICY);
+    }
+  }
+});
+
+test('set_single_header: refused PUT with unchanged read keeps numeric diagnostics', async (t) => {
+  const before = singleHeaderApp();
+  const env = await setupSingleHeader(t, { before, reads: [ok(before)], writes: [error(403)] });
+  assert.deepEqual(await env.set(), {
+    status: 'vendor_error', endpoint: APP_PATH, method: 'PUT', http_status: 403,
+    provider_codes: [10000], restored: true,
+  });
+  assert.equal(env.puts().length, 1);
+});
+
+test('set_single_header: accepted PUT with unchanged read reports failure without restoring', async (t) => {
+  const before = singleHeaderApp();
+  const env = await setupSingleHeader(t, { before, reads: [ok(before)], writes: [ok(null)] });
+  const result = await env.set();
+  assert.equal(result.status, 'vendor_error');
+  assert.equal(result.restored, true);
+  assert.ok(result.reason);
+  assert.equal(env.puts().length, 1);
+});
+
+test('set_single_header: thrown PUT with matching read reports success', async (t) => {
+  const before = singleHeaderApp();
+  const env = await setupSingleHeader(t, {
+    before, reads: [ok({ ...before, [HEADER]: 'Authorization' })], writes: [new Error(secrets.join(' '))],
+  });
+  assert.deepEqual(await env.set(), singleHeaderResult(true, true));
+  assert.equal(env.puts().length, 1);
+  assert.deepEqual(trace(env.calls).slice(-2), [['PUT', APP_PATH], ['GET', APP_PATH]]);
+});
+
+for (const restored of [true, false]) test(`set_single_header: verifies restoration (restored ${restored})`, async (t) => {
+  const before = { ...singleHeaderApp(), [HEADER]: 'authorization' };
+  const drift = { ...before, allow_iframe: true };
+  for (const lastRead of restored ? [ok(before)] : [ok(drift), error(502)]) {
+    const env = await setupSingleHeader(t, { before, reads: [ok(drift), lastRead], writes: [ok(null), ok(null)] });
+    const result = await env.set({ ...singleHeaderInput, single_header: false });
+    const body = { ...appSettings, policies: policyLinks };
+    assert.deepEqual(env.puts(), [body, { ...body, [HEADER]: 'authorization' }]);
+    assert.equal(result.status, 'vendor_error');
+    assert.equal(result.app_id, ID);
+    assert.equal(result.restored, restored);
+    assert.deepEqual(result.changed_fields, ['allow_iframe']);
+    if (!restored) assert.match(result.reason, /access\.get_app/);
+  }
+});
+
+test('set_single_header: failed read-back attempts one restore and verifies it', async (t) => {
+  const before = { ...singleHeaderApp(), [HEADER]: null };
+  const env = await setupSingleHeader(t, { before, reads: [error(502), ok(before)], writes: [ok(null), error(403)] });
+  const result = await env.set();
+  assert.equal(result.status, 'vendor_error');
+  assert.equal(result.restored, true);
+  assert.deepEqual(result.provider_codes, [10000]);
+  assert.deepEqual(result.changed_fields, []);
+  assert.deepEqual(env.puts(), [
+    { ...appSettings, policies: policyLinks, [HEADER]: 'Authorization' }, { ...appSettings, policies: policyLinks },
+  ]);
+  assert.deepEqual(trace(env.calls).slice(-4), [['PUT', APP_PATH], ['GET', APP_PATH], ['PUT', APP_PATH], ['GET', APP_PATH]]);
+});
+
+test('set_single_header: manifest publishes the confirmed proxy write and closed input', () => {
+  const { get_app, set_single_header: action } = JSON.parse(readFileSync(new URL('../manifest.json', import.meta.url))).modules.access.actions;
+  assert.ok(action);
+  assert.equal(action.risk, 'high');
+  assert.equal(action.confirmation, 'always');
+  assert.deepEqual(action.execution, { prefer: 'proxy' });
+  assert.deepEqual(action.input, {
+    ...get_app.input, properties: { ...get_app.input.properties, single_header: { type: 'boolean' } },
+    required: [...get_app.input.required, 'single_header'],
+  });
+  for (const claim of [/get_app/, /refuses/, /whole application/, /reads.*back/i, /no write/i, /vendor_error.*provider_codes/]) {
+    assert.match(action.description, claim);
+  }
+});
+
+test('set_single_header: connector guide and auth document the write and recovery', () => {
+  const guide = readFileSync(new URL('../CONNECTOR.md', import.meta.url), 'utf8');
+  const auth = readFileSync(new URL('../auth.md', import.meta.url), 'utf8');
+  assert.match(guide, /^version: 0\.13\.0$/m);
+  assert.match(guide, /^At 0\.13\.0, .*access\.set_single_header.*none of it has run live/m);
+  const access = guide.split('### Access applications and staff')[1].split(/\n#{2,3} /)[0].replace(/\s+/g, ' ');
+  assert.match(access, /access\.set_single_header.*unsupported.*null.*reads.*back.*restored: false.*access\.get_app/);
+  assert.match(auth, /^\| `access` \| .*set_single_header.*create_app.*Write.*Organizations, Identity Providers, and Groups \/ Read/m);
+});

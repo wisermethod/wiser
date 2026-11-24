@@ -9,6 +9,7 @@ import {
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, extname, isAbsolute, join, normalize, resolve, sep } from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 
 // Copied from the vercel connector's path screen. A module may not import
 // another connector (standards/script-contract.md, Connector modules), which
@@ -2462,17 +2463,18 @@ async function strictProxyResponse(ctx, req) {
   }
   return { result: data.result, info: data.result_info };
 }
+async function strictCodedProxyResponse(ctx, req) {
+  const reply = await strictProxyResponse(ctx, req);
+  if (!reply.error) return reply;
+  const codes = Array.isArray(reply.codes) ? [...new Set(reply.codes.filter(Number.isSafeInteger))].slice(0, 10) : [];
+  // Access readiness also needs the unfiltered codes to recognize a 9999-only refusal.
+  return { ...reply, error: { ...reply.error, ...(codes.length ? { provider_codes: codes } : {}) } };
+}
+
 // Wrangler 4.165.0, email-routing/client.ts and sending/{dns-get,enable,disable}.ts.
 const emailSendingPath = ({ zone_id }) => `/zones/${zone_id}/email/sending/subdomains`;
 const emailSubdomain = (row) => asObject(row) && typeof row.name === 'string' && HOSTNAME.test(row.name)
   && typeof row.tag === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(row.tag) && typeof row.enabled === 'boolean';
-
-async function emailSendingRequest(ctx, req) {
-  const reply = await strictProxyResponse(ctx, req);
-  if (!reply.error) return reply;
-  const codes = Array.isArray(reply.codes) ? [...new Set(reply.codes.filter(Number.isSafeInteger))].slice(0, 10) : [];
-  return { error: { ...reply.error, ...(codes.length ? { provider_codes: codes } : {}) } };
-}
 
 async function findEmailSendingDomain(input, ctx) {
   const endpoint = emailSendingPath(input);
@@ -2481,7 +2483,7 @@ async function findEmailSendingDomain(input, ctx) {
   let match, cursor, advertisedTotal, advertisedPages;
   for (let pages = 0; pages < 1000; pages++) {
     const req = { endpoint, method: 'GET', ...(cursor ? { parameters: [{ name: 'cursor', type: 'query', value: cursor }] } : {}) };
-    const reply = await emailSendingRequest(ctx, req);
+    const reply = await strictCodedProxyResponse(ctx, req);
     if (reply.error) return { error: reply.error };
     if (!Array.isArray(reply.result)) return { error: strictVendorError(req) };
     for (const row of reply.result) {
@@ -2535,7 +2537,7 @@ async function getEmailSendingDomain(input, ctx) {
   if (error) return error;
   if (!match) return { success: true, domain, onboarded: false, enabled: false, dns_records: [] };
   const req = { endpoint: `${emailSendingPath(input)}/${match.tag}/dns`, method: 'GET' };
-  const reply = await emailSendingRequest(ctx, req);
+  const reply = await strictCodedProxyResponse(ctx, req);
   if (reply.error) return reply.error;
   const records = Array.isArray(reply.result) ? reply.result.map((row) => emailDnsRecord(row, domain)) : null;
   if (!records || records.includes(null)) return strictVendorError(req);
@@ -2550,7 +2552,7 @@ async function onboardEmailSendingDomain(input, ctx) {
   // enable does. The POST's own body is not trusted for the outcome: the
   // listing read before the write is read again after it.
   const req = { endpoint: emailSendingPath(input), method: 'POST', body: { name: domain } };
-  const reply = await emailSendingRequest(ctx, req);
+  const reply = await strictCodedProxyResponse(ctx, req);
   if (reply.error) return reply.error;
   const after = await findEmailSendingDomain(input, ctx);
   if (after.error) return { ...after.error, reason: 'onboarding submitted; domain read-back failed' };
@@ -2563,7 +2565,7 @@ async function removeEmailSendingDomain(input, ctx) {
   if (error) return error;
   if (!match) return { success: true, domain, removed: false, read_back: 'absent' };
   const req = { endpoint: `${emailSendingPath(input)}/${match.tag}`, method: 'DELETE' };
-  const reply = await emailSendingRequest(ctx, req);
+  const reply = await strictCodedProxyResponse(ctx, req);
   if (reply.error) return reply.error;
   // The DELETE's body is not the proof: the listing is read again and the
   // domain must be gone from it.
@@ -2575,7 +2577,7 @@ async function removeEmailSendingDomain(input, ctx) {
 
 async function accessTeam(input, ctx) {
   const req = { endpoint: `${accessPath(input.account_id)}/organizations`, method: 'GET' };
-  const reply = await strictProxyResponse(ctx, req);
+  const reply = await strictCodedProxyResponse(ctx, req);
   const off = reply.error && accessNotEnabled({ object: { ...reply.error, provider_codes: reply.codes } });
   if (off) {
     return { status: 'denied', access_enabled: false,
@@ -2592,7 +2594,7 @@ async function accessCountedList(ctx, { root, label, perPage, readRow }) {
   let total, totalPages;
   for (let page = 1; page <= 10000; page += 1) {
     const req = { endpoint: `${root}?per_page=${perPage}&page=${page}`, method: 'GET' };
-    const reply = await strictProxyResponse(ctx, req);
+    const reply = await strictCodedProxyResponse(ctx, req);
     if (reply.error) return reply.error;
     if (!Array.isArray(reply.result)) return strictVendorError(req);
     const incomplete = { ...strictVendorError(req), reason: `Access ${label} listing incomplete; a counted list could not be established.` };
@@ -2695,7 +2697,7 @@ function accessPolicyRefusal(policyId, reason, req) {
 }
 async function accessReadPolicy(account, id, ctx, { includeDecision = false } = {}) {
   const req = { endpoint: `${accessPath(account)}/policies/${encodeURIComponent(id)}`, method: 'GET' };
-  const reply = await strictProxyResponse(ctx, req);
+  const reply = await strictCodedProxyResponse(ctx, req);
   if (reply.error) return { ...reply.error, ...accessPolicyRefusal(id, 'Policy could not be read and checked.', req) };
   if (reply.result?.id !== id) return accessPolicyRefusal(id, 'Policy read-back id did not match the linked policy.', req);
   const problem = accessPolicyProblem(reply.result);
@@ -2745,11 +2747,13 @@ function accessAppResult(app, req, detail) {
     && (!Array.isArray(destination.overrides) || destination.overrides.length > 0))) {
     return { ...strictVendorError(req), reason: 'Application destination overrides can bypass Access authentication for a path.' };
   }
-  // An optional header-name string in Cloudflare's application reference; Q7's single-header mode is on only when it names a header.
+  // Cloudflare's application reference declares an optional header name.
+  // These applications support Authorization as their single service-token header.
   // https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/applications/methods/create/
   const header = app.read_service_tokens_from_header;
-  if (header !== undefined && header !== null && header !== false && header !== '') {
-    return { ...strictVendorError(req), reason: 'Application single-header service-token authentication must be off.' };
+  const singleHeader = typeof header === 'string' && header.toLowerCase() === 'authorization';
+  if (!singleHeader && header != null && header !== false && header !== '') {
+    return { ...strictVendorError(req), reason: 'Application single-header service-token authentication must be off or use Authorization.' };
   }
   for (const policy of Array.isArray(app.policies) ? app.policies : []) {
     if (asObject(policy) && policy.decision !== undefined && !['allow', 'non_identity'].includes(policy.decision)) {
@@ -2774,8 +2778,64 @@ function accessAppResult(app, req, detail) {
   }
   const ids = app.policies.map((policy) => typeof policy === 'string' ? policy : policy?.id);
   if (!ids.every((id) => typeof id === 'string' && ACCESS_UUID.test(id))) return strictVendorError(req);
-  return { ...out, hostname, policy_ids: ids };
+  return { ...out, hostname, policy_ids: ids, single_header: singleHeader };
 }
+
+async function readAccessApp(input, ctx) {
+  const req = { endpoint: `${accessPath(input.account_id)}/apps/${encodeURIComponent(input.app_id)}`, method: 'GET' };
+  const { error, result: app } = await strictCodedProxyResponse(ctx, req);
+  if (error) return { error };
+  const result = accessAppResult(app, req, true);
+  if (result.status === 'vendor_error') return { error: result };
+  const policies = [];
+  for (const id of result.policy_ids) {
+    const decision = await accessReadPolicy(input.account_id, id, ctx, { includeDecision: true });
+    if (typeof decision !== 'string') return { error: decision };
+    policies.push({ id, decision });
+  }
+  return { req, app, result: { ...result, policies } };
+}
+
+const ACCESS_APP_HEADER = 'read_service_tokens_from_header';
+const ACCESS_APP_METADATA = new Set(['id', 'uid', 'aud', 'created_at', 'updated_at']);
+const ACCESS_APP_FIELDS = new Set([
+  'type', 'domain', 'name', 'destinations', 'self_hosted_domains', 'policies', ACCESS_APP_HEADER,
+  'allow_authenticate_via_warp', 'allow_iframe', 'allowed_idps', 'app_launcher_visible',
+  'auto_redirect_to_identity', 'cors_headers', 'custom_deny_message', 'custom_deny_url', 'eager_redirect_cookie_setting',
+  'custom_non_identity_deny_url', 'custom_pages', 'enable_binding_cookie', 'http_only_cookie_attribute',
+  'logo_url', 'mfa_config', 'options_preflight_bypass', 'path_cookie_attribute',
+  'same_site_cookie_attribute', 'service_auth_401_redirect', 'session_duration', 'skip_interstitial',
+  'tags', 'use_clientless_isolation_app_launcher_url',
+]);
+const accessAppFieldNames = (keys) => keys.filter((key) => /^[a-z][a-z0-9_]{0,63}$/.test(key)).sort().slice(0, 20);
+const accessAppPolicyLinks = (policies) => policies
+  .map((policy) => ({ id: typeof policy === 'string' ? policy : policy?.id, precedence: policy?.precedence }))
+  .sort((a, b) => a.precedence - b.precedence);
+// The write sends each policy back at its read precedence, so every one must have its own.
+const accessAppPrecedenceOk = (policies) => {
+  const order = policies.map((policy) => policy?.precedence);
+  return order.every(Number.isSafeInteger) && new Set(order).size === order.length;
+};
+
+function accessAppWriteBody(app, header) {
+  const body = Object.fromEntries(Object.entries(app).filter(([key, value]) =>
+    key !== ACCESS_APP_HEADER && value != null && ACCESS_APP_FIELDS.has(key)));
+  body.policies = accessAppPolicyLinks(app.policies);
+  if (header != null) body[ACCESS_APP_HEADER] = header;
+  return body;
+}
+
+function accessAppChangedFields(before, after) {
+  return [...new Set([...Object.keys(before), ...Object.keys(after)])].filter((key) => {
+    if (key === 'updated_at') return false;
+    if (key === 'policies' && Array.isArray(after.policies)) {
+      return !isDeepStrictEqual(accessAppPolicyLinks(before.policies), accessAppPolicyLinks(after.policies));
+    }
+    // A null setting is unset, as an absent one is: the write leaves nulls out.
+    return !isDeepStrictEqual(before[key] ?? null, after[key] ?? null);
+  });
+}
+
 function accessStaffEmails(policy) {
   if (!asObject(policy) || policy.decision !== 'allow' || !accessName(policy.name)
     || !Array.isArray(policy.include) || !policy.include.length || policy.include.length > 50) return null;
@@ -2803,7 +2863,7 @@ async function readAccessStaff(input, ctx) {
   const team = await accessTeam(input, ctx);
   if (team) return { error: team };
   const req = { endpoint: `${accessPath(input.account_id)}/policies/${encodeURIComponent(input.policy_id)}`, method: 'GET' };
-  const { error, result: policy } = await strictProxyResponse(ctx, req);
+  const { error, result: policy } = await strictCodedProxyResponse(ctx, req);
   if (error) return { error };
   const emails = accessStaffEmails(policy);
   if (!emails) return { error: invalid('policy_id', 'Staff changes require a reusable Allow policy containing only 1 to 50 explicit email includes.') };
@@ -3122,7 +3182,9 @@ export const modules = {
     async create_app(input, ctx) {
       if (typeof input?.name === 'string' && !accessName(input.name)) return invalid('name');
       if (typeof input?.hostname === 'string' && !accessHostname(input.hostname)) return invalid('hostname');
+      if (Object.hasOwn(input ?? {}, 'single_header') && typeof input.single_header !== 'boolean') return invalid('single_header');
       if (!Array.isArray(input?.policy_ids) || input.policy_ids.length < 1 || input.policy_ids.length > 50) return invalid('policy_ids');
+      const singleHeader = input.single_header === true;
       const team = await accessTeam(input, ctx);
       if (team) return team;
       const duplicate = await accessDuplicate(input, ctx);
@@ -3135,19 +3197,22 @@ export const modules = {
         type: 'self_hosted', domain: input.hostname.toLowerCase(), name: input.name,
         destinations: [{ type: 'public', uri: input.hostname.toLowerCase() }],
         policies: input.policy_ids.map((id, i) => ({ id, precedence: i + 1 })),
+        ...(singleHeader ? { read_service_tokens_from_header: 'Authorization' } : {}),
       } };
-      const reply = await strictProxyResponse(ctx, req);
+      const reply = await strictCodedProxyResponse(ctx, req);
       if (reply.error) return reply.error;
       const result = accessAppResult(reply.result, req, false);
       let failure = result.status === 'vendor_error' ? result : null;
       let stored;
       if (!failure) {
         const readReq = { endpoint: `${req.endpoint}/${encodeURIComponent(result.id)}`, method: 'GET' };
-        const readBack = await strictProxyResponse(ctx, readReq);
+        const readBack = await strictCodedProxyResponse(ctx, readReq);
         stored = readBack.error || accessAppResult(readBack.result, readReq, true);
         if (stored.status === 'vendor_error') failure = stored;
         else if (stored.id !== result.id || stored.hostname !== input.hostname.toLowerCase()) {
           failure = { ...strictVendorError(readReq), reason: 'Stored application id or hostname did not match the request.' };
+        } else if (stored.single_header !== singleHeader) {
+          failure = { ...strictVendorError(readReq), reason: 'Stored application single-header setting did not match the request.' };
         }
       }
       if (!failure) {
@@ -3170,6 +3235,55 @@ export const modules = {
       if (failure) return accessRemoveFailedApp(input, reply.result, failure, ctx);
       return { success: true, id: stored.id, aud: stored.aud };
     },
+    async set_single_header(input, ctx) {
+      if (typeof input?.single_header !== 'boolean') return invalid('single_header');
+      const team = await accessTeam(input, ctx);
+      if (team) return team;
+      const { req, app: before, result, error } = await readAccessApp(input, ctx);
+      if (error) return error;
+      const { app_id, single_header } = input;
+      if (result.id !== app_id) {
+        return { ...strictVendorError(req), reason: 'Stored application id did not match the request.' };
+      }
+      const unsupported = Object.keys(before).filter((key) =>
+        before[key] !== null && !ACCESS_APP_METADATA.has(key) && !ACCESS_APP_FIELDS.has(key));
+      if (unsupported.length) {
+        return { ...strictVendorError(req), reason: 'The application has unsupported settings that cannot be safely written back.',
+          unsupported_fields: accessAppFieldNames(unsupported) };
+      }
+      if (!accessAppPrecedenceOk(before.policies)) {
+        return { ...strictVendorError(req), reason: 'Each attached policy must have its own whole-number precedence to be written back unchanged.' };
+      }
+      const success = { success: true, app_id, hostname: result.hostname, single_header };
+      if (result.single_header === single_header) return { ...success, changed: false };
+
+      const put = { ...req, method: 'PUT' };
+      const written = await strictCodedProxyResponse(ctx, { ...put, body: accessAppWriteBody(before, single_header ? 'Authorization' : null) });
+      // A write can land even when the provider's answer is lost.
+      const readBack = await strictCodedProxyResponse(ctx, req);
+      const after = readBack.result;
+      const changed = asObject(after) ? accessAppChangedFields(before, after) : null;
+      if (changed && changed.every((key) => key === ACCESS_APP_HEADER)
+        && accessAppResult(after, req, true).single_header === single_header) {
+        return { ...success, changed: true };
+      }
+      if (changed?.length === 0) {
+        const failure = written.error || { ...strictVendorError(put), reason: 'The stored application did not change after the write.' };
+        return { ...failure, restored: true };
+      }
+
+      const rollback = await strictCodedProxyResponse(ctx, { ...put, body: accessAppWriteBody(before, before[ACCESS_APP_HEADER]) });
+      const last = await strictCodedProxyResponse(ctx, req);
+      const restored = Boolean(asObject(last.result)) && accessAppChangedFields(before, last.result).length === 0;
+      const failure = written.error || readBack.error || rollback.error || last.error || strictVendorError(req);
+      const outcome = changed
+        ? 'The application read-back did not confirm the requested change with the other settings preserved.'
+        : 'The application could not be read back after the write.';
+      const recovery = restored
+        ? 'The earlier application settings were restored and verified.'
+        : 'Read the application with access.get_app before anything else. The application as read before the change is not kept.';
+      return { ...failure, app_id, restored, reason: `${outcome} ${recovery}`, changed_fields: accessAppFieldNames(changed ?? []) };
+    },
     async create_policy(input, ctx) {
       if (!accessName(input?.name)) return invalid('name');
       const emails = Object.hasOwn(input, 'emails');
@@ -3184,7 +3298,7 @@ export const modules = {
         name: input.name, decision: input.decision,
         include: emails ? input.emails.map((email) => ({ email: { email } })) : [{ service_token: { token_id: input.service_token_id } }],
       } };
-      const reply = await strictProxyResponse(ctx, req);
+      const reply = await strictCodedProxyResponse(ctx, req);
       if (reply.error) return reply.error;
       if (!asObject(reply.result) || !ACCESS_UUID.test(reply.result.id)) {
         return { ...strictVendorError(req), policy_name: input.name, removed: false,
@@ -3192,13 +3306,16 @@ export const modules = {
       }
       const id = reply.result.id;
       const readReq = { endpoint: `${req.endpoint}/${encodeURIComponent(id)}`, method: 'GET' };
-      const readBack = await strictProxyResponse(ctx, readReq);
+      const readBack = await strictCodedProxyResponse(ctx, readReq);
       const problem = readBack.error ? 'Created policy could not be read back.' : accessPolicyProblem(readBack.result)
         || (readBack.result.id !== id ? 'Policy read-back id did not match.' : null)
         || (readBack.result.reusable !== true ? 'Policy read-back must be reusable.' : null)
         || (readBack.result.decision !== req.body.decision || JSON.stringify(readBack.result.include) !== JSON.stringify(req.body.include)
           ? 'Policy read-back did not match the submitted decision and include.' : null);
-      if (problem) return accessRemoveFailedPolicy(input.account_id, id, accessPolicyRefusal(id, problem, readReq), ctx);
+      if (problem) {
+        const failure = { ...accessPolicyRefusal(id, problem, readReq), ...readBack.error };
+        return accessRemoveFailedPolicy(input.account_id, id, failure, ctx);
+      }
       return { success: true, id: reply.result.id };
     },
     async set_staff(input, ctx) {
@@ -3216,10 +3333,10 @@ export const modules = {
       if (changed) {
         const body = Object.fromEntries(ACCESS_POLICY_FIELDS.filter((key) => Object.hasOwn(policy, key)).map((key) => [key, policy[key]]));
         body.include = after.map((email) => ({ email: { email } }));
-        const written = await strictProxyResponse(ctx, { ...req, method: 'PUT', body });
+        const written = await strictCodedProxyResponse(ctx, { ...req, method: 'PUT', body });
         if (written.error) return written.error;
       }
-      const last = await strictProxyResponse(ctx, req);
+      const last = await strictCodedProxyResponse(ctx, req);
       if (last.error) return last.error;
       const readBack = accessStaffEmails(last.result);
       if (accessStaffProblem(last.result, input.policy_id) || !readBack || !sameStaff(after, readBack)) {
@@ -3233,18 +3350,8 @@ export const modules = {
       return { success: true, policy_id: input.policy_id, emails };
     },
     async get_app(input, ctx) {
-      const req = { endpoint: `${accessPath(input.account_id)}/apps/${encodeURIComponent(input.app_id)}`, method: 'GET' };
-      const reply = await strictProxyResponse(ctx, req);
-      if (reply.error) return reply.error;
-      const result = accessAppResult(reply.result, req, true);
-      if (result.status === 'vendor_error') return result;
-      const policies = [];
-      for (const id of result.policy_ids) {
-        const decision = await accessReadPolicy(input.account_id, id, ctx, { includeDecision: true });
-        if (typeof decision !== 'string') return decision;
-        policies.push({ id, decision });
-      }
-      return { ...result, policies };
+      const { result, error } = await readAccessApp(input, ctx);
+      return error || result;
     },
   },
 
