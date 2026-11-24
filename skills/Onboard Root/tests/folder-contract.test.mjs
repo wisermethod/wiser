@@ -236,7 +236,7 @@ test('an unattended run stops at template-pending and silence is no answer', () 
 test('a verified pre-staged original can stand as the adoption snapshot', () => {
   const step2 = step(adoption, 2);
   assert.match(step2, /where the caller permits writes only inside `<target>`, stand a pre-staged original in for it/);
-  assert.match(step2, /two enumerations by different mechanisms find every path in the change union that exists in `<target>` present in the original with equal size and SHA-256/);
+  assert.match(step2, /two enumerations by different mechanisms find every file in the change union that exists in `<target>` present in the original with equal size and SHA-256, every directory in it present in both/);
   assert.match(step2, /Anything else, or an original that cannot be read, is no rollback: stop before the first target write\./);
   assert.match(step(house, 9), /a pre-staged original `skills\/Onboard Root\/existing-root\.md` Step 2 verified included/);
 });
@@ -250,10 +250,11 @@ test('references unresolved before an adoption take an approved baseline, and no
 });
 
 test('the adoption path carries the unattended stop, the coach flag and the name re-ask itself', () => {
-  assert.match(step(adoption, 1), /Does a memory file's first heading carry `the folder owner`[^?]*\? Yes, and a person is here: ask Step 1's name question before any memory write, write the answer over that stand-in in each memory file's first heading/);
+  assert.match(step(adoption, 1), /Does a memory file's first heading carry `the folder owner`[^?]*\? Yes, and a person is here: ask Step 1's name question before any memory write and take the answer as the settled name, which Step 5 writes over the stand-in once Step 2's snapshot covers those files/);
   const step5 = step(adoption, 5);
   assert.match(step5, /^\*\*Rebuild memory from source\.\*\* On a personal root, is the run unattended, as `SKILL\.md` Step 2 defines it\? Yes: rebuild nothing here or in Step 6\./);
-  assert.match(step5, /leave the Onboarding lines as the template ships them; skip Step 8's close; call no `first_run`/);
+  assert.match(step5, /leave the Onboarding lines as the template ships them; skip Step 8's close;/);
+  assert.match(step5, /call no `first_run`; and report as `SKILL\.md` Step 2 says/);
   const step6 = step(adoption, 6);
   assert.match(step6, /Personal: an unattended run was settled at Step 5\. Otherwise hand it to `skills\/Build Voice\/` by name, saying that personal onboarding is running it, so it leaves the first-run finish to the close/);
   // Build Voice's coach skips its own finish only when Onboard Root runs it.
@@ -270,13 +271,13 @@ test('an adoption creates every template file the folder lacks, without the copy
 
 test('the pre-staged route settles created paths, links, G3 and recovery without the checker manifest', () => {
   const step2 = step(adoption, 2);
-  assert.match(step2, /Before the first target write, also run the checker's `scan` on `<target>` and keep its JSON: it is this adoption's reference baseline/);
-  assert.match(step2, /every path the union creates absent from both, and no symbolic or hard link in the union/);
-  assert.match(step2, /the checker's `g3`, `restore` and `verify` read a manifest this route does not have, and do not run/);
+  assert.match(step2, /Before the first target write, also run the checker's `scan` on `<target>` and keep its JSON, with each unresolved occurrence's line text read from its file beside it: it is this adoption's reference baseline, handed in `<context>` to every Housekeeping invocation below/);
+  assert.match(step2, /every path the union creates absent from both, and no path `tools\/reference-check\/snapshot\.md` refuses: a link in the union or above it inside `<target>`/);
+  assert.match(step2, /the checker's `g3`, `restore` and `verify`, which read a manifest this route does not have, do not run/);
   assert.match(step(adoption, 9), /on a pre-staged original, G3, restore and verify are Step 2's/);
   assert.match(step(house, 9), /or, on a pre-staged original, the restore and verify that Onboard Root step names/);
   const step3 = step(house, 3);
-  assert.match(step3, /which that file's Step 2 takes before the adoption's first write and hands to every invocation, never a scan taken later/);
+  assert.match(step3, /which that file's Step 2 takes before the adoption's first write and hands to every invocation in `<context>`, never a scan taken later/);
   assert.match(step3, /an occurrence on a line this adoption changed, or one more than the baseline holds, is new/);
 });
 
@@ -292,4 +293,43 @@ test('gates never take the unattended stand-in as the owner', () => {
       assert.equal(out.stdout, want, heading);
     }
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('the pre-staged G3 re-hashes the original alone, and restore keeps its record until verify', () => {
+  const step2 = step(adoption, 2);
+  assert.match(step2, /A union that grows is checked again the same way for its new paths alone\./);
+  assert.match(step2, /removes every created path but those records; verify then compares every path in the union, those records aside, with the before enumeration, and only then are the records removed/);
+  assert.match(step2, /Step 9's G3 is the record of the two enumerations' agreement and a re-hash of the original alone against the before enumeration, never a comparison of the changed `<target>` with the original/);
+});
+
+test('the adoption baseline reaches every Housekeeping invocation and its after-apply check', () => {
+  assert.match(step(adoption, 3), /`<context>` carrying the chain, System Expert verdict, family indexes, named plan home and Step 2's reference baseline/);
+  assert.match(house, /and, on an adoption, the reference baseline `skills\/Onboard Root\/existing-root\.md` Step 2 took\./);
+  assert.match(step(house, 3), /against that adoption baseline, never this invocation's own scan/);
+  assert.match(step(house, 9), /and, on an adoption, the adoption baseline in `<context>`\? No: return to Step 3 before any apply write/);
+});
+
+test('an unattended adoption records the close-state gates SKIP and lists no prompts', () => {
+  assert.match(step(adoption, 5), /in Step 9, record each gate that reads a closed key, a filled prompt line or a close record SKIP, the root being template-pending, which is no failure and restores nothing/);
+  assert.match(step(adoption, 5), /Where Step 1 settled a name over the stand-in, write it over `the folder owner` in each memory file's first heading, voice included, before any rebuild\./);
+  assert.match(step(adoption, 4), /other than the bound memory files Steps 5 and 6 write and the template's `prompts\/` directory\./);
+});
+
+test('G18 fails a memory heading that still carries the unattended stand-in', () => {
+  const harness = read('skills/Onboard Root/gates.sh');
+  const run = (heading, scoped) => {
+    const dir = mkdtempSync(join(tmpdir(), 'g18 stand-in '));
+    try {
+      mkdirSync(join(dir, 'memory'), { recursive: true }); mkdirSync(join(dir, 'tmp'));
+      writeFileSync(join(dir, 'AGENTS.md'), '---\ntype: personal\n---\n\n## Provides\n- about: memory/about.md\n');
+      writeFileSync(join(dir, 'memory/about.md'), `<!-- provenance-preamble -->\n<!-- /provenance-preamble -->\n\n${heading}\n\n## Who\n\nA line.\n`);
+      const args = ['-c', harness, 'gates.sh', '--json', '--gate', 'G18', ...(scoped ? ['--file', 'memory/about.md'] : []), dir];
+      const child = spawnSync('bash', args, { encoding: 'utf8', env: { ...process.env, TMPDIR: join(dir, 'tmp') } });
+      return JSON.parse(child.stdout.trim().split('\n')[0]).status;
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  };
+  for (const scoped of [false, true]) {
+    assert.equal(run('# About the folder owner', scoped), 'fail', `stand-in, scoped=${scoped}`);
+    assert.equal(run('# About Dana Ortiz', scoped), 'pass', `named, scoped=${scoped}`);
+  }
 });

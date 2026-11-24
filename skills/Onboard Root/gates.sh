@@ -2806,11 +2806,22 @@ gate_G18() {
   # In a POSIX bracket expression, ] is literal in the first position and
   # - in the last. Exclude code prefixes while retaining standalone prose.
   placeholder='(^|[^]A-Za-z0-9_)-])\[(name|Competitor)\]'
+  # The stand-in an unattended run fills for a name nobody gave (SKILL.md
+  # Step 1) is a placeholder too, in a memory file's first heading.
+  standin='^# (About|Design of|Voice of) the folder owner[[:space:]]*$'
   if [ -n "$ONLY_FILE" ]; then
     hits=$(grep -nE "$placeholder" "$ONLY_FILE" 2>/dev/null | cut -d: -f1 | while IFS= read -r ln; do printf '%s:%s\n' "$ONLY_FILE" "$ln"; done)
+    set -- "$ONLY_FILE"
   else
     hits=$(grep -rInE "$placeholder" "$ROOT" 2>/dev/null | awk -F: '{print $1":"$2}' | sort -u)
+    set -- "$MEM/about.md" "$MEM/design.md" "$MEM/voice.md"
   fi
+  for f in "$@"; do
+    case "$f" in */about.md|*/design.md|*/voice.md|about.md|design.md|voice.md) ;; *) continue ;; esac
+    [ -f "$f" ] || continue
+    more=$(grep -nE "$standin" "$f" 2>/dev/null | cut -d: -f1 | while IFS= read -r ln; do printf '%s:%s\n' "$f" "$ln"; done)
+    [ -n "$more" ] && hits=$(printf '%s\n%s\n' "$hits" "$more" | sed '/^$/d' | sort -u)
+  done
   [ -n "$hits" ] || return
   while IFS= read -r h; do
     [ -n "$h" ] || continue
@@ -2828,7 +2839,7 @@ gate_G18() {
       add_note "$r line $ln: placeholder token, listed as an exception in the close report"
       continue
     fi
-    add_fail "$r line $ln: a placeholder token (name or Competitor) survives and is not listed as an exception in the close report"
+    add_fail "$r line $ln: a placeholder token (name, Competitor or the unattended name stand-in) survives and is not listed as an exception in the close report"
   done <<G18EOF
 $hits
 G18EOF
