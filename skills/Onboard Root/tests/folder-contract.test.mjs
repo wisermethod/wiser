@@ -236,7 +236,7 @@ test('an unattended run stops at template-pending and silence is no answer', () 
 test('a verified pre-staged original can stand as the adoption snapshot', () => {
   const step2 = step(adoption, 2);
   assert.match(step2, /where the caller permits writes only inside `<target>`, stand a pre-staged original in for it/);
-  assert.match(step2, /two enumerations by different mechanisms find every file in the change union that exists in `<target>` present in the original with equal size and SHA-256, every directory in it present in both/);
+  assert.match(step2, /two enumerations by different mechanisms find every file in `<target>`, not only those in the change union, present in the original with equal size and SHA-256, and every directory present in both/);
   assert.match(step2, /Anything else, or an original that cannot be read, is no rollback: stop before the first target write\./);
   assert.match(step(house, 9), /a pre-staged original `skills\/Onboard Root\/existing-root\.md` Step 2 verified included/);
 });
@@ -272,7 +272,7 @@ test('an adoption creates every template file the folder lacks, without the copy
 test('the pre-staged route settles created paths, links, G3 and recovery without the checker manifest', () => {
   const step2 = step(adoption, 2);
   assert.match(step2, /Before the first target write, also run the checker's `scan` on `<target>` and keep its JSON, with each unresolved occurrence's line text read from its file beside it: it is this adoption's reference baseline, handed in `<context>` to every Housekeeping invocation below/);
-  assert.match(step2, /every path the union creates absent from both, and no path `tools\/reference-check\/snapshot\.md` refuses: a link in the union or above it inside `<target>`/);
+  assert.match(step2, /every path the union creates absent from both; and no path `tools\/reference-check\/snapshot\.md` refuses: a link in the union or above it inside `<target>`/);
   assert.match(step2, /the checker's `g3`, `restore` and `verify`, which read a manifest this route does not have, do not run/);
   assert.match(step(adoption, 9), /on a pre-staged original, G3, restore and verify are Step 2's/);
   assert.match(step(house, 9), /or, on a pre-staged original, the restore and verify that Onboard Root step names/);
@@ -299,7 +299,7 @@ test('the pre-staged G3 re-hashes the original alone, and restore keeps its reco
   const step2 = step(adoption, 2);
   assert.match(step2, /A union that grows is checked again the same way for its new paths alone\./);
   assert.match(step2, /removes every created path but those records; verify then compares every path in the union, those records aside, with the before enumeration, and only then are the records removed/);
-  assert.match(step2, /Step 9's G3 is the record of the two enumerations' agreement and a re-hash of the original alone against the before enumeration, never a comparison of the changed `<target>` with the original/);
+  assert.match(step2, /Step 9's G3 is the record of the two enumerations' agreement, a re-hash of the original alone against the before enumeration, and a re-hash of every file in `<target>` outside the union against it, where a difference is a write no row approved and restores; it is never a comparison of the union's changed paths with the original/);
 });
 
 test('the adoption baseline reaches every Housekeeping invocation and its after-apply check', () => {
