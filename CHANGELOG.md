@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.24.4, November 24, 2026
+
+- The Cloudflare connector 0.13.0 lets an app's agent get through Cloudflare Access with one header. `access.create_app` can set a new app to read the agent's service token from a single `Authorization` header, and checks the stored setting after creating it; `access.get_app` shows that setting as `single_header`. `access.set_single_header` turns it on or off for an app that already exists: it writes the app back with only that setting changed, refuses an app holding a setting it would not send back unchanged, such as a stored sign-in secret, makes no change when the setting already reads as asked, and puts the earlier settings back when the result is not what was asked. It asks for approval every time. When Cloudflare refuses an Access change, the error now carries Cloudflare's numeric codes. The upgrade guide says what to read before trying again when the answer to a database adoption or migration is lost. (9e8f85a7, 38f7fffc)
+
 ## v2026.11.24.3, November 24, 2026
 
 - Onboard Root 0.50.12 can make a folder that already holds your work into your Wiser folder without copying anything over it. Once you approve that, it adds only the starter files the folder is missing, each one only where nothing is already there, from the plugin on your computer, so it needs no download. A folder's name and your own name are kept apart, and it says how far a folder got: its files set up, opened in your app, or set up with you. A run nobody is there to answer stops before the voice coach and the design question, whether the folder was empty or already held your work, leaves them waiting for you, and never takes a missing answer as a choice; where you gave no name, it writes "the folder owner", asks your name the next time you are there, and its optional check never takes that stand-in as your name. (f0a7b7b8, 9435b79c, 93c5626f, b5866436)
