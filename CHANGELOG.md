@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.23.8, November 23, 2026
+
+- The Cal.com connector 0.1.4 words three actions for the person who reads them. Creating a booking now asks for approval in plain terms, what decides the kind of booking and what Cal.com needs, in place of Cal.com's notes for developers. Reading open slots says that Cal.com takes `start` and `end` as UTC, so a date alone is that day in UTC, which can show the evening before in your own time zone. Reading open slots or busy times says that on the Wiser endpoint an answer Cal.com takes longer than 20 seconds to give comes back unconfirmed, which a slow imported calendar feed can cause, and the connector's guide says to read busy times one calendar at a time to find it. Nothing a call does is changed. (af59f115)
+
 ## v2026.11.23.7, November 23, 2026
 
 - The Cal.com connector 0.1.3 no longer shows the private address of a calendar feed imported into Cal.com. A feed's address, such as a Google Calendar secret iCal link, lets anyone who has it read that calendar, and listing your calendars used to show it. The address is now withheld wherever a calendar answer would carry it. You can still read a feed's busy times, or turn it on or off for clash checking, by naming it with its credential number and `ics-feed`; the connector looks the address up itself. Google calendars, credential numbers and a booking's calendar links are unchanged. (f48f65ad)
