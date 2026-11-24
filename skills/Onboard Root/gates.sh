@@ -706,11 +706,12 @@ _json_esc() {
 # name, so `root:` can name a folder rather than a person. Where that heading
 # is absent or still carries a placeholder, which G18 reports, and on every
 # other path, it is the `root:` declaration. On a root named after its person
-# the two agree.
+# the two agree. `the folder owner` is the stand-in an unattended run fills where
+# no name was given (SKILL.md Step 1), so it is a placeholder, never a person.
 about_owner() {
   [ "$SHORT" = "1" ] && [ -f "$MEM/about.md" ] || return 0
   ao=$(grep -m1 -E '^# About ' "$MEM/about.md" 2>/dev/null | sed -E 's/^# About //; s/[[:space:]]+$//')
-  case "$ao" in *'['*) ao="" ;; esac
+  case "$ao" in *'['*|'the folder owner') ao="" ;; esac
   printf '%s' "$ao"
 }
 owner_name() {

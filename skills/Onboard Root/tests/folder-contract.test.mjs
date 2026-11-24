@@ -207,7 +207,7 @@ test('contract row 3 owes the Work Directories cell, never the first-use router 
 test('a populated destination is adopted around what is there, never copied over', () => {
   const entry = read('skills/Onboard Root/SKILL.md');
   assert.match(entry, /The three ways below copy only into an empty destination\. A destination that already holds working files is never copied into by any of them, and the template is never laid over what it holds\./);
-  assert.match(entry, /the Destination discriminator sends it to `existing-root\.md`, which builds the root around what is there, creating only the template files the folder lacks/);
+  assert.match(entry, /the Destination discriminator sends it to `existing-root\.md`, which builds the root around what is there, creating the template files the folder lacks, each only where no path stands/);
   const step4 = adoption.split('4. **Declare.**')[1].split('5. **Rebuild memory')[0];
   assert.match(step4, /Where the target holds no root `AGENTS\.md`, create it from the template's `AGENTS\.md` selected under Wiser files/);
   assert.match(step4, /Create only specifically listed new files, each exclusively: test `\[ -e "\$dest" \]` first and leave a path that exists as it is, reporting it, or copy with `cp -n`/);
@@ -236,15 +236,60 @@ test('an unattended run stops at template-pending and silence is no answer', () 
 test('a verified pre-staged original can stand as the adoption snapshot', () => {
   const step2 = step(adoption, 2);
   assert.match(step2, /where the caller permits writes only inside `<target>`, stand a pre-staged original in for it/);
-  assert.match(step2, /two enumerations by different mechanisms list every eligible path in the change union in both trees with equal size and SHA-256/);
-  assert.match(step2, /A difference at any path in the union, or an original that cannot be read, is no rollback: stop before the first target write\./);
+  assert.match(step2, /two enumerations by different mechanisms find every path in the change union that exists in `<target>` present in the original with equal size and SHA-256/);
+  assert.match(step2, /Anything else, or an original that cannot be read, is no rollback: stop before the first target write\./);
   assert.match(step(house, 9), /a pre-staged original `skills\/Onboard Root\/existing-root\.md` Step 2 verified included/);
 });
 
 test('references unresolved before an adoption take an approved baseline, and none may be new', () => {
   const step3 = step(house, 3);
-  assert.match(step3, /or, on an adoption `skills\/Onboard Root\/existing-root\.md` hands over, an approved baseline: a reference already unresolved in this run's baseline scan, taken before its first write/);
+  assert.match(step3, /or, on an adoption `skills\/Onboard Root\/existing-root\.md` hands over, an approved baseline: a reference already unresolved in the adoption's baseline scan/);
   assert.match(step3, /An unresolved concrete consumer outside that baseline, or an unclassified hit, stops apply\./);
   assert.match(step3, /require zero unresolved concrete references outside the approved baseline, matched occurrence for occurrence/);
   assert.match(house, /Apply success requires zero unresolved concrete references outside an approved baseline/);
+});
+
+test('the adoption path carries the unattended stop, the coach flag and the name re-ask itself', () => {
+  assert.match(step(adoption, 1), /Does a memory file's first heading carry `the folder owner`[^?]*\? Yes, and a person is here: ask Step 1's name question before any memory write, write the answer over that stand-in in each memory file's first heading/);
+  const step5 = step(adoption, 5);
+  assert.match(step5, /^\*\*Rebuild memory from source\.\*\* On a personal root, is the run unattended, as `SKILL\.md` Step 2 defines it\? Yes: rebuild nothing here or in Step 6\./);
+  assert.match(step5, /leave the Onboarding lines as the template ships them; skip Step 8's close; call no `first_run`/);
+  const step6 = step(adoption, 6);
+  assert.match(step6, /Personal: an unattended run was settled at Step 5\. Otherwise hand it to `skills\/Build Voice\/` by name, saying that personal onboarding is running it, so it leaves the first-run finish to the close/);
+  // Build Voice's coach skips its own finish only when Onboard Root runs it.
+  assert.match(read('skills/Build Voice/paths/coach.md'), /the coach was not run by `skills\/Onboard Root\/`/);
+});
+
+test('an adoption creates every template file the folder lacks, without the copy path\'s fill', () => {
+  const step4 = step(adoption, 4);
+  assert.match(step4, /the listed files include every file the selected template ships that the target still lacks after Housekeeping's rows, `CLAUDE\.md` and each `\.gitkeep` among them, other than the bound memory files Steps 5 and 6 write/);
+  assert.match(step4, /with the settled type and the root's folder name written for `\[name\]`/);
+  // The copy path's fill script reads all four files and re-copies on failure: never an adoption's.
+  assert.doesNotMatch(step4, /Step 1's fill/);
+});
+
+test('the pre-staged route settles created paths, links, G3 and recovery without the checker manifest', () => {
+  const step2 = step(adoption, 2);
+  assert.match(step2, /Before the first target write, also run the checker's `scan` on `<target>` and keep its JSON: it is this adoption's reference baseline/);
+  assert.match(step2, /every path the union creates absent from both, and no symbolic or hard link in the union/);
+  assert.match(step2, /the checker's `g3`, `restore` and `verify` read a manifest this route does not have, and do not run/);
+  assert.match(step(adoption, 9), /on a pre-staged original, G3, restore and verify are Step 2's/);
+  assert.match(step(house, 9), /or, on a pre-staged original, the restore and verify that Onboard Root step names/);
+  const step3 = step(house, 3);
+  assert.match(step3, /which that file's Step 2 takes before the adoption's first write and hands to every invocation, never a scan taken later/);
+  assert.match(step3, /an occurrence on a line this adoption changed, or one more than the baseline holds, is new/);
+});
+
+test('gates never take the unattended stand-in as the owner', () => {
+  const gates = read('skills/Onboard Root/gates.sh');
+  const fn = gates.slice(gates.indexOf('about_owner() {'), gates.indexOf('\n}\n', gates.indexOf('about_owner() {')) + 3);
+  const dir = mkdtempSync(join(tmpdir(), 'about-owner-'));
+  try {
+    for (const [heading, want] of [['# About the folder owner', ''], ['# About [name]', ''], ['# About Dana Ortiz', 'Dana Ortiz']]) {
+      writeFileSync(join(dir, 'about.md'), `<!-- provenance-preamble -->\n${heading}\n`);
+      const out = spawnSync('bash', ['-c', `${fn}\nSHORT=1; MEM="$1"; about_owner`, 'x', dir], { encoding: 'utf8' });
+      assert.equal(out.status, 0, out.stderr);
+      assert.equal(out.stdout, want, heading);
+    }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
