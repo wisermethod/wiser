@@ -1206,7 +1206,7 @@ test('set_single_header: connector guide and auth document the write and recover
   const guide = readFileSync(new URL('../CONNECTOR.md', import.meta.url), 'utf8');
   const auth = readFileSync(new URL('../auth.md', import.meta.url), 'utf8');
   assert.match(guide, /^version: 0\.13\.0$/m);
-  assert.match(guide, /^At 0\.13\.0, .*access\.set_single_header.*none of it has run live/m);
+  assert.match(guide, /^At 0\.13\.0, .*access\.set_single_header.*Verified live 2026-11-24.*nothing else added at 0\.13\.0 has run live/m);
   const access = guide.split('### Access applications and staff')[1].split(/\n#{2,3} /)[0].replace(/\s+/g, ' ');
   assert.match(access, /access\.set_single_header.*unsupported.*null.*reads.*back.*restored: false.*access\.get_app/);
   assert.match(auth, /^\| `access` \| .*set_single_header.*create_app.*Write.*Organizations, Identity Providers, and Groups \/ Read/m);
