@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.24, November 24, 2026
+
+- Housekeeping 0.9.6 no longer holds a folder short of the current layout for lacking a knowledge router. On "update root", a session read the layout standard's third contract row as owing the file `memory/knowledge/AGENTS.md`, found none, and left the folder marked as behind. That file is made the first time you add a knowledge set, and a folder with no set owes none. The standard now says so in that row, and Housekeeping says it where it works out what is owed. (COMMIT)
+
 ## v2026.11.23.8, November 23, 2026
 
 - The Cal.com connector 0.1.4 words three actions for the person who reads them. Creating a booking now asks for approval in plain terms, what decides the kind of booking and what Cal.com needs, in place of Cal.com's notes for developers. Reading open slots, and calculating them from a routing form, says that Cal.com takes `start` and `end` as UTC, a date alone meaning midnight UTC for `start` and 23:59:59 UTC for `end`, which can show the evening before in your own time zone; reading open slots also lists every way to name an event type in full, where Cal.com's long text used to be cut. Reading open slots or busy times says that on the Wiser endpoint an answer Cal.com takes longer than 20 seconds to give comes back unconfirmed, which a slow imported calendar feed can cause, and the connector's guide says to read busy times one calendar at a time to find it. Nothing a call does is changed. (af59f115, 61c3339a)
