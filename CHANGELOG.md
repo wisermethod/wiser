@@ -4,6 +4,10 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.24.2, November 24, 2026
+
+- The CourtListener connector 0.2.0 looks up reporter citations. `courtlistener.caselaw.lookup_citation` takes a citation's volume, reporter and page, or a passage of text up to 64,000 characters, and returns each citation CourtListener recognises with its matched cases and a status: one case, several cases, not found, a reporter it does not know, or past its limit of 250 citations in one request. It only reads and asks nothing first. Its guide no longer says the connector's four other actions are unverified live; they were proved on September 8. (7e061c23)
+
 ## v2026.11.24, November 24, 2026
 
 - Housekeeping 0.9.6 no longer holds a folder with no knowledge set short of the current layout for lacking a knowledge router. On "update root", a session read the layout standard's third contract row as owing the file `memory/knowledge/AGENTS.md`, found none, and left the folder marked as behind. That file is made the first time you add a knowledge set, and a folder with no set owes none. The standard now says so in that row, and Housekeeping says it where it works out what is owed. (c080074f)
