@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.24.3, November 24, 2026
+
+- Onboard Root 0.50.12 can make a folder that already holds your work into your Wiser folder without copying anything over it. Once you approve that, it adds only the starter files the folder is missing, each one only where nothing is already there, from the plugin on your computer, so it needs no download. A folder's name and your own name are kept apart, and it says how far a folder got: its files set up, opened in your app, or set up with you. A run nobody is there to answer stops before the voice coach and the design question, whether the folder was empty or already held your work, leaves them waiting for you, and never takes a missing answer as a choice; where you gave no name, it writes "the folder owner", asks your name the next time you are there, and its optional check never takes that stand-in as your name. (f0a7b7b8, 9435b79c, 93c5626f)
+- Housekeeping 0.9.7, when it helps make an existing folder your Wiser folder, can leave links that were already broken before it started, if you approve the list it shows, and still refuses any link the change itself breaks. Where only a copy made for this may be written, the untouched original serves as the way back, once the two are checked file by file. (f0a7b7b8, 9435b79c, 93c5626f)
+
 ## v2026.11.24.2, November 24, 2026
 
 - The CourtListener connector 0.2.0 looks up reporter citations. `courtlistener.caselaw.lookup_citation` takes a citation's volume, reporter and page, or a passage of text up to 64,000 characters, and returns each citation CourtListener recognises with its matched cases and a status: one case, several cases, not found, a reporter it does not know, or past its limit of 250 citations in one request. It only reads and asks nothing first. Its guide no longer says the connector's four other actions are unverified live; they were proved on September 8. (7e061c23)
