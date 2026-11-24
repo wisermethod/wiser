@@ -203,3 +203,48 @@ test('contract row 3 owes the Work Directories cell, never the first-use router 
   assert.match(step(house, 2), /Contract row 3's router cell is the cell in the root's Work Directories table that names `memory\/knowledge\/AGENTS\.md`, never that file: the file is first use \(`standards\/user-root\.md` C3\), so where the root has no set its absence is not a finding, owes no row and does not hold the stamp back\./);
   assert.doesNotMatch(read('system/templates/User Root Template/AGENTS.md'), /memory\/knowledge\/AGENTS\.md` \| ships/);
 });
+
+test('a populated destination is adopted around what is there, never copied over', () => {
+  const entry = read('skills/Onboard Root/SKILL.md');
+  assert.match(entry, /The three ways below copy only into an empty destination\. A destination that already holds working files is never copied into by any of them, and the template is never laid over what it holds\./);
+  assert.match(entry, /the Destination discriminator sends it to `existing-root\.md`, which builds the root around what is there, creating only the template files the folder lacks/);
+  const step4 = adoption.split('4. **Declare.**')[1].split('5. **Rebuild memory')[0];
+  assert.match(step4, /Where the target holds no root `AGENTS\.md`, create it from the template's `AGENTS\.md` selected under Wiser files/);
+  assert.match(step4, /Create only specifically listed new files, each exclusively: test `\[ -e "\$dest" \]` first and leave a path that exists as it is, reporting it, or copy with `cp -n`/);
+  assert.match(step4, /the template's `prompts\/` directory is never created in the target/);
+});
+
+test('the folder name and the person name stay two answers, and installed, attached and onboarded are told apart', () => {
+  const step1 = read('skills/Onboard Root/SKILL.md').split('### Step 1: Copy')[1].split('### Step 2: Voice')[0];
+  assert.match(step1, /The folder's name and the person's name are two answers/);
+  assert.match(step1, /fill `the folder owner` as the person's name, never the folder's name or a guess/);
+  assert.match(step1, /the scaffold is installed when the copy and the fill above pass; the host is attached when a session loads the folder[^;]*; and the owner is onboarded only when Step 5 closes\. A root on disk that no session loads is installed, not onboarded\./);
+});
+
+test('an unattended run stops at template-pending and silence is no answer', () => {
+  const entry = read('skills/Onboard Root/SKILL.md');
+  const step2 = entry.split('### Step 2: Voice')[1].split('### Step 3')[0];
+  assert.match(step2, /Is this run unattended, because the request or its caller says no person will answer during it\? Yes: stop here, at template-pending\./);
+  assert.match(step2, /Do not run the coach, Step 3's design question, the read-back or the close, and do not call `first_run`\./);
+  assert.match(step2, /silence is never read as declining the coach, as "Let's do this later", or as any other choice/);
+  // The unattended stop comes before the coach runs.
+  assert.ok(step2.indexOf('Is this run unattended') < step2.indexOf('Run it now'));
+  assert.match(entry, /A run that stopped before this close never calls it\./);
+  assert.match(entry, /The personal path makes no competitors offer, so the section carries no competitors line/);
+});
+
+test('a verified pre-staged original can stand as the adoption snapshot', () => {
+  const step2 = step(adoption, 2);
+  assert.match(step2, /where the caller permits writes only inside `<target>`, stand a pre-staged original in for it/);
+  assert.match(step2, /two enumerations by different mechanisms list every eligible path in the change union in both trees with equal size and SHA-256/);
+  assert.match(step2, /A difference at any path in the union, or an original that cannot be read, is no rollback: stop before the first target write\./);
+  assert.match(step(house, 9), /a pre-staged original `skills\/Onboard Root\/existing-root\.md` Step 2 verified included/);
+});
+
+test('references unresolved before an adoption take an approved baseline, and none may be new', () => {
+  const step3 = step(house, 3);
+  assert.match(step3, /or, on an adoption `skills\/Onboard Root\/existing-root\.md` hands over, an approved baseline: a reference already unresolved in this run's baseline scan, taken before its first write/);
+  assert.match(step3, /An unresolved concrete consumer outside that baseline, or an unclassified hit, stops apply\./);
+  assert.match(step3, /require zero unresolved concrete references outside the approved baseline, matched occurrence for occurrence/);
+  assert.match(house, /Apply success requires zero unresolved concrete references outside an approved baseline/);
+});
