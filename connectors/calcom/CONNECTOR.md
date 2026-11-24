@@ -3,7 +3,7 @@ name: calcom
 type: connector
 category: communication
 description: Reads and manages bookings, availability, calendars, events, and related settings in personal Cal.com accounts through labelled connections, with confirmation on every write
-version: 0.1.3
+version: 0.1.4
 ---
 
 # Cal.com
@@ -63,6 +63,8 @@ No action publishes a `secret` input. Workflow step objects are open because Cal
 ## Failures
 
 A Cal.com HTTP refusal reports `vendor_error` with the HTTP status, endpoint and method. The refusal's reason and response body are withheld. Check the action's published schema and description against the inputs you sent. If Cal.com returns an error inside a successful HTTP response, the connector also reports its string `error.code` when present.
+
+On the Wiser endpoint, an answer Cal.com takes longer than 20 seconds to give reports `uncertain`, and is not retried. `calcom.slots.list` reads every selected calendar, and an imported ICS feed can be that slow on its own, so read `calcom.calendars.get_busy_times` one calendar per call to find which one it is.
 
 A 429 is subject to the Cal.com account key's own limit of 120 requests per minute. For 401 and 403, the gateway refreshes the connection status. If a call returns `needs_connect`, connect the intended account label before trying again.
 
