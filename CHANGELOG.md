@@ -6,7 +6,7 @@ Changes before September 27, 2026 are in the commit history only.
 
 ## v2026.11.24, November 24, 2026
 
-- Housekeeping 0.9.6 no longer holds a folder short of the current layout for lacking a knowledge router. On "update root", a session read the layout standard's third contract row as owing the file `memory/knowledge/AGENTS.md`, found none, and left the folder marked as behind. That file is made the first time you add a knowledge set, and a folder with no set owes none. The standard now says so in that row, and Housekeeping says it where it works out what is owed. (COMMIT)
+- Housekeeping 0.9.6 no longer holds a folder short of the current layout for lacking a knowledge router. On "update root", a session read the layout standard's third contract row as owing the file `memory/knowledge/AGENTS.md`, found none, and left the folder marked as behind. That file is made the first time you add a knowledge set, and a folder with no set owes none. The standard now says so in that row, and Housekeeping says it where it works out what is owed. (c080074f)
 
 ## v2026.11.23.8, November 23, 2026
 
