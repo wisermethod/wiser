@@ -192,3 +192,14 @@ test('a stop on the delivery path removes the delivered copies, and the checker 
   assert.match(adoption, /Did Housekeeping stop without a plan\? Yes: finish the page for every delivered copy/);
   assert.match(adoption, /The checker is not in the starter/);
 });
+
+test('contract row 3 owes the Work Directories cell, never the first-use router file', () => {
+  const standard = read('standards/user-root.md');
+  const row3 = standard.split('\n').find(line => line.startsWith('| 3 |'));
+  assert.match(row3, /the cell is the one in the root's Work Directories table that names `memory\/knowledge\/AGENTS\.md`/);
+  assert.match(row3, /The router file is not the cell and is not owed by this row: C3 makes it first use, so a root with no set has none, and its absence there is not a finding and holds no stamp back/);
+  // A set without its row stays owed: the no-set case excuses nothing else.
+  assert.match(row3, /A set without a row, or a row naming no set directory, is C12's absent or misfiled and is still owed/);
+  assert.match(step(house, 2), /Contract row 3's router cell is the cell in the root's Work Directories table that names `memory\/knowledge\/AGENTS\.md`, never that file: the file is first use \(`standards\/user-root\.md` C3\), so where the root has no set its absence is not a finding, owes no row and does not hold the stamp back\./);
+  assert.doesNotMatch(read('system/templates/User Root Template/AGENTS.md'), /memory\/knowledge\/AGENTS\.md` \| ships/);
+});
