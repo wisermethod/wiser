@@ -193,16 +193,22 @@ async function writeRecord({ entity, id, fields }, ctx) {
 
   const failure = after.status ? after : { status: 'vendor_error', reason: 'link_mismatch', endpoint: readEndpoint };
   if (!updating) {
-    return { ...failure, id: writtenId, message: 'the record was created and left in place' };
+    // The links as read back, ids only, so a company the CRM chose or created is named.
+    const links = after.status ? null : Object.fromEntries(Object.keys(LINKS)
+      .filter((key) => Object.hasOwn(after[record.key], key))
+      .map((key) => [key, after[record.key][key] ?? null]));
+    return { ...failure, id: writtenId, ...(links ? { links } : {}), message: 'the record was created and left in place' };
   }
 
+  // A won stage's Slack post and customer mark happen inside the write; no restore takes them back.
+  const kept = Object.hasOwn(fields, 'stage') ? '; a won-stage Slack post or customer mark, if one ran, stays in place' : '';
   const restored = await request(ctx, { endpoint, method, body: priorFields(fields, prior, expectedLinks) }, checks);
-  if (!restored.status) return failure;
+  if (!restored.status) return kept ? { ...failure, message: `the prior values were written back${kept}` } : failure;
   return {
     ...failure,
     rollback_status: restored.http_status ?? restored.status,
     ...(restored.reason ? { rollback_reason: restored.reason } : {}),
-    message: 'the new values may still be in place',
+    message: `the new values may still be in place${kept}`,
   };
 }
 

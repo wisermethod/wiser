@@ -43,17 +43,21 @@ Lookup email takes up to 254 code points. Domain takes up to 253 characters and 
 
 All four writes stop for confirmation. A matching standing approval of kind `change` can cover `records.create`, `records.update`, or `activities.log`. Contact import always requires confirmation because it can fill empty fields on matching contacts.
 
-**`records.update` caution.** Moving a deal to a won stage can post the win to the install's Slack channel where Slack is connected, with nobody seeing it first.
+**`records.create` caution.** A contact created with a work email can be linked to a company, which is created when none matches, and a deal created at a won stage marks its company a customer.
 
-Field keys must match `^[a-z][a-z0-9_]*$` and contain at most 64 code points. Values may be strings, finite numbers, booleans or null. The `custom` key takes an object with the same key and scalar value rules. The serialized `fields` object must be at most 16 KiB in UTF-8. Top-level `company_id` and `contact_id` take lowercase UUIDs or null to clear a link. The CRM handles validation of an empty `fields` object and decides which fields it accepts.
+**`records.update` caution.** Setting a deal to a won stage, even the stage it already has, can post the win to the install's Slack channel where Slack is connected and marks its company a customer, with nobody seeing it first.
 
-When a write sets a company or contact link, the connector reads the linked record first and reads back the result. A deal created with a contact and no specified company inherits that contact's company. A deal update does the same if the deal has no company, and preserves its existing company otherwise. Passing `null` explicitly clears the specified link. If readback fails or finds a mismatch after an update, the connector attempts to restore the prior values and reports the failure. If restoration fails, it reports both failures and says that the new values may still be in place.
+Field keys must match `^[a-z][a-z0-9_]*$` and contain at most 64 code points. Values may be strings, finite numbers, booleans or null. The `custom` key takes an object with the same key and scalar value rules. The serialized `fields` object must be at most 16 KiB in UTF-8. Top-level `company_id` and `contact_id` take lowercase UUIDs, or null for no link. On a contact create, the CRM treats a null `company_id` as no company given: a work email then links the contact to the company on that email's domain, creating the company when none matches. The CRM handles validation of an empty `fields` object and decides which fields it accepts.
 
-**Create exception.** If readback fails or finds a link mismatch after a create, the connector returns the new ID and states that the record was created and left in place. Tell the person the ID and that the record was left in place.
+When a write sets a company or contact link, the connector reads the linked record first and reads back the result. A deal created with a contact and no specified company inherits that contact's company. A deal update does the same if the deal has no company, and preserves its existing company otherwise. Passing `null` explicitly clears the specified link on an update and on a deal create. If readback fails or finds a mismatch after an update, the connector attempts to restore the prior values and reports the failure. If restoration fails, it reports both failures and says that the new values may still be in place. A restore does not take back what the write itself set off: when the update set `stage`, the answer says that a won-stage Slack post or customer mark, if one ran, stays in place.
 
-An import takes 1 to 500 objects. Each requires a nonempty `first_name` and can include `last_name`, `email`, `phone`, `title`, `status`, `company`, `company_domain`, `company_industry` and `company_phone`. Each supplied string can contain up to 256 code points.
+A write the CRM answers with a server error after it has stored the record returns status and endpoint only, with no ID, since the gateway strips the answer's body. Read the list before writing it again.
 
-Activity `type` is `note`, `call`, `email` or `meeting`. The connector checks the 10,000-code-point limit on the supplied `body`, trims it and requires text after trimming. It stores an activity in the CRM.
+**Create exception.** If readback fails or finds a link mismatch after a create, the connector returns the new ID and states that the record was created and left in place. Where the readback succeeded, the answer also gives the links as read back, `links`, so a company the CRM chose or created is named by its ID. Tell the person the ID, the links, and that the record was left in place.
+
+An import takes 1 to 500 objects. Each requires a nonempty `first_name` and can include `last_name`, `email`, `phone`, `title`, `status`, `company`, `company_domain`, `company_industry` and `company_phone`. Each supplied string can contain up to 256 code points. The CRM stores a `status` outside its own list of contact statuses as `lead`.
+
+Activity `type` is `note`, `call`, `email` or `meeting`. The connector checks the 10,000-code-point limit on the supplied `body`, trims it and requires text after trimming. It stores an activity in the CRM. The CRM answers `{ ok: true }` even where its own insert failed, so an activity the next `activities.list` does not show was not stored.
 
 ## First-use setup
 

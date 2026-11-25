@@ -73,12 +73,13 @@
           }
         },
         "create": {
-          "description": "Create one contact, company, or deal. Field keys must match ^[a-z][a-z0-9_]*$ and contain at most 64 code points. Values may be strings, finite numbers, booleans or null. The custom key takes an object with the same key and scalar value rules. The serialized fields object must be at most 16 KiB in UTF-8. Top-level company_id and contact_id take lowercase UUIDs or null to clear a link. An empty fields object reaches the CRM for validation.",
+          "description": "Create one contact, company, or deal. Field keys must match ^[a-z][a-z0-9_]*$ and contain at most 64 code points. Values may be strings, finite numbers, booleans or null. The custom key takes an object with the same key and scalar value rules. The serialized fields object must be at most 16 KiB in UTF-8. Top-level company_id and contact_id take lowercase UUIDs, or null for no link. On a contact create, a work email with no company_id, null included, links the contact to the company on that email's domain, creating the company when none matches. An empty fields object reaches the CRM for validation.",
           "risk": "medium",
           "confirmation": "always",
           "standing_approval": {
             "kind": "change",
-            "summary": "create Wiser CRM records"
+            "summary": "create Wiser CRM records",
+            "caution": "A contact created with a work email can be linked to a company, which is created when none matches, and a deal created at a won stage marks its company a customer."
           },
           "execution": {"prefer": "proxy"},
           "input": {
@@ -98,7 +99,7 @@
           "standing_approval": {
             "kind": "change",
             "summary": "update Wiser CRM records",
-            "caution": "Moving a deal to a won stage can post the win to the install's Slack channel where Slack is connected, with nobody seeing it first."
+            "caution": "Setting a deal to a won stage, even the stage it already has, can post the win to the install's Slack channel where Slack is connected and marks its company a customer, with nobody seeing it first."
           },
           "execution": {"prefer": "proxy"},
           "input": {

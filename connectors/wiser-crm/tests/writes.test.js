@@ -80,10 +80,13 @@ const writes = [
   ['activities.log', 47, 'medium', 'body', { body: 1 }],
 ];
 
-test('write approval declarations include the exact documented Slack caution', async (t) => {
+test('write approval declarations include the exact documented cautions', async (t) => {
   const { manifest } = await setup(t, { grant: false });
   const guide = readFileSync(new URL('../CONNECTOR.md', import.meta.url), 'utf8');
-  const caution = "Moving a deal to a won stage can post the win to the install's Slack channel where Slack is connected, with nobody seeing it first.";
+  const cautions = {
+    create: 'A contact created with a work email can be linked to a company, which is created when none matches, and a deal created at a won stage marks its company a customer.',
+    update: "Setting a deal to a won stage, even the stage it already has, can post the win to the install's Slack channel where Slack is connected and marks its company a customer, with nobody seeing it first.",
+  };
   for (const [id, , risk] of writes) {
     const [module, name] = id.split('.');
     const action = manifest.modules[module].actions[name];
@@ -96,10 +99,12 @@ test('write approval declarations include the exact documented Slack caution', a
     } else {
       assert.equal(action.standing_approval.kind, 'change');
       assert.equal(typeof action.standing_approval.summary, 'string');
-      assert.equal(action.standing_approval.caution, name === 'update' ? caution : undefined);
+      assert.equal(action.standing_approval.caution, cautions[name]);
     }
   }
-  assert.ok(guide.includes(`**\`records.update\` caution.** ${caution}\n`));
+  for (const [name, caution] of Object.entries(cautions)) {
+    assert.ok(guide.includes(`**\`records.${name}\` caution.** ${caution}\n`), name);
+  }
 });
 
 for (const [action, number, risk, field, mistyped] of writes) {
@@ -364,7 +369,7 @@ for (const postReadFails of [false, true]) {
     f.reply(precheck, write, postcheck);
     assert.deepEqual(await f.execute('records.create', writeInput('records.create', write), true), {
       status: 'vendor_error', endpoint: postcheck.endpoint,
-      ...(postReadFails ? { http_status: 404 } : { reason: 'link_mismatch' }),
+      ...(postReadFails ? { http_status: 404 } : { reason: 'link_mismatch', links: { company_id: null } }),
       id, message: 'the record was created and left in place',
     });
     expectRequests(f, precheck, write, postcheck);
@@ -441,5 +446,66 @@ for (const [postReadFails, rollbackFails] of [[false, false], [true, false], [fa
       ...(rollbackFails ? { rollback_status: 503, message: 'the new values may still be in place' } : {}),
     });
     expectRequests(f, precheck, before, write, after, rollback);
+  });
+}
+
+test('a contact create with a null company and a work email is left in place, naming the company the CRM linked', async (t) => {
+  const f = await setup(t);
+  const created = capture(6);
+  const inferred = created.answer.data.contact.company_id;
+  assert.match(inferred, /^[0-9a-f-]{36}$/);
+  const body = { ...created.body, company_id: null };
+  const write = { ...created, body };
+  const postcheck = getResult('contacts', created.answer.data);
+  f.reply(write, postcheck);
+  assert.deepEqual(await f.execute('records.create', writeInput('records.create', write), true), {
+    status: 'vendor_error', reason: 'link_mismatch', endpoint: postcheck.endpoint,
+    id: created.answer.data.contact.id, links: { company_id: inferred },
+    message: 'the record was created and left in place',
+  });
+  expectRequests(f, write, postcheck);
+  assert.equal(f.calls().some(({ method }) => method === 'DELETE'), false);
+});
+
+for (const rollbackFails of [false, true]) {
+  test(`an update that set a stage says a won-stage post or customer mark stays in place when the restore ${rollbackFails ? 'fails' : 'succeeds'}`, async (t) => {
+    const f = await setup(t);
+    const prior = { deal: { ...beforeDeal.deal, company_id: null } };
+    const body = { contact_id: sampleContact.contact.id, stage: 'won' };
+    const updated = { deal: { ...prior.deal, ...body } };
+    const precheck = getResult('contacts', sampleContact);
+    const before = getResult('deals', prior);
+    const write = { ...capture(32), body, answer: { status: 200, data: updated } };
+    const missing = capture(29).answer;
+    const after = getResult('deals', updated);
+    after.answer = { ...missing, error: { ...missing.error, endpoint: after.endpoint } };
+    const rollback = {
+      ...write,
+      body: { contact_id: prior.deal.contact_id, stage: prior.deal.stage, company_id: null },
+      answer: { status: 200, data: prior },
+    };
+    if (rollbackFails) {
+      const readOnly = capture(72).answer;
+      rollback.answer = { ...readOnly, error: { ...readOnly.error, endpoint: rollback.endpoint } };
+    }
+    f.reply(precheck, before, write, after, rollback);
+    const result = await f.execute('records.update', { entity: 'deals', id: prior.deal.id, fields: body }, true);
+    const kept = '; a won-stage Slack post or customer mark, if one ran, stays in place';
+    assert.deepEqual(result, {
+      status: 'vendor_error', endpoint: after.endpoint, http_status: 404,
+      ...(rollbackFails
+        ? { rollback_status: 503, message: `the new values may still be in place${kept}` }
+        : { message: `the prior values were written back${kept}` }),
+    });
+    expectRequests(f, precheck, before, write, after, rollback);
+  });
+}
+
+for (const entity_id of ['https://evil.example/x', '//evil.example/x']) {
+  test(`activities.log refuses a URL-shaped entity_id ${entity_id} before transport`, async (t) => {
+    const f = await setup(t);
+    const result = await f.execute('activities.log', { entity_type: 'contact', entity_id, type: 'note', body: 'Invented note' });
+    assert.equal(result.status, 'invalid_arguments');
+    assert.equal(f.calls().length, 0);
   });
 }
