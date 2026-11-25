@@ -80,18 +80,18 @@ test('invalid origins are refused without echoing the address or reaching the pr
 
 test('canonical origin and default HTTPS port share a slug, with the origin shown on the link', async (t) => {
   const { addresses, start, row, installs, initiation } = await fixture(t);
-  addresses({ alpha: ORIGIN, beta: ORIGIN + ':443/' });
+  addresses({ alpha: ORIGIN, beta: ORIGIN + ':443/', gamma: ORIGIN + ':0443' });
   const before = readFileSync(installs);
-  for (const label of ['alpha', 'beta']) {
+  for (const label of ['alpha', 'beta', 'gamma']) {
     const link = await start(label);
     assert.equal(link.status, 'link');
     assert.equal(link.install_origin, ORIGIN);
     assert.equal(row(label).status, 'INITIATED');
     assert.equal(row(label).toolkit, TOOLKIT);
   }
-  assert.notEqual(row('alpha').provider_account_id, row('beta').provider_account_id);
+  assert.equal(new Set(['alpha', 'beta', 'gamma'].map((label) => row(label).provider_account_id)).size, 3);
   assert.deepEqual(initiation.mock.calls.map((call) => call.arguments[0].installToolkit),
-    [installToolkitRow(ORIGIN), installToolkitRow(ORIGIN)]);
+    [installToolkitRow(ORIGIN), installToolkitRow(ORIGIN), installToolkitRow(ORIGIN)]);
   assert.deepEqual(readFileSync(installs), before);
 });
 

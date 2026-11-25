@@ -16,8 +16,8 @@ function fixture(t, responses) {
   t.mock.method(globalThis, 'fetch', async (url, options) => {
     calls.push({ url, method: options.method, body: options.body ? JSON.parse(options.body) : undefined, wire: options.body });
     assert.ok(responses.length, 'unexpected request');
-    const [status, data] = responses.shift();
-    return { status, text: async () => JSON.stringify(data) };
+    const [status, data, raw] = responses.shift();
+    return { status, text: async () => raw ?? JSON.stringify(data) };
   });
   return { provider: createAuthProvider({ envPath }), calls };
 }
@@ -188,6 +188,22 @@ test('per-install initiation refuses an unreadable toolkit response before upser
   assert.equal((await provider.initiate(installConnect)).error.code, 'vendor_error');
   assert.equal(calls.length, 1);
 });
+
+for (const [name, response] of [
+  ['status 500', [500, { meta: { app_url: installOrigin } }]],
+  ['status 401', [401, {}]],
+  ['status 0', [0, {}]],
+  ['a malformed body', [200, null, '{"meta":']],
+  ['an empty app_url', [200, { meta: { app_url: '' } }]],
+  ['a non-string app_url', [200, { meta: { app_url: 443 } }]],
+  ['only the SDK spelling appUrl', [200, { meta: { appUrl: installOrigin } }]],
+]) {
+  test(`per-install toolkit read with ${name} stops after one request, without upserting`, async (t) => {
+    const { provider, calls } = fixture(t, [response]);
+    assert.equal((await provider.initiate(installConnect)).error.code, 'vendor_error');
+    assert.deepEqual(calls.map((call) => [call.method, new URL(call.url).pathname]), [['GET', lookup]]);
+  });
+}
 
 test('per-install upsert maps a frozen-config 409 without deleting the toolkit', async (t) => {
   const { provider, calls } = fixture(t, [[404, {}], [409, { message: 'synthetic-private-response' }]]);
