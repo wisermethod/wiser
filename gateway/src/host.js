@@ -6,6 +6,7 @@ import { readProviderUserId, writeProviderUserIdIfEmpty } from './paths.js';
 import { mcpClassifierIdentity } from './first-party.js';
 import { parseActionId } from './resolve.js';
 import { initializeCatalog, loadCatalog } from './catalog.js';
+import { createInstallOriginResolver } from './installs.js';
 
 const inputFileAccess = new WeakMap();
 
@@ -17,6 +18,7 @@ export function initializeHost(gateway, opts) {
   inputFileAccess.set(gateway, null);
   initializeCatalog(gateway);
   gateway.home = opts.home;
+  gateway.installOrigin = opts.installOrigin ?? createInstallOriginResolver(opts.home);
   if (opts.outputsDir != null && (typeof opts.outputsDir !== 'string' || !isAbsolute(opts.outputsDir))) {
     throw new TypeError('outputsDir must be an absolute path');
   }

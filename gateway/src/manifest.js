@@ -55,7 +55,11 @@ function validateAuth(auth, file, field) {
   if (!AUTH_PROVIDERS.has(auth.provider)) {
     throw validationError(file, `${field}.provider`, 'must be "catalog" or "local-file"');
   }
-  if (auth.provider === 'catalog') {
+  if (Object.hasOwn(auth, 'per_install')) {
+    if (auth.per_install !== true || auth.provider !== 'catalog' || Object.hasOwn(auth, 'toolkit')) {
+      throw validationError(file, `${field}.per_install`, 'must be true with provider "catalog" and no toolkit');
+    }
+  } else if (auth.provider === 'catalog') {
     if (typeof auth.toolkit !== 'string' || !auth.toolkit) {
       throw validationError(file, `${field}.toolkit`, 'is required when provider is "catalog"');
     }

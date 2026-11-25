@@ -1,3 +1,5 @@
+import { installToolkitSlug } from '../../src/installs.js';
+
 /** Hosted custom toolkits. Keys are collected by hosted connect, never here. */
 export const CUSTOM_TOOLKITS = [
   {
@@ -31,6 +33,20 @@ export function registeredSlug(row = CUSTOM_TOOLKITS[0]) {
 export function findCustomToolkit(toolkit) {
   return CUSTOM_TOOLKITS.find((row) =>
     toolkit === row.service || toolkit === row.slug || toolkit === registeredSlug(row)) ?? null;
+}
+
+export function installToolkitRow(origin) {
+  return {
+    slug: installToolkitSlug(origin),
+    name: 'Wiser CRM',
+    app_url: origin,
+    auth_schemes: [{
+      mode: 'API_KEY',
+      headers: { 'CF-Access-Client-Id': '{{generic_id}}', 'CF-Access-Client-Secret': '{{generic_api_key}}' },
+      api_key_field: { display_name: 'Client Secret', description: "The service token's Client Secret" },
+      additional_fields: { generic_id: { display_name: 'Client ID', description: "The service token's Client ID, ending in .access" } },
+    }],
+  };
 }
 
 export function createCustomToolkitBody(row) {

@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { STATUS, statusObject, vendorErrorFrom } from './errors.js';
 import { composeSummary, containsUnsafeCodePoint, discloseInput } from './disclosure.js';
 import { evaluate } from './policy.js';
+import { canonicalInstallOrigin, installToolkitSlug, INSTALLS_FILE } from './installs.js';
 // Stored rows use the manifest validator's provider and privilege vocabularies.
 import { AUTH_PROVIDERS, PRIVILEGES } from './manifest.js';
 
@@ -69,21 +70,31 @@ export function revokedAccounts(gateway) {
 }
 
 export function requireLabel(gateway, tool, service, module) {
-  const labels = gateway.store.listConnections()
-    .filter((row) => row.service === service && row.module === module && typeof row.label === 'string')
-    .map((row) => row.label).sort();
-  return labels.length ? statusObject(STATUS.INVALID_ARGUMENTS, { tool, field: 'label', labels }) : null;
+  const perInstall = gateway.lookupModule(service, module)?.auth.per_install;
+  const labels = [...new Set(gateway.store.listConnections()
+    .filter((row) => row.service === service && (perInstall || row.module === module) && typeof row.label === 'string')
+    .map((row) => row.label))].sort();
+  return perInstall || labels.length
+    ? statusObject(STATUS.INVALID_ARGUMENTS, { tool, field: 'label', labels })
+    : null;
 }
 
-export function bindLabelledModules(gateway, found, record) {
-  const toolkit = (value) => String(value || '').toUpperCase().replace(/^CUSTOM_/, '');
-  if (!toolkit(found.auth.toolkit)) return;
+function toolkitKey(value) {
+  return String(value || '').toUpperCase().replace(/^CUSTOM_/, '');
+}
+
+export function bindLabelledModules(gateway, found, record, { missingOnly = false } = {}) {
+  const perInstall = found.auth.per_install === true;
+  if (perInstall && typeof record.label !== 'string') return;
+  const toolkit = toolkitKey(perInstall ? record.toolkit : found.auth.toolkit);
+  if (!toolkit) return;
   for (const [module, definition] of Object.entries(found.connector.manifest.modules)) {
     const auth = definition.auth;
-    if (module === record.module || auth.provider !== found.auth.provider
-      || toolkit(auth.toolkit) !== toolkit(found.auth.toolkit)) continue;
+    if (module === record.module || auth.provider !== found.auth.provider ||
+        (perInstall ? auth.per_install !== true : toolkitKey(auth.toolkit) !== toolkit)) continue;
     // One label holds one credential per toolkit, so a sibling on another account moves too.
     const current = gateway.store.getConnection({ service: record.service, module, label: record.label });
+    if (current && (missingOnly || (perInstall && current.toolkit !== record.toolkit))) continue;
     if (isActive(current) && current.provider_account_id === record.provider_account_id) continue;
     // A sibling mid-reconnect onto a new account is left to finish; a refresh must not undo it.
     if (current?.status === 'INITIATED' && current.provider_account_id !== record.provider_account_id) continue;
@@ -93,6 +104,7 @@ export function bindLabelledModules(gateway, found, record) {
       label: record.label,
       privilege: auth.privilege,
       provider: auth.provider,
+      ...(perInstall ? { toolkit: record.toolkit } : {}),
       provider_account_id: record.provider_account_id,
       scopes: [],
       status: 'ACTIVE',
@@ -140,18 +152,27 @@ export async function hydrateFromProvider(gateway) {
   const byToolkit = activeAccountIdsByToolkit(accounts);
   // A toolkit with a labelled row is named call by call, so adoption never guesses there:
   // an account a label just let go of would otherwise land on the unlabelled binding.
-  const toolkitKey = (value) => String(value || '').toUpperCase().replace(/^CUSTOM_/, '');
-  const labelledToolkits = new Set(gateway.store.listConnections()
-    .filter((row) => row.label !== undefined)
-    .map((row) => toolkitKey(gateway.lookupModule(row.service, row.module)?.auth?.toolkit))
+  const labelledRows = gateway.store.listConnections().filter((row) => row.label !== undefined);
+  const labelledToolkits = new Set(labelledRows
+    .map((row) => toolkitKey(row.toolkit ?? gateway.lookupModule(row.service, row.module)?.auth?.toolkit))
     .filter(Boolean));
+  const activeById = new Map(accounts.filter(isActive).map((account) => [account.id, toolkitKey(account.toolkit)]));
+  for (const row of labelledRows) {
+    if (!isActive(row) || !row.toolkit || gateway.revokedAccounts.has(row.provider_account_id)) continue;
+    const found = gateway.lookupModule(row.service, row.module);
+    if (!found?.auth.per_install || activeById.get(row.provider_account_id) !== toolkitKey(row.toolkit)) continue;
+    // During a reconnect, let connect_status select the account for this label.
+    if (labelledRows.some((sibling) => sibling.service === row.service && sibling.label === row.label &&
+        sibling.toolkit === row.toolkit && sibling.provider_account_id !== row.provider_account_id)) continue;
+    bindLabelledModules(gateway, found, row, { missingOnly: true });
+  }
 
   for (const connector of gateway.connectors) {
     const service = connector.id || connector.service;
     const modules = connector.manifest?.modules || {};
     for (const [module, definition] of Object.entries(modules)) {
       const auth = definition?.auth;
-      if (!auth || auth.provider === 'local-file') continue;
+      if (!auth || auth.provider === 'local-file' || auth.per_install) continue;
       const toolkit = auth.toolkit && String(auth.toolkit).toUpperCase();
       if (!toolkit) continue;
       if (labelledToolkits.has(toolkitKey(toolkit))) continue;
@@ -204,79 +225,138 @@ export async function startConnect(gateway, { service, module, label } = {}) {
       return statusObject(STATUS.DENIED, { rule: decision.rule });
     }
 
-    if (gateway.needsProviderCredential(found.auth)) {
-      return gateway.needsProviderResult();
-    }
+    const connect = (install) => initiateConnection(gateway, found, line, { service, module, label, install });
+    if (!found.auth.per_install) return connect();
+    if (label === undefined) return gateway.requireLabel('start_connect', service, module);
 
-    const provider = gateway.providerFor(found.auth);
-    if (!provider || typeof provider.initiate !== 'function') {
-      return gateway.needsProviderResult();
-    }
-
-    const initiated = await provider.initiate({
-      userId: gateway.resolveUserId(),
-      service,
-      module,
-      toolkit: found.auth.toolkit,
-      scheme: found.auth.scheme,
-      file: found.auth.file,
-      variables: found.auth.variables,
-    });
-
-    if (initiated && initiated.error && initiated.error.code === 'vendor_error') {
-      const mapped = vendorErrorFrom(initiated);
-      if (typeof initiated.toolkit === 'string') mapped.toolkit = initiated.toolkit;
-      if (Number.isFinite(initiated.configs)) mapped.configs = initiated.configs;
-      return mapped;
-    }
-
-    if (initiated?.kind === 'file') {
-      if (!initiated.path) {
-        const setup = typeof provider.setupText === 'function' ? provider.setupText() : null;
-        return statusObject(STATUS.NEEDS_PROVIDER, { setup, provider: 'local-file' });
+    // Serialize this label across its modules, including the provider round trip.
+    const key = ['label', gateway.store.home ?? gateway.home, found.connector.id, label];
+    return serializeInstallConnect(key, async () => {
+      let value;
+      try {
+        value = await gateway.installOrigin(service, label);
+      } catch {
+        return installAddressError(label, 'install_address_invalid');
       }
-      line.path = 'connector';
-      gateway.store.putConnection({
-        id: randomUUID(),
-        service,
-        module,
-        privilege: found.auth.privilege,
-        provider: found.auth.provider,
-        provider_account_id: found.auth.file,
-        scopes: [],
-        status: 'INITIATED',
-        created: nowIso(),
-        updated: nowIso(),
-      });
-      return {
-        status: 'file',
-        path: initiated.path,
-        variables: initiated.variables,
-        next: 'connectStatus',
-      };
-    }
+      if (value === undefined) return installAddressError(label, 'install_address_missing');
+      const origin = canonicalInstallOrigin(value);
+      if (!origin) return installAddressError(label, 'install_address_invalid');
+      const toolkit = installToolkitSlug(origin);
+      const { connector } = found;
+      const existing = gateway.store.listConnections().filter((row) =>
+        (row.service === connector.id || row.service === connector.service) && row.label === label &&
+        (row.toolkit !== undefined || connector.manifest.modules[row.module]?.auth.per_install));
+      // A status refresh can make a grant inactive without releasing its label.
+      if (existing.some((row) => row.toolkit !== toolkit)) {
+        return installAddressError(label, 'install_address_changed');
+      }
+      // Labels can share a toolkit. Let a later label see the toolkit and auth
+      // config created by the first one before issuing its own provider reads.
+      return serializeInstallConnect(['toolkit', toolkit], () => connect({ origin, toolkit }));
+    });
+  });
+}
 
+const pendingInstallConnects = new Map();
+
+async function serializeInstallConnect(parts, connect) {
+  const key = JSON.stringify(parts);
+  const previous = pendingInstallConnects.get(key);
+  const pending = (previous ? previous.catch(() => {}) : Promise.resolve()).then(connect);
+  pendingInstallConnects.set(key, pending);
+  try {
+    return await pending;
+  } finally {
+    if (pendingInstallConnects.get(key) === pending) pendingInstallConnects.delete(key);
+  }
+}
+
+function installAddressError(label, reason) {
+  return statusObject(STATUS.INVALID_ARGUMENTS, { tool: 'start_connect', field: 'label', label, reason, file: INSTALLS_FILE });
+}
+
+async function initiateConnection(gateway, found, line, { service, module, label, install }) {
+  if (gateway.needsProviderCredential(found.auth)) {
+    return gateway.needsProviderResult();
+  }
+
+  const provider = gateway.providerFor(found.auth);
+  if (!provider || typeof provider.initiate !== 'function') {
+    return gateway.needsProviderResult();
+  }
+
+  if (install && typeof provider.installToolkitRow !== 'function') {
+    return statusObject(STATUS.NEEDS_PROVIDER_CAPABILITY);
+  }
+  const initiated = await provider.initiate({
+    userId: gateway.resolveUserId(),
+    service,
+    module,
+    toolkit: install?.toolkit ?? found.auth.toolkit,
+    ...(install ? { installToolkit: provider.installToolkitRow(install.origin) } : {}),
+    scheme: found.auth.scheme,
+    file: found.auth.file,
+    variables: found.auth.variables,
+  });
+
+  if (install && initiated?.error?.code === 'install_address_changed') {
+    return installAddressError(label, 'install_address_changed');
+  }
+  if (initiated && initiated.error && initiated.error.code === 'vendor_error') {
+    const mapped = vendorErrorFrom(initiated);
+    if (typeof initiated.toolkit === 'string') mapped.toolkit = initiated.toolkit;
+    if (Number.isFinite(initiated.configs)) mapped.configs = initiated.configs;
+    return mapped;
+  }
+
+  if (initiated?.kind === 'file') {
+    if (!initiated.path) {
+      const setup = typeof provider.setupText === 'function' ? provider.setupText() : null;
+      return statusObject(STATUS.NEEDS_PROVIDER, { setup, provider: 'local-file' });
+    }
     line.path = 'connector';
-    line.provider_account_id = initiated?.providerAccountId ?? null;
     gateway.store.putConnection({
       id: randomUUID(),
       service,
       module,
-      ...(label === undefined ? {} : { label }),
       privilege: found.auth.privilege,
       provider: found.auth.provider,
-      provider_account_id: initiated?.providerAccountId ?? null,
+      provider_account_id: found.auth.file,
       scopes: [],
       status: 'INITIATED',
       created: nowIso(),
       updated: nowIso(),
     });
     return {
-      status: 'link',
-      url: initiated?.url ?? null,
+      status: 'file',
+      path: initiated.path,
+      variables: initiated.variables,
       next: 'connectStatus',
     };
+  }
+
+  line.path = 'connector';
+  line.provider_account_id = initiated?.providerAccountId ?? null;
+  gateway.store.putConnection({
+    id: randomUUID(),
+    service,
+    module,
+    ...(label === undefined ? {} : { label }),
+    ...(install ? { toolkit: install.toolkit } : {}),
+    privilege: found.auth.privilege,
+    provider: found.auth.provider,
+    provider_account_id: initiated?.providerAccountId ?? null,
+    scopes: [],
+    status: 'INITIATED',
+    created: nowIso(),
+    updated: nowIso(),
   });
+  return {
+    status: 'link',
+    url: initiated?.url ?? null,
+    ...(install ? { install_origin: install.origin } : {}),
+    next: 'connectStatus',
+  };
 }
 
 export async function connectStatus(gateway, { service, module, label } = {}) {
@@ -288,6 +368,9 @@ export async function connectStatus(gateway, { service, module, label } = {}) {
     const found = gateway.lookupModule(service, module);
     if (label !== undefined && found?.auth?.provider === 'local-file') {
       return statusObject(STATUS.INVALID_ARGUMENTS, { tool: 'connect_status', field: 'label' });
+    }
+    if (label === undefined && found?.auth.per_install) {
+      return gateway.requireLabel('connect_status', service, module);
     }
     const stored = gateway.store.getConnection({ service, module, label });
 
@@ -483,6 +566,7 @@ export async function connectStatus(gateway, { service, module, label } = {}) {
         ...labelled,
         privilege: record.privilege,
         provider: record.provider,
+        toolkit: record.toolkit,
         provider_account_id: record.provider_account_id,
         scopes: record.scopes || [],
         status: mapped,
@@ -524,6 +608,7 @@ export async function connectStatus(gateway, { service, module, label } = {}) {
         privilege: found.auth.privilege,
         ...labelled,
         provider: found.auth.provider,
+        ...(found.auth.per_install ? { toolkit: record?.toolkit } : {}),
         provider_account_id: record?.provider_account_id ?? statusArgs.providerAccountId,
         scopes: record?.scopes || [],
         status: 'ACTIVE',
@@ -564,7 +649,7 @@ export async function disconnect(gateway, { service, module, label, provider_acc
       return statusObject(STATUS.INVALID_ARGUMENTS, { tool: 'disconnect', field: 'label' });
     }
     const stored = gateway.store.getConnection({ service, module, label });
-    if (label === undefined && !stored) {
+    if (label === undefined && (found?.auth.per_install || !stored)) {
       const missing = gateway.requireLabel('disconnect', service, module);
       if (missing) return missing;
     }

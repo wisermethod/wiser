@@ -118,7 +118,7 @@ export function loadCuratedActions(catalogProvider, connectors = []) {
         const [service, module, action] = row.id.split('.');
         const connector = connectors.find((c) => c.id === service || c.service === service);
         const mod = connector?.manifest?.modules?.[module];
-        if (!mod || mod.auth?.provider !== 'catalog' || mod.auth.toolkit !== row.toolkit) reason = 'module_auth_mismatch';
+        if (!mod || mod.auth?.provider !== 'catalog' || mod.auth.per_install || mod.auth.toolkit !== row.toolkit) reason = 'module_auth_mismatch';
         else if (Object.hasOwn(mod.actions ?? {}, action)) reason = 'manifest_action';
         else if (typeof row.kind !== 'string' || !Object.hasOwn(CURATED_KINDS, row.kind)) reason = 'invalid_kind';
         else if (!(PRIVILEGE_LEVEL[mod.auth.privilege] >= PRIVILEGE_LEVEL[CURATED_KINDS[row.kind].privilege])) reason = 'insufficient_privilege';

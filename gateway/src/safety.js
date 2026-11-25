@@ -527,7 +527,7 @@ export function prepareExecute(gateway, request, line) {
 
   const authForRun = resolved.path === 'connector' ? resolved.auth : auth;
   let record = gateway.store.getConnection({ service: parsed.service, module: parsed.module, label });
-  if (label === undefined && !record) {
+  if (label === undefined && (authForRun?.per_install || !record)) {
     const missing = gateway.requireLabel('execute', parsed.service, parsed.module);
     if (missing) return missing;
   }

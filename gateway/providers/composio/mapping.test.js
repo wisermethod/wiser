@@ -7,10 +7,11 @@ import { loadConnectors } from '../../src/manifest.js';
 import { fileURLToPath } from 'node:url';
 
 test('all catalog actions have round-trip mappings and the module toolkit', async () => {
-  const connectors = await loadConnectors([fileURLToPath(new URL('../../../connectors', import.meta.url))]);
+  const dirs = ['../../../connectors', '../../test/fixtures/per-install'];
+  const connectors = await loadConnectors(dirs.map((dir) => fileURLToPath(new URL(dir, import.meta.url))));
   for (const connector of connectors) {
     for (const [module, definition] of Object.entries(connector.manifest.modules)) {
-      if (definition.auth.provider !== 'catalog') continue;
+      if (definition.auth.provider !== 'catalog' || definition.auth.per_install) continue;
       assert.equal(toolkitFor(connector.id, module), definition.auth.toolkit);
       for (const [action, row] of Object.entries(definition.actions)) {
         if (row.execution.prefer !== 'catalog') continue;
@@ -121,5 +122,14 @@ test('HeyGen discovers six proxy-only modules on its built-in toolkit', () => {
   for (const future of ['voice']) assert.deepEqual(toolkitsFor('heygen', future), []);
   for (const id of ['speech.synthesize','voices.list','voices.get','voices.add','voices.delete','avatars.list','avatars.list_looks','assets.upload_audio','videos.create','videos.get','videos.download','account.wallet','account.permissions']) {
     assert.equal(toSlug(`heygen.${id}`), null);
+  }
+});
+
+test('per-install modules are absent from static toolkit mappings', () => {
+  for (const service of ['wiser-crm', 'per-install-fixture']) {
+    for (const module of ['records', 'activities', 'people']) {
+      assert.equal(toolkitFor(service, module), null);
+      assert.deepEqual(toolkitsFor(service, module), []);
+    }
   }
 });

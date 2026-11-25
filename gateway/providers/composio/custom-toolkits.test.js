@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { CUSTOM_TOOLKITS, registeredSlug, findCustomToolkit } from './custom-toolkits.js';
+import { CUSTOM_TOOLKITS, registeredSlug, findCustomToolkit, installToolkitRow } from './custom-toolkits.js';
 import { createAuthProvider, createCustomToolkitBody } from './auth-provider.js';
 import { toolkitFor, toSlug } from './mapping.js';
 
@@ -14,7 +14,7 @@ function fixture(t, responses) {
   writeFileSync(envPath, 'WISER_AUTH_PROVIDER_KEY=synthetic-test-key\n');
   const calls = [];
   t.mock.method(globalThis, 'fetch', async (url, options) => {
-    calls.push({ url, method: options.method, body: options.body ? JSON.parse(options.body) : undefined });
+    calls.push({ url, method: options.method, body: options.body ? JSON.parse(options.body) : undefined, wire: options.body });
     assert.ok(responses.length, 'unexpected request');
     const [status, data] = responses.shift();
     return { status, text: async () => JSON.stringify(data) };
@@ -144,4 +144,66 @@ test('google-apis upsert body uses the unprefixed slug and the X-Goog-Api-Key te
     createCustomToolkitBody(row).toolkit_config.auth_schemes[0].headers['X-Goog-Api-Key'],
     '{{generic_api_key}}',
   );
+});
+
+const installOrigin = 'https://crm.example.test';
+const installToolkit = installToolkitRow(installOrigin);
+const installConnect = { userId: 'example', toolkit: installToolkit.slug, scheme: 'API_KEY', installToolkit };
+const lookup = '/api/v3.1/toolkits/CUSTOM_WISERCRM_0CA5EFCA53F1D1B0';
+// S2b's two-field body, with the G4 slug, origin and display name.
+const installBody = '{"slug":"WISERCRM_0CA5EFCA53F1D1B0","toolkit_config":{"name":"Wiser CRM","app_url":"https://crm.example.test","auth_schemes":[{"mode":"API_KEY","headers":{"CF-Access-Client-Id":"{{generic_id}}","CF-Access-Client-Secret":"{{generic_api_key}}"},"api_key_field":{"display_name":"Client Secret","description":"The service token\'s Client Secret"},"additional_fields":{"generic_id":{"display_name":"Client ID","description":"The service token\'s Client ID, ending in .access"}}}]}}';
+
+test('per-install initiation reads by registered slug before upserting the exact S2b two-field body', async (t) => {
+  const { provider, calls } = fixture(t, [[404, {}], [200, {}], [200, { items: [] }], [200, { id: 'example-config' }], [200, link]]);
+  assert.equal(JSON.stringify(createCustomToolkitBody(installToolkit)), installBody);
+  assert.equal((await provider.initiate(installConnect)).kind, 'link');
+  assert.deepEqual(calls.map((call) => [call.method, new URL(call.url).pathname]), [
+    ['GET', lookup], ['POST', '/api/v3.1/custom/toolkits/upsert'],
+    ['GET', '/api/v3.1/auth_configs'], ['POST', '/api/v3.1/auth_configs'],
+    ['POST', '/api/v3.1/connected_accounts/link'],
+  ]);
+  assert.equal(calls[1].wire, installBody);
+  assert.equal(new URL(calls[2].url).searchParams.get('toolkit_slug'), registeredSlug(installToolkit));
+  assert.equal(calls[3].body.toolkit.slug, registeredSlug(installToolkit));
+});
+
+test('per-install initiation links a matching toolkit without upserting it', async (t) => {
+  const { provider, calls } = fixture(t, [
+    [200, { meta: { app_url: installOrigin } }], [200, { items: [{ id: 'example-config' }] }], [200, link],
+  ]);
+  assert.equal((await provider.initiate(installConnect)).kind, 'link');
+  assert.deepEqual(calls.map((call) => [call.method, new URL(call.url).pathname]), [
+    ['GET', lookup], ['GET', '/api/v3.1/auth_configs'], ['POST', '/api/v3.1/connected_accounts/link'],
+  ]);
+});
+
+test('per-install initiation refuses a mismatched app_url before upsert', async (t) => {
+  const { provider, calls } = fixture(t, [[200, { meta: { app_url: 'https://other.example.test' } }]]);
+  assert.deepEqual(await provider.initiate(installConnect), { error: { code: 'install_address_changed' } });
+  assert.deepEqual(calls.map((call) => [call.method, new URL(call.url).pathname]), [['GET', lookup]]);
+});
+
+test('per-install initiation refuses an unreadable toolkit response before upsert', async (t) => {
+  const { provider, calls } = fixture(t, [[200, { meta: {} }]]);
+  assert.equal((await provider.initiate(installConnect)).error.code, 'vendor_error');
+  assert.equal(calls.length, 1);
+});
+
+test('per-install upsert maps a frozen-config 409 without deleting the toolkit', async (t) => {
+  const { provider, calls } = fixture(t, [[404, {}], [409, { message: 'synthetic-private-response' }]]);
+  const result = await provider.initiate(installConnect);
+  assert.equal(result.error.code, 'vendor_error');
+  assert.equal(result.status, 409);
+  assert.deepEqual(calls.map((call) => [call.method, new URL(call.url).pathname]),
+    [['GET', lookup], ['POST', '/api/v3.1/custom/toolkits/upsert']]);
+});
+
+test('per-install initiation refuses a link without a provider account id', async (t) => {
+  const { provider } = fixture(t, [
+    [200, { meta: { app_url: installOrigin } }], [200, { items: [{ id: 'example-config' }] }],
+    [200, { redirect_url: link.redirect_url }],
+  ]);
+  const result = await provider.initiate(installConnect);
+  assert.equal(result.error.code, 'vendor_error');
+  assert.equal(result.error.endpoint, '/connected_accounts/link');
 });

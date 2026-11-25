@@ -1,0 +1,78 @@
+{
+  "id": "per-install-fixture",
+  "service": "per-install-fixture",
+  "modules": {
+    "records": {
+      "auth": {
+        "provider": "catalog",
+        "per_install": true,
+        "scheme": "API_KEY",
+        "privilege": "write"
+      },
+      "unwrap_token": false,
+      "fallback": "none",
+      "actions": {
+        "ping": {
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    "activities": {
+      "auth": {
+        "provider": "catalog",
+        "per_install": true,
+        "scheme": "API_KEY",
+        "privilege": "write"
+      },
+      "unwrap_token": false,
+      "fallback": "none",
+      "actions": {
+        "ping": {
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    "people": {
+      "auth": {
+        "provider": "catalog",
+        "per_install": true,
+        "scheme": "API_KEY",
+        "privilege": "write"
+      },
+      "unwrap_token": false,
+      "fallback": "none",
+      "actions": {
+        "ping": {
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          }
+        }
+      }
+    }
+  }
+}

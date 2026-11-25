@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { createCustomToolkitBody, findCustomToolkit, registeredSlug } from './custom-toolkits.js';
+import { createCustomToolkitBody, findCustomToolkit, installToolkitRow, registeredSlug } from './custom-toolkits.js';
 import { pickResponseHeaders } from '../../src/response-headers.js';
 import { STATUS, statusSignal } from '../../src/errors.js';
 
@@ -329,6 +329,7 @@ export function createAuthProvider({ envPath } = {}) {
 
   return {
     name: 'composio',
+    installToolkitRow,
     isConfigured() {
       return Boolean(apiKey);
     },
@@ -402,15 +403,29 @@ export function createAuthProvider({ envPath } = {}) {
       }
       failListing(pageResult);
     },
-    async initiate({ userId, toolkit, scheme, callbackUrl }) {
+    async initiate({ userId, toolkit, scheme, callbackUrl, installToolkit }) {
       if (!apiKey) return { status: 0, error: { code: 'vendor_error', endpoint: '/auth_configs', method: 'GET' } };
-      const custom = findCustomToolkit(toolkit);
+      const custom = installToolkit ?? findCustomToolkit(toolkit);
       if (custom) {
-        const path = '/custom/toolkits/upsert';
-        const upserted = await request(apiKey, 'POST', path, createCustomToolkitBody(custom));
-        // A 409 is a frozen-config conflict. Never delete or replace the toolkit.
-        if (upserted.status !== 200) return vendorError(path, 'POST', upserted.status);
         toolkit = registeredSlug(custom);
+        let shouldUpsert = true;
+        if (installToolkit) {
+          const path = `/toolkits/${encodeURIComponent(toolkit)}`;
+          const existing = await request(apiKey, 'GET', path);
+          if (existing.status !== 404) {
+            if (!existing.ok || existing.malformed) return vendorError(path, 'GET', existing.status);
+            const appUrl = existing.data?.meta?.app_url;
+            if (typeof appUrl !== 'string' || !appUrl) return vendorError(path, 'GET', existing.status);
+            if (appUrl !== custom.app_url) return { error: { code: 'install_address_changed' } };
+            shouldUpsert = false;
+          }
+        }
+        if (shouldUpsert) {
+          const path = '/custom/toolkits/upsert';
+          const upserted = await request(apiKey, 'POST', path, createCustomToolkitBody(custom));
+          // A 409 is a frozen-config conflict. Never delete or replace the toolkit.
+          if (upserted.status !== 200) return vendorError(path, 'POST', upserted.status);
+        }
       }
       const list = await request(apiKey, 'GET', `/auth_configs?toolkit_slug=${encodeURIComponent(toolkit || '')}`);
       // 404 means no blueprint for this toolkit yet, not a dead grant.
@@ -457,7 +472,9 @@ export function createAuthProvider({ envPath } = {}) {
       const providerAccountId = data.connected_account_id || data.id || data.connectedAccountId || data.data?.id || null;
       // A link with no url is not a link. Returning one made startConnect write an
       // INITIATED row against a null account that no later call could ever resolve.
-      if (!url) return vendorError('/connected_accounts/link', 'POST', linked.status);
+      if (!url || (installToolkit && (typeof providerAccountId !== 'string' || !providerAccountId))) {
+        return vendorError('/connected_accounts/link', 'POST', linked.status);
+      }
       return { kind: 'link', url, providerAccountId };
     },
     async status({ providerAccountId }) {

@@ -21,6 +21,7 @@ const CREDENTIAL_SHAPE = /^(ghp_|gho_|sk-|xox|Bearer )/;
  * @property {string} [label]
  * @property {string} privilege
  * @property {string} provider
+ * @property {string} [toolkit] Stored slug for a per-install connection.
  * @property {string|null} provider_account_id
  * @property {string[]} scopes
  * @property {string} status
@@ -186,6 +187,7 @@ export class JsonFileStore {
       ...(record.label === undefined ? {} : { label: record.label }),
       privilege: record.privilege,
       provider: record.provider,
+      ...(record.toolkit === undefined ? {} : { toolkit: record.toolkit }),
       provider_account_id: record.provider_account_id ?? null,
       scopes: Array.isArray(record.scopes) ? record.scopes : [],
       status: record.status,

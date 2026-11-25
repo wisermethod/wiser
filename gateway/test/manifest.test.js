@@ -11,6 +11,8 @@ import { makeHome } from './fake-provider.js';
 
 const SERVER = fileURLToPath(new URL('../server.js', import.meta.url));
 const CONNECTORS = fileURLToPath(new URL('../../connectors', import.meta.url));
+const INSTALL_FIXTURES = fileURLToPath(new URL('./fixtures/per-install/', import.meta.url));
+const INSTALL_FIXTURE = join(INSTALL_FIXTURES, 'per-install-fixture');
 
 function writeConnector(dir, { id, actionsImpl, extraImplAction }) {
   mkdirSync(dir, { recursive: true });
@@ -367,5 +369,39 @@ test('F01 input_files accepts optional bounded input, inclusive bounds and indep
       assert.equal(result.status, 0, result.stderr);
       assert.equal(JSON.parse(result.stdout).ok, true);
     }
+  }
+});
+
+test('per-install fixture loads with catalog auth, no static toolkit, unwrap or fallback', async () => {
+  const fixture = await loadConnector(INSTALL_FIXTURE);
+  for (const mod of Object.values(fixture.manifest.modules)) {
+    assert.equal(mod.auth.provider, 'catalog');
+    assert.equal(mod.auth.per_install, true);
+    assert.equal(mod.auth.privilege, 'write');
+    assert.equal(Object.hasOwn(mod.auth, 'toolkit'), false);
+    assert.equal(mod.unwrap_token, false);
+    assert.equal(mod.fallback, 'none');
+  }
+  const checked = spawnSync(process.execPath, [SERVER, '--check', '--connectors', INSTALL_FIXTURES], { encoding: 'utf8' });
+  assert.equal(checked.status, 0, checked.stderr);
+  const report = JSON.parse(checked.stdout);
+  assert.equal(report.ok, true);
+  assert.ok(report.actions.includes('per-install-fixture.records.ping'));
+});
+
+test('--check refuses per_install beside a toolkit or a non-catalog provider', (t) => {
+  const root = makeHome();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const dir = join(root, 'invalid-fixture');
+  mkdirSync(dir);
+  const raw = readFileSync(join(INSTALL_FIXTURE, 'manifest.json'), 'utf8');
+  for (const extension of [{ toolkit: 'STATIC' }, { provider: 'local-file', file: 'local' }]) {
+    const manifest = JSON.parse(raw);
+    manifest.id = 'invalid-fixture';
+    Object.assign(manifest.modules.records.auth, extension);
+    writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest));
+    const checked = spawnSync(process.execPath, [SERVER, '--check', '--connectors', root], { encoding: 'utf8' });
+    assert.notEqual(checked.status, 0);
+    assert.match(checked.stderr, /modules\.records\.auth\.per_install/);
   }
 });
