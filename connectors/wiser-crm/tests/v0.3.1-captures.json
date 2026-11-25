@@ -1,0 +1,788 @@
+{
+  "01-get-stages-first": {
+    "endpoint": "/api/stages",
+    "query": {},
+    "answer": {
+      "status": 200,
+      "data": {
+        "stages": [
+          {
+            "key": "prospect",
+            "label": "Prospect",
+            "color": "slate",
+            "position": 0,
+            "is_won": 0,
+            "is_lost": 0,
+            "created_at": "2026-11-25 01:50:45",
+            "updated_at": "2026-11-25 01:50:45"
+          },
+          {
+            "key": "qualified",
+            "label": "Qualified",
+            "color": "sky",
+            "position": 1,
+            "is_won": 0,
+            "is_lost": 0,
+            "created_at": "2026-11-25 01:50:45",
+            "updated_at": "2026-11-25 01:50:45"
+          },
+          {
+            "key": "proposal",
+            "label": "Proposal",
+            "color": "violet",
+            "position": 2,
+            "is_won": 0,
+            "is_lost": 0,
+            "created_at": "2026-11-25 01:50:45",
+            "updated_at": "2026-11-25 01:50:45"
+          },
+          {
+            "key": "negotiation",
+            "label": "Negotiation",
+            "color": "amber",
+            "position": 3,
+            "is_won": 0,
+            "is_lost": 0,
+            "created_at": "2026-11-25 01:50:45",
+            "updated_at": "2026-11-25 01:50:45"
+          },
+          {
+            "key": "won",
+            "label": "Won",
+            "color": "emerald",
+            "position": 4,
+            "is_won": 1,
+            "is_lost": 0,
+            "created_at": "2026-11-25 01:50:45",
+            "updated_at": "2026-11-25 01:50:45"
+          },
+          {
+            "key": "lost",
+            "label": "Lost",
+            "color": "rose",
+            "position": 5,
+            "is_won": 0,
+            "is_lost": 1,
+            "created_at": "2026-11-25 01:50:45",
+            "updated_at": "2026-11-25 01:50:45"
+          }
+        ]
+      }
+    }
+  },
+  "10-get-companies-list": {
+    "endpoint": "/api/companies",
+    "query": {},
+    "answer": {
+      "status": 200,
+      "data": {
+        "companies": [
+          {
+            "id": "b80377d6-c4a3-43f4-97fe-bdc10f6e98e8",
+            "name": "Sample Co",
+            "domain": "example.org",
+            "industry": "",
+            "phone": "",
+            "email": "",
+            "notes": "",
+            "customer_since": null,
+            "renewal_date": null,
+            "created_at": "2026-11-25 01:50:45",
+            "updated_at": "2026-11-25 01:50:45",
+            "contact_count": 2
+          },
+          {
+            "id": "9105bef1-701a-410b-b87b-64d5a0916b77",
+            "name": "Example Co",
+            "domain": "example.com",
+            "industry": "",
+            "phone": "",
+            "email": "",
+            "notes": "",
+            "customer_since": null,
+            "renewal_date": null,
+            "created_at": "2026-11-25 01:50:45",
+            "updated_at": "2026-11-25 01:50:45",
+            "contact_count": 1
+          }
+        ],
+        "total": 2,
+        "page": 1,
+        "limit": 25
+      }
+    }
+  },
+  "12-get-companies-detail": {
+    "endpoint": "/api/companies/9105bef1-701a-410b-b87b-64d5a0916b77",
+    "query": {},
+    "answer": {
+      "status": 200,
+      "data": {
+        "company": {
+          "id": "9105bef1-701a-410b-b87b-64d5a0916b77",
+          "name": "Example Co",
+          "domain": "example.com",
+          "industry": "",
+          "phone": "",
+          "email": "",
+          "notes": "",
+          "customer_since": null,
+          "renewal_date": null,
+          "created_at": "2026-11-25 01:50:45",
+          "updated_at": "2026-11-25 01:50:45",
+          "contact_count": 1
+        }
+      }
+    }
+  },
+  "13-get-companies-missing": {
+    "endpoint": "/api/companies/00000000-0000-4000-8000-000000000000",
+    "query": {},
+    "answer": {
+      "status": 404,
+      "error": {
+        "code": "vendor_error",
+        "endpoint": "/api/companies/00000000-0000-4000-8000-000000000000",
+        "method": "GET",
+        "provider_codes": []
+      }
+    }
+  },
+  "18-get-contacts-list": {
+    "endpoint": "/api/contacts",
+    "query": {},
+    "answer": {
+      "status": 200,
+      "data": {
+        "contacts": [
+          {
+            "id": "d5449b72-9f60-4177-a9c2-0858e8dc4c35",
+            "first_name": "Sample",
+            "last_name": "",
+            "email": "sample@example.org",
+            "phone": "",
+            "company_id": "b80377d6-c4a3-43f4-97fe-bdc10f6e98e8",
+            "title": "",
+            "status": "active",
+            "last_contacted_at": null,
+            "created_at": "2026-11-25 01:50:45",
+            "updated_at": "2026-11-25 01:50:45",
+            "company_name": "Sample Co",
+            "company_domain": "example.org"
+          },
+          {
+            "id": "7df19268-6419-4b00-a0a4-0df8d854a806",
+            "first_name": "Example Person",
+            "last_name": "",
+            "email": "example@example.com",
+            "phone": "",
+            "company_id": "9105bef1-701a-410b-b87b-64d5a0916b77",
+            "title": "",
+            "status": "lead",
+            "last_contacted_at": null,
+            "created_at": "2026-11-25 01:50:45",
+            "updated_at": "2026-11-25 01:50:45",
+            "company_name": "Example Co",
+            "company_domain": "example.com"
+          },
+          {
+            "id": "6d306587-ffce-47e2-bf7a-ef243f4ea687",
+            "first_name": "Unlinked",
+            "last_name": "",
+            "email": "unlinked@example.org",
+            "phone": "",
+            "company_id": "b80377d6-c4a3-43f4-97fe-bdc10f6e98e8",
+            "title": "",
+            "status": "lead",
+            "last_contacted_at": null,
+            "created_at": "2026-11-25 01:50:45",
+            "updated_at": "2026-11-25 01:50:45",
+            "company_name": "Sample Co",
+            "company_domain": "example.org"
+          }
+        ],
+        "total": 3,
+        "page": 1,
+        "limit": 25
+      }
+    }
+  },
+  "20-get-contacts-detail": {
+    "endpoint": "/api/contacts/7df19268-6419-4b00-a0a4-0df8d854a806",
+    "query": {},
+    "answer": {
+      "status": 200,
+      "data": {
+        "contact": {
+          "id": "7df19268-6419-4b00-a0a4-0df8d854a806",
+          "first_name": "Example Person",
+          "last_name": "",
+          "email": "example@example.com",
+          "phone": "",
+          "company_id": "9105bef1-701a-410b-b87b-64d5a0916b77",
+          "title": "",
+          "status": "lead",
+          "last_contacted_at": null,
+          "created_at": "2026-11-25 01:50:45",
+          "updated_at": "2026-11-25 01:50:45",
+          "company_name": "Example Co",
+          "company_domain": "example.com"
+        }
+      }
+    }
+  },
+  "21-get-contacts-missing": {
+    "endpoint": "/api/contacts/00000000-0000-4000-8000-000000000000",
+    "query": {},
+    "answer": {
+      "status": 404,
+      "error": {
+        "code": "vendor_error",
+        "endpoint": "/api/contacts/00000000-0000-4000-8000-000000000000",
+        "method": "GET",
+        "provider_codes": []
+      }
+    }
+  },
+  "26-get-deals-list": {
+    "endpoint": "/api/deals",
+    "query": {},
+    "answer": {
+      "status": 200,
+      "data": {
+        "deals": [
+          {
+            "id": "bd9798fd-c72e-49a2-8918-fde6757307d8",
+            "name": "Inherited Deal",
+            "contact_id": "d5449b72-9f60-4177-a9c2-0858e8dc4c35",
+            "company_id": "b80377d6-c4a3-43f4-97fe-bdc10f6e98e8",
+            "value": 0,
+            "stage": "prospect",
+            "close_date": "",
+            "notes": "",
+            "created_at": "2026-11-25 01:50:45",
+            "updated_at": "2026-11-25 01:50:45",
+            "contact_first_name": "Sample",
+            "contact_last_name": "",
+            "company_name": "Sample Co",
+            "company_domain": "example.org"
+          },
+          {
+            "id": "71ce902d-369e-40a3-9d7d-173811b4a1c8",
+            "name": "Example Deal",
+            "contact_id": "7df19268-6419-4b00-a0a4-0df8d854a806",
+            "company_id": "9105bef1-701a-410b-b87b-64d5a0916b77",
+            "value": 1200,
+            "stage": "prospect",
+            "close_date": "2025-05-01",
+            "notes": "",
+            "created_at": "2026-11-25 01:50:45",
+            "updated_at": "2026-11-25 01:50:45",
+            "contact_first_name": "Example Person",
+            "contact_last_name": "",
+            "company_name": "Example Co",
+            "company_domain": "example.com"
+          }
+        ],
+        "total": 2,
+        "page": 1,
+        "limit": 25,
+        "totalValue": 1200
+      }
+    }
+  },
+  "28-get-deals-detail": {
+    "endpoint": "/api/deals/71ce902d-369e-40a3-9d7d-173811b4a1c8",
+    "query": {},
+    "answer": {
+      "status": 200,
+      "data": {
+        "deal": {
+          "id": "71ce902d-369e-40a3-9d7d-173811b4a1c8",
+          "name": "Example Deal",
+          "contact_id": "7df19268-6419-4b00-a0a4-0df8d854a806",
+          "company_id": "9105bef1-701a-410b-b87b-64d5a0916b77",
+          "value": 1200,
+          "stage": "prospect",
+          "close_date": "2025-05-01",
+          "notes": "",
+          "created_at": "2026-11-25 01:50:45",
+          "updated_at": "2026-11-25 01:50:45",
+          "contact_first_name": "Example Person",
+          "contact_last_name": "",
+          "company_name": "Example Co",
+          "company_domain": "example.com",
+          "progress": {
+            "status": "yellow",
+            "reasons": [
+              "No next step (calls aren't synced)",
+              "The close date (1 May) has passed: move it or close the deal",
+              "Calls aren't synced, email isn't synced"
+            ],
+            "next_step": null,
+            "last_touch_at": null,
+            "days_quiet": null
+          }
+        }
+      }
+    }
+  },
+  "29-get-deals-missing": {
+    "endpoint": "/api/deals/00000000-0000-4000-8000-000000000000",
+    "query": {},
+    "answer": {
+      "status": 404,
+      "error": {
+        "code": "vendor_error",
+        "endpoint": "/api/deals/00000000-0000-4000-8000-000000000000",
+        "method": "GET",
+        "provider_codes": []
+      }
+    }
+  },
+  "34-get-contacts-search-status": {
+    "endpoint": "/api/contacts",
+    "query": {
+      "search": "Example Person",
+      "status": "lead"
+    },
+    "answer": {
+      "status": 200,
+      "data": {
+        "contacts": [
+          {
+            "id": "7df19268-6419-4b00-a0a4-0df8d854a806",
+            "first_name": "Example Person",
+            "last_name": "",
+            "email": "example@example.com",
+            "phone": "",
+            "company_id": "9105bef1-701a-410b-b87b-64d5a0916b77",
+            "title": "Example coordinator",
+            "status": "lead",
+            "last_contacted_at": null,
+            "created_at": "2026-11-25 01:50:45",
+            "updated_at": "2026-11-25 01:50:45",
+            "company_name": "Example Co",
+            "company_domain": "example.com"
+          }
+        ],
+        "total": 1,
+        "page": 1,
+        "limit": 25
+      }
+    }
+  },
+  "35-get-contacts-company": {
+    "endpoint": "/api/contacts",
+    "query": {
+      "company_id": "9105bef1-701a-410b-b87b-64d5a0916b77"
+    },
+    "answer": {
+      "status": 200,
+      "data": {
+        "contacts": [
+          {
+            "id": "7df19268-6419-4b00-a0a4-0df8d854a806",
+            "first_name": "Example Person",
+            "last_name": "",
+            "email": "example@example.com",
+            "phone": "",
+            "company_id": "9105bef1-701a-410b-b87b-64d5a0916b77",
+            "title": "Example coordinator",
+            "status": "lead",
+            "last_contacted_at": null,
+            "created_at": "2026-11-25 01:50:45",
+            "updated_at": "2026-11-25 01:50:45",
+            "company_name": "Example Co",
+            "company_domain": "example.com"
+          }
+        ],
+        "total": 1,
+        "page": 1,
+        "limit": 25
+      }
+    }
+  },
+  "36-get-deals-company": {
+    "endpoint": "/api/deals",
+    "query": {
+      "company_id": "9105bef1-701a-410b-b87b-64d5a0916b77"
+    },
+    "answer": {
+      "status": 200,
+      "data": {
+        "deals": [
+          {
+            "id": "71ce902d-369e-40a3-9d7d-173811b4a1c8",
+            "name": "Example Deal",
+            "contact_id": "7df19268-6419-4b00-a0a4-0df8d854a806",
+            "company_id": "9105bef1-701a-410b-b87b-64d5a0916b77",
+            "value": 1300,
+            "stage": "prospect",
+            "close_date": "2025-05-01",
+            "notes": "",
+            "created_at": "2026-11-25 01:50:45",
+            "updated_at": "2026-11-25 01:50:45",
+            "contact_first_name": "Example Person",
+            "contact_last_name": "",
+            "company_name": "Example Co",
+            "company_domain": "example.com"
+          }
+        ],
+        "total": 1,
+        "page": 1,
+        "limit": 25,
+        "totalValue": 1300
+      }
+    }
+  },
+  "37-get-deals-contact": {
+    "endpoint": "/api/deals",
+    "query": {
+      "contact_id": "7df19268-6419-4b00-a0a4-0df8d854a806"
+    },
+    "answer": {
+      "status": 200,
+      "data": {
+        "deals": [
+          {
+            "id": "71ce902d-369e-40a3-9d7d-173811b4a1c8",
+            "name": "Example Deal",
+            "contact_id": "7df19268-6419-4b00-a0a4-0df8d854a806",
+            "company_id": "9105bef1-701a-410b-b87b-64d5a0916b77",
+            "value": 1300,
+            "stage": "prospect",
+            "close_date": "2025-05-01",
+            "notes": "",
+            "created_at": "2026-11-25 01:50:45",
+            "updated_at": "2026-11-25 01:50:45",
+            "contact_first_name": "Example Person",
+            "contact_last_name": "",
+            "company_name": "Example Co",
+            "company_domain": "example.com"
+          }
+        ],
+        "total": 1,
+        "page": 1,
+        "limit": 25,
+        "totalValue": 1300
+      }
+    }
+  },
+  "38-get-deals-stage": {
+    "endpoint": "/api/deals",
+    "query": {
+      "stage": "prospect"
+    },
+    "answer": {
+      "status": 200,
+      "data": {
+        "deals": [
+          {
+            "id": "bd9798fd-c72e-49a2-8918-fde6757307d8",
+            "name": "Inherited Deal",
+            "contact_id": "d5449b72-9f60-4177-a9c2-0858e8dc4c35",
+            "company_id": "b80377d6-c4a3-43f4-97fe-bdc10f6e98e8",
+            "value": 0,
+            "stage": "prospect",
+            "close_date": "",
+            "notes": "",
+            "created_at": "2026-11-25 01:50:45",
+            "updated_at": "2026-11-25 01:50:45",
+            "contact_first_name": "Sample",
+            "contact_last_name": "",
+            "company_name": "Sample Co",
+            "company_domain": "example.org"
+          },
+          {
+            "id": "71ce902d-369e-40a3-9d7d-173811b4a1c8",
+            "name": "Example Deal",
+            "contact_id": "7df19268-6419-4b00-a0a4-0df8d854a806",
+            "company_id": "9105bef1-701a-410b-b87b-64d5a0916b77",
+            "value": 1300,
+            "stage": "prospect",
+            "close_date": "2025-05-01",
+            "notes": "",
+            "created_at": "2026-11-25 01:50:45",
+            "updated_at": "2026-11-25 01:50:45",
+            "contact_first_name": "Example Person",
+            "contact_last_name": "",
+            "company_name": "Example Co",
+            "company_domain": "example.com"
+          }
+        ],
+        "total": 2,
+        "page": 1,
+        "limit": 25,
+        "totalValue": 1300
+      }
+    }
+  },
+  "41-get-deal-won-activities-no-broker": {
+    "endpoint": "/api/activities",
+    "query": {
+      "entity_type": "deal",
+      "entity_id": "71ce902d-369e-40a3-9d7d-173811b4a1c8"
+    },
+    "answer": {
+      "status": 200,
+      "data": {
+        "activities": [
+          {
+            "id": "6cc598e2-e210-4d80-8b40-cbcefe1900e3",
+            "entity_type": "deal",
+            "entity_id": "71ce902d-369e-40a3-9d7d-173811b4a1c8",
+            "type": "stage_change",
+            "body": "Deal won — Won",
+            "meta": "{\"stage\":\"won\",\"value\":1300}",
+            "created_at": "2026-11-25 01:50:45"
+          }
+        ]
+      }
+    }
+  },
+  "42-get-lookup-email": {
+    "endpoint": "/api/lookup",
+    "query": {
+      "email": "example@example.com"
+    },
+    "answer": {
+      "status": 200,
+      "data": {
+        "contact": {
+          "id": "7df19268-6419-4b00-a0a4-0df8d854a806",
+          "first_name": "Example Person",
+          "last_name": "",
+          "title": "Example coordinator",
+          "status": "lead"
+        },
+        "company": {
+          "id": "9105bef1-701a-410b-b87b-64d5a0916b77",
+          "name": "Example Co",
+          "domain": "example.com",
+          "customer_since": "2025-05-01",
+          "renewal_date": null
+        },
+        "deals": [
+          {
+            "id": "71ce902d-369e-40a3-9d7d-173811b4a1c8",
+            "name": "Example Deal",
+            "stage": "won",
+            "stage_label": "Won",
+            "state": "won",
+            "value": 1300,
+            "close_date": "2025-05-01"
+          }
+        ],
+        "last_call_at": null,
+        "next_meeting": null
+      }
+    }
+  },
+  "43-get-lookup-domain": {
+    "endpoint": "/api/lookup",
+    "query": {
+      "domain": "example.com"
+    },
+    "answer": {
+      "status": 200,
+      "data": {
+        "contact": null,
+        "company": {
+          "id": "9105bef1-701a-410b-b87b-64d5a0916b77",
+          "name": "Example Co",
+          "domain": "example.com",
+          "customer_since": "2025-05-01",
+          "renewal_date": null
+        },
+        "deals": [
+          {
+            "id": "71ce902d-369e-40a3-9d7d-173811b4a1c8",
+            "name": "Example Deal",
+            "stage": "won",
+            "stage_label": "Won",
+            "state": "won",
+            "value": 1300,
+            "close_date": "2025-05-01"
+          }
+        ],
+        "last_call_at": null,
+        "next_meeting": null
+      }
+    }
+  },
+  "46-get-custom-fields": {
+    "endpoint": "/api/custom-fields",
+    "query": {},
+    "answer": {
+      "status": 200,
+      "data": {
+        "defs": []
+      }
+    }
+  },
+  "51-get-contact-activities": {
+    "endpoint": "/api/activities",
+    "query": {
+      "entity_type": "contact",
+      "entity_id": "7df19268-6419-4b00-a0a4-0df8d854a806"
+    },
+    "answer": {
+      "status": 200,
+      "data": {
+        "activities": [
+          {
+            "id": "fd310d9a-0bce-46e9-8065-9b4b7d2a8cdd",
+            "entity_type": "contact",
+            "entity_id": "7df19268-6419-4b00-a0a4-0df8d854a806",
+            "type": "email",
+            "body": "Example email",
+            "meta": "{}",
+            "created_at": "2026-11-25 01:50:45"
+          },
+          {
+            "id": "7cad4f2d-69ed-4ec6-947b-0a862428d9bf",
+            "entity_type": "contact",
+            "entity_id": "7df19268-6419-4b00-a0a4-0df8d854a806",
+            "type": "call",
+            "body": "Example call",
+            "meta": "{}",
+            "created_at": "2026-11-25 01:50:45"
+          },
+          {
+            "id": "45bbe0ea-373e-458a-bea1-bc8cf51e927a",
+            "entity_type": "contact",
+            "entity_id": "7df19268-6419-4b00-a0a4-0df8d854a806",
+            "type": "meeting",
+            "body": "Example meeting",
+            "meta": "{}",
+            "created_at": "2026-11-25 01:50:45"
+          },
+          {
+            "id": "2a046332-59de-4703-af98-934f30760dad",
+            "entity_type": "contact",
+            "entity_id": "7df19268-6419-4b00-a0a4-0df8d854a806",
+            "type": "note",
+            "body": "Example note",
+            "meta": "{}",
+            "created_at": "2026-11-25 01:50:45"
+          }
+        ]
+      }
+    }
+  },
+  "57-get-wiser-instance": {
+    "endpoint": "/api/wiser/instance",
+    "query": {},
+    "answer": {
+      "status": 200,
+      "data": {
+        "instance": "test-install",
+        "version": "dev",
+        "caller": "agent",
+        "read_only": false
+      }
+    }
+  },
+  "58-get-wiser-people": {
+    "endpoint": "/api/wiser/people",
+    "query": {},
+    "answer": {
+      "status": 200,
+      "data": {
+        "you": "agent",
+        "people": [
+          {
+            "email": "owner@example.org",
+            "role": "owner",
+            "first_owner": true
+          }
+        ]
+      }
+    }
+  },
+  "62-get-deals-first-empty": {
+    "endpoint": "/api/deals",
+    "query": {},
+    "answer": {
+      "status": 200,
+      "data": {
+        "deals": [],
+        "total": 0,
+        "page": 1,
+        "limit": 25,
+        "totalValue": 0
+      }
+    }
+  },
+  "64-get-lookup-first-empty": {
+    "endpoint": "/api/lookup",
+    "query": {
+      "email": "example@example.com"
+    },
+    "answer": {
+      "status": 200,
+      "data": {
+        "contact": null,
+        "company": null,
+        "deals": [],
+        "last_call_at": null,
+        "next_meeting": null
+      }
+    }
+  },
+  "68-get-stages-read-only": {
+    "endpoint": "/api/stages",
+    "query": {},
+    "answer": {
+      "status": 503,
+      "error": {
+        "code": "vendor_error",
+        "endpoint": "/api/stages",
+        "method": "GET",
+        "provider_codes": []
+      }
+    }
+  },
+  "69-get-deals-read-only": {
+    "endpoint": "/api/deals",
+    "query": {},
+    "answer": {
+      "status": 503,
+      "error": {
+        "code": "vendor_error",
+        "endpoint": "/api/deals",
+        "method": "GET",
+        "provider_codes": []
+      }
+    }
+  },
+  "70-get-deal-read-only": {
+    "endpoint": "/api/deals/00000000-0000-4000-8000-000000000000",
+    "query": {},
+    "answer": {
+      "status": 503,
+      "error": {
+        "code": "vendor_error",
+        "endpoint": "/api/deals/00000000-0000-4000-8000-000000000000",
+        "method": "GET",
+        "provider_codes": []
+      }
+    }
+  },
+  "71-get-lookup-read-only": {
+    "endpoint": "/api/lookup",
+    "query": {
+      "email": "example@example.com"
+    },
+    "answer": {
+      "status": 503,
+      "error": {
+        "code": "vendor_error",
+        "endpoint": "/api/lookup",
+        "method": "GET",
+        "provider_codes": []
+      }
+    }
+  }
+}

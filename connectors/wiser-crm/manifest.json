@@ -1,0 +1,163 @@
+{
+  "id": "wiser-crm",
+  "service": "wiser-crm",
+  "modules": {
+    "records": {
+      "auth": {
+        "provider": "catalog",
+        "per_install": true,
+        "scheme": "API_KEY",
+        "privilege": "write"
+      },
+      "unwrap_token": false,
+      "fallback": "none",
+      "actions": {
+        "list": {
+          "description": "List contacts, companies, or deals. Status is for contacts, company_id is for contacts and deals, and contact_id and stage are for deals. On an install predating the 0.3.1 migration, the first deal read can fill missing companies from contacts and mark the backfill. The migration already applies that backfill. Deal lists answer 503 while the install is read-only.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {"prefer": "proxy"},
+          "input": {
+            "type": "object",
+            "properties": {
+              "entity": {"type": "string", "enum": ["contacts", "companies", "deals"]},
+              "page": {"type": "integer", "minimum": 1, "maximum": 10000},
+              "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+              "search": {"type": "string", "minLength": 1, "maxLength": 200},
+              "status": {"type": "string", "minLength": 1, "maxLength": 64},
+              "company_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "contact_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "stage": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"}
+            },
+            "required": ["entity"],
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "properties": {"entity": {"enum": ["contacts"]}, "contact_id": false, "stage": false}
+              },
+              {
+                "properties": {
+                  "entity": {"enum": ["companies"]},
+                  "status": false,
+                  "company_id": false,
+                  "contact_id": false,
+                  "stage": false
+                }
+              },
+              {"properties": {"entity": {"enum": ["deals"]}, "status": false}}
+            ]
+          }
+        },
+        "get": {
+          "description": "Read one contact, company, or deal by UUID. On an install predating the 0.3.1 migration, the first deal read can fill missing companies from contacts and mark the backfill. The migration already applies that backfill. A successful deal read can also seed the six default stages if the stage table is empty. Deal reads answer 503 while the install is read-only.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {"prefer": "proxy"},
+          "input": {
+            "type": "object",
+            "properties": {
+              "entity": {"type": "string", "enum": ["contacts", "companies", "deals"]},
+              "id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              }
+            },
+            "required": ["entity", "id"],
+            "additionalProperties": false
+          }
+        },
+        "lookup": {
+          "description": "Look up CRM context by email, domain, or both. Domain must be a canonical lowercase ASCII hostname with at least two labels, each 1 to 63 characters, with letters or digits at each end and hyphens allowed inside. IP literals, numeric final labels, trailing dots, punycode labels, and .localhost, .local and .internal suffixes are refused. Seeds the six default stages if the stage table is empty. On an install predating the 0.3.1 migration it can also fill missing deal companies from contacts and mark customers from won deals. The migration already applies both backfills. This call answers 503 while the install is read-only.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {"prefer": "proxy"},
+          "input": {
+            "type": "object",
+            "properties": {
+              "email": {"type": "string", "maxLength": 254},
+              "domain": {"type": "string", "pattern": "^[a-z0-9.-]+$", "maxLength": 253}
+            },
+            "additionalProperties": false,
+            "anyOf": [{"required": ["email"]}, {"required": ["domain"]}]
+          }
+        },
+        "stages": {
+          "description": "Read the pipeline stage keys. Seeds the six default stages if the stage table is empty. This call answers 503 while the install is read-only.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {"prefer": "proxy"},
+          "input": {"type": "object", "properties": {}, "additionalProperties": false}
+        },
+        "fields": {
+          "description": "Read the install's custom field definitions.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {"prefer": "proxy"},
+          "input": {"type": "object", "properties": {}, "additionalProperties": false}
+        },
+        "instance": {
+          "description": "Read the install's identity, version, caller identity, and read-only flag.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {"prefer": "proxy"},
+          "input": {"type": "object", "properties": {}, "additionalProperties": false}
+        }
+      }
+    },
+    "activities": {
+      "auth": {
+        "provider": "catalog",
+        "per_install": true,
+        "scheme": "API_KEY",
+        "privilege": "write"
+      },
+      "unwrap_token": false,
+      "fallback": "none",
+      "actions": {
+        "list": {
+          "description": "List activities for a contact, company, or deal.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {"prefer": "proxy"},
+          "input": {
+            "type": "object",
+            "properties": {
+              "entity_type": {"type": "string", "enum": ["contact", "company", "deal"]},
+              "entity_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              }
+            },
+            "required": ["entity_type", "entity_id"],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    "people": {
+      "auth": {
+        "provider": "catalog",
+        "per_install": true,
+        "scheme": "API_KEY",
+        "privilege": "write"
+      },
+      "unwrap_token": false,
+      "fallback": "none",
+      "actions": {
+        "list": {
+          "description": "List people and their roles, with the identity of the caller.",
+          "risk": "low",
+          "confirmation": "none",
+          "execution": {"prefer": "proxy"},
+          "input": {"type": "object", "properties": {}, "additionalProperties": false}
+        }
+      }
+    }
+  }
+}

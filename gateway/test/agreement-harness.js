@@ -202,6 +202,9 @@ const PATTERN_OK = {
   '^[A-Za-z_][A-Za-z0-9_]{0,63}$': 'DB',
   '^\\s*[Ss][Ee][Ll][Ee][Cc][Tt][^A-Za-z0-9_;][^;]*(?:;\\s*)?$': 'SELECT 1',
   '^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$': 'example.com',
+  // Wiser CRM stage keys and lookup domains.
+  '^[a-z][a-z0-9_]{0,63}$': 'prospect',
+  '^[a-z0-9.-]+$': 'example.com',
   // cloudflare zone settings, ruleset path ids, and redirect list names.
   '^[a-z0-9_]{1,64}$': 'ssl',
   '^[A-Za-z0-9_-]{1,64}$': 'rule_1',

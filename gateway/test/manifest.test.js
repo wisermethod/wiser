@@ -93,7 +93,7 @@ test('--check validates all shipped connectors and prints one JSON object', asyn
   const obj = JSON.parse(r.stdout);
   assert.equal(obj.ok, true);
   const ids = obj.connectors.map((c) => c.id).sort();
-  assert.deepEqual(ids, ['bing', 'calcom', 'clarity', 'cloudflare', 'courtlistener', 'dataforseo', 'elevenlabs', 'figma', 'github', 'google', 'google-apis', 'google-cloud', 'google-vision', 'heygen', 'hubspot', 'huggingface', 'linkedin', 'microsoft', 'monday', 'notion', 'replicate', 'stripe', 'supabase', 'tinyfish', 'twenty', 'usebouncer', 'vercel', 'vm', 'x', 'xai', 'youtube', 'zoho', 'zoom']);
+  assert.deepEqual(ids, ['bing', 'calcom', 'clarity', 'cloudflare', 'courtlistener', 'dataforseo', 'elevenlabs', 'figma', 'github', 'google', 'google-apis', 'google-cloud', 'google-vision', 'heygen', 'hubspot', 'huggingface', 'linkedin', 'microsoft', 'monday', 'notion', 'replicate', 'stripe', 'supabase', 'tinyfish', 'twenty', 'usebouncer', 'vercel', 'vm', 'wiser-crm', 'x', 'xai', 'youtube', 'zoho', 'zoom']);
   assert.ok(obj.actions.includes('youtube.videos.upload'));
   assert.ok(obj.actions.includes('xai.speech.synthesize'));
   assert.ok(obj.actions.includes('xai.speech.list_builtin_voices'));
@@ -126,6 +126,16 @@ test('--check validates all shipped connectors and prints one JSON object', asyn
   assert.ok(obj.actions.includes('twenty.metadata.create_object'));
   assert.ok(obj.actions.includes('twenty.metadata.create_field'));
   assert.ok(obj.actions.includes('twenty.metadata.add_field_options'));
+  assert.deepEqual(obj.actions.filter((action) => action.startsWith('wiser-crm.')).sort(), [
+    'wiser-crm.activities.list',
+    'wiser-crm.people.list',
+    'wiser-crm.records.fields',
+    'wiser-crm.records.get',
+    'wiser-crm.records.instance',
+    'wiser-crm.records.list',
+    'wiser-crm.records.lookup',
+    'wiser-crm.records.stages',
+  ]);
 });
 
 
