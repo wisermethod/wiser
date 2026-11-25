@@ -72,6 +72,84 @@
             "additionalProperties": false
           }
         },
+        "create": {
+          "description": "Create one contact, company, or deal. Field keys must match ^[a-z][a-z0-9_]*$ and contain at most 64 code points. Values may be strings, finite numbers, booleans or null. The custom key takes an object with the same key and scalar value rules. The serialized fields object must be at most 16 KiB in UTF-8. Top-level company_id and contact_id take lowercase UUIDs or null to clear a link. An empty fields object reaches the CRM for validation.",
+          "risk": "medium",
+          "confirmation": "always",
+          "standing_approval": {
+            "kind": "change",
+            "summary": "create Wiser CRM records"
+          },
+          "execution": {"prefer": "proxy"},
+          "input": {
+            "type": "object",
+            "properties": {
+              "entity": {"type": "string", "enum": ["contacts", "companies", "deals"]},
+              "fields": {"type": "object"}
+            },
+            "required": ["entity", "fields"],
+            "additionalProperties": false
+          }
+        },
+        "update": {
+          "description": "Update one contact, company, or deal. Field keys must match ^[a-z][a-z0-9_]*$ and contain at most 64 code points. Values may be strings, finite numbers, booleans or null. The custom key takes an object with the same key and scalar value rules. The serialized fields object must be at most 16 KiB in UTF-8. Top-level company_id and contact_id take lowercase UUIDs or null to clear a link. An empty fields object reaches the CRM for validation.",
+          "risk": "high",
+          "confirmation": "always",
+          "standing_approval": {
+            "kind": "change",
+            "summary": "update Wiser CRM records",
+            "caution": "Moving a deal to a won stage can post the win to the install's Slack channel where Slack is connected, with nobody seeing it first."
+          },
+          "execution": {"prefer": "proxy"},
+          "input": {
+            "type": "object",
+            "properties": {
+              "entity": {"type": "string", "enum": ["contacts", "companies", "deals"]},
+              "id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "fields": {"type": "object"}
+            },
+            "required": ["entity", "id", "fields"],
+            "additionalProperties": false
+          }
+        },
+        "import_contacts": {
+          "description": "Import 1 to 500 contacts into Wiser CRM. Matching contacts can have empty fields filled. Returns counts for imported, matched, companies created, skipped and duplicate rows.",
+          "risk": "high",
+          "confirmation": "always",
+          "execution": {"prefer": "proxy"},
+          "input": {
+            "type": "object",
+            "properties": {
+              "contacts": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 500,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "first_name": {"type": "string", "minLength": 1, "maxLength": 256},
+                    "last_name": {"type": "string", "maxLength": 256},
+                    "email": {"type": "string", "maxLength": 256},
+                    "phone": {"type": "string", "maxLength": 256},
+                    "title": {"type": "string", "maxLength": 256},
+                    "status": {"type": "string", "maxLength": 256},
+                    "company": {"type": "string", "maxLength": 256},
+                    "company_domain": {"type": "string", "maxLength": 256},
+                    "company_industry": {"type": "string", "maxLength": 256},
+                    "company_phone": {"type": "string", "maxLength": 256}
+                  },
+                  "required": ["first_name"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": ["contacts"],
+            "additionalProperties": false
+          }
+        },
         "lookup": {
           "description": "Look up CRM context by email, domain, or both. Domain must be a canonical lowercase ASCII hostname with at least two labels, each 1 to 63 characters, with letters or digits at each end and hyphens allowed inside. IP literals, numeric final labels, trailing dots, punycode labels, and .localhost, .local and .internal suffixes are refused. Seeds the six default stages if the stage table is empty. On an install predating the 0.3.1 migration it can also fill missing deal companies from contacts and mark customers from won deals. The migration already applies both backfills. This call answers 503 while the install is read-only.",
           "risk": "low",
@@ -120,6 +198,30 @@
       "unwrap_token": false,
       "fallback": "none",
       "actions": {
+        "log": {
+          "description": "Log a note, call, email, or meeting for a contact, company, or deal. Body takes up to 10000 code points, is trimmed before sending, and must contain text after trimming.",
+          "risk": "medium",
+          "confirmation": "always",
+          "standing_approval": {
+            "kind": "change",
+            "summary": "log activities in Wiser CRM"
+          },
+          "execution": {"prefer": "proxy"},
+          "input": {
+            "type": "object",
+            "properties": {
+              "entity_type": {"type": "string", "enum": ["contact", "company", "deal"]},
+              "entity_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "type": {"type": "string", "enum": ["note", "call", "email", "meeting"]},
+              "body": {"type": "string", "minLength": 1, "maxLength": 10000}
+            },
+            "required": ["entity_type", "entity_id", "type", "body"],
+            "additionalProperties": false
+          }
+        },
         "list": {
           "description": "List activities for a contact, company, or deal.",
           "risk": "low",

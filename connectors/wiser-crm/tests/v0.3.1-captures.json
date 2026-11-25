@@ -784,5 +784,671 @@
         "provider_codes": []
       }
     }
+  },
+  "02-post-example-company": {
+    "endpoint": "/api/companies",
+    "method": "POST",
+    "body": {
+      "name": "Example Co",
+      "domain": "example.com"
+    },
+    "answer": {
+      "status": 201,
+      "data": {
+        "company": {
+          "id": "9105bef1-701a-410b-b87b-64d5a0916b77",
+          "name": "Example Co",
+          "domain": "example.com",
+          "industry": "",
+          "phone": "",
+          "email": "",
+          "notes": "",
+          "customer_since": null,
+          "renewal_date": null,
+          "created_at": "2026-11-25 01:50:45",
+          "updated_at": "2026-11-25 01:50:45"
+        }
+      }
+    }
+  },
+  "03-post-sample-company": {
+    "endpoint": "/api/companies",
+    "method": "POST",
+    "body": {
+      "name": "Sample Co",
+      "domain": "example.org"
+    },
+    "answer": {
+      "status": 201,
+      "data": {
+        "company": {
+          "id": "b80377d6-c4a3-43f4-97fe-bdc10f6e98e8",
+          "name": "Sample Co",
+          "domain": "example.org",
+          "industry": "",
+          "phone": "",
+          "email": "",
+          "notes": "",
+          "customer_since": null,
+          "renewal_date": null,
+          "created_at": "2026-11-25 01:50:45",
+          "updated_at": "2026-11-25 01:50:45"
+        }
+      }
+    }
+  },
+  "04-post-example-contact": {
+    "endpoint": "/api/contacts",
+    "method": "POST",
+    "body": {
+      "first_name": "Example Person",
+      "email": "example@example.com",
+      "status": "lead",
+      "company_id": "9105bef1-701a-410b-b87b-64d5a0916b77"
+    },
+    "answer": {
+      "status": 201,
+      "data": {
+        "contact": {
+          "id": "7df19268-6419-4b00-a0a4-0df8d854a806",
+          "first_name": "Example Person",
+          "last_name": "",
+          "email": "example@example.com",
+          "phone": "",
+          "company_id": "9105bef1-701a-410b-b87b-64d5a0916b77",
+          "title": "",
+          "status": "lead",
+          "last_contacted_at": null,
+          "created_at": "2026-11-25 01:50:45",
+          "updated_at": "2026-11-25 01:50:45",
+          "company_name": "Example Co",
+          "company_domain": "example.com"
+        }
+      }
+    }
+  },
+  "05-post-sample-contact": {
+    "endpoint": "/api/contacts",
+    "method": "POST",
+    "body": {
+      "first_name": "Sample",
+      "email": "sample@example.org",
+      "status": "active",
+      "company_id": "b80377d6-c4a3-43f4-97fe-bdc10f6e98e8"
+    },
+    "answer": {
+      "status": 201,
+      "data": {
+        "contact": {
+          "id": "d5449b72-9f60-4177-a9c2-0858e8dc4c35",
+          "first_name": "Sample",
+          "last_name": "",
+          "email": "sample@example.org",
+          "phone": "",
+          "company_id": "b80377d6-c4a3-43f4-97fe-bdc10f6e98e8",
+          "title": "",
+          "status": "active",
+          "last_contacted_at": null,
+          "created_at": "2026-11-25 01:50:45",
+          "updated_at": "2026-11-25 01:50:45",
+          "company_name": "Sample Co",
+          "company_domain": "example.org"
+        }
+      }
+    }
+  },
+  "06-post-unlinked-contact": {
+    "endpoint": "/api/contacts",
+    "method": "POST",
+    "body": {
+      "first_name": "Unlinked",
+      "email": "unlinked@example.org"
+    },
+    "answer": {
+      "status": 201,
+      "data": {
+        "contact": {
+          "id": "6d306587-ffce-47e2-bf7a-ef243f4ea687",
+          "first_name": "Unlinked",
+          "last_name": "",
+          "email": "unlinked@example.org",
+          "phone": "",
+          "company_id": "b80377d6-c4a3-43f4-97fe-bdc10f6e98e8",
+          "title": "",
+          "status": "lead",
+          "last_contacted_at": null,
+          "created_at": "2026-11-25 01:50:45",
+          "updated_at": "2026-11-25 01:50:45",
+          "company_name": "Sample Co",
+          "company_domain": "example.org"
+        }
+      }
+    }
+  },
+  "07-post-linked-deal": {
+    "endpoint": "/api/deals",
+    "method": "POST",
+    "body": {
+      "name": "Example Deal",
+      "company_id": "9105bef1-701a-410b-b87b-64d5a0916b77",
+      "contact_id": "7df19268-6419-4b00-a0a4-0df8d854a806",
+      "stage": "prospect",
+      "value": 1200,
+      "close_date": "2025-05-01"
+    },
+    "answer": {
+      "status": 201,
+      "data": {
+        "deal": {
+          "id": "71ce902d-369e-40a3-9d7d-173811b4a1c8",
+          "name": "Example Deal",
+          "contact_id": "7df19268-6419-4b00-a0a4-0df8d854a806",
+          "company_id": "9105bef1-701a-410b-b87b-64d5a0916b77",
+          "value": 1200,
+          "stage": "prospect",
+          "close_date": "2025-05-01",
+          "notes": "",
+          "created_at": "2026-11-25 01:50:45",
+          "updated_at": "2026-11-25 01:50:45",
+          "contact_first_name": "Example Person",
+          "contact_last_name": "",
+          "company_name": "Example Co",
+          "company_domain": "example.com"
+        }
+      }
+    }
+  },
+  "08-post-inherited-deal": {
+    "endpoint": "/api/deals",
+    "method": "POST",
+    "body": {
+      "name": "Inherited Deal",
+      "contact_id": "d5449b72-9f60-4177-a9c2-0858e8dc4c35",
+      "stage": "prospect"
+    },
+    "answer": {
+      "status": 201,
+      "data": {
+        "deal": {
+          "id": "bd9798fd-c72e-49a2-8918-fde6757307d8",
+          "name": "Inherited Deal",
+          "contact_id": "d5449b72-9f60-4177-a9c2-0858e8dc4c35",
+          "company_id": "b80377d6-c4a3-43f4-97fe-bdc10f6e98e8",
+          "value": 0,
+          "stage": "prospect",
+          "close_date": "",
+          "notes": "",
+          "created_at": "2026-11-25 01:50:45",
+          "updated_at": "2026-11-25 01:50:45",
+          "contact_first_name": "Sample",
+          "contact_last_name": "",
+          "company_name": "Sample Co",
+          "company_domain": "example.org"
+        }
+      }
+    }
+  },
+  "09-post-activity-note": {
+    "endpoint": "/api/activities",
+    "method": "POST",
+    "body": {
+      "entity_type": "contact",
+      "entity_id": "7df19268-6419-4b00-a0a4-0df8d854a806",
+      "type": "note",
+      "body": "Example note"
+    },
+    "answer": {
+      "status": 201,
+      "data": {
+        "ok": true
+      }
+    }
+  },
+  "14-post-companies-empty": {
+    "endpoint": "/api/companies",
+    "method": "POST",
+    "body": {},
+    "answer": {
+      "status": 400,
+      "error": {
+        "code": "vendor_error",
+        "endpoint": "/api/companies",
+        "method": "POST",
+        "provider_codes": []
+      }
+    }
+  },
+  "15-post-companies-unknown": {
+    "endpoint": "/api/companies",
+    "method": "POST",
+    "body": {
+      "name": "Example",
+      "unexpected_field": "Example"
+    },
+    "answer": {
+      "status": 422,
+      "error": {
+        "code": "vendor_error",
+        "endpoint": "/api/companies",
+        "method": "POST",
+        "provider_codes": []
+      }
+    }
+  },
+  "16-put-companies-one-field": {
+    "endpoint": "/api/companies/9105bef1-701a-410b-b87b-64d5a0916b77",
+    "method": "PUT",
+    "body": {
+      "industry": "Example industry"
+    },
+    "answer": {
+      "status": 200,
+      "data": {
+        "company": {
+          "id": "9105bef1-701a-410b-b87b-64d5a0916b77",
+          "name": "Example Co",
+          "domain": "example.com",
+          "industry": "Example industry",
+          "phone": "",
+          "email": "",
+          "notes": "",
+          "customer_since": null,
+          "renewal_date": null,
+          "created_at": "2026-11-25 01:50:45",
+          "updated_at": "2026-11-25 01:50:45"
+        }
+      }
+    }
+  },
+  "17-put-companies-empty": {
+    "endpoint": "/api/companies/9105bef1-701a-410b-b87b-64d5a0916b77",
+    "method": "PUT",
+    "body": {},
+    "answer": {
+      "status": 400,
+      "error": {
+        "code": "vendor_error",
+        "endpoint": "/api/companies/9105bef1-701a-410b-b87b-64d5a0916b77",
+        "method": "PUT",
+        "provider_codes": []
+      }
+    }
+  },
+  "22-post-contacts-empty": {
+    "endpoint": "/api/contacts",
+    "method": "POST",
+    "body": {},
+    "answer": {
+      "status": 400,
+      "error": {
+        "code": "vendor_error",
+        "endpoint": "/api/contacts",
+        "method": "POST",
+        "provider_codes": []
+      }
+    }
+  },
+  "23-post-contacts-unknown": {
+    "endpoint": "/api/contacts",
+    "method": "POST",
+    "body": {
+      "first_name": "Example",
+      "unexpected_field": "Example"
+    },
+    "answer": {
+      "status": 422,
+      "error": {
+        "code": "vendor_error",
+        "endpoint": "/api/contacts",
+        "method": "POST",
+        "provider_codes": []
+      }
+    }
+  },
+  "24-put-contacts-one-field": {
+    "endpoint": "/api/contacts/7df19268-6419-4b00-a0a4-0df8d854a806",
+    "method": "PUT",
+    "body": {
+      "title": "Example coordinator"
+    },
+    "answer": {
+      "status": 200,
+      "data": {
+        "contact": {
+          "id": "7df19268-6419-4b00-a0a4-0df8d854a806",
+          "first_name": "Example Person",
+          "last_name": "",
+          "email": "example@example.com",
+          "phone": "",
+          "company_id": "9105bef1-701a-410b-b87b-64d5a0916b77",
+          "title": "Example coordinator",
+          "status": "lead",
+          "last_contacted_at": null,
+          "created_at": "2026-11-25 01:50:45",
+          "updated_at": "2026-11-25 01:50:45",
+          "company_name": "Example Co",
+          "company_domain": "example.com"
+        }
+      }
+    }
+  },
+  "25-put-contacts-empty": {
+    "endpoint": "/api/contacts/7df19268-6419-4b00-a0a4-0df8d854a806",
+    "method": "PUT",
+    "body": {},
+    "answer": {
+      "status": 400,
+      "error": {
+        "code": "vendor_error",
+        "endpoint": "/api/contacts/7df19268-6419-4b00-a0a4-0df8d854a806",
+        "method": "PUT",
+        "provider_codes": []
+      }
+    }
+  },
+  "30-post-deals-empty": {
+    "endpoint": "/api/deals",
+    "method": "POST",
+    "body": {},
+    "answer": {
+      "status": 400,
+      "error": {
+        "code": "vendor_error",
+        "endpoint": "/api/deals",
+        "method": "POST",
+        "provider_codes": []
+      }
+    }
+  },
+  "31-post-deals-unknown": {
+    "endpoint": "/api/deals",
+    "method": "POST",
+    "body": {
+      "name": "Example",
+      "unexpected_field": "Example"
+    },
+    "answer": {
+      "status": 422,
+      "error": {
+        "code": "vendor_error",
+        "endpoint": "/api/deals",
+        "method": "POST",
+        "provider_codes": []
+      }
+    }
+  },
+  "32-put-deals-one-field": {
+    "endpoint": "/api/deals/71ce902d-369e-40a3-9d7d-173811b4a1c8",
+    "method": "PUT",
+    "body": {
+      "value": 1300
+    },
+    "answer": {
+      "status": 200,
+      "data": {
+        "deal": {
+          "id": "71ce902d-369e-40a3-9d7d-173811b4a1c8",
+          "name": "Example Deal",
+          "contact_id": "7df19268-6419-4b00-a0a4-0df8d854a806",
+          "company_id": "9105bef1-701a-410b-b87b-64d5a0916b77",
+          "value": 1300,
+          "stage": "prospect",
+          "close_date": "2025-05-01",
+          "notes": "",
+          "created_at": "2026-11-25 01:50:45",
+          "updated_at": "2026-11-25 01:50:45",
+          "contact_first_name": "Example Person",
+          "contact_last_name": "",
+          "company_name": "Example Co",
+          "company_domain": "example.com"
+        }
+      }
+    }
+  },
+  "33-put-deals-empty": {
+    "endpoint": "/api/deals/71ce902d-369e-40a3-9d7d-173811b4a1c8",
+    "method": "PUT",
+    "body": {},
+    "answer": {
+      "status": 400,
+      "error": {
+        "code": "vendor_error",
+        "endpoint": "/api/deals/71ce902d-369e-40a3-9d7d-173811b4a1c8",
+        "method": "PUT",
+        "provider_codes": []
+      }
+    }
+  },
+  "39-put-contacts-scope-missing": {
+    "endpoint": "/api/contacts/00000000-0000-4000-8000-000000000000",
+    "method": "PUT",
+    "body": {
+      "title": "Scope proof"
+    },
+    "answer": {
+      "status": 404,
+      "error": {
+        "code": "vendor_error",
+        "endpoint": "/api/contacts/00000000-0000-4000-8000-000000000000",
+        "method": "PUT",
+        "provider_codes": []
+      }
+    }
+  },
+  "40-put-deal-won-no-broker": {
+    "endpoint": "/api/deals/71ce902d-369e-40a3-9d7d-173811b4a1c8",
+    "method": "PUT",
+    "body": {
+      "stage": "won"
+    },
+    "answer": {
+      "status": 200,
+      "data": {
+        "deal": {
+          "id": "71ce902d-369e-40a3-9d7d-173811b4a1c8",
+          "name": "Example Deal",
+          "contact_id": "7df19268-6419-4b00-a0a4-0df8d854a806",
+          "company_id": "9105bef1-701a-410b-b87b-64d5a0916b77",
+          "value": 1300,
+          "stage": "won",
+          "close_date": "2025-05-01",
+          "notes": "",
+          "created_at": "2026-11-25 01:50:45",
+          "updated_at": "2026-11-25 01:50:45",
+          "contact_first_name": "Example Person",
+          "contact_last_name": "",
+          "company_name": "Example Co",
+          "company_domain": "example.com"
+        }
+      }
+    }
+  },
+  "47-post-activity-call": {
+    "endpoint": "/api/activities",
+    "method": "POST",
+    "body": {
+      "entity_type": "contact",
+      "entity_id": "7df19268-6419-4b00-a0a4-0df8d854a806",
+      "type": "call",
+      "body": "Example call"
+    },
+    "answer": {
+      "status": 201,
+      "data": {
+        "ok": true
+      }
+    }
+  },
+  "48-post-activity-email": {
+    "endpoint": "/api/activities",
+    "method": "POST",
+    "body": {
+      "entity_type": "contact",
+      "entity_id": "7df19268-6419-4b00-a0a4-0df8d854a806",
+      "type": "email",
+      "body": "Example email"
+    },
+    "answer": {
+      "status": 201,
+      "data": {
+        "ok": true
+      }
+    }
+  },
+  "49-post-activity-meeting": {
+    "endpoint": "/api/activities",
+    "method": "POST",
+    "body": {
+      "entity_type": "contact",
+      "entity_id": "7df19268-6419-4b00-a0a4-0df8d854a806",
+      "type": "meeting",
+      "body": "Example meeting"
+    },
+    "answer": {
+      "status": 201,
+      "data": {
+        "ok": true
+      }
+    }
+  },
+  "50-post-activity-empty-body": {
+    "endpoint": "/api/activities",
+    "method": "POST",
+    "body": {
+      "entity_type": "contact",
+      "entity_id": "7df19268-6419-4b00-a0a4-0df8d854a806",
+      "type": "note",
+      "body": ""
+    },
+    "answer": {
+      "status": 400,
+      "error": {
+        "code": "vendor_error",
+        "endpoint": "/api/activities",
+        "method": "POST",
+        "provider_codes": []
+      }
+    }
+  },
+  "53-post-contacts-import-match": {
+    "endpoint": "/api/contacts/import",
+    "method": "POST",
+    "body": {
+      "contacts": [
+        {
+          "first_name": "Example Person",
+          "email": "example@example.com",
+          "phone": "202-555-0100",
+          "title": "Keep existing title",
+          "status": "inactive"
+        },
+        {
+          "first_name": "New Example",
+          "email": "new@example.org"
+        }
+      ]
+    },
+    "answer": {
+      "status": 200,
+      "data": {
+        "imported": 1,
+        "matched": 1,
+        "companiesCreated": 0,
+        "skipped": 0,
+        "duplicates": 0
+      }
+    }
+  },
+  "54-post-contacts-import-zero": {
+    "endpoint": "/api/contacts/import",
+    "method": "POST",
+    "body": {
+      "contacts": []
+    },
+    "answer": {
+      "status": 400,
+      "error": {
+        "code": "vendor_error",
+        "endpoint": "/api/contacts/import",
+        "method": "POST",
+        "provider_codes": []
+      }
+    }
+  },
+  "55-post-contacts-import-missing-first-name": {
+    "endpoint": "/api/contacts/import",
+    "method": "POST",
+    "body": {
+      "contacts": [
+        {
+          "email": "nameless@example.org"
+        }
+      ]
+    },
+    "answer": {
+      "status": 400,
+      "error": {
+        "code": "vendor_error",
+        "endpoint": "/api/contacts/import",
+        "method": "POST",
+        "provider_codes": []
+      }
+    }
+  },
+  "56-post-contacts-import-company-domain": {
+    "endpoint": "/api/contacts/import",
+    "method": "POST",
+    "body": {
+      "contacts": [
+        {
+          "first_name": "Domain Example",
+          "email": "domain@example.org",
+          "company": "Import Example Co",
+          "company_domain": "import.example.org"
+        }
+      ]
+    },
+    "answer": {
+      "status": 200,
+      "data": {
+        "imported": 1,
+        "matched": 0,
+        "companiesCreated": 1,
+        "skipped": 0,
+        "duplicates": 0
+      }
+    }
+  },
+  "72-put-contact-update-read-only": {
+    "endpoint": "/api/contacts/7df19268-6419-4b00-a0a4-0df8d854a806",
+    "method": "PUT",
+    "body": {
+      "title": "Example read-only probe"
+    },
+    "answer": {
+      "status": 503,
+      "error": {
+        "code": "vendor_error",
+        "endpoint": "/api/contacts/7df19268-6419-4b00-a0a4-0df8d854a806",
+        "method": "PUT",
+        "provider_codes": []
+      }
+    }
+  },
+  "73-put-contacts-scope-read-only": {
+    "endpoint": "/api/contacts/00000000-0000-4000-8000-000000000000",
+    "method": "PUT",
+    "body": {
+      "title": "Scope proof"
+    },
+    "answer": {
+      "status": 503,
+      "error": {
+        "code": "vendor_error",
+        "endpoint": "/api/contacts/00000000-0000-4000-8000-000000000000",
+        "method": "PUT",
+        "provider_codes": []
+      }
+    }
   }
 }

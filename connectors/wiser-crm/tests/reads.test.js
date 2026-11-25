@@ -87,7 +87,7 @@ function assertRequest(f, endpoint, query = {}) {
   assert.deepEqual(request.parameters ?? [], parameters);
 }
 
-test('manifest and exports contain exactly the eight per-install proxy reads with no static toolkit', async (t) => {
+test('manifest and exports retain the eight per-install proxy reads with no static toolkit', async (t) => {
   const { connector } = await setup(t, { grant: false });
   const expected = {
     records: ['list', 'get', 'lookup', 'stages', 'fields', 'instance'],
@@ -101,8 +101,9 @@ test('manifest and exports contain exactly the eight per-install proxy reads wit
     assert.equal(declared.unwrap_token, false);
     assert.equal(declared.fallback, 'none');
     assert.equal(toolkitFor(SERVICE, module), null);
-    assert.deepEqual(Object.keys(declared.actions).sort(), [...actions].sort());
-    for (const action of Object.values(declared.actions)) {
+    const reads = Object.entries(declared.actions).filter(([, action]) => action.confirmation === 'none');
+    assert.deepEqual(reads.map(([name]) => name).sort(), [...actions].sort());
+    for (const [, action] of reads) {
       assert.equal(action.execution.prefer, 'proxy');
       assert.equal(action.risk, 'low');
       assert.equal(action.confirmation, 'none');

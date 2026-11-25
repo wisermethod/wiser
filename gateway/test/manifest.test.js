@@ -128,13 +128,17 @@ test('--check validates all shipped connectors and prints one JSON object', asyn
   assert.ok(obj.actions.includes('twenty.metadata.add_field_options'));
   assert.deepEqual(obj.actions.filter((action) => action.startsWith('wiser-crm.')).sort(), [
     'wiser-crm.activities.list',
+    'wiser-crm.activities.log',
     'wiser-crm.people.list',
+    'wiser-crm.records.create',
     'wiser-crm.records.fields',
     'wiser-crm.records.get',
+    'wiser-crm.records.import_contacts',
     'wiser-crm.records.instance',
     'wiser-crm.records.list',
     'wiser-crm.records.lookup',
     'wiser-crm.records.stages',
+    'wiser-crm.records.update',
   ]);
 });
 
