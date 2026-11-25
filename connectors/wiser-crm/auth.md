@@ -34,7 +34,7 @@ If the Cloudflare Access service token expires, create a replacement for the age
 
 ## Connection labels
 
-Wiser CRM requires a label. Use it when disconnecting. The shared revocation instructions below also cover connectors that accept unlabelled grants. For Wiser CRM, the three modules on a label share one grant and must be disconnected together.
+Wiser CRM requires a label on every call. An unlabelled `start_connect`, `connect_status`, `execute` or `disconnect` is refused. The three modules on a label share one grant and end together. **The shared instruction below to "connect that module with no label first" does not apply to Wiser CRM**, so no one module can be kept while the others end. Keeping one means keeping all three; to end one, end the label.
 
 ## Revoking
 

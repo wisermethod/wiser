@@ -300,3 +300,38 @@ for (const [name, action, input, number] of [
     assertRequest(f, endpoint, query);
   });
 }
+
+test('lookup returns a booked meeting and a last call unchanged, and refuses either in another type', async (t) => {
+  const f = await setup(t);
+  const { answer } = capture(42);
+  const data = {
+    ...answer.data,
+    last_call_at: '2026-11-20T15:00:00.000Z',
+    next_meeting: { title: 'Invented review', starts_at: '2026-12-01T16:00:00.000Z' },
+  };
+  f.reply({ ...answer, data });
+  assert.deepEqual(await f.execute('records.lookup', capture(42).query), data);
+  for (const changed of [{ last_call_at: 1764000000 }, { next_meeting: 'Invented review' }]) {
+    f.reply({ ...answer, data: { ...data, ...changed } });
+    assert.equal((await f.execute('records.lookup', capture(42).query)).reason, 'not_crm_answer');
+  }
+});
+
+test('a non-200 answer that still carries data does not echo it', async (t) => {
+  const f = await setup(t);
+  const marker = 'invented-redirect-body';
+  for (const status of [204, 302]) {
+    f.reply({ status, data: { instance: marker, note: marker } });
+    const refused = await f.execute('records.instance', {});
+    assert.deepEqual(refused, { status: 'vendor_error', http_status: status, endpoint: '/api/wiser/instance' });
+    assert.equal(JSON.stringify(refused).includes(marker), false);
+  }
+});
+
+test('a refusal drops provider codes and method, keeping status and endpoint only', async (t) => {
+  const f = await setup(t);
+  f.reply({ status: 404, error: { code: 'vendor_error', endpoint: '/api/wiser/instance', method: 'GET', provider_codes: [9999] } });
+  const refused = await f.execute('records.instance', {});
+  assert.deepEqual(refused, { status: 'vendor_error', http_status: 404, endpoint: '/api/wiser/instance' });
+  assert.equal(JSON.stringify(refused).includes('9999'), false);
+});

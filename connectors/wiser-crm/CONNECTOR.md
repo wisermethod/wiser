@@ -2,7 +2,7 @@
 name: wiser-crm
 type: connector
 category: crm
-description: Read records, CRM metadata, activities, and people from a member's Wiser CRM install
+description: Reads records, pipeline stages, custom fields, install identity, activities and people in labelled Wiser CRM installs
 version: 0.1.0
 ---
 
