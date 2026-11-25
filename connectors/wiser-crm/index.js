@@ -201,7 +201,7 @@ async function writeRecord({ entity, id, fields }, ctx) {
   }
 
   // A won stage's Slack post and customer mark happen inside the write; no restore takes them back.
-  const kept = Object.hasOwn(fields, 'stage') ? '; a won-stage Slack post or customer mark, if one ran, stays in place' : '';
+  const kept = Object.hasOwn(fields, 'stage') ? '; a won-stage Slack post or customer mark, if one ran, stays in place, and writing back a won stage can post again' : '';
   const restored = await request(ctx, { endpoint, method, body: priorFields(fields, prior, expectedLinks) }, checks);
   if (!restored.status) return kept ? { ...failure, message: `the prior values were written back${kept}` } : failure;
   return {

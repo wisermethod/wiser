@@ -467,11 +467,11 @@ test('a contact create with a null company and a work email is left in place, na
   assert.equal(f.calls().some(({ method }) => method === 'DELETE'), false);
 });
 
-for (const rollbackFails of [false, true]) {
-  test(`an update that set a stage says a won-stage post or customer mark stays in place when the restore ${rollbackFails ? 'fails' : 'succeeds'}`, async (t) => {
+for (const [rollbackFails, stage] of [[false, 'won'], [true, 'won'], [false, 'closed_won']]) {
+  test(`an update that set a stage says a won-stage post or customer mark stays in place when the restore ${rollbackFails ? 'fails' : 'succeeds'} (stage ${stage})`, async (t) => {
     const f = await setup(t);
     const prior = { deal: { ...beforeDeal.deal, company_id: null } };
-    const body = { contact_id: sampleContact.contact.id, stage: 'won' };
+    const body = { contact_id: sampleContact.contact.id, stage };
     const updated = { deal: { ...prior.deal, ...body } };
     const precheck = getResult('contacts', sampleContact);
     const before = getResult('deals', prior);
@@ -490,7 +490,7 @@ for (const rollbackFails of [false, true]) {
     }
     f.reply(precheck, before, write, after, rollback);
     const result = await f.execute('records.update', { entity: 'deals', id: prior.deal.id, fields: body }, true);
-    const kept = '; a won-stage Slack post or customer mark, if one ran, stays in place';
+    const kept = '; a won-stage Slack post or customer mark, if one ran, stays in place, and writing back a won stage can post again';
     assert.deepEqual(result, {
       status: 'vendor_error', endpoint: after.endpoint, http_status: 404,
       ...(rollbackFails
