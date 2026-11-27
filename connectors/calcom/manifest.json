@@ -1442,6 +1442,11 @@
           "description": "Add an attendee to a booking. Add a new attendee to an existing booking by its UID. **Seated Events:** This endpoint does not support seated event bookings. For seated events, each attendee must be added by creating a new booking for the same event type and time slot via `POST /v2/bookings`. Attempting to add an attendee to a seated event booking will return a 400 error. **Side effects:** - The booking's attendee list is updated in the database - The calendar event is updated on connected calendars (Google Calendar, Outlook, etc.) to include the new attendee - An email notification is sent to the new attendee with the booking details **Permissions:** - The authenticated user must be either the booking organizer, an existing attendee, or have the `booking.update` permission for the team  If accessed using an OAuth access token, the `BOOKING_WRITE` scope is required. Cal.com validates input formats described on the fields.",
           "risk": "high",
           "confirmation": "always",
+          "standing_approval": {
+            "kind": "send",
+            "summary": "add an attendee to a booking",
+            "caution": "Cal.com emails the new attendee the booking details and updates the calendar event."
+          },
           "execution": {
             "prefer": "proxy"
           },
@@ -1562,6 +1567,11 @@
           "description": "Add guests to an existing booking. Add one or more guests to an existing booking. Maximum 10 guests per request, with a limit of 30 total guests per booking. **Contacts:** Pass `contactIds` or `contactTagIds` to add the authenticated user's own contacts by id, or every contact with one of their tags, instead of typing their emails. Typed guests, contacts and tagged contacts are combined once per email, ignoring case. A contact or tag the user doesn't own is a 400, and a tag that doesn't fit the booking is refused whole. **Rate Limiting:** This endpoint is rate limited to 5 requests per minute to prevent abuse. **Seated Events:** This endpoint does not support seated event bookings. For seated events, each guest must be added by creating a new booking for the same event type and time slot via `POST /v2/bookings`. Attempting to add guests to a seated event booking will return a 400 error. **Email Notifications:** When guests are added, the following notifications are sent (unless disabled by event type settings): - **Organizer & Team Members:** Receive an \"Add Guests\" notification email informing them that new guests have be... Cal.com validates input formats described on the fields.",
           "risk": "high",
           "confirmation": "always",
+          "standing_approval": {
+            "kind": "send",
+            "summary": "add guests to a booking",
+            "caution": "Recipients can come from typed email addresses, the account's contacts or contact tags. Cal.com can email new and existing guests, the organizer and team members. The grant cannot limit these recipient lists."
+          },
           "execution": {
             "prefer": "proxy"
           },

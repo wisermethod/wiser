@@ -2,8 +2,8 @@
 name: calcom
 type: connector
 category: communication
-description: Reads and manages bookings, availability, calendars, events, and related settings in personal Cal.com accounts through labelled connections, with confirmation on every write
-version: 0.1.4
+description: Reads and manages bookings, availability, calendars, events, and related settings in personal Cal.com accounts through labelled connections, confirming every write unless a standing approval covers adding booking guests or an attendee
+version: 0.1.5
 ---
 
 # Cal.com
@@ -30,14 +30,14 @@ Cal.com validates keys and values in open objects such as profile `metadata`, bo
 
 ## What it sends
 
-Every action below stops for confirmation every time, including actions that queue delivery or set up future delivery. Every other write also stops every time.
+A matching standing approval lets `calcom.bookings.add_guests` and `calcom.bookings.add_attendee` run without per-call confirmation. All other writes stop every time, including actions that queue delivery or set up future delivery.
 
 | Actions | Who or what they reach |
 |---|---|
 | `calcom.bookings.create`, `calcom.bookings.cancel`, `calcom.bookings.reschedule`, `calcom.bookings.confirm`, `calcom.bookings.decline`, `calcom.bookings.confirm_seats`, `calcom.bookings.decline_seats` | Cal.com can notify the host, attendees and invited guests, or the attendees in the selected seats. |
 | `calcom.bookings.request_reschedule` | Cancels the booking and emails the attendee a link to reschedule. |
 | `calcom.bookings.reassign`, `calcom.bookings.reassign_host` | Can notify the affected hosts and booking participants. The destination host is selected by Cal.com or identified by the caller. |
-| `calcom.bookings.add_attendee`, `calcom.bookings.add_guests` | An added attendee receives the booking details. Adding guests can notify the new guests, existing guests, organizer and team members according to event type settings. Recipients can come from explicit addresses, contacts or contact tags. |
+| `calcom.bookings.add_attendee`, `calcom.bookings.add_guests` | An added attendee receives the booking details and Cal.com updates the calendar event. Adding guests can notify the new guests, existing guests, organizer and team members according to event type settings. Recipients can come from typed email addresses, the account's contacts or contact tags. A standing approval cannot limit those lists. |
 | `calcom.bookings.update_location` | Emails attendees and, unless `notifyHosts` is false, hosts. It also updates the connected calendar event and can provision a conference link. |
 | `calcom.bookings.send_email_code`, `calcom.verified-resources.send_email_code`, `calcom.verified-resources.send_phone_code` | Sends a verification code to the supplied email address or phone number. |
 | `calcom.events.invite_guests`, `calcom.events.invite_co_host` | Emails the selected guests an invitation or the named co-host a link to accept. Guest recipients can come from supplied addresses, contacts, contact tags or confirmed guests of a prior Event. |
@@ -92,6 +92,8 @@ The gateway's provider holds the Cal.com API key for toolkit `CAL`. The connecto
 ## Modules
 
 A question mark marks an optional input. Cal.com can require an optional input for a specific variant. The action's description gives those requirements.
+
+The table shows each action's default confirmation. A matching standing approval covers the stop for `calcom.bookings.add_guests` or `calcom.bookings.add_attendee`.
 
 <!-- generated:modules -->
 

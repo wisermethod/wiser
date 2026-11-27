@@ -106,7 +106,7 @@ guide's `## Revoking` section carries the same working through, from `connectors
 
 | Connector | Description |
 |-----------|-------------|
-| `google/CONNECTOR.md` | Reads search performance, URL index state, sitemap details, analytics reports, Drive files, Calendar events, Gmail messages, spreadsheet values, documents, and presentations through eight separate grants, and creates, uploads, renames and moves Drive files, creates and edits documents, writes spreadsheet values, saves and sends Gmail messages with local file attachments and thread replies, and creates and updates events, confirming every write unless a standing approval covers sending a new Gmail message with no attachment |
+| `google/CONNECTOR.md` | Reads search performance, URL index state, sitemap details, analytics reports, Drive files, Calendar events, Gmail messages, spreadsheet values, documents, and presentations through eight separate grants, and creates, uploads, renames and moves Drive files, creates and edits documents, writes spreadsheet values, saves and sends Gmail messages with local file attachments and thread replies, and creates, updates and deletes Calendar events, confirming every write unless a standing approval covers creating or updating a Calendar event or sending a new Gmail message with no attachment |
 | `clarity/CONNECTOR.md` | Exports Clarity metrics for the last one, two, or three days |
 | `bing/CONNECTOR.md` | Reads Bing Webmaster Tools verified sites, search and page performance, crawl diagnostics, URL inspection, feeds, inbound links, and keyword research through one grant |
 
@@ -119,7 +119,7 @@ guide's `## Revoking` section carries the same working through, from `connectors
 | `linkedin/CONNECTOR.md` | Reads the connected profile and one post |
 | `x/CONNECTOR.md` | Reads the connected X account, one post and the account's own recent posts, and creates or deletes one post with confirmation |
 | `microsoft/CONNECTOR.md` | Reads Outlook messages, Calendar events, OneDrive files, SharePoint lists, Excel values, and joined teams through six separate grants |
-| `calcom/CONNECTOR.md` | Reads and manages bookings, availability, calendars, events, and related settings in personal Cal.com accounts through labelled connections, with confirmation on every write |
+| `calcom/CONNECTOR.md` | Reads and manages bookings, availability, calendars, events, and related settings in personal Cal.com accounts through labelled connections, confirming every write unless a standing approval covers adding booking guests or an attendee |
 
 ### Media
 

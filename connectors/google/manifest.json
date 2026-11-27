@@ -816,6 +816,37 @@
             "summary": "update Google Calendar events",
             "caution": "Calendar creates and updates may notify attendees. Both count as sending even when notifications are off, because approval kinds cannot depend on input."
           }
+        },
+        "delete_event": {
+          "description": "Delete one calendar event. Use a calendar the connected account owns and an event it organizes. Google removes the event for every attendee when the organizer deletes it. A recurring series ID removes the whole series. This connector cannot restore a deleted event. notify_guests defaults to false and sends sendUpdates=none. True sends sendUpdates=all to notify all guests of the cancellation. Google may send some emails even with sendUpdates=none. calendar_id refuses a dot, a double dot and any slash. Google returns 404 when it cannot find or expose the event and 410 when the event is already gone. Both return vendor_error.",
+          "risk": "destructive",
+          "confirmation": "always",
+          "execution": {
+            "prefer": "proxy"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "calendar_id": {
+                "type": "string",
+                "maxLength": 254,
+                "minLength": 1
+              },
+              "event_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}$"
+              },
+              "notify_guests": {
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "required": [
+              "calendar_id",
+              "event_id"
+            ],
+            "additionalProperties": false
+          }
         }
       },
       "unwrap_token": false,

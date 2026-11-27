@@ -20,6 +20,9 @@ const RANGE = 'Sheet1!A1:B2';
 const RANGE_PATH = 'Sheet1!A1%3AB2';
 
 const WRITE_MODULES = ['drive', 'docs', 'sheets', 'gmail', 'calendar'];
+const DELETE_EVENT = 'google.calendar.delete_event';
+const DELETE_INPUT = { calendar_id: 'owner@example.com', event_id: 'event-example' };
+const DELETE_ENDPOINT = 'https://www.googleapis.com/calendar/v3/calendars/owner%40example.com/events/event-example';
 
 const valid = {
   'google.drive.create_file': { name: 'Example', kind: 'document' },
@@ -37,6 +40,7 @@ const valid = {
   'google.calendar.update_event': {
     calendar_id: 'primary', event_id: 'event-example', summary: 'Example',
   },
+  [DELETE_EVENT]: DELETE_INPUT,
 };
 
 const mistyped = {
@@ -55,6 +59,7 @@ const mistyped = {
   'google.calendar.update_event': {
     calendar_id: 'primary', event_id: 'event-example', summary: 12345,
   },
+  [DELETE_EVENT]: { ...DELETE_INPUT, notify_guests: 'false' },
 };
 
 function moduleOf(action) {
@@ -582,6 +587,84 @@ test('calendar.update_event patches only the fields given', async () => {
   });
 });
 
+test('calendar.delete_event requires a grant before sending anything', async () => {
+  const { gw, fake } = await createTestGateway();
+  const requests = [];
+  fake.auth.proxy = async (request) => { requests.push(request); };
+  const result = await gw.execute({ action: DELETE_EVENT, input: DELETE_INPUT });
+  assert.equal(result.status, 'needs_connect');
+  assert.equal(requests.length, 0);
+});
+
+test('calendar.delete_event confirms each bodyless DELETE and maps guest notifications', async () => {
+  const { gw, requests } = await harness('calendar', () => ({ status: 204, data: null, headers: {} }));
+  for (const [options, updates] of [
+    [{}, 'none'],
+    [{ notify_guests: false }, 'none'],
+    [{ notify_guests: true }, 'all'],
+  ]) {
+    const before = requests.length;
+    const { stop, result } = await confirmed(gw, requests, DELETE_EVENT, { ...DELETE_INPUT, ...options });
+    assert.equal(stop.risk, 'destructive');
+    assert.deepEqual(result, { deleted: true });
+    assert.equal(requests.length, before + 1);
+    const request = requests[before];
+    assert.equal(request.method, 'DELETE');
+    assert.equal(request.endpoint, `${DELETE_ENDPOINT}?sendUpdates=${updates}`);
+    assert.equal(request.body, undefined);
+  }
+});
+
+test('calendar.delete_event refuses a malformed event id before confirmation or transport', async () => {
+  const { gw, requests } = await harness('calendar');
+  const result = await gw.execute({ action: DELETE_EVENT, input: { ...DELETE_INPUT, event_id: 'event/other' } });
+  assert.equal(result.status, 'invalid_arguments');
+  assert.equal(result.field, 'event_id');
+  assert.equal(requests.length, 0);
+});
+
+for (const [name, answer, http] of [
+  ['an error body', { status: 200, data: { error: { code: 404, message: 'Not Found', status: 'NOT_FOUND' } } }, 404],
+  ['a status_code', { status: 200, data: { status_code: 410 } }, 410],
+  ['a nested status and error', { status: 200, data: { status: 404, data: { error: { code: 404, message: 'Not Found' } } } }, 404],
+  ['a failed inner flag', { status: 200, data: { successful: false } }, 400],
+  ['an unclassified 404', { status: 404, data: { error: { code: 404 } } }, 404],
+]) {
+  test(`calendar.delete_event never reports deleted for a success envelope carrying ${name}`, async () => {
+    const { gw, requests } = await harness('calendar', () => ({ ...answer, headers: {} }));
+    const { result } = await confirmed(gw, requests, DELETE_EVENT, DELETE_INPUT);
+    assert.deepEqual(result, {
+      status: 'vendor_error',
+      http_status: http,
+      endpoint: `${DELETE_ENDPOINT}?sendUpdates=none`,
+      method: 'DELETE',
+    });
+    assert.equal(requests.length, 1);
+  });
+}
+
+test('calendar.delete_event reports deleted for a 204 whose resolved body is an empty envelope', async () => {
+  const { gw, requests } = await harness('calendar', () => ({ status: 204, data: { status: 204, data: null, successful: true }, headers: {} }));
+  const { result } = await confirmed(gw, requests, DELETE_EVENT, DELETE_INPUT);
+  assert.deepEqual(result, { deleted: true });
+});
+
+for (const status of [404, 410]) {
+  test(`calendar.delete_event preserves Google HTTP ${status} as a vendor refusal`, async () => {
+    const { gw, requests } = await harness('calendar', (request) => ({
+      status, error: { code: 'vendor_error', endpoint: request.endpoint, method: request.method },
+    }));
+    const { result } = await confirmed(gw, requests, DELETE_EVENT, DELETE_INPUT);
+    assert.deepEqual(result, {
+      status: 'vendor_error',
+      http_status: status,
+      endpoint: `${DELETE_ENDPOINT}?sendUpdates=none`,
+      method: 'DELETE',
+    });
+    assert.equal(requests.length, 1);
+  });
+}
+
 test('calendar leaves end-after-start to Google and sends the span as given', async () => {
   const { gw, requests } = await harness('calendar');
   // Google refuses an empty or reversed span; the module does not compare the two.
@@ -937,6 +1020,7 @@ test('module rules refuse before any proxy call', async () => {
     [gmail, 'google.gmail.create_draft', {
       to: ['a@b@example.com'], subject: 'Hello', body: 'Draft',
     }, 'to'],
+    [calendar, DELETE_EVENT, { ...DELETE_INPUT, calendar_id: '..' }, 'calendar_id'],
     [calendar, 'google.calendar.create_event', {
       calendar_id: '.', summary: 'Example', start: '2026-09-20', end: '2026-09-21',
     }, 'calendar_id'],

@@ -999,6 +999,52 @@ async function update_event(input, ctx) {
   return meet ? eventWithGoogleMeet(event) : event;
 }
 
+async function delete_event(input, ctx) {
+  const calendar = calendarIdError(input.calendar_id);
+  if (calendar) return calendar;
+  const updates = sendUpdates(input);
+  if (isStatusObject(updates)) return updates;
+  const query = new URLSearchParams();
+  query.set('sendUpdates', updates);
+  const endpoint = `${CALENDAR}/calendars/${encodeURIComponent(input.calendar_id)}/events/${encodeURIComponent(input.event_id)}?${query}`;
+  const result = await ctx.proxy({ endpoint, method: 'DELETE' });
+  if (isStatusObject(result)) return result;
+  // A delete answers with no body, so nothing in the answer proves it happened except the
+  // absence of a refusal. The provider classifies a refusal it recognises before this runs;
+  // one it passes through as a success envelope is caught here, so it is never reported deleted.
+  const refused = deleteRefusalStatus(result);
+  if (refused !== null) return { status: 'vendor_error', http_status: refused, endpoint, method: 'DELETE' };
+  if (result?.status >= 200 && result.status < 300) return { deleted: true };
+  return {
+    status: 'vendor_error',
+    reason: 'unexpected_response',
+    http_status: Number.isFinite(Number(result?.status)) ? Number(result.status) : 502,
+    endpoint,
+    method: 'DELETE',
+  };
+}
+
+// The HTTP status of a refusal carried inside a proxy answer, looked for on the answer, its
+// body and one level under that; null when none of the three carries one.
+function deleteRefusalStatus(result) {
+  const top = Number(result?.status);
+  if (Number.isFinite(top) && top >= 400) return top;
+  const body = result?.data;
+  for (const part of [body, body && typeof body === 'object' ? body.data : undefined]) {
+    if (!part || typeof part !== 'object' || Array.isArray(part)) continue;
+    for (const key of ['status_code', 'status']) {
+      const n = Number(part[key]);
+      if (Number.isFinite(n) && n >= 400) return n;
+    }
+    if (part.error) {
+      const code = Number(part.error?.code);
+      return Number.isFinite(code) && code >= 400 ? code : 400;
+    }
+    if (part.success === false || part.successful === false) return 400;
+  }
+  return null;
+}
+
 // A lone surrogate is a JavaScript string that is not Unicode: UTF-8 encoding replaces it
 // with U+FFFD, so what Google saved would differ from what the person approved. Every write
 // refuses one, anywhere in its input, naming the top-level field that holds it.
@@ -1046,6 +1092,7 @@ export const modules = {
     get_event: catalogWith({ calendar_id: 'calendarId', event_id: 'eventId' }),
     create_event: wellFormed(create_event),
     update_event: wellFormed(update_event),
+    delete_event: wellFormed(delete_event),
   },
   'gmail': {
     list_messages: viaCatalog,
