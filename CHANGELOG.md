@@ -4,6 +4,11 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.27, November 27, 2026
+
+- The Google connector 0.10.0 can delete a calendar event. `google.calendar.delete_event` removes one event for every attendee, asks first every time, and can never be pre-approved. An answer from Google that carries a refusal is reported as a refusal, never as deleted. (63d94cb3)
+- The Cal.com connector 0.1.5 lets you pre-approve two actions, adding guests and adding an attendee to a booking, after the usual warning. Every other Cal.com action still asks each time. (63d94cb3)
+
 ## v2026.11.25, November 25, 2026
 
 - A new connector, Wiser CRM 0.2.0, reaches your own Wiser CRM, each install at its own address. You connect each install under a short name you choose, and enter the agent's Access service token as two fields, its Client ID and its Client Secret. The address comes from a file only you write, `installs.json` in the gateway's folder on your computer, never from the conversation, and the page where you enter the token shows that address first. It reads contacts, companies and deals, one record at a time or a lookup by email or domain, the pipeline's stages and the custom fields, the activities on a record, the install's People list, and which install answered. It creates and updates records, imports up to 500 contacts at a time, and logs a note, call, email or meeting, each only after you approve it. Before any write, Wiser reads which install answered and checks it against the name you connected it under. It works through the gateway on your computer; the Wiser endpoint follows. (1f32c5ef, 4eeb0650, 1866c698, 043e177b, 4b5014cb, e01eda50, b45fd53a)
