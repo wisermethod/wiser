@@ -4,6 +4,13 @@ What changed in this plugin that a member would notice, newest first. Each relea
 
 Changes before September 27, 2026 are in the commit history only.
 
+## v2026.11.28, November 28, 2026
+
+- The local gateway connects only the services you list for it. A new connection there answers that it is made on the Wiser endpoint, unless your own `policy.json` lists the service, or one of its parts, under `local_connect`. A connector whose key is a file on your computer needs no listing, and connections you already have keep working. (a401cfb0, 8aec65c1, b649c7ef)
+- The Wiser CRM connector 0.2.1's guide names the Wiser endpoint as its default route: an install's address is saved on your Wiser account page, and the local gateway is used only when you ask for it. The guide no longer says the connector runs only on the local gateway, which stopped being true with 0.2.0. (b649c7ef, 7925e575)
+- Connect Account 0.8.5 sends a missing install address on the Wiser endpoint to your account page, never to a file on your computer, and a local gateway's refusal back to the endpoint unless you asked for the local gateway for that service. Connection Troubleshooter 0.5.11 and Set Up Connectors 0.5.4 say the same. (b649c7ef, 7925e575)
+- A host that keeps install addresses itself can say where one is added, so its refusals stop naming `installs.json`; the Wiser endpoint does this from its next update. (a401cfb0)
+
 ## v2026.11.27, November 27, 2026
 
 - The Google connector 0.10.0 can delete a calendar event. `google.calendar.delete_event` removes one event for every attendee, asks first every time, and can never be pre-approved. An answer from Google that carries a refusal is reported as a refusal, never as deleted. (63d94cb3)
