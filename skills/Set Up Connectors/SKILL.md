@@ -3,7 +3,7 @@ name: Set Up Connectors
 type: skill
 category: system
 description: Lead this app to the Wiser endpoint and its sign-in, or on request attach the local gateway in a command-line harness with its project key, naming the one step the state in front of it needs, and, on the ask set up connectors (also setup connectors, enable connectors or install connectors), do so for a new app, harness, machine or OS user
-version: 0.5.3
+version: 0.5.4
 ---
 
 # Set Up Connectors
@@ -71,7 +71,7 @@ A steward of how this app reaches Wiser's connectors, who prefers the endpoint a
    - Tools still missing: attach has not reached this session. Name reload.
    - `needs_provider`: **read the answer's own `setup` field first and give the person what it says.** The gateway puts the installed provider's `setupText()` there verbatim, so it is that provider's own words about that provider, and the paths below are the shipped one's. Reciting them over a different adapter's answer fails silently, because they are plausible and nobody can tell. Where the field is absent or empty, fall back to naming the instituted file from SETUP.md's OS table: macOS `~/Library/Application Support/wiser/auth-provider.env`; Linux `$XDG_CONFIG_HOME/wiser/auth-provider.env` or `~/.config/wiser/auth-provider.env` if unset; Windows `%APPDATA%\wiser\auth-provider.env`. If they already named a non-default `--env` file, name that file instead. Either way: tell them to paste the project key after `WISER_AUTH_PROVIDER_KEY=`, and to copy `WISER_USER_ID=` from an existing machine or leave it empty on a first machine. `WISER_CLASSIFIER_KEY=` is optional: leave it empty, or paste a classifier key when they have one. An empty line does not block this turn. Save and restart. First attach creates the empty file `gateway/SETUP.md` section 3 shows; they do not `mkdir`. Never ask for the project key, the user id, or the classifier key in chat. **The `setup` field is the short form**; how to mint the key is the long form and lives only in `gateway/providers/<name>/SETUP.md` for the `"auth"` value in `gateway/providers/default.json`.
    - Any other `status`: Connection Troubleshooter.
-   - Otherwise the key is set. `list_connections` hydrates ACTIVE grants this user id already has at the provider. Follow step 5's branches for the list.
+   - Otherwise the key is set. `list_connections` hydrates ACTIVE grants this user id already has at the provider. Follow step 5's branches for the list. The local gateway connects only the services the person lists under `local_connect` in their own `policy.json` (`gateway/SETUP.md` section 7): name that line for each service they asked to run locally, and they write it; never write it for them, and never list a service they did not ask for.
 10. Do not walk every shipped module. Do not live-delete, create a ruleset, import a zone, run billed Vision or Replicate, create a Vercel deployment, or run `github.issues.create`.
 
 ## Pitfalls

@@ -3,7 +3,7 @@ name: wiser-crm
 type: connector
 category: crm
 description: Reads, creates and updates records, imports contacts, logs and reads activities, and reads pipeline stages, custom fields, install identity and people in labelled Wiser CRM installs, confirming each write unless a standing approval covers a create, update or activity log
-version: 0.2.0
+version: 0.2.1
 ---
 
 # Wiser CRM

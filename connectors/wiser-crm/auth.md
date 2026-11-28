@@ -1,19 +1,27 @@
 # Connecting Wiser CRM
 
-The Connect Account skill walks these steps for the local gateway.
+The Connect Account skill walks these steps.
 
-## In Cloudflare and the gateway home
+## Which route
 
-1. Create a Cloudflare Access service token for the CRM agent and make sure the CRM's Access application admits it. Keep both values, Client ID and Client Secret, for the hosted connect page.
-2. In the local gateway home (`~/.wiser/gateway/` by default), add the labelled HTTPS origin to `installs.json`. Use a label that matches the CRM instance name. Add more entries under `wiser-crm` for more installs.
+- **The Wiser endpoint**, the default, for an account the service has opened Wiser CRM to. The install's address is saved on your Wiser account page, never on this computer: on Connections, under Wiser CRM, type a label equal to the install's instance name and the CRM's address. Then connect, there or through the gateway below. Skip **On the local gateway only**. An account the service has not opened it to is told "This connector is not offered on the hosted endpoint. It works through the local gateway."
+- **The local gateway**, only when you ask for it by name, in a command-line harness, with `wiser-crm` listed under `local_connect` in your own `policy.json` ([gateway/SETUP.md](../../gateway/SETUP.md) section 7). The address goes in `installs.json`, under **On the local gateway only**.
 
-   ```json
-   {
-     "wiser-crm": {
-       "<label>": "https://<your CRM address>"
-     }
-   }
-   ```
+## In Cloudflare
+
+Create a Cloudflare Access service token for the CRM agent and make sure the CRM's Access application admits it. Keep both values, Client ID and Client Secret, for the connect page.
+
+## On the local gateway only
+
+In the local gateway home (`~/.wiser/gateway/` by default), add the labelled HTTPS origin to `installs.json`. Use a label that matches the CRM instance name. Add more entries under `wiser-crm` for more installs.
+
+```json
+{
+  "wiser-crm": {
+    "<label>": "https://<your CRM address>"
+  }
+}
+```
 
 ## Through the gateway
 
@@ -22,11 +30,9 @@ The Connect Account skill walks these steps for the local gateway.
 3. Open the link in your browser. The provider's page asks for **Client ID** and **Client Secret** from the Cloudflare Access service token made for the agent. Enter them only if `install_origin` is your CRM's address. Keep the two values out of the conversation.
 4. The skill calls `connect_status` with the same label. When the connection is `ACTIVE`, all three modules share it. Read `wiser-crm.records.instance` under the label to verify the CRM identity and the agent caller.
 
+If `start_connect` answers `install_address_missing`, the address for that label is not saved where this route reads it. On the Wiser endpoint the answer names your account page: save the label and address there, then connect again. On the local gateway it names `installs.json`.
+
 The member's CRM Worker handles each request. The gateway provider's proxy rate limits apply.
-
-## Only on the local gateway
-
-The entire `wiser-crm` connector runs on the local gateway because the Wiser endpoint has no per-install route yet.
 
 ## Renewing
 
