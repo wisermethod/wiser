@@ -30,7 +30,7 @@ In the local gateway home (`~/.wiser/gateway/` by default), add the labelled HTT
 3. Open the link in your browser. The provider's page asks for **Client ID** and **Client Secret** from the Cloudflare Access service token made for the agent. Enter them only if `install_origin` is your CRM's address. Keep the two values out of the conversation.
 4. The skill calls `connect_status` with the same label. When the connection is `ACTIVE`, all three modules share it. Read `wiser-crm.records.instance` under the label to verify the CRM identity and the agent caller.
 
-If `start_connect` answers `install_address_missing`, the address for that label is not saved where this route reads it. On the Wiser endpoint the answer names your account page: save the label and address there, then connect again. On the local gateway it names `installs.json`.
+If `start_connect` answers `install_address_missing`, the address for that label is not saved where this route reads it. On the Wiser endpoint that is your account page, whatever else the answer names: save the label and address there, then connect again. On the local gateway it is `installs.json`.
 
 The member's CRM Worker handles each request. The gateway provider's proxy rate limits apply.
 
