@@ -233,7 +233,7 @@ export async function startConnect(gateway, { service, module, label } = {}) {
           reason: 'hosted_route',
           service,
           module,
-          message: `This local gateway does not make this connection. ${service} is connected on the Wiser endpoint, the server that also offers whoami: call start_connect there. The local gateway connects a service only after the person lists it under local_connect in their own policy.json, which is for when they asked for the local gateway by name, or when the Wiser endpoint answered needs_provider_capability or local_only for it. Only the person writes that file.`,
+          message: `This local gateway does not make this connection. Connect ${service} on the Wiser endpoint, the server that also offers whoami, by calling start_connect there. The local gateway connects a service only after the person lists it under local_connect in their own policy.json, which is for when they asked for the local gateway by name, or when the Wiser endpoint answered needs_provider_capability or local_only for it. Only the person writes that file.`,
         });
       }
     }

@@ -17,7 +17,7 @@ function hostedRoute({ service, module }) {
     reason: 'hosted_route',
     service,
     module,
-    message: `This local gateway does not make this connection. ${service} is connected on the Wiser endpoint, the server that also offers whoami: call start_connect there. The local gateway connects a service only after the person lists it under local_connect in their own policy.json, which is for when they asked for the local gateway by name, or when the Wiser endpoint answered needs_provider_capability or local_only for it. Only the person writes that file.`,
+    message: `This local gateway does not make this connection. Connect ${service} on the Wiser endpoint, the server that also offers whoami, by calling start_connect there. The local gateway connects a service only after the person lists it under local_connect in their own policy.json, which is for when they asked for the local gateway by name, or when the Wiser endpoint answered needs_provider_capability or local_only for it. Only the person writes that file.`,
   };
 }
 
@@ -131,6 +131,19 @@ test('a policy.json overlay replaces rules and preserves local_connect', async (
   const { start, initiate } = await fixture(t, { home, hostedFirst: true, policy });
   assert.deepEqual(await start(), LINK);
   assert.equal(initiate.mock.callCount(), 1);
+});
+
+test('a policy.json overlay without rules keeps the default rules and its local_connect', async (t) => {
+  const home = temporaryHome(t);
+  const local_connect = ['github'];
+  writeFileSync(join(home, 'policy.json'), JSON.stringify({ local_connect }));
+  const policy = loadPolicy({ home, defaultPath: DEFAULT_POLICY });
+  assert.deepEqual(policy.rules, loadPolicy({ defaultPath: DEFAULT_POLICY }).rules);
+  assert.deepEqual(policy.local_connect, local_connect);
+  const { start, initiate } = await fixture(t, { home, hostedFirst: true, policy });
+  assert.deepEqual(await start(), LINK);
+  assert.equal(initiate.mock.callCount(), 1);
+  assert.deepEqual(await start({ service: 'cloudflare', module: 'zones' }), hostedRoute({ service: 'cloudflare', module: 'zones' }));
 });
 
 test('the local stdio server enables hosted-first', (t) => {
