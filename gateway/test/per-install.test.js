@@ -67,9 +67,10 @@ test('invalid origins are refused without echoing the address or reaching the pr
   for (const origin of invalid) {
     addresses({ alpha: origin });
     const result = await start();
-    assert.equal(result.status, 'invalid_arguments', origin);
-    assert.equal(result.field, 'label', origin);
-    assert.equal(result.reason, 'install_address_invalid', origin);
+    assert.deepEqual(result, {
+      status: 'invalid_arguments', tool: 'start_connect', field: 'label',
+      label: 'alpha', reason: 'install_address_invalid', file: 'installs.json',
+    }, origin);
     assert.equal(JSON.stringify(result).includes(origin), false, origin);
   }
   writeFileSync(installs, '{ invalid JSON');
@@ -108,13 +109,82 @@ test('a hosted resolver can supply the address and is read only on start_connect
   assert.deepEqual(calls, [[SERVICE, 'alpha']]);
 });
 
+test('a host hint replaces the local filename on every install address refusal', async (t) => {
+  const hint = {
+    where: 'Wiser account settings',
+    url: 'https://account.example.test/installs',
+    message: 'Update this label in your account.',
+  };
+  const calls = [];
+  let address;
+  const { fake, start, initiation } = await fixture(t, {
+    installOrigin: () => address,
+    installAddressHint: (...args) => {
+      calls.push(args);
+      return { ...hint, extra: 'ignored', file: 'ignored', status: 'ignored' };
+    },
+  });
+  const refusal = (reason) => ({
+    status: 'invalid_arguments', tool: 'start_connect', field: 'label', label: 'alpha', reason, ...hint,
+  });
+
+  assert.deepEqual(await start(), refusal('install_address_missing'));
+  address = 'http://crm.example.test';
+  assert.deepEqual(await start(), refusal('install_address_invalid'));
+  address = ORIGIN;
+  assert.equal((await start()).status, 'link');
+  address = OTHER_ORIGIN;
+  assert.deepEqual(await start('alpha', 'activities'), refusal('install_address_changed'));
+  assert.equal(initiation.mock.callCount(), 1);
+
+  fake.auth.initiate = async () => ({ error: { code: 'install_address_changed' } });
+  address = ORIGIN;
+  assert.deepEqual(await start(), refusal('install_address_changed'));
+  assert.deepEqual(calls, [
+    [SERVICE, 'alpha', 'install_address_missing'],
+    [SERVICE, 'alpha', 'install_address_invalid'],
+    [SERVICE, 'alpha', 'install_address_changed'],
+    [SERVICE, 'alpha', 'install_address_changed'],
+  ]);
+});
+
+test('a throwing or invalid host hint leaves only the install address refusal', async (t) => {
+  const { start, gw } = await fixture(t, { installOrigin: () => undefined });
+  for (const installAddressHint of [
+    () => { throw new Error('fixture failure'); },
+    () => 'account settings',
+    () => Object.assign([], { where: 'ignored' }),
+    () => Object.create({ where: 'ignored' }),
+  ]) {
+    gw.installAddressHint = installAddressHint;
+    assert.deepEqual(await start(), {
+      status: 'invalid_arguments', tool: 'start_connect', field: 'label',
+      label: 'alpha', reason: 'install_address_missing',
+    });
+  }
+});
+
+test('a host hint adds only string values from its allowed fields', async (t) => {
+  const { start } = await fixture(t, {
+    installOrigin: () => { throw new Error('fixture failure'); },
+    installAddressHint: () => ({ where: 'Account settings', url: false, message: null }),
+  });
+  assert.deepEqual(await start(), {
+    status: 'invalid_arguments', tool: 'start_connect', field: 'label',
+    label: 'alpha', reason: 'install_address_invalid', where: 'Account settings',
+  });
+});
+
 test('an INITIATED row blocks re-pointing the label from any sibling module', async (t) => {
   const { addresses, start, initiation, store } = await fixture(t);
   addresses({ alpha: ORIGIN });
   assert.equal((await start()).status, 'link');
   const before = store.listConnections();
   addresses({ alpha: OTHER_ORIGIN });
-  assert.equal((await start('alpha', 'activities')).reason, 'install_address_changed');
+  assert.deepEqual(await start('alpha', 'activities'), {
+    status: 'invalid_arguments', tool: 'start_connect', field: 'label',
+    label: 'alpha', reason: 'install_address_changed', file: 'installs.json',
+  });
   assert.equal(initiation.mock.callCount(), 1);
   assert.deepEqual(store.listConnections(), before);
 });

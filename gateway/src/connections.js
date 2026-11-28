@@ -224,6 +224,19 @@ export async function startConnect(gateway, { service, module, label } = {}) {
     if (decision.effect === 'deny') {
       return statusObject(STATUS.DENIED, { rule: decision.rule });
     }
+    if (gateway.hostedFirst === true && found.auth.provider !== 'local-file') {
+      const listed = gateway.policy?.local_connect;
+      const moduleId = `${service}.${module}`;
+      if (!Array.isArray(listed) || !listed.some((entry) =>
+        typeof entry === 'string' && (entry === service || entry === moduleId))) {
+        return statusObject(STATUS.DENIED, {
+          reason: 'hosted_route',
+          service,
+          module,
+          message: `This local gateway does not make this connection. ${service} is connected on the Wiser endpoint, the server that also offers whoami: call start_connect there. The local gateway connects a service only after the person lists it under local_connect in their own policy.json, which is for when they asked for the local gateway by name, or when the Wiser endpoint answered needs_provider_capability or local_only for it. Only the person writes that file.`,
+        });
+      }
+    }
 
     const connect = (install) => initiateConnection(gateway, found, line, { service, module, label, install });
     if (!found.auth.per_install) return connect();
@@ -236,11 +249,11 @@ export async function startConnect(gateway, { service, module, label } = {}) {
       try {
         value = await gateway.installOrigin(service, label);
       } catch {
-        return installAddressError(label, 'install_address_invalid');
+        return installAddressError(gateway, service, label, 'install_address_invalid');
       }
-      if (value === undefined) return installAddressError(label, 'install_address_missing');
+      if (value === undefined) return installAddressError(gateway, service, label, 'install_address_missing');
       const origin = canonicalInstallOrigin(value);
-      if (!origin) return installAddressError(label, 'install_address_invalid');
+      if (!origin) return installAddressError(gateway, service, label, 'install_address_invalid');
       const toolkit = installToolkitSlug(origin);
       const { connector } = found;
       const existing = gateway.store.listConnections().filter((row) =>
@@ -248,7 +261,7 @@ export async function startConnect(gateway, { service, module, label } = {}) {
         (row.toolkit !== undefined || connector.manifest.modules[row.module]?.auth.per_install));
       // A status refresh can make a grant inactive without releasing its label.
       if (existing.some((row) => row.toolkit !== toolkit)) {
-        return installAddressError(label, 'install_address_changed');
+        return installAddressError(gateway, service, label, 'install_address_changed');
       }
       // Labels can share a toolkit. Let a later label see the toolkit and auth
       // config created by the first one before issuing its own provider reads.
@@ -271,8 +284,25 @@ async function serializeInstallConnect(parts, connect) {
   }
 }
 
-function installAddressError(label, reason) {
-  return statusObject(STATUS.INVALID_ARGUMENTS, { tool: 'start_connect', field: 'label', label, reason, file: INSTALLS_FILE });
+function installAddressError(gateway, service, label, reason) {
+  const result = statusObject(STATUS.INVALID_ARGUMENTS, { tool: 'start_connect', field: 'label', label, reason });
+  if (gateway.installAddressHint === null) return { ...result, file: INSTALLS_FILE };
+
+  try {
+    const hint = gateway.installAddressHint(service, label, reason);
+    if (!hint || typeof hint !== 'object' || Array.isArray(hint)) return result;
+    const prototype = Object.getPrototypeOf(hint);
+    if (prototype !== Object.prototype && prototype !== null) return result;
+
+    const fields = {};
+    for (const key of ['where', 'url', 'message']) {
+      const value = Object.hasOwn(hint, key) ? hint[key] : undefined;
+      if (typeof value === 'string') fields[key] = value;
+    }
+    return { ...result, ...fields };
+  } catch {
+    return result;
+  }
 }
 
 async function initiateConnection(gateway, found, line, { service, module, label, install }) {
@@ -300,7 +330,7 @@ async function initiateConnection(gateway, found, line, { service, module, label
   });
 
   if (install && initiated?.error?.code === 'install_address_changed') {
-    return installAddressError(label, 'install_address_changed');
+    return installAddressError(gateway, service, label, 'install_address_changed');
   }
   if (initiated && initiated.error && initiated.error.code === 'vendor_error') {
     const mapped = vendorErrorFrom(initiated);

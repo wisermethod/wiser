@@ -588,6 +588,8 @@ export async function createTestGateway(options = {}) {
   const gw = new ConnectionGateway({
     home,
     installOrigin: options.installOrigin,
+    installAddressHint: options.installAddressHint,
+    hostedFirst: options.hostedFirst,
     ...(options.outputsDir === undefined ? {} : { outputsDir: options.outputsDir }),
     ...(options.inputFileAccess === undefined ? {} : { inputFileAccess: options.inputFileAccess }),
     role: options.role || 'runtime',

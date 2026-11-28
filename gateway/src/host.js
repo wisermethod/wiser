@@ -19,6 +19,8 @@ export function initializeHost(gateway, opts) {
   initializeCatalog(gateway);
   gateway.home = opts.home;
   gateway.installOrigin = opts.installOrigin ?? createInstallOriginResolver(opts.home);
+  gateway.installAddressHint = opts.installAddressHint ?? null;
+  gateway.hostedFirst = opts.hostedFirst ?? false;
   if (opts.outputsDir != null && (typeof opts.outputsDir !== 'string' || !isAbsolute(opts.outputsDir))) {
     throw new TypeError('outputsDir must be an absolute path');
   }

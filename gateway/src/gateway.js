@@ -22,6 +22,8 @@ export { PENDING_CONFIRMATION_TTL_MS, PENDING_CONFIRMATION_MAX, canonicalJson, c
 export class ConnectionGateway {
   /**
    * @param {object} opts
+   * @param {boolean} [opts.hostedFirst=false] Require an explicit local listing for provider connections.
+   * @param {(service: string, label: string, reason: string) => object} [opts.installAddressHint] Where the host manages install addresses.
    */
   constructor(opts) {
     safety.initializeSafety(this);
